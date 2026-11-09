@@ -2411,6 +2411,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - The follow-ups sit in B.5.3, B.5.4 and B.5.5 below. CI has
           not run; the arm's cell prints its fingerprint and asserts no
           value.
+        - Decided 2026-11-09 (maintainer, taking the review's
+          positions): no engine change now; research amendment 2
+          before M1; B.5.3 then measures and its games choose any
+          repair; D.1's clock test inside an iteration is not pulled
+          forward. No new leaf: each follow-up sits in the leaf that
+          owns it (B.5.3, B.5.4, B.5.5, D.1 and D.2).
     - [ ] **B.5.3** `[V]` Diagnostics, M1 and the unfitted paired run
       The packet's zero-game screens on both arms (BAS-S53), M1's
       replay on the arm (BAS-R10) deciding the fail-high stop's
@@ -2423,44 +2429,73 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         read by games. It sets the width the categoricals are read
         at and where B.5.4's SPSA starts; it moves no default.
         Agreed by the maintainer 2026-11-09.
-      - Owed at the opening, from B.5.2's review (packet *Review —
-        B.5.2 accepted with named follow-ups*, §9):
-        - Research amendment 2, before M1 and before any long-clock
-          read. The stop's rule gates each of its options on a battery
-          under 0.5× the maximum, and the arm fails it at every stop
-          setting, so as registered M1 has no admissible option on the
-          arm. P8's 1 to 6% is contradicted at 25.1%. Nothing
-          registered reads a long clock before the flip. The review's
-          position: the widened battery as a BAS-S53 screen on both
-          arms and at `B5NegExtMax` 1, time per move by score band in
-          the direction run, and a long-clock condition on the flip;
-          D.1's in-iteration clock test is not pulled forward. The
-          amendment's prompt is
-          `tools/results/b5-20261109/review/fable_amend2_prompt.md`.
-        - The whole-arm paired run at `3+0.03` does not wait on it.
+      - Research amendment 2, 2026-11-09 (packet *Research amendment
+        2*; its two calibration reads registered before they ran),
+        answers B.5.2's review. No engine source changes. Its §A2.5
+        binds this leaf:
+        - M1's battery gate is differential. A stop option passes when
+          it reads no more than 2 searches over half the maximum and
+          10% of spend above the stop at 1× on the same tree; a search
+          over the bound at 1× is the hole's and gates no option. The
+          hole is any root search ending after twice the optimum
+          without the stop firing, split by whether it began before
+          the optimum, read on both arms by score band.
+        - Before M1, a battery screen (`tools/diag/won_battery.py`,
+          promoted from the review's script, with a self-test): 120
+          decided endings and 60 positions better by 300 to 1,500, all
+          unseen, and the packet's six, at `60000+600` and `10000+100`,
+          on both arms, at the stop's three settings, at `B5NegExtMax`
+          1 and at `B5AspBase` 19000. It gives M1 its gate and the
+          packet's §9 item 1 a zero-game read; it moves no default.
+        - A games census (`tools/diag/pgn_time_census.py`) on every
+          paired PGN: time a move by score band, and the games a side
+          had in hand and did not win. M1's replays also report root
+          best-move changes and the effort shares on both arms.
+        - Why no repair now: on the head and its base a side whose own
+          score reached 1,500 won all 2,260 such games at both clocks
+          (4 of 2,353 not won at 800), so the arm's extra clock in
+          decided endings is waste and not lost points, on the
+          evidence. No stop setting moves the arm's long searches (the
+          same four of 60 at 0, 100 and 200).
+        - Order: the tools and the two entries; the node-budget
+          screens; the battery screen on a quiet host; M1; the NPS
+          read; the whole-arm paired run, which does not wait on M1;
+          the width run; the categoricals.
         - Calibration owed in the entries: P4's re-search share, P8's
-          firing rate and P11's low-effort share.
+          firing rate and P11's low-effort share. A6 to A13 are frozen
+          in the packet's §A2.6.
     - [ ] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep on the three window seeds and the
       Cluster 1 to 3 coordinates §5.8 pulls onto the surface, then
       SPSA in blocks (BAS-S54); the fitted-constant analysis precedes
       the bake into `BASILISK_B5_CORE_DEFAULTS`.
-      - Owed at the opening, from B.5.2's review (§9): `B5AspBase`'s
-        generated SPSA step (`c_end` 1,137) exceeds the seed's distance
-        to its lower bound (910), so the low perturbation clamps; and
-        `cont_hist_pruned`'s −51.6% is a few decided positions, so the
-        packet's §5.8 joiner rule is read by the median position before
-        `cont_hist_prune_slope` joins the surface.
+      - From research amendment 2 (packet §A2.5): `B5AspBase`'s SPSA
+        step is the smaller of the generator's and half the start value
+        (705 at the seed; the generated 2,469 exceeds the seed's
+        distance to its lower bound and clamps), and the generator
+        takes the rule with a test. The packet's §5.8 joiner rule is
+        read by the median position with the total beside it:
+        `cont_hist_pruned`'s −51.6% is a few decided positions.
     - [ ] **B.5.5** `[V]` Cluster 4 gates
       SPRT `[0,3]` for the cluster, and each categorical and
       attribution arm at the bounds the packet registers (BAS-S55);
       then the flip, the OFF arm deleted and the fingerprint record
       moved.
-      - From B.5.2's review (§8, §9): the flip carries the long-clock
-        condition research amendment 2 registers. At the pull request
-        the arm's printed fingerprint is read, since its CI cell
-        asserts no value; the counter-reading tests run in no CI cell;
-        `CHANGELOG.md` owes a line for the ply cap's repair.
+      - From B.5.2's review and research amendment 2 (packet §A2.5):
+        the flip carries a long-clock condition read from games. On
+        (d)'s 2,000 games at `10+0.1`, by the games census, it fails
+        when the arm's games decided at 300 and not won exceed the OFF
+        arm's by more than the larger of 6 and three times the square
+        root of the OFF arm's count. A 400-game run at `60+0.6`, (e),
+        is played only on a trigger (the battery's undecided stratum,
+        or the arm's won-band long thinks at 1.5 times the OFF arm's)
+        and with the maintainer's agreement at this leaf's opening. A
+        failed condition holds the flip: first `B5NegExtMax` 1, if its
+        paired run did not reject it, then the hole's repair pulled
+        from D.1.
+      - At the pull request the arm's printed fingerprint is read,
+        since its CI cell asserts no value; the counter-reading tests
+        run in no CI cell.
 - [ ] **B.6** Donor-form reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live;
   registered surface; PGO bake; SPRT `[0,3]`. It runs (maintainer
@@ -3129,7 +3164,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.3 | RESEARCH | V | The next action: B.5.2 closed 2026-11-09, accepted with named follow-ups (`analysis/b5_cluster4_research_2026-11-08.md`, *Review — B.5.2 accepted with named follow-ups*); research amendment 2 is owed before M1 and any long-clock read; BAS-S53 and BAS-R10 registered in the packet |
+| B.5.3 | READY_FOR_IMPLEMENTATION | V | The next action: B.5.2 closed 2026-11-09, accepted with named follow-ups, and research amendment 2 answers its review (`analysis/b5_cluster4_research_2026-11-08.md`, §A2.5). The opening builds the battery and census tools and the two entries (BAS-S53, BAS-R10), then the screens, M1 and the paired runs |
 | B.5.4 | RESEARCH | V | After B.5.3; BAS-S54 |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
@@ -3794,6 +3829,29 @@ has lost games in both engines (BAS-X02).
     stop beyond mate in 1 (A-49, B-78); ponder credit (A-42); time changes
     read by the opening's time a move and the clock left (A-54); the
     fail-high stop's threshold if B.5's read calls for it (A-48).
+  B.5 inputs (2026-11-09; `analysis/b5_cluster4_research_2026-11-08.md`,
+  *Review — B.5.2 accepted with named follow-ups* §1 and §6, and
+  research amendment 2):
+  - The hole on Cluster 4's arm (A-47). Half of its long root searches
+    begin after the optimum: the end-of-iteration test lets an
+    iteration start there while the root's best move keeps changing,
+    and that iteration does not return. The stop packet's definition
+    assumed a window starting before the optimum. On 60 decided endings
+    the arm changes its root move 1.7 to 1.8 times as often as the head
+    and spends a third more clock, and no stop setting reaches those
+    searches. B.5.3's M1 reads the rate by score band on both arms.
+  - The effort share divides the last search's best-move nodes by every
+    window's nodes of the iteration. With the arm's re-searches the
+    share of iterations at or under `TmEffortLo` rises 12 points at
+    fixed depth (44.5% to 56.6%); the share at or over `TmEffortHi`
+    does not move.
+  - Cluster 3's arm spends 7 to 8% more time a move in the won band
+    than its base at both clocks (the B.4.7 runs, by amendment 2's
+    census). A side whose own score reached 1,500 won all 2,260 such
+    games there.
+  - The clock test inside an iteration stays in this leaf (maintainer
+    2026-11-09). It is pulled into Phase B only if B.5.5's long-clock
+    condition fails with `B5NegExtMax` 1 unavailable.
 
   The ADR-0065 checklist:
   - distinct optimum and maximum budgets;
@@ -3870,6 +3928,14 @@ has lost games in both engines (BAS-X02).
   - Code audit 2026-10-27 (S6's helper side): helpers overwrite the root
     key the main thread reads its first move from; read with B.5's S6
     counter at 4T.
+  - From B.5.2's review (2026-11-09; the B.5 packet, *Review* §3): on
+    Cluster 4's arm the helper's root filter numbers the moves that
+    pass `searchmoves` and the tablebase filter, in generation order;
+    the old root numbers them in the picker's order, before the
+    tablebase filter. `multipv_lines` is counted without the filter, so
+    a filtered main thread with more lines than its record would index
+    past it. The pool sets no filter today, so neither is reachable;
+    the helper design this leaf settles takes one form.
   Triumviratus review inputs (2026-11-03,
   `analysis/triumviratus_review_2026-11-03.md`; IDs are its items):
   - A candidate for BAS-C05's coherent layout (TP-1): 16-byte entries, four

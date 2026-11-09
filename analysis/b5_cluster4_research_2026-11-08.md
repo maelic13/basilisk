@@ -26,6 +26,13 @@ formula, §7's `B5AspBase` row, ticket 3's tests and reads, two lines of
 read as its §A1.5 amends them. The sections themselves are left as
 written.
 
+**Accepted 2026-11-09 by an independent review** (*Review — B.5.2
+accepted with named follow-ups*), and **amended the same day by research
+amendment 2**, at the end of this file, which answers it: §A2.5 amends
+BAS-R10's battery gate and its definition of the hole, adds a battery
+screen and a games census to BAS-S53, gives BAS-S55's flip a long-clock
+condition, and changes one clause each of §5.8, §9 item 1 and BAS-S54.
+
 **How the reads of §2 were taken.** They were run on 2026-11-08 before
 this packet was written, with no prediction frozen for them. They size
 the head and do not decide anything by themselves; every rule in §9 and
@@ -2291,9 +2298,9 @@ None blocks the acceptance. Owners in brackets.
    arm and `multipv_lines` under a filter (§3).
 10. **`find_spin.py`** (tooling, any time): print each search's node
     count, so a read shows its options were live.
-11. **`CHANGELOG.md`** (records; with the pull request): no line for
-    the ply cap's repair, which is live on the default arm since
-    ticket 1.
+11. Withdrawn 2026-11-09. `CHANGELOG.md` carries the ply cap's repair
+    under *Fixed* ("The end of a very long line"); the review searched
+    for the wrong words (research amendment 2, §A2.1).
 
 ### Corrections to the implementation record
 
@@ -2378,3 +2385,330 @@ a calibration and not a test of the arm.
   (moderate): the stop's setting moves the arm's count over half the
   maximum by no more than 2 either way, because the long searches are
   ones no fail high interrupts.
+
+### A2.1 Verdict
+
+The review is right, and four errors are this packet's: §5.4 saw that
+the hole stays and not where the arm meets it; P8 weighed the wrong
+population; §5.2 has the time manager's effort signal moving the wrong
+way; and the stop packet's definition of the hole, which this packet
+took over, assumes the long window starts before the optimum. One error
+is the review's: `CHANGELOG.md` already carries the ply cap's repair
+(*Fixed*, "The end of a very long line"), so its follow-up 11 is
+withdrawn.
+
+Nothing in the engine changes. What changes is registered below
+(§A2.5):
+
+- **M1's battery gate becomes differential.** A stop option is judged
+  against the stop at 1× on the same tree. A search over the bound at 1×
+  is the hole's, goes to the hole's card, and gates no option.
+- **The hole is any root search that ends after twice the optimum
+  without the stop firing**, whatever its start, read on both arms by
+  score band.
+- **The battery becomes a registered screen** on positions nobody has
+  seen, with frozen predictions.
+- **The flip gains a long-clock condition read from games' results**,
+  not from the battery.
+- **§9 item 1 reads the battery** beside its nodes and its paired run.
+- **D.1's clock test inside an iteration stays in D.1.**
+
+The reason for the last is R1. On the head and on its base, a side
+whose own score reached 1,500 won every such game: none unconverted of
+2,260 at the two clocks, and 4 of 2,353 at 800. Those two trees already
+spend half the clock left on 1.1 and 1.6% of their won-band moves at
+`10+0.1`. So the arm's
+extra clock in decided endings is, on the evidence, waste and not lost
+points. The battery measures the waste; only games measure a cost.
+
+### A2.2 The review, checked
+
+Reproduced here: the battery's two long searches and their timelines
+from the review's logs; and, by R2, that no stop setting reaches them.
+The same four of the 60 positions are over half the maximum at
+`B5FailHighStop` 0, 100 and 200, the same three at the maximum.
+
+Added from the review's own rows (`wide_60.json`, `wide_10.json`): of
+the arm's searches whose longest root search ends after twice the
+optimum, half begin **after** the optimum (4 of 8 at `60+0.6`, 5 of 7 at
+`10+0.1`; the OFF arm 2 and 2, all beginning before it). The stop
+packet's hole is "a window starting before the optimum". The arm's
+commoner case is the other: the end-of-iteration test lets a new
+iteration start past the optimum because the root's best move keeps
+changing (the stability discount is lost and the instability term adds
+up to 70%), and that iteration does not return. M1 as registered would
+not count it.
+
+Wrong in the review: follow-up 11, above. Its `rv_wide.py` reads
+positions at 1,500 and more with at most eight men, so its figures are
+for decided endings and say nothing of positions that are merely
+better; §A2.5's battery adds that stratum.
+
+### A2.3 The reads (`tools/results/b5-20261109/amend2/`)
+
+Registered in `ba451ce` before either ran.
+
+**R1, the games census** (`a2_census.py`; the B.4.7 runs, "decided" at
+T on two consecutive own moves; the Cluster 3 arm is "ON"):
+
+| | `10+0.1`, OFF | `10+0.1`, ON | `3+0.03`, OFF | `3+0.03`, ON |
+|---|---:|---:|---:|---:|
+| games | 2,000 | 2,000 | 2,488 | 2,488 |
+| decided at 300; unconverted | 444; 42 | 658; 38 | 619; 58 | 816; 37 |
+| decided at 800; unconverted | 403; 1 | 620; 1 | 559; 1 | 771; 1 |
+| decided at 1,500; unconverted | 391; 0 | 607; 0 | 532; 0 | 730; 0 |
+| won band: mean time a move | 178.7 ms | 193.6 ms | 55.0 ms | 58.9 ms |
+| won band: moves at half the clock left or more | 1.62% | 1.14% | 0.77% | 0.67% |
+| lost band: the same | 13.39% | 10.99% | 6.37% | 4.78% |
+
+Every unconverted game but one is a draw. By the registered rule the
+flip census reads at **300**, the highest threshold with at least 15
+unconverted games an arm (38 and 42).
+
+**R2, the battery's noise and the stop's reach** (the review's 60
+positions, `60000+600`):
+
+| | over 0.5× the maximum | at the maximum | spent |
+|---|---:|---:|---:|
+| The arm, default (the review; the probe; here) | 5; 4; 4 | 3; 3; 3 | 341.5; 327.6; 338.3 s |
+| The arm, `B5FailHighStop` 0 | 4 | 3 | 351.0 s |
+| The arm, `B5FailHighStop` 200 | 4 | 3 | 349.2 s |
+| OFF arm (the review; here) | 1; 1 | 1; 1 | 252.0; 259.4 s |
+
+Runs at one setting differ by one search and by 4.1% of spend at most.
+So the gate's tolerance is **2 searches and 10% of spend**.
+
+Scored:
+
+| # | Result |
+|---|---|
+| C1 | **missed.** No unconverted game at 1,500 on either arm at either clock; 0.5 to 4% was predicted |
+| C2 | hit, emptily: 0 against 0 |
+| C3 | **half.** 9.5% on the OFF arm, 5.8% on the ON arm |
+| C4 | **missed.** The Cluster 3 arm spends 8.3% more a move in the won band at `10+0.1` (7.1% at `3+0.03`) |
+| C5 | hit on every figure |
+| C6 | hit: the count does not move at all |
+
+What the misses say. C1 and C3: this amendment expected a decided game
+to slip now and then, and so expected the long searches to cost points.
+On the head they do not, at clocks where the head already thinks long
+in won positions. The cost, if there is one, is in positions that are
+better and not yet decided (300 to 800, where one game in ten to twenty
+is not won), and nothing read so far looks there. C4: Cluster 3's arm
+already thinks longer when winning than its base did, by about what one
+would otherwise credit to this cluster. Recorded for D.1; it means a
+few percent of won-band time is inside the noise of any two arms.
+
+### A2.4 The seven questions
+
+**a. What gates M1's options on the arm.** The stop packet wrote the
+battery to ask one thing of a stop setting: does the fail-high cascade
+still sink with it? Its own §5 already says that a failure the
+threshold cannot reach "goes to the card" of the hole. On the arm no
+won-tier window fails high, so every failure is of that kind and the
+absolute bound cannot tell one setting from another. The gate is
+therefore read against the 1× column of the same tree (§A2.5). Keeping
+1× never had a gate and has none. M1 otherwise runs as registered.
+*Falsifier:* a stop option that reads worse than 1× by more than the
+tolerance fails as before, and that failure is the stop's.
+
+**b. Why P8 missed.** P8 (1 to 6%) took the old head's 5 to 20% and
+subtracted the won-tier windows the mean square opens. It left out what
+§5.4's last sentence says: with narrower windows more fail highs land
+on the previous best. At the seed there are about twice as many root
+fail highs a search (1,467 against 769 on `suite_v2` at depth 12), 2.77
+re-searches a window, and the stop's condition is a fail high on the
+previous best past the optimum. Twenty replayed games read 25.1% on the
+arm and 10.8% on the OFF arm, with 10.1% and 6.6% of spend removed. So
+the stop on the arm is a general time cut (the stop packet's H2), and
+the won endings are where it does not act at all. M1's corpus and
+outputs stand; its rule will send the arm to 2× against 1× (A7).
+*What this changes in the model:* the stop and the hole are opposite
+problems on the arm. The stop cuts ordinary searches short; the hole
+runs decided ones long.
+
+**c. What reads the long clocks before the flip.** Three reads, in
+order of cost, and one refusal:
+
+1. The battery as a BAS-S53 screen, on fresh positions in two strata
+   (decided endings, and positions better by 300 to 1,500), at `60+0.6`
+   and `10+0.1`. It sizes the waste, gives M1 its gate and item 1 its
+   read. It moves no default and accepts nothing.
+2. The games census on every paired PGN BAS-S53 and BAS-S55 produce,
+   which costs nothing: time a move by score band, and the games a side
+   had in hand and did not win.
+3. A long-clock condition on the flip, read from (d)'s games by that
+   census, with a 400-game run at `60+0.6` only if a trigger asks for it
+   (§A2.5). A flip that fails it waits.
+4. Refused: pulling D.1's clock test forward. *What would change that:*
+   the condition failing with `B5NegExtMax` 1 not available, or M1
+   reading the hole on more than 0.5% of the arm's searches **with**
+   unconverted games to show for it.
+
+**d. §9 item 1.** `B5NegExtMax` 1 is the one setting with no search
+over half the maximum on the review's 60, at 0.77 of the OFF arm's
+spend. Its battery column joins item 1's zero-game reads beside P5's
+nodes. Its verdict stays §9's, by its paired run at `3+0.03`; a battery
+cannot adopt it. The order of the categoricals does not change. If the
+flip's condition fails, 1 is the first repair read, provided its paired
+run did not reject it.
+
+**e. The time manager's inputs.** Recorded for D.1, and read in B.5.3
+at no extra run: the root's best-move changes an iteration and the
+shares of iterations at or over `TmEffortHi` and at or under
+`TmEffortLo`, from M1's replays on both arms. §5.2 expected the high
+share to rise because reduced siblings shrink the denominator. It does
+not (8.8% and 8.9%). The low share rises 12 points instead, because the
+share divides the last search's best-move nodes by every window's nodes
+of the iteration, and the arm has 2.77 re-searches a window. That is a
+property of the measure and not of the root. D.1 owns the measure.
+
+**f. §5.8's joiner rule.** Read by the median position, with the total
+beside it (§A2.5). A share that moves because a handful of decided
+positions lose their cascades is a change of population, and fitting a
+coordinate to it would fit the cascades.
+
+**g. `B5AspBase`'s SPSA step.** The generator's sixteenth of the range
+(2,469) is larger than the seed's distance to its lower bound (910), so
+the low perturbation clamps and the gradient is taken from a lopsided
+pair. The step is the smaller of the generator's and half the start
+value (§A2.5).
+
+### A2.5 The amended contract
+
+**BAS-R10 (M1).** Replaces the stop packet's §5 battery clause for the
+arm, and one output of its §4; the firing-rate rule, the corpus and the
+three stop arms are unchanged.
+
+- *The gate of a stop option.* On the battery screen below, an option
+  (2×, or removal) passes when, against the 1× column of the same
+  binary, its searches over 0.5× the maximum are no more than 2 above
+  the larger of the two 1× runs and its spend no more than 10% above
+  theirs, in each stratum at `60000+600`. Keeping 1× has no gate.
+- *The hole.* A root search that ends after twice the optimum, or at the
+  maximum, without the stop firing; split by whether it began before
+  the optimum or after it; reported for every stop arm and for the OFF
+  arm's reference column, by score band (won 300 or more, even, lost),
+  with the time it took past the optimum. The card's rule stands (under
+  0.5% of searches with no time loss, `NO_CHANGE`; above that a research
+  card, D.1's), read on the arm's rate with the OFF arm's beside it.
+- *Added outputs, same replays:* root best-move changes a completed
+  iteration; from the Diag replay, the shares of iterations at or over
+  `TmEffortHi` and at or under `TmEffortLo` on both arms.
+
+**BAS-S53 gains the battery screen** (zero-game, clocked, a quiet
+host), before M1.
+
+- *Positions.* From `tools/results/b47-direction-ltc/games.pgn`
+  (SHA-256 `6931997c…`), games in file order, one position a game and
+  stratum:
+  - **E, decided endings:** the first position whose mover reports a
+    score of 1,500 to 29,999 with at most eight men. The first 60 such
+    positions are the review's and are left out; the next 120 are E.
+  - **W, better and not decided:** the first position whose mover
+    reports 300 to 1,499 on this move and on its previous one, any
+    material. The first 60 are W.
+  - the six of §2.2.
+- *Clocks.* `60000+600` and `10000+100`, a fresh process a search,
+  Threads 1, Hash 64; the six also at `180000+2000`, recorded.
+- *Columns.* On the Tune builds BAS-S53's paired runs play: the OFF arm
+  at the default; the arm at the default twice; the arm at
+  `B5FailHighStop` 200 and 0; the arm at `B5NegExtMax` 1; the arm at
+  `B5AspBase` 19000.
+- *Per column and stratum:* searches over 0.5× the maximum and at it
+  (0.95× or more), spend, searches past the optimum, root best-move
+  changes a completed iteration, and the holes by where they began.
+- *What it decides:* M1's gate; item 1's zero-game read; the trigger of
+  BAS-S55 (e). Nothing else. It is a screen.
+- *Instrument:* `tools/diag/won_battery.py`, promoted from
+  `review/rv_wide.py` with the strata, a skip count and the hole's
+  classes, and a self-test: the sample is the same on every run and
+  honours the skip; an engine that never answers is counted and does
+  not hang the read.
+
+**BAS-S53 and BAS-S55 gain the games census**, on the PGN of every
+paired run they play, both sides: `tools/diag/pgn_time_census.py`,
+promoted from `amend2/a2_census.py`, with a test on the three games
+`test_replay_games.py` already holds. Recorded for each run: the mean
+time a move and the share of moves at half the clock left or more, by
+score band; games decided at 300, 800 and 1,500 and those not won.
+
+**BAS-S55, the flip's long-clock condition.** Registered here, before
+any game of the arm exists.
+
+- *L1, on (d)'s games* (the fitted arm against the OFF arm, 2,000 at
+  `10+0.1`): the condition **fails** when the arm's unconverted games
+  at 300 exceed the OFF arm's by more than the larger of 6 and three
+  times the square root of the OFF arm's count (about 19 at R1's base
+  of 40). At 800 and 1,500, where the base is 0 or 1 in 2,000, four or
+  more on the arm are reported with each game read before the flip.
+- *(e), a run only on a trigger:* 400 games at `60+0.6`, the fitted arm
+  against the OFF arm, read by the same census and bound, its Elo
+  recorded as direction. It is played when either holds: the battery on
+  the fitted binaries still reads the arm over 0.5× the maximum more
+  often than the OFF arm by over the tolerance in stratum W at
+  `60000+600`; or (d)'s census reads the arm's won-band share of moves
+  at half the clock or more at 1.5 times the OFF arm's or above.
+  Otherwise it is not played and the condition rests on L1. The
+  maintainer agrees or refuses the run at B.5.5's opening.
+- *A failed condition:* the flip waits. First read: the failing run
+  again with `B5NegExtMax` 1, if §9 item 1's paired run did not reject
+  it. If that fails or is not available, the hole's repair is pulled
+  from D.1 as a research card, with the maintainer's agreement.
+- *Order:* (a), (b), (c), (d) with L1, then (e) if triggered, then the
+  flip. None changes the candidate after a game is seen.
+
+**§9 item 1**, one clause added: its zero-game reads include its
+battery column. The verdict is its paired run's, as written.
+
+**§5.8**, one clause changed: the firing share is the median over
+`suite_v2`'s positions of the per-position share, over the positions
+where the OFF arm's denominator is at least 1,000, at the width
+BAS-S53's width run leaves; the total is reported beside it. A row that
+moves by 10% in total and not by the median is listed with the
+positions that carry it and does not join.
+
+**BAS-S54**, one clause added: `B5AspBase`'s registered step is the
+smaller of the generator's and half the start value (705 at the seed,
+1,410 at 2,820, the generator's 2,469 from 4,938 up). The generator
+takes the rule, with a test; the other two coordinates keep theirs.
+
+**P1's and P8's entries** take this text as amended when BAS-S53 and
+BAS-R10 open.
+
+**§14 gains one row:**
+
+| Place | Basilisk's form (kept) | The donor's form | Why kept | Waits on |
+|---|---|---|---|---|
+| The forgotten mate with several lines | read after line 1's search; a later line's faster mate is played and not remembered | read after every line (`:503-547`) | one line is the donor's test exactly; the gap is analysis mode's | B.9.1, with the MultiPV contract |
+
+### A2.6 Predictions, frozen 2026-11-09, and calibration owed
+
+P1 to P12 and A1 to A5 stay as frozen. Owed in the entries: P4's share
+missed (0.05% against 5 to 15%; a reduced root move beats alpha 0.17%
+of the time, review §6); P8 missed (25.1% on twenty games); P11's high
+share holds at fixed depth and its low share, unpredicted, rises 12
+points; §5.2's mechanism for the effort share was wrong (question e).
+
+Seen before freezing: the review's 60 positions, R1, R2 and twenty
+replayed games. A6 to A8 are therefore expectations with that stated;
+A9 to A13 are on positions and games not yet seen.
+
+| # | Prediction | Confidence | Falsifier |
+|---|---|---|---|
+| A6 | M1 on the arm at `3+0.03`: the stop ends **18 to 30%** of searches and removes **7 to 13%** of spend; the OFF arm's column 8 to 14% and 4 to 8% | moderate (twenty of its games are seen) | outside the ranges, the twenty games misled, and the first hundred are read against the rest |
+| A7 | The registered rule sends the arm to 2× against 1× (85%); both options pass the differential gate (85%) | moderate | an option failing the gate is a stop that still guards something on the arm |
+| A8 | The hole on the arm at `10+0.1`: **2 to 8%** of won-band searches, at least a third beginning after the optimum; the OFF arm 0.5 to 3%; over all searches the arm is above 0.5% (60%) | low | under 1% of won-band searches says the battery overstates what games meet |
+| A9 | Battery, stratum E at `60000+600`: the arm spends **1.15 to 1.50** of the OFF arm; 5 to 16 of 120 over half the maximum against 0 to 5; best-move changes 1.4 to 2.0 times the OFF arm's | moderate | a ratio under 1.10 says the review's 60 were unlucky |
+| A10 | Stratum W: the arm spends **0.95 to 1.25** of the OFF arm; at most 4 of 60 over half the maximum on either arm; stop 0 costs the arm 5 to 20% more spend than stop 100 | low | the arm over half the maximum on 8 or more says the tail reaches undecided positions, and (e) is triggered |
+| A11 | `B5NegExtMax` 1, stratum E: **0.65 to 0.95** of the OFF arm's spend, at most 3 over half the maximum | moderate | over 1.10 says the review's 60 flattered it |
+| A12 | The whole-arm run's census at `3+0.03`: the arm's won-band time a move within **0.95 to 1.12** of the OFF arm's; unconverted at 300 within 15 games of the OFF arm's | moderate | time above 1.20 at the gates' clock says the stop no longer carries the arm there |
+| A13 | L1 holds on (d) (85%); (e) is triggered (35%); if played, no unconverted game at 1,500 on either side (85%) | low-moderate | L1 failing is the cost this amendment says is not there |
+
+### A2.7 Artifacts (`tools/results/b5-20261109/amend2/`, ignored storage)
+
+`a2_census.py` (`56ca0f86…`), `r1_ltc.json` and `r1_stc.json` with their
+`.out` (R1; the PGNs `6931997c…` and `18aea0cd…`), `r2_on_default.json`,
+`r2_on_stop0.json`, `r2_on_stop200.json` and `r2_off_default.json` (R2,
+by `review/rv_wide.py` on the review's Tune builds), the review's
+`wide_positions_60.json` (`581c8822…`).
