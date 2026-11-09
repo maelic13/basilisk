@@ -177,7 +177,77 @@ Packet §11's table, frozen 2026-11-08, before any ON-arm build; A1 to A5 frozen
 
 #### RESULT — append after exposure
 
-- *Nothing has run.* The builds, the screens and the games land here.
+- **Binaries** (2026-11-09, `d07380d`, engine source that of `c6f2440`; every
+  manifest clean, clang 23.1.5, PEXT final PGO;
+  `tools/results/b5-20261109/b53/build_all.ps1`). Each reads its arm's `bench 13`,
+  read directly on the staged copy: ON 3,920,652, OFF 4,144,790.
+
+  | Build | ON | OFF |
+  |---|---|---|
+  | Release, pool build 1 (the whole-arm run) | `A1D8CE88…` | `64E4ECC7…` |
+  | Tune | `D8D9BC67…` | `6DD0B156…` |
+  | Diag | `DD0258A8…` | `63C9C26F…` |
+
+  Pools `b53-on` and `b53-off`, four independent builds each, for the NPS read.
+- **Node-budget screens** (2026-11-09, `tools/results/b5-20261109/b53/screens/`, read
+  by `analyze.py` into `analyze.txt`). No clock in any read but the cost screen's
+  limit, which ran alone.
+
+  | Read, `suite_v2` depth 14, Diag | OFF | ON |
+  |---|---:|---:|
+  | Interior / quiescence nodes | 7,116,466 / 4,893,846 | 6,952,216 / 4,737,291 |
+  | Re-searches a window | 1.50 | 2.77 |
+  | Failed nodes of windowed nodes | 53.7% | 69.6% |
+  | Fail-high re-search nodes of windowed nodes | 38.3% | 45.9% |
+  | Give-up nodes | 696,441 | 0 |
+  | Reduced root searches; searched again | 0 | 20,151; 10 (0.05%) |
+  | Ply-cap returns | 0 | 0 |
+  | Windows at or over `TmEffortHi`; at or under `TmEffortLo` | 11.7%; 41.1% | 11.8%; 54.3% |
+
+  - **`Pricing 4`, depth 16** (Diag). `lmr_fail_low`: ON 1.94% [1.92, 1.96] of
+    1,580,224 probes, OFF 2.10% [2.08, 2.13] of 1,254,842. **The cell at the root
+    depth** (PV, remaining depth 15 and over): ON 3 beats of 3,563 probes (0.08%), OFF
+    1 of 1,170 (0.09%). A root reduction that fails low hides very little. The
+    instrument's top depth bucket also holds PV nodes just below the root, so the cell
+    bounds the root and does not isolate it; the OFF arm never reduces at the root, and
+    its rate is the same. All PV cells: ON 40 of 27,503, OFF 31 of 12,768.
+  - **WAC at 100,000 nodes** (`fixed_budget_probe.py`, the release pair): ON **263**,
+    OFF **254**. Mean depth 24.79 and 22.33; mean selective depth 19.49 and 19.50. The
+    OFF arm's 254 is the packet's; B.5.2's record read 253 through the engine's own
+    `wac nodes` command, so that difference is the instrument's and not the tree's.
+  - **The floors grid** (`floors_grid.py`, the clean tree of `c6f2440`): the arm PASS,
+    600 / 598 / 600 / 597, five budgets 118. The OFF arm PASS, 600 / 598 / 600 / 596,
+    five budgets 119. KR-K sits on its floor on both.
+  - **The cost screen** (§R's form, the release pair): the scorer's PASS on all five, no
+    stop, no depth missing; steps 20 to 22 geometric means 1.102, 0.882, 0.793, 1.046,
+    0.894; absolute at 22, recorded and not judged, 2.340, 0.473, 0.248, 0.225, 2.737.
+    These are B.5.2's figures to the third place.
+  - **The blindness read** (`b53/blindness.py`, `blindness.json`; Stockfish 19 at
+    150,000 nodes, one thread, Hash 16, the final position's FEN alone): of the 885
+    repetition draws of the gate (a) PGN (the harness's Threefold; game 1423 is also a
+    threefold on the board and the harness ended it as FiftyMove), the repeating side
+    stood at or above +150 cp on **0**, 0.00%. It stood at or below −150 on 2. The
+    highest is +140; 670 are within 5 cp. At or under 5%: **no H.2 card**. The judge's
+    scores are not all zero (342 are not), so the read could have fired.
+  - **§9 item 1's reads at `B5NegExtMax` 1** (Tune, `b53/seldepth.py`, 105 positions; the
+    106th has no search): nodes −6.06%; mean selective depth 19.51 to 18.59, −0.92 plies.
+    The cost screen at 1 is ticket 6's, on the same source, and passes. Its battery
+    column is owed.
+  - **§9 item 2's gate:** 45.9% against 20%, met. Its paired run is owed at the width the
+    width run leaves.
+
+- **Predictions read at the screens, each scored as frozen:**
+
+  | # | Read | Verdict |
+  |---|---|---|
+  | P3 | 2.77 re-searches; failed share 69.6%; give-up nodes 0 | **miss** on the failed share, above the falsifier's 58%: `B5AspBase`'s sweep is read before the whole-arm run is blamed. Re-searches and give-up nodes hit |
+  | P4 | geometric mean 0.924 over 105 positions (median 1.142, total 0.973); 0.05% searched again | the mean **hit**, though the median says the typical position costs more; the share **miss** (calibration above) |
+  | P5 | nodes −6.06%; selective depth −0.92 against −0.3 to −0.8; ticket 6's screen passes | **hit** on nodes and the screen, **miss** by 0.12 plies on selective depth; the paired run waits |
+  | P6 | WAC 263 against [246, 262] | **miss** by one, high; the floor holds |
+  | P7 | the grid passes | **hit** |
+  | P12 | item 2's gate is met | that clause **missed**, as §A1.6 says |
+
+- *The battery screen, M1, the NPS read and the games have not run.*
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 
