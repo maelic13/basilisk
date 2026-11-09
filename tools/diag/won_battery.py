@@ -11,9 +11,13 @@ order, one position a game and stratum, judged by the mover's own reported score
      one, any material
   six  the packet's six won endings, in this file
 
-A fresh process a search, Threads 1, Hash 64, `TM_Debug` and `Diag` on, options by
-`--option`. `Diag` is there for one counter: the hole is a root search that ends
-late *without the stop firing*, and only `fhstop_fired` says whether it fired.
+A fresh process a search, Threads 1, Hash 64, `TM_Debug` on, options by `--option`:
+the packet's conditions and the review's, so the clock read is of the search that
+plays. `Diag` stays off unless `--diag` asks for it, because it slows a search and
+moves where the clock stops it (on the review's 60, OFF arm, 246 s against 259 s).
+`--diag` is for one counter: a hole is a root search that ends late *without the
+stop firing*, and only `fhstop_fired` says whether it fired. Without it the holes
+count every late search and the stop-fired column reads "not read".
 
 Per column and stratum: searches over 0.5x the maximum and at it (0.95x or more),
 spend, searches past the optimum, root best-move changes per completed iteration,
@@ -28,7 +32,7 @@ read then exits 1 and keeps its rows. Exit 2 is bad input, nothing searched.
 Usage:
   python tools/diag/won_battery.py positions --pgn games.pgn --out positions.json
   python tools/diag/won_battery.py read --engine tune.exe --positions positions.json \
-      --clock 60000+600 --strata E,W,six --label arm-1 --out arm-1.json [--option B5FailHighStop=0]
+      --clock 60000+600 --strata E,W,six --label arm-1 --out arm-1.json [--option B5FailHighStop=0] [--diag]
   python tools/diag/won_battery.py report arm-1.json arm-2.json off.json
   python tools/diag/won_battery.py gate --base arm-1.json --base arm-2.json --option-column stop0.json
 """
@@ -233,11 +237,13 @@ class Process:
         return code
 
 
-def search(command: list[str], fen: str, wtime: int, inc: int, options: list[str], hash_mb: int, watchdog: float) -> dict:
+def search(command: list[str], fen: str, wtime: int, inc: int, options: list[str], hash_mb: int, watchdog: float,
+           diag: bool = False) -> dict:
     """One position in a fresh process. Its clock starts once the engine is ready."""
     engine = Process(command)
-    script = (f"setoption name Threads value 1\nsetoption name Hash value {hash_mb}\n"
-              "setoption name TM_Debug value true\nsetoption name Diag value true\n")
+    script = f"setoption name Threads value 1\nsetoption name Hash value {hash_mb}\nsetoption name TM_Debug value true\n"
+    if diag:
+        script += "setoption name Diag value true\n"
     for option in options:
         name, value = option.split("=", 1)
         script += f"setoption name {name} value {value}\n"
@@ -281,7 +287,7 @@ def summarize(rows: list[dict]) -> dict[str, dict]:
             "hole_before": sum(row["hole"] == "before" for row in good),
             "hole_after": sum(row["hole"] == "after" for row in good),
             "hole_other": sum(row["hole"] == "other" for row in good),
-            "fired": sum(bool(row["fired"]) for row in good),
+            "fired": sum(bool(row["fired"]) for row in good) if any(row["fired"] is not None for row in good) else None,
         }
     return table
 
@@ -354,7 +360,7 @@ def command_read(args: argparse.Namespace) -> int:
     if unknown:
         print(f"no positions for {unknown}", file=sys.stderr)
         return 2
-    missing = advertised(command, ["Diag", "TM_Debug"] + [option.split("=", 1)[0] for option in args.option])
+    missing = advertised(command, (["Diag"] if args.diag else []) + ["TM_Debug"] + [option.split("=", 1)[0] for option in args.option])
     if missing:
         print(f"the engine does not advertise {missing}", file=sys.stderr)
         return 2
@@ -362,7 +368,7 @@ def command_read(args: argparse.Namespace) -> int:
 
     def job(item: tuple[str, int, dict]) -> dict:
         stratum, index, position = item
-        row = search(command, position["fen"], wtime, inc, args.option, args.hash, watchdog)
+        row = search(command, position["fen"], wtime, inc, args.option, args.hash, watchdog, diag=args.diag)
         return {"stratum": stratum, "index": index, "game": position.get("game", position.get("name")), "fen": position["fen"],
                 "s": position.get("s"), **row}
 
@@ -374,7 +380,7 @@ def command_read(args: argparse.Namespace) -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps({
         "label": args.label, "engine": str(args.engine) if args.engine else command, "engine_sha256": identity,
-        "options": args.option, "wtime": wtime, "inc": inc, "hash": args.hash, "threads": 1, "workers": args.workers,
+        "options": args.option, "diag": args.diag, "wtime": wtime, "inc": inc, "hash": args.hash, "threads": 1, "workers": args.workers,
         "watchdog_s": watchdog, "positions_pgn_sha256": document.get("pgn_sha256"), "strata": wanted,
         "wall_s": round(time.time() - began, 1), "summary": summary, "rows": rows}, indent=1), encoding="utf-8")
     print_table([(args.label, wtime, inc, summary)])
@@ -389,7 +395,7 @@ def print_table(columns: list[tuple[str, int, int, dict]]) -> None:
         for stratum, row in summary.items():
             print(f"{label} | {wtime}+{inc} | {stratum} | {row['searches']} | {row['unanswered']} | {row['over_half']} | {row['at_max']} | "
                   f"{row['spend_ms'] / 1000:.1f} | {row['past_optimum']} | {row['changes_per_iteration']} | "
-                  f"{row['hole_before']} | {row['hole_after']} | {row['hole_other']} | {row['fired']}", flush=True)
+                  f"{row['hole_before']} | {row['hole_after']} | {row['hole_other']} | {'not read' if row['fired'] is None else row['fired']}", flush=True)
 
 
 def load(path: pathlib.Path) -> dict:
@@ -431,6 +437,7 @@ def main() -> int:
     read.add_argument("--clock", required=True, help="WTIME+INC in ms")
     read.add_argument("--strata", required=True, help="comma-separated: R, E, W, six")
     read.add_argument("--option", action="append", default=[], metavar="NAME=VALUE")
+    read.add_argument("--diag", action="store_true", help="read the stop's counter; slows the search, so not for a clock column")
     read.add_argument("--label", required=True)
     read.add_argument("--out", required=True, type=pathlib.Path)
     read.add_argument("--workers", type=int, default=8)
