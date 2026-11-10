@@ -433,7 +433,10 @@
 //   b5_lmr_window_units: 1 the LMR window term reads a non-PV node's window in
 //     the donor's units (577 * 0.282 = 163); 0 reads 577 at every node.
 // b5_fail_high_stop, on both arms: the percent of the optimum past which a fail
-//   high on the previous best ends the search; 0 never.
+//   high on the previous best ends the search; 0 never. The arm's window fails
+//   high more often than the older loop's, and there the stop at the optimum
+//   itself lost to the stop at twice it, so the arm's default is
+//   BASILISK_B5_CORE_DEFAULTS's.
 #define BASILISK_B5_PARAMS(X, F, S)                                      \
     X(b5_asp_base,           B5AspBase,           1410,  500, 40000)     \
     X(b5_asp_msq_div,        B5AspMsqDiv,         2874, 1000, 12000)     \
@@ -444,6 +447,12 @@
     S(b5_root_lmr,           B5RootLmr,              1,    0,     1)     \
     S(b5_lmr_window_units,   B5LmrWindowUnits,       1,    0,     1)     \
     S(b5_fail_high_stop,     B5FailHighStop,       100,    0,   400)
+
+// The arm's own defaults where they differ from a line's, in the form of
+// BASILISK_B4_CORE_DEFAULTS and applied after it on the B5_ROOT arm alone; the
+// build without the arm keeps every line's.
+#define BASILISK_B5_CORE_DEFAULTS(A)                                     \
+    A(b5_fail_high_stop,     B5FailHighStop,        200)
 
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
@@ -467,6 +476,9 @@ struct SearchParams {
 #define BASILISK_ARM_DEFAULT(field, uci, value) field = value;
         BASILISK_B3_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
         BASILISK_B4_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
+#if defined(BASILISK_B5_ROOT)
+        BASILISK_B5_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
+#endif
 #undef BASILISK_ARM_DEFAULT
     }
 };

@@ -204,6 +204,9 @@ static void test_arm_defaults() {
 #define ARM_DEFAULT_ROW(field, uci, value) {#field, #uci, value},
         BASILISK_B3_CORE_DEFAULTS(ARM_DEFAULT_ROW)
         BASILISK_B4_CORE_DEFAULTS(ARM_DEFAULT_ROW)
+#if defined(BASILISK_B5_ROOT)
+        BASILISK_B5_CORE_DEFAULTS(ARM_DEFAULT_ROW)
+#endif
 #undef ARM_DEFAULT_ROW
     };
     const auto find = [](std::string_view field) -> const ArmDefault* {
@@ -228,6 +231,7 @@ static void test_arm_defaults() {
         }
     BASILISK_SEARCH_PARAMS(ARM_DEFAULT_RANGE)
     BASILISK_B3_PARAMS(ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE)
+    BASILISK_B5_PARAMS(ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE)
     EXPECT_EQ(matched, int(std::size(arm)));
     end_section();
 
@@ -241,6 +245,7 @@ static void test_arm_defaults() {
     BASILISK_KERNEL_SWITCHES(ARM_DEFAULT_VALUE)
     BASILISK_B3_PARAMS(ARM_DEFAULT_VALUE, ARM_DEFAULT_VALUE, ARM_DEFAULT_VALUE)
     BASILISK_B4_PARAMS(ARM_DEFAULT_VALUE, ARM_DEFAULT_VALUE, ARM_DEFAULT_VALUE)
+    BASILISK_B5_PARAMS(ARM_DEFAULT_VALUE, ARM_DEFAULT_VALUE, ARM_DEFAULT_VALUE)
 #undef ARM_DEFAULT_VALUE
 #undef ARM_DEFAULT_RANGE
     end_section();
@@ -253,6 +258,8 @@ static void test_arm_defaults() {
                         + std::to_string(compiled.field) + " min ")      \
            != std::string::npos);
     BASILISK_SEARCH_PARAMS(ARM_DEFAULT_ADVERTISED)
+    BASILISK_B5_PARAMS(ARM_DEFAULT_ADVERTISED, ARM_DEFAULT_ADVERTISED,
+                       ARM_DEFAULT_ADVERTISED)
 #undef ARM_DEFAULT_ADVERTISED
     end_section();
 #endif
