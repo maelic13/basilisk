@@ -548,7 +548,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S53](experiments/BAS-S53.md) — B.5.3: Cluster 4 diagnostics, M1 and the unfitted paired run — closed: the unfitted arm +3.3 ± 9.3 Elo; the width stays at 1410; both categoricals stay 0 (item 2 rejected, −10.9 ± 9.4)
 
-- [BAS-S54](experiments/BAS-S54.md) — B.5.4: the Cluster 4 curvature sweep, then SPSA in blocks — registered; the joiner read and the sweep frozen, nothing run
+- [BAS-S54](experiments/BAS-S54.md) — B.5.4: the Cluster 4 curvature sweep, then SPSA in blocks — sweep read: five joiners, the base curved; eight coordinates; block 1 prepared
 
 | ID | Title | Disposition |
 |---|---|---|

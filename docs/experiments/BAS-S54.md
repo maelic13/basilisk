@@ -80,7 +80,53 @@
 
 #### RESULT — append after exposure
 
-- *Nothing has run.*
+- **The joiner read and the sweep (2026-11-10, agent-run, zero-game;
+  `analysis/b54_sweep_2026-11-10.md`):** five rows join by §5.8's median rule, admitting
+  `CoreContHistPruneSlope` (+13.3% by the median, −22.8% in total), `CoreCorrUpdateScale`
+  (−10.2%), `B3NmpPerPly` (+15.6%), `B3SingMargin` (+39.4%) and `B3IirMinDepth`
+  (−21.4%). Five more move 10% in total and not by the median, carried by `suite_v2` 42
+  and 50, and do not join. `B5AspBase` reads curved on WAC (265 at 2820 alone);
+  `B5AspGrowth` monotone (268 at 32). None is flat, so **the surface is eight
+  coordinates** and the tune runs. J1, J2 and S3 miss; S1, S2 and S4 hit.
+- **The surface** (`2beb0bd`, generated with its test): `tools/spsa_configs/config_b54.json`
+  and `colosseum/b54.tune.toml`.
+
+  | Coordinate | Seed | Range | Step |
+  |---|---:|---|---:|
+  | `B5AspBase` | 1410 | 500–40000 | 705 |
+  | `B5AspMsqDiv` | 2874 | 1000–12000 | 688 |
+  | `B5AspGrowth` | 47 | 32–96 | 4 |
+  | `CoreContHistPruneSlope` | 3832 | 1500–8000 | 406 |
+  | `CoreCorrUpdateScale` | 17 | 4–30 | 2 |
+  | `B3NmpPerPly` | 13 | 2–32 | 2 |
+  | `B3SingMargin` | 232 | 13–378 | 23 |
+  | `B3IirMinDepth` | 6 | 3–10 | 2 |
+
+  Each seed is the value the arm's binary advertises (Cluster 3's refit for
+  `B3NmpPerPly` and `B3IirMinDepth`, Cluster 2's for the other two joiners).
+
+#### Block 1 (registered 2026-11-10, before its first game)
+
+- **Binary:** `basilisk-b53-on-tune-pext-tune-pgo.exe`, ON Tune, final PGO, clean at
+  `d07380d`, SHA-256 D8D9BC67…, `bench 13` 3,920,652. No engine source has changed
+  since; its advertised defaults equal all eight seeds.
+- **Runner and shape:** Colosseum `tools/spsa_colosseum.ps1` on
+  `tools/spsa_configs/colosseum/search.run.toml` with `-Tune …/b54.tune.toml`. 15 slots ×
+  30 games per iteration, 2,000 iterations (60,000 games, about 10 hours), `r_end`
+  0.0031. `3+0.03`, 1T, Hash 64, UHO paired, no adjudication, tablebases off.
+- **Seeds and blocks:** block 1 seed 54001; block *n* seed 5400*n* with `-SeedFrom` block
+  *n*−1; results in `tools/results/b54-spsa-block<n>`.
+- **Stop rule (PLAN rule 7c), fixed before the first game:** after each block,
+  `python tools/spsa_block_rule.py <block dir> --config tools/spsa_configs/config_b54.json`.
+  At least three coordinates moved a full step and the next block runs; fewer and the
+  tune stops, with theta that block's rounded centres. A block cut short never counts;
+  the same command resumes from its checkpoint.
+- **Validation:** the runner's own dry run on block 1's exact arguments
+  (`tools/results/b54-20261110/validate_block1.ps1`; `dryrun-block1.json` EF41871B…)
+  accepts: 8 parameters, 2,000 × 30, concurrency 15, `r_end` 0.0031, seed 54001, no
+  adjudication, the binary's revision, fingerprint and every option checked.
+- **Launch:** `pwsh -NoProfile -File tools/spsa_colosseum.ps1 -Engine tools/test_engines/basilisk-b53-on-tune-pext-tune-pgo.exe -ExpectBench 3920652 -ExpectRevision d07380daa5d707c237e3e6865022f370566b39eb -Tune tools/spsa_configs/colosseum/b54.tune.toml -Seed 54001 -Dir tools/results/b54-spsa-block1`.
+- Disposition: block 1 is prepared, maintainer-run, not started.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

@@ -2573,6 +2573,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           the growth at three, at the seed and the cheapest base;
           `bench 13`, WAC at 100,000 nodes and `suite_v2` at depths 14
           and 17 a point; Rarog's classification on WAC.
+      - Joiner read and sweep 2026-11-10, agent-run, zero-game (BAS-S54
+        *RESULT*):
+        - Five rows join by the median: `CoreContHistPruneSlope`,
+          `CoreCorrUpdateScale`, `B3NmpPerPly`, `B3SingMargin` and
+          `B3IirMinDepth`. Five more move in total only, carried by two
+          won positions, and do not join.
+        - `B5AspBase` reads curved on WAC, though its column spans only
+          261 to 265; `B5AspGrowth` monotone toward 32. None is flat.
+        - The surface is eight coordinates (`2beb0bd`). Block 1 is
+          prepared (seed 54001) and its dry run accepted. Maintainer-run
+          overnight.
     - [ ] **B.5.5** `[V]` Cluster 4 gates
       SPRT `[0,3]` for the cluster, and each categorical and
       attribution arm at the bounds the packet registers (BAS-S55);
@@ -3261,7 +3272,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.4 | RESEARCH | V | BAS-S54 registered and the sweep frozen; next: the joiner read and the sweep (zero-game, agent-run), then the surface and block 1 for the maintainer |
+| B.5.4 | RESEARCH | V | The next action is the maintainer's: SPSA block 1 (BAS-S54, seed 54001, eight coordinates, 60,000 games) is prepared and its dry run accepted; then `spsa_block_rule.py` decides block 2 |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
 | B.6.2 | RESEARCH | V | Runs (maintainer 2026-11-05); the curvature evidence chooses its surface |
