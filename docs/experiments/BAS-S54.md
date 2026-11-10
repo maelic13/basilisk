@@ -105,6 +105,61 @@
   Each seed is the value the arm's binary advertises (Cluster 3's refit for
   `B3NmpPerPly` and `B3IirMinDepth`, Cluster 2's for the other two joiners).
 
+#### AUDIT READ (2026-11-10, zero-game, before block 1's first game)
+
+An audit of the cluster the maintainer asked for, agent-run. It moves no default and
+changes nothing registered above; what it bears on is the maintainer's to decide.
+
+- **Checked and found sound:** the arm's driver, record and kernel against `sf_19`
+  (`search.cpp` `:345-547`, `:1361-1506`, `:1887`) as §3, §A1.5 and §14 dispose them; no
+  engine source changed since `d07380d`; the Tune build's hash, manifest and `bench 13`;
+  all eight coordinates advertised at their seeds and ranges and live at one step either
+  side of the seed (`bench_replay.py`, 16 points, every count different from 3,920,652);
+  the generator's drift check and test; block 1's dry run again, the same `EF41871B…`.
+- **The question:** M1 sent the stop to its 2× gate because it ends 23.42% of the arm's
+  searches (BAS-R10), and that gate sits after this fit (BAS-S55 (c)). The stop fires on
+  a fail high, and the number of fail highs a search is what `B5AspBase` and
+  `B5AspGrowth` set. Does the fit's surface move the time manager?
+- **Instrument:** M1's, `replay_games.py` on the arm's Tune build `D8D9BC67…`, the first
+  60 games of the gate (a) PGN, candidate side, one option a column, seven columns at
+  once on an idle host (`tools/results/b54-20261110/audit/`; `run.sh` 7ea8a8be…,
+  `read.py` 4e12448f…, `read.txt` f1e4e1af…). Not registered in this entry before it ran;
+  the prediction was stated to the maintainer before the read.
+- **Prediction, stated first:** the firing rate falls as the window widens, by at least 3
+  points between 705 and 2115, and is near the OFF arm's 10% at 19000.
+
+  | Column | stop ended | even band | re-searches a window | at or under `TmEffortLo` | at or over `TmEffortHi` | depth a search |
+  |---|---:|---:|---:|---:|---:|---:|
+  | M1, the arm at 1410 (the same 60 games) | 26.08% | 35.32% | 1.49 | 35.3% | 21.3% | 17.68 |
+  | M1, the OFF arm | 9.71% | 7.63% | 0.57 | 21.9% | 24.0% | 17.92 |
+  | `B5AspBase` 705 | 27.73% | 38.07% | 1.81 | 37.7% | 19.9% | 17.53 |
+  | 1410 | 27.01% | 36.53% | 1.53 | 35.9% | 20.8% | 17.62 |
+  | 2115 | 25.76% | 34.46% | 1.30 | 34.0% | 21.8% | 17.69 |
+  | 5640 | 21.04% | 28.32% | 0.81 | 27.9% | 24.7% | 17.92 |
+  | 19000 | 10.16% | 13.37% | 0.24 | 18.0% | 31.6% | 18.32 |
+  | `B5AspGrowth` 32 | 27.51% | 36.93% | 1.73 | 36.7% | 21.0% | 17.49 |
+  | 64 | 25.55% | 34.83% | 1.39 | 35.4% | 21.3% | 17.71 |
+
+- **Scored:** monotone, **hit**; 19000 at the OFF arm's rate, **hit**; 705 against 2115
+  reads 2.0 points, not 3, **miss**. The anchor reads 27.01% against M1's 26.08% on the
+  same games, so a point is the read's noise with seven columns running.
+- **What it says.** Across its range `B5AspBase` is a time-management dial: from the seed
+  to 19000 the stop's rate falls from 27% to 10%, the low-effort extension (`TmEffortLo`,
+  ×1.20) from 36% of windows to 18%, and the high-effort cut (`TmEffortHi`, ×0.80) rises
+  from 21% to 32%. The seed's time manager is not the OFF arm's, and 19000's nearly is.
+  At the fit's first perturbation (705 against 2115) the stop moves 2 points and the low
+  share 3.7. The width run read the base's whole range at −1.0 ± 9.1, so the direct
+  signal on the base is small, and a stop worth what Rarog's cost (−15 at 24%, a prior)
+  would put about 1 Elo across one perturbation: the same order.
+- **What follows from it, by PROCESS's rule** (*Decision rules*: categorical architecture
+  is gated before its constants are fitted): the stop's 2× gate belongs before this
+  fit, on the seeds, and the fit then runs on its winner. A fit under 1× that the gate
+  then moves to 2× was fitted to a time cut that is gone.
+- **Whatever is decided,** the fitted-constant analysis reads any movement of
+  `B5AspBase` and `B5AspGrowth` against this table before the bake. The effort share's
+  dilution by the re-search count (§A2.4 e) stays D.1's.
+- **Disposition:** put to the maintainer 2026-11-10; block 1 not started.
+
 #### Block 1 (registered 2026-11-10, before its first game)
 
 - **Binary:** `basilisk-b53-on-tune-pext-tune-pgo.exe`, ON Tune, final PGO, clean at
