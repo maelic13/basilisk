@@ -2700,6 +2700,26 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       evidence that block-wise self-play left it too aggressive, and led
       to its broad refit, +15.33 ± 7.34 nElo. The registration reads it
       beside the curvature sweep.
+      Added 2026-11-10 (maintainer): the kernel's own literals are
+      screened before the surface is registered. A few dozen numbers the
+      search reads are written into the code and are no option, so no
+      tune reaches them and B-105's relevance check does not see them.
+      They are the donor's values for its own network and tree: LMR's
+      offsets and step thresholds (697, 2179, 940, 1127, 5234, 5487),
+      its history weights (2252, 1126, 1093, 873), the correction
+      history's slope, cap and update (7419, 2695, 1061), the history
+      bonuses (−2210, 1334, 918 and −747) and the root record's
+      averaging weights (12 to 24 of 32). The screen plays no game:
+      - It lists every such literal in the node kernel, quiescence, the
+        history updates and the root record, each with its donor line.
+        The list is the screen's first output, and nothing is left off
+        it for looking unimportant.
+      - Each is exposed as an option on a tune build, `bench 13`
+        unchanged, and read at 20% either side of its value by B-102's
+        rule (a firing rate moved by 10% or a scale by 5%).
+      - One that passes joins the surface as a coordinate. One that
+        does not stays a literal, and the list says so with its read.
+        The staircase lines stay off the surface as before.
 - [ ] **B.7** Board review and rebuild
   Added 2026-11-03 (maintainer): Basilisk's board is reviewed against
   Stockfish's (`Position` and `StateInfo`, the modern donor's form) and
@@ -3305,7 +3325,7 @@ leaf's tag. Later phases carry only a class until they open.
 | B.5.4 | RESEARCH | V | The stop's gate read H1 and the arm's stop is at 2× (BAS-S55 (c)). The next action is the maintainer's: SPSA block 1 on the re-pinned Tune build (BAS-S54, seed 54001, eight coordinates, 60,000 games); then `spsa_block_rule.py` decides block 2 |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55, whose (c) stop bracket is closed, H1 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
-| B.6.2 | RESEARCH | V | Runs (maintainer 2026-11-05); the curvature evidence chooses its surface |
+| B.6.2 | RESEARCH | V | Runs (maintainer 2026-11-05); the curvature evidence chooses its surface, after the zero-game screen of the kernel's literals (added 2026-11-10) |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
 | B.7.2 | RESEARCH | R2 | Was B.15.2; after B.7.1 |
 | B.7.3 | RESEARCH | I2 | Was B.15.3; on B.7.2's frozen handoff |
