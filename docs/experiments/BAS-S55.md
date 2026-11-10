@@ -81,8 +81,51 @@ BAS-S54's audit read, Rarog's leads (PLAN B.5).
 
 #### RESULT — append after exposure
 
-- Disposition: prepared, maintainer-run, not started.
+- **(c)'s stop bracket: H1 accepted (2026-11-10, maintainer-run).** 8,260 games (4,130
+  pairs), LLR 2.955 in [−2.944, 2.944]: **+9.3 ± 4.4 Elo, +15.9 ± 7.5 nElo** for the stop
+  at 2×. W/D/L 2220/4040/2000, pentanomial [98, 875, 1984, 1055, 118]. No fault and no
+  time loss; the independent PGN recount agrees; 34 games finished after the boundary
+  and are outside the sample. Manifest
+  `tools/results/colosseum_sprt_b55-gate-c-stop_20261110_153812.manifest.txt`: clean at
+  `e34666e`, the validated dry run's `0C2080C1…`, PGN `87AB4B8E…`. An SPRT's estimate at
+  its stop reads high; the verdict is the boundary's.
+- **Applied as registered.** `B5FailHighStop` is 200 on the arm through a
+  `BASILISK_B5_CORE_DEFAULTS` line and 100 on the build without it (`a4637b6`). `bench
+  13` is unchanged on both, 3,920,652 and 4,144,790, CTest passes on both, and the
+  arm-defaults test fails on a wrong value. The arm's Tune build is rebuilt and
+  re-pinned, `basilisk-b54-on-tune-pext-tune-pgo.exe` (`D3E1B9E9…`, clean at `a4637b6`,
+  final PGO, `bench 13` 3,920,652, the stop advertised at 200), and BAS-S54's block 1 is
+  registered again on it.
+- **One departure from the registration:** no release build was rebuilt. Nothing reads
+  one before the bake, and B.5.5's other gates take their release builds from the
+  fitted source.
+- **The census, judging nothing** (`tools/results/b55-gate-c-stop/census/`; 8,294 games,
+  the 34 past the boundary included):
+
+  | Band, mean ms a move; moves at half the clock or more | 2× | 1× |
+  |---|---:|---:|
+  | Even | 81.7; 0.21% | 78.3; 0.09% |
+  | Won | 55.1; 2.32% | 59.6; 1.85% |
+  | Lost | 52.5; 3.46% | 56.8; 3.05% |
+  | Decided at 300 and not converted | 7.97% | 7.72% |
+
+  The stop at 1× spent less on even positions and more on decided ones. The won band's
+  share at half the clock or more is the hole (BAS-R10), larger at 2× as predicted; it
+  stays D.1's research card.
+- **Not explained:** the runner's summary reads 138,229 nodes a move at 2× against
+  125,600 at 1×, in 70.3 ms against 69.2, from one binary. It judges nothing here and
+  goes to D.1 with the census.
+- Disposition: (c)'s stop bracket is closed, H1, and is not played again. The entry's
+  other gates are assembled at B.5.5's opening.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 
-- *Owed at the gate's result.*
+- **G1: miss.** +9.3 ± 4.4 against +1 with an 80% interval of [−7, +9]. The sign was
+  given 55%.
+- **G2: the 20% outcome.** The cap was called at 65%.
+- **What the reasoning had wrong.** It held that the time 1× saves is spent later at the
+  same worth. The census reads it spent in decided positions, where it buys nothing,
+  and taken from even ones. Rarog's lead (−15 at a 24% firing rate) carried to this
+  engine, and was weighted as another engine's rule.
+- **For the next prior:** a clock rule that fires in a quarter of searches is not a
+  coin flip on sign when a sibling engine has measured the same rule at the same rate.

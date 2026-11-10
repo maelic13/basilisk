@@ -163,9 +163,10 @@ changes nothing registered above; what it bears on is the maintainer's to decide
 
 #### Block 1 (registered 2026-11-10, before its first game)
 
-- **Binary:** `basilisk-b53-on-tune-pext-tune-pgo.exe`, ON Tune, final PGO, clean at
-  `d07380d`, SHA-256 D8D9BC67…, `bench 13` 3,920,652. No engine source has changed
-  since; its advertised defaults equal all eight seeds.
+- **Binary:** `basilisk-b54-on-tune-pext-tune-pgo.exe`, ON Tune, final PGO, clean at
+  `a4637b6`, SHA-256 D3E1B9E9…, `bench 13` 3,920,652, `B5FailHighStop` advertised at
+  200; its advertised defaults equal all eight seeds. Registered first on `D8D9BC67…`
+  at `d07380d`, the stop at 100; the last bullet says why it changed.
 - **Runner and shape:** Colosseum `tools/spsa_colosseum.ps1` on
   `tools/spsa_configs/colosseum/search.run.toml` with `-Tune …/b54.tune.toml`. 15 slots ×
   30 games per iteration, 2,000 iterations (60,000 games, about 10 hours), `r_end`
@@ -178,15 +179,23 @@ changes nothing registered above; what it bears on is the maintainer's to decide
   tune stops, with theta that block's rounded centres. A block cut short never counts;
   the same command resumes from its checkpoint.
 - **Validation:** the runner's own dry run on block 1's exact arguments
-  (`tools/results/b54-20261110/validate_block1.ps1`; `dryrun-block1.json` EF41871B…)
-  accepts: 8 parameters, 2,000 × 30, concurrency 15, `r_end` 0.0031, seed 54001, no
-  adjudication, the binary's revision, fingerprint and every option checked.
-- **Launch:** `pwsh -NoProfile -File tools/spsa_colosseum.ps1 -Engine tools/test_engines/basilisk-b53-on-tune-pext-tune-pgo.exe -ExpectBench 3920652 -ExpectRevision d07380daa5d707c237e3e6865022f370566b39eb -Tune tools/spsa_configs/colosseum/b54.tune.toml -Seed 54001 -Dir tools/results/b54-spsa-block1`.
+  (`tools/results/b54-20261110/validate_block1_stop200.ps1`;
+  `dryrun-block1-stop200.json` 877DD4D6…) accepts: 8 parameters, 2,000 × 30,
+  concurrency 15, `r_end` 0.0031, seed 54001, no adjudication, the binary's revision,
+  fingerprint and every option checked, and the stop advertised at 200. The first
+  registration's dry run was `dryrun-block1.json` EF41871B….
+- **Launch:** `pwsh -NoProfile -File tools/spsa_colosseum.ps1 -Engine tools/test_engines/basilisk-b54-on-tune-pext-tune-pgo.exe -ExpectBench 3920652 -ExpectRevision a4637b6b4c91fefa0e7909a9120d64afef895cf5 -Tune tools/spsa_configs/colosseum/b54.tune.toml -Seed 54001 -Dir tools/results/b54-spsa-block1`.
 - **After BAS-S55 (c)'s stop gate (maintainer 2026-11-10).** On H0 or the cap, block 1
   runs as registered here. On H1 the arm's default stop moves to 200, the Tune build is
   rebuilt and re-pinned, and this block is registered again on it, its dry run repeated,
   before its first game; the surface, the seeds, the steps and the stop rule do not change.
-- Disposition: block 1 is prepared, maintainer-run, not started; it waits on the gate.
+- **Registered again 2026-11-10, before its first game:** the gate read H1 (+9.3 ± 4.4
+  Elo over 8,260 games). The binary, the validation and the launch line above are the
+  new ones; the surface file is the same (`b54.tune.toml` FB44912C…), as are the seeds,
+  the steps, the shape and the stop rule. No game of block 1 was played on the first
+  binary.
+- Disposition: block 1 is prepared on the arm with the stop at 2×, maintainer-run, not
+  started.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

@@ -2602,6 +2602,16 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           prepared.
         - The gate is prepared: its dry run accepted, its guards read
           both ways. Maintainer-run.
+      - The stop's gate 2026-11-10, maintainer-run (BAS-S55 *RESULT*):
+        H1 at 8,260 games, +9.3 ± 4.4 Elo for the stop at 2×, no fault
+        or time loss, the PGN recount agreeing. Applied as registered:
+        - `B5FailHighStop` is 200 on the arm through
+          `BASILISK_B5_CORE_DEFAULTS` and 100 off it (`a4637b6`);
+          `bench 13` is unchanged on both arms and CTest passes on both.
+        - The Tune build is rebuilt and re-pinned (`D3E1B9E9…`, clean at
+          `a4637b6`) and block 1 is registered again on it, its dry run
+          accepted (`877DD4D6…`). Surface, seeds, steps and stop rule
+          are unchanged. Maintainer-run.
     - [ ] **B.5.5** `[V]` Cluster 4 gates
       SPRT `[0,3]` for the cluster, and each categorical and
       attribution arm at the bounds the packet registers (BAS-S55);
@@ -3292,8 +3302,8 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.4 | RESEARCH | V | The next action is the maintainer's: the stop's gate first (BAS-S55 (c), 2× against 1×, SPRT `[0,3]`, cap 6,000 pairs), then SPSA block 1 on its winner (BAS-S54, seed 54001, eight coordinates, 60,000 games); then `spsa_block_rule.py` decides block 2 |
-| B.5.5 | RESEARCH | V | After B.5.4; BAS-S55, whose (c) stop bracket is played before the fit |
+| B.5.4 | RESEARCH | V | The stop's gate read H1 and the arm's stop is at 2× (BAS-S55 (c)). The next action is the maintainer's: SPSA block 1 on the re-pinned Tune build (BAS-S54, seed 54001, eight coordinates, 60,000 games); then `spsa_block_rule.py` decides block 2 |
+| B.5.5 | RESEARCH | V | After B.5.4; BAS-S55, whose (c) stop bracket is closed, H1 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
 | B.6.2 | RESEARCH | V | Runs (maintainer 2026-11-05); the curvature evidence chooses its surface |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
@@ -3980,6 +3990,13 @@ has lost games in both engines (BAS-X02).
     the window under today's measure and the stop BAS-S55 (c) leaves,
     so a change here to the measure or the stop re-reads `B5AspBase`
     and `B5AspGrowth`.
+  - The stop is at 2× on the arm (2026-11-10; BAS-S55 *RESULT*): H1,
+    +9.3 ± 4.4 Elo over 8,260 games against 1×. The census on that
+    PGN reads 1× spending less a move on even positions (78.3 ms
+    against 81.7) and more on won and lost ones; 2× leaves more won
+    moves at half the clock or more (2.32% against 1.85%), the hole.
+    Unexplained and read here: the runner's summary gives 10% more
+    nodes a move at 2× for 1.6% more time, from one binary.
   - Cluster 3's arm spends 7 to 8% more time a move in the won band
     than its base at both clocks (the B.4.7 runs, by amendment 2's
     census). A side whose own score reached 1,500 won all 2,260 such

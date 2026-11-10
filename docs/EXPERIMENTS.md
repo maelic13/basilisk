@@ -548,9 +548,9 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S53](experiments/BAS-S53.md) — B.5.3: Cluster 4 diagnostics, M1 and the unfitted paired run — closed: the unfitted arm +3.3 ± 9.3 Elo; the width stays at 1410; both categoricals stay 0 (item 2 rejected, −10.9 ± 9.4)
 
-- [BAS-S54](experiments/BAS-S54.md) — B.5.4: the Cluster 4 curvature sweep, then SPSA in blocks — sweep read: five joiners, the base curved; eight coordinates; block 1 prepared, after the stop's gate (BAS-S55 (c))
+- [BAS-S54](experiments/BAS-S54.md) — B.5.4: the Cluster 4 curvature sweep, then SPSA in blocks — sweep read: five joiners, the base curved; eight coordinates; block 1 prepared on the arm with the stop at 2× (BAS-S55 (c), H1), registered again on the re-pinned Tune build
 
-- [BAS-S55](experiments/BAS-S55.md) — B.5.5: the Cluster 4 gates — (c)'s stop bracket registered ahead of the fit, 2× against 1×, `[0,3]`, cap 6,000 pairs; prepared
+- [BAS-S55](experiments/BAS-S55.md) — B.5.5: the Cluster 4 gates — (c)'s stop bracket played ahead of the fit: H1, 2× against 1× reads +9.3 ± 4.4 Elo over 8,260 games, the arm's stop moved to 2×; the other gates open at B.5.5
 
 | ID | Title | Disposition |
 |---|---|---|
@@ -594,7 +594,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 | [BAS-R07](experiments/BAS-R07.md) | Fail-high clock stop sink probes: B.10 ended rec1's sink by a mate proof; cascade and the stop's hole remain. | Observation |
 | [BAS-R08](experiments/BAS-R08.md) | Wall-clock overhead read against Stockfish 19 at Threads 1 and 4. | Observation: 1T passes (gaps ≤ +0.77 ms); 4T movetime overshoot +1.08 to +1.14 ms over the line, a repair finding |
 | [BAS-R09](experiments/BAS-R09.md) | Helpers read the stop flag at every node (4T stop latency). | Retained: cap 3,000 games at 4T, −2.2 ± 7.1 Elo, LLR −0.96; 4T stop latency −0.25 ms |
-| [BAS-R10](experiments/BAS-R10.md) | B.5.3: M1, the fail-high stop's firing read, on the arm. | Closed: 2× against 1× (1× ends 23.42% of searches), played before B.5.4's fit as BAS-S55 (c); the hole 6.28%, a D.1 research card |
+| [BAS-R10](experiments/BAS-R10.md) | B.5.3: M1, the fail-high stop's firing read, on the arm. | Closed: 2× against 1× (1× ends 23.42% of searches), played before B.5.4's fit as BAS-S55 (c), which read H1 (+9.3 ± 4.4 Elo), so the arm's stop is at 2×; the hole 6.28%, a D.1 research card |
 
 ## 5. Evaluation and data experiments
 

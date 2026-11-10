@@ -189,6 +189,8 @@ points. §5.2's mechanism for the effort share was wrong (§A2.4 e).
   fit, on the seeds, as BAS-S55 (c)'s stop bracket, since the stop's rate moves with the
   window the fit moves (BAS-S54 *AUDIT READ*). The rule, the bracket and the battery's
   gate are unchanged.
+- **The gate's result (2026-11-10):** H1, +9.3 ± 4.4 Elo over 8,260 games (BAS-S55
+  *RESULT*). The stop is at 2× on the arm.
 - **Not in the predictions:** the OFF arm hit the ply cap 384 times in one game of the
   direction corpus (game 96), 3.84 a game; it is the OFF arm's, outside P9 and this
   leaf, and is reported to the maintainer.
