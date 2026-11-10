@@ -2507,14 +2507,23 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - M1's gate: stop 200 passes. Removal fails on W's spend, mostly
           one position, so A7's "both pass" misses and the Remove branch
           is closed.
-      - Handed over, none started: M1, the pooled NPS read and the
-        whole-arm paired run, each with its guards tested and its commands
-        in the opening's report. M1 and the whole-arm run were dry-run;
-        the NPS read's pools were validated and it was not smoke-tested,
-        since it needs an idle host.
-      - Owed from the returned runs: BAS-R10's rule, A6 to A8 and P8, P9
-        and P11; P10; P1, A12 and the census of the whole-arm PGN. Then
-        the width run and the categoricals, in §A1.5's order.
+      - Handed over and returned 2026-11-09, maintainer-run (BAS-R10 and
+        BAS-S53 *RESULT*):
+        - M1, with the OFF arm at stop 0: the rule sends the arm to 2×
+          against 1× (the stop ends 23.42% of searches at 1×), so BAS-S55
+          (c)'s SPRT is owed in B.5.5. The hole is 6.28% of the arm's
+          searches, so D.1 owes a research card; the clock test is not
+          pulled forward, since the arm left fewer games unconverted.
+          A6 hits, A7's rule hits, A8 misses high on the won band, P8
+          misses, P9 misses by one game, P11 hits.
+        - The NPS read: the arm is 0.989×, which misses P10 by 0.1 point;
+          its falsifier does not fire.
+        - The whole-arm run: +3.3 ± 9.3 Elo over 2,000 games, so P1 hits
+          and nothing is ablated. A12 hits. In won positions the arm
+          spends half its clock or more on 3.6 times the OFF arm's share
+          of moves, which is (e)'s trigger if it carries to (d)'s games.
+      - Next: the width run (`B5AspBase` 19000 against 1410), then §9's
+        items, in §A1.5's order.
     - [ ] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep on the three window seeds and the
       Cluster 1 to 3 coordinates §5.8 pulls onto the surface, then
@@ -3215,7 +3224,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.3 | GAME_GATE | V | The next action is the maintainer's: M1 (BAS-R10), the pooled NPS read on an idle host, and the whole-arm paired run (BAS-S53) are prepared, dry-run and handed over; the tools, entries, builds, node-budget screens and battery screen are recorded. A9's falsifier fired on the battery, for the research owner to read. Then the width run and the categoricals |
+| B.5.3 | GAME_GATE | V | The next action: prepare the width run (`B5AspBase` 19000 against 1410, §A1.5) for the maintainer, then §9's items. M1, the NPS read and the whole-arm run are read (BAS-R10, BAS-S53): the rule sends the stop to 2× against 1× for B.5.5, and D.1 owes the hole a research card |
 | B.5.4 | RESEARCH | V | After B.5.3; BAS-S54 |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |

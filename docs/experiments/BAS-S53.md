@@ -340,8 +340,42 @@ Packet §11's table, frozen 2026-11-08, before any ON-arm build; A1 to A5 frozen
     wider seed trades at-maximum searches for over-half ones in E (12 and 4 against 8
     and 6).
 
-- *M1, the NPS read and the games have not run.* The whole-arm launcher's dry run and
-  four-game smoke passed on the quiet host; `pgn_time_census.py` read the smoke's PGN.
+- The whole-arm launcher's dry run and four-game smoke passed on the quiet host;
+  `pgn_time_census.py` read the smoke's PGN.
+- **The pooled NPS read** (P10; 2026-11-09, `tools/results/b53-nps/`, `nps_read.ps1`, four
+  builds an arm, depth 13, three repeats, two cycles, no disturbed cycle): the arm reads
+  **−1.07%**, interval [−1.34, −0.80], 0.989× the OFF arm (2,659,202 against 2,687,937
+  nodes a second). In play the arm searched 1.90M against 2.00M nodes a second, on
+  different trees.
+- **The whole-arm paired run** (2026-11-09, `tools/results/b53-paired/`, the release pool
+  build 1 of each arm at `d07380d`, seed 53000, `match-fixed`, 2,000 games at `3+0.03`,
+  no fault, no time loss): the arm reads **+3.3 ± 9.3 Elo** (nElo +5.4 ± 15.2), 502 wins,
+  1,015 draws, 483 losses, pentanomial [25, 251, 443, 242, 39]. A diagnostic; the gates
+  are B.5.5's.
+- **The games census** (`pgn_time_census.py` on that PGN,
+  `b5-20261109/b53/paired-census.txt`):
+
+  | | the arm | OFF arm |
+  |---|---:|---:|
+  | Decided at 300; unconverted | 540; 38 (7.04%) | 531; 48 (9.04%) |
+  | Decided at 800; unconverted | 500; 1 | 484; 1 |
+  | Decided at 1,500; unconverted | 475; 0 | 470; 0 |
+  | Won band: mean time a move; at half the clock or more | 59.6 ms; 1.76% | 57.5 ms; 0.49% |
+  | Even band | 77.5 ms; 0.07% | 78.0 ms; 0.13% |
+  | Lost band | 58.7 ms; 3.37% | 56.5 ms; 4.41% |
+
+  In won positions the arm makes 3.6 times the OFF arm's share of moves at half its
+  clock or more. BAS-S55 (e)'s second trigger is 1.5 times, read on (d)'s games of the
+  fitted arm at `10+0.1`, not on this run; if the ratio carries there, (e) is triggered.
+- **Scored as frozen:**
+
+  | # | Read | Verdict |
+  |---|---|---|
+  | P1 | +3.3 ± 9.3 against +4, [−12, +20] | **hit**; the falsifier (below −20) does not fire, so no ablation |
+  | P10 | 0.989× against 0.99 to 1.01× | **miss** by 0.1 point, low; the falsifier (below 0.98) does not fire |
+  | A12 | won-band time 1.04× against 0.95 to 1.12×; unconverted at 300, 38 against 48 | **hit** on both |
+
+- *The width run and §9's items have not run.*
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

@@ -139,4 +139,52 @@ points. §5.2's mechanism for the effort share was wrong (§A2.4 e).
   it. The registered instrument is kept, and it matches A6's source. But M1's firing
   rate and time removed are of a search about 8% slower than the one that played, and
   are read with that stated.
-- *No replay has run.* The replays' results land here.
+- **The replays** (2026-11-09, maintainer-run with `-OffStop0`, seven columns on both
+  corpora, every exit 0; `tools/results/b53-m1/gate/` and `direction/`, `m1.json` and
+  `m1.txt` in each).
+
+  | Gate corpus, `3+0.03`, 300 games, 19,205 searches | ended by the stop | spend removed | hole | over half the maximum |
+  |---|---:|---:|---:|---:|
+  | the arm at 1× | 23.42% | 9.89% | 6.28% | 693 |
+  | the arm at 2× | 2.86% | 1.53% | 8.95% | 802 |
+  | the arm, stop removed | 0 | | 11.96% | 947 |
+  | the OFF arm at 1× | 9.70% | 5.40% | 7.63% | 751 |
+  | the OFF arm, stop removed | 0 | | 11.24% | 1,048 |
+
+  By band at 1× (fired; hole; removed of the band's spend): the arm won 5.46%, 13.48%,
+  5.84%; even 32.20%, 2.93%, 11.81%; lost 3.81%, 13.33%, 0.88%. The OFF arm won 20.92%,
+  3.45%, 17.66%; even 7.25%, 5.99%, 2.38%; lost 6.17%, 22.06%, 6.03%. So the arm's stop
+  cuts even positions and the OFF arm's cuts won ones; the arm's hole is in won
+  positions and the OFF arm's in lost ones. The first 100 games and the other 200 agree:
+  the arm 24.48% and 22.90% fired, 10.70% and 9.49% removed.
+
+  The direction corpus at `10+0.1`, 100 games, 6,524 searches: the arm at 1× 18.27%
+  fired, 7.71% removed, hole 4.80% (won band 10.90%: 37 before the optimum, 94 after, 13
+  other); the OFF arm 7.31%, 3.54%, 4.63% (won band 2.21%).
+
+  The Diag replays (gate corpus): the shares at or over `TmEffortHi` 23.35% on the arm and
+  24.37% on the OFF arm; at or under `TmEffortLo` 32.03% and 20.96%. Root best-move
+  changes a completed iteration 0.0973 and 0.0945. Ply-cap returns 17 on the arm, all in
+  game 33, none in check; 0 on the OFF arm.
+
+- **The rule: 2× against 1×** (1× fires on 23.42%, at least 10%). The battery's gate is
+  passed (BAS-S53 *RESULT*), so what is owed is BAS-S55 (c)'s SPRT `[0,3]` at `3+0.03`,
+  in B.5.5.
+- **The hole's card: a research card for D.1.** The arm's hole is 6.28% of searches,
+  above 0.5%, with the OFF arm's 7.63% beside it. §A2.4 c's pull-forward does not apply:
+  the whole-arm run leaves the arm fewer unconverted games at 300 than the OFF arm (38
+  against 48; BAS-S53 *RESULT*).
+- **Scored as frozen:**
+
+  | # | Read | Verdict |
+  |---|---|---|
+  | P8 | 23.42% fired against 1 to 6%; 9.89% removed against at most 2%; hole 6.28% against at most 0.3%; 2× fires 2.86% against at most 1% | **miss** on every clause, as §A2.6 said; the rule decides as registered |
+  | P9 | 0.057 ply-cap returns a game at `3+0.03` against at most 0.05, none in check | **miss** by one game's 17 returns; the falsifier (above 1 a game) does not fire; `60+0.6` is not read here |
+  | P11 | the high-effort share −1.0 point on the arm | **hit**; the low share rises 11.1 points, unpredicted, as §A2.4 e says |
+  | A6 | the arm 23.42% and 9.89%; the OFF arm 9.70% and 5.40% | **hit** on all four; the hundred and the rest agree |
+  | A7 | the rule sends the arm to 2× against 1× | **hit**; the second clause missed at the battery (removal fails the gate) |
+  | A8 | the arm's won-band hole 10.90% at `10+0.1`, 65% of it after the optimum; the OFF arm 2.21%; the arm 4.80% over all searches | **miss** on the first clause, high; **hit** on the other three |
+
+- **Not in the predictions:** the OFF arm hit the ply cap 384 times in one game of the
+  direction corpus (game 96), 3.84 a game; it is the OFF arm's, outside P9 and this
+  leaf, and is reported to the maintainer.
