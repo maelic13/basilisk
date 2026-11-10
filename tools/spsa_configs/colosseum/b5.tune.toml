@@ -7,7 +7,7 @@ name = "B5AspBase"
 initial = 1410
 min = 500
 max = 40000
-c_end = 1137.1455
+c_end = 324.7013
 
 [[parameters]]
 name = "B5AspMsqDiv"

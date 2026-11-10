@@ -286,6 +286,20 @@ def perturbation(minimum: int, maximum: int) -> int:
     return max(2, (maximum - minimum + 8) // 16)
 
 
+# Coordinates whose step is at most half their start value, rounded half up
+# (B.5 packet, research amendment 2, section A2.5): a sixteenth of the window
+# base's range is larger than the seed's distance to its lower bound, so the
+# low perturbation would clamp from the first iterate.
+HALF_START_STEP = frozenset({"B5AspBase"})
+
+
+def step_of(name: str, start: int, minimum: int, maximum: int) -> int:
+    step = perturbation(minimum, maximum)
+    if name in HALF_START_STEP:
+        step = max(2, min(step, (start + 1) // 2))
+    return step
+
+
 def render(parameters: list[tuple[str, int, int, int]], iterations: int,
            config: pathlib.Path = CONFIG, tune: pathlib.Path = TUNE,
            run: pathlib.Path | None = RUN,
@@ -295,7 +309,7 @@ def render(parameters: list[tuple[str, int, int, int]], iterations: int,
             "value": default,
             "min_value": minimum,
             "max_value": maximum,
-            "step": perturbation(minimum, maximum),
+            "step": step_of(name, default, minimum, maximum),
         }
         for name, default, minimum, maximum in parameters
     }

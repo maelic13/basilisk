@@ -248,6 +248,18 @@ class SurfaceTests(unittest.TestCase):
         finally:
             surface.B46_ADMITTED = saved
 
+    def test_the_window_base_steps_at_most_half_its_start(self):
+        # Research amendment 2 (B.5 packet section A2.5): B5AspBase's step is
+        # the smaller of the generator's and half the start value, so the low
+        # perturbation does not clamp at the seed. The other two keep theirs.
+        generated = json.loads(surface.B5_CONFIG.read_text(encoding="utf-8"))
+        self.assertEqual(generated["B5AspBase"]["step"], 705)
+        self.assertEqual(generated["B5AspMsqDiv"]["step"], surface.perturbation(1000, 12000))
+        self.assertEqual(generated["B5AspGrowth"]["step"], surface.perturbation(32, 96))
+        for start, step in ((1410, 705), (2820, 1410), (4938, 2469), (19000, 2469), (1411, 706)):
+            self.assertEqual(surface.step_of("B5AspBase", start, 500, 40000), step)
+        self.assertEqual(surface.step_of("B5AspMsqDiv", 1000, 1000, 12000), 688)
+
     def test_steps_are_half_up_range_sixteenths_with_floor(self):
         self.assertEqual(surface.perturbation(0, 40), 3)
         self.assertEqual(surface.perturbation(0, 24), 2)
