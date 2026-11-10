@@ -9,14 +9,15 @@
    -Run negext  §9 item 1: the Tune build at B5NegExtMax=1 (arm A) against the same binary at its
                 defaults (arm B), seed 53002, at the seed's width (the width run left 1410). After
                 the width run.
-
-   Item 2 follows item 1, in a later commit of this launcher.
+   -Run fhr     §9 item 2: the Tune build at B5FailHighReduce=1 (arm A) against the same binary at
+                its defaults (arm B), seed 53003, at 1410 and B5NegExtMax 0 (item 1 left both).
+                After item 1. Its WAC veto was read before the games and holds (269 against 263).
 
    -Smoke plays four games (the harness plays pairs, so four is the least above three) to
    <results>\b53-<run>-smoke, replaced each time. -DryRun plays nothing and checks the run. A game run
    refuses a directory that already holds one, and a run before its predecessor. #>
 param(
-    [ValidateSet('paired', 'width', 'negext')][string]$Run = 'paired',
+    [ValidateSet('paired', 'width', 'negext', 'fhr')][string]$Run = 'paired',
     [switch]$DryRun,
     [switch]$Smoke,
     [switch]$CheckOnly,
@@ -33,7 +34,7 @@ $revision = 'd07380daa5d707c237e3e6865022f370566b39eb'
 $on   = @{ Path = Join-Path $engines 'basilisk-b53-on-pgo1-pext-pgo.exe';       Sha = 'A1D8CE882DD467952BBCCC920D73EE669BEF26535BB71163CAFDAB86F422329F'; Bench = 3920652 }
 $off  = @{ Path = Join-Path $engines 'basilisk-b53-off-pgo1-pext-pgo.exe';      Sha = '64E4ECC76528C7C6406879B5F09BA0E5CADD0AA1767B0FA7E64D5E6B38F3FB85'; Bench = 4144790 }
 $tune = @{ Path = Join-Path $engines 'basilisk-b53-on-tune-pext-tune-pgo.exe'; Sha = 'D8D9BC6765E19A1645A95763572CD2E8E97099CCEB3C2928346A722EBBE90328'; Bench = 3920652 }
-$name = @{ paired = 'b53-paired'; width = 'b53-width'; negext = 'b53-negext' }[$Run]
+$name = @{ paired = 'b53-paired'; width = 'b53-width'; negext = 'b53-negext'; fhr = 'b53-fhr' }[$Run]
 $dir = Join-Path $results $(if ($Smoke) { "$name-smoke" } else { $name })
 
 $used = if ($Run -eq 'paired') { @($on, $off) } else { @($tune) }
@@ -44,8 +45,8 @@ foreach ($engine in $used) {
 }
 # Each run follows its predecessor's completed 2,000 games. Whatever the whole-arm run reads, the
 # width run is next: P1's falsifier also sends a read below -20 to the width run before any ablation.
-# Item 1 follows the width run, at the width it left.
-$predecessor = @{ width = 'b53-paired'; negext = 'b53-width' }[$Run]
+# Item 1 follows the width run, at the width it left, and item 2 follows item 1.
+$predecessor = @{ width = 'b53-paired'; negext = 'b53-width'; fhr = 'b53-negext' }[$Run]
 if ($predecessor -and -not $Smoke) {
     $previous = Join-Path $results "$predecessor\result.json"
     if (-not (Test-Path -LiteralPath $previous)) { throw "ORDER - $predecessor has not been played." }
@@ -85,12 +86,20 @@ if ($Run -eq 'paired') {
         Seed = 53001
         ExpectBench = @($tune.Bench, $tune.Bench)
     }
-} else {
+} elseif ($Run -eq 'negext') {
     $arguments += @{
         EngineA = $tune.Path; NameA = 'NegExtMax1'
         EngineB = $tune.Path; NameB = 'Defaults'
         OptionsA = @('B5NegExtMax=1')
         Seed = 53002
+        ExpectBench = @($tune.Bench, $tune.Bench)
+    }
+} else {
+    $arguments += @{
+        EngineA = $tune.Path; NameA = 'FailHighReduce1'
+        EngineB = $tune.Path; NameB = 'Defaults'
+        OptionsA = @('B5FailHighReduce=1')
+        Seed = 53003
         ExpectBench = @($tune.Bench, $tune.Bench)
     }
 }
