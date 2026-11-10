@@ -52,9 +52,10 @@
   arms (§A2.5).
 - **Launch:** `pwsh -NoProfile -File tools/run_b55_gates.ps1 -Gate stop`. The same
   command resumes an interrupted run from its checkpoint; a finished gate is refused.
-- **Validation (2026-11-10):** the launcher's dry run on the real pins is accepted
-  (`tools/results/colosseum_sprt_b55-gate-c-stop_20261110_153433.manifest.txt`, dry run
-  `0C2080C1…`: `--max-pairs 6000`, the option on arm A alone, seed 55003, no
+- **Validation (2026-11-10):** the launcher's dry run on the real pins, from the clean
+  committed tree, is accepted
+  (`tools/results/colosseum_sprt_b55-gate-c-stop_20261110_153703.manifest.txt`, dry run
+  `0C2080C1…`: `--max-pairs 6000`, the option on arm A alone, seed 55003, 15 slots, no
   adjudication). Its guards read both ways: a wrong binary under the pinned name, a
   missing binary and a finished gate in the directory each end it with exit 1, and the
   real pins pass.
