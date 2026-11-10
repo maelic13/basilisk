@@ -188,3 +188,16 @@ points. §5.2's mechanism for the effort share was wrong (§A2.4 e).
 - **Not in the predictions:** the OFF arm hit the ply cap 384 times in one game of the
   direction corpus (game 96), 3.84 a game; it is the OFF arm's, outside P9 and this
   leaf, and is reported to the maintainer.
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **Before any game:** P8 missed every clause (the stop ended 23.42% of searches
+  against 1 to 6%, removed 9.89% of spend against at most 2%, and left a 6.28% hole
+  against at most 0.3%). P9 missed by one game's 17 ply-cap returns. P11 hit.
+- **After twenty games were seen:** A6 hit on all four ranges and A7's rule hit; A7's
+  gate clause missed at the battery. A8 missed high on the won band (10.90% against 2 to
+  8%) and hit on its other three clauses.
+- **What it teaches:** the stop's rate was sized from twenty replayed games and not
+  from the mechanism's argument, which put it at a quarter of what it is. The hole
+  sits in won positions on the arm, larger than predicted, which is why D.1 owes it a
+  research card.

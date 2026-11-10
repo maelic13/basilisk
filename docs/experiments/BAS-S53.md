@@ -455,8 +455,58 @@ Packet §11's table, frozen 2026-11-08, before any ON-arm build; A1 to A5 frozen
   ways (`b5-20261109/b53/guard_test.ps1`, 38 cases, 0 failures); its dry run is
   accepted, and its four-game smoke completes with no fault, the option on arm A alone in
   the resolved configuration; `pgn_time_census.py` read the smoke's PGN.
-- *§9 item 2 has not run.*
+- **§9 item 2's paired run** (2026-11-10, maintainer-run, `tools/results/b53-fhr/`; the
+  Tune build `D8D9BC67…` on both sides at `d07380d`, `B5FailHighReduce=1` on arm A alone,
+  at 1410 and `B5NegExtMax` 0, seed 53003, `match-fixed`, the clean tree of `6468569`,
+  2,000 games at `3+0.03`, no fault, no time loss): the reduction reads **−10.9 ± 9.4
+  Elo** (nElo −17.8 ± 15.2) against full depth, 474 wins, 989 draws, 537 losses,
+  pentanomial [45, 247, 463, 216, 29]. At 1 the arm searches 18.53 plies a move against
+  18.13, at 69.6 ms against 69.4.
+- **Read by §9's rule:** −5 or less with the interval, [−20.3, −1.5], excluding 0, so
+  `B5FailHighReduce` 1 is **rejected** and the re-search after a fail high stays at full
+  depth, the default. The WAC veto was not needed. §9's clause stands: if B.5.4 moves
+  `B5AspBase` above 2820 or under 705, BAS-S55 (c) reads item 2 again.
+- **The games census** (`b5-20261109/b53/fhr-census.txt` and `.json`):
+
+  | | `B5FailHighReduce` 1 | 0 |
+  |---|---:|---:|
+  | Decided at 300; unconverted | 516; 42 (8.14%), one lost | 574; 38 (6.62%) |
+  | Decided at 800; unconverted | 471; 1 | 536; 1 |
+  | Won band: mean time a move; at half the clock or more | 60.0 ms; 1.82% | 59.9 ms; 2.07% |
+  | Even band | 78.5 ms; 0.11% | 78.0 ms; 0.09% |
+  | Lost band | 56.3 ms; 3.12% | 57.3 ms; 2.99% |
+
+- **Scored as frozen:**
+
+  | # | Read | Verdict |
+  |---|---|---|
+  | A4 | −10.9 ± 9.4 against within ±6 (55%), positive (55%) | **miss** on both clauses; the falsifier (+5 or more) does not fire |
+  | P12 | item 2 −10.9 against within ±5 if its gate is met | **miss** |
+
+- **What B.5.3 leaves:** the width at the seed, 1410, where B.5.4's SPSA starts; both
+  categoricals at 0; item 1 not rejected, so `B5NegExtMax` 1 stays B.5.5's first remedy
+  if the long-clock condition fails; M1's rule, 2× against 1× for B.5.5 (BAS-R10); and
+  the hole's research card for D.1. No default moved and no engine source changed.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 
-- *Owed at the leaf's close.*
+- **The games.** P1, +4 with [−12, +20], read +3.3: **hit**, on the point. A2,
+  research's −8 with [−22, +6] and positive at 20%, read +3.3: inside the interval, 11
+  above the point and of the other sign; its falsifier (above +6) does not fire. A5, the
+  width run +10 with [−2, +22], read −1.0: **miss**, and its falsifier fired. A4, item 2
+  within ±6, read −10.9: **miss**. P12 hit on item 1 (−3.6 within ±6) and missed on item
+  2's gate and its ±5. P5's paired clause hit.
+- **The screens** (*RESULT*): A1 hit (ticket 3 reproduced the probe). P3 missed on the
+  failed share; P4's mean hit and its share missed; P5 hit on nodes and the cost screen
+  and missed selective depth by 0.12 plies; P6 missed by one, high; P7 hit; P10 missed
+  by 0.1 point, low. At the battery A9 missed and its falsifier fired, A10 missed low on
+  W's spend, A11 hit; A12 hit on the census.
+- **Waiting:** P2 on B.5.5; A3 on B.5.4's fit; A13 in BAS-S55. P8, P9, P11 and A6 to
+  A8 are BAS-R10's.
+- **What it teaches:** none of the three tree-sized options carried to games. The
+  width 19000 searched 15% fewer nodes than today's loop on 104 of 106 positions, where
+  the seed searched 20% more, and read −1.0 against the seed; the cap cut
+  nodes 6% and read −3.6; the reduction met its gate at 45.9% against 20% and read
+  −10.9. BAS-S50 taught the same: a screen sizes a mechanism, not its Elo. The whole
+  arm's point estimate held, and research's pessimism about the seed's extra nodes
+  (A2) had the sign wrong.
