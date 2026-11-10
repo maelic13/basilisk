@@ -1,15 +1,19 @@
-<# Frozen launcher for PLAN B.5.3's games (BAS-S53). The whole-arm run: 2,000 games (1,000 paired UHO
+<# Frozen launcher for PLAN B.5.3's games (BAS-S53). Every run: 2,000 games (1,000 paired UHO
    openings) at 3+0.03, one thread, Hash 64, no adjudication, tablebases off, on the Colosseum
-   match-fixed.toml policy; the B5_ROOT=ON release build against the OFF build of the same revision, both
-   final-PGO, each pool's build 1, pinned by SHA-256. It does not wait on M1.
+   match-fixed.toml policy, at one revision, every binary pinned by SHA-256.
 
-   The width run and the two categoricals follow it in §A1.5's order, in later commits of this launcher.
+   -Run paired  the whole-arm run: the B5_ROOT=ON release build against the OFF build, both final-PGO,
+                each pool's build 1, seed 53000. It does not wait on M1.
+   -Run width   the width run (§A1.5): the arm's Tune build at B5AspBase=19000 (arm A) against the
+                same binary at its defaults (arm B), seed 53001. After the whole-arm run.
+
+   The two categoricals follow at the width the width run leaves, in later commits of this launcher.
 
    -Smoke plays four games (the harness plays pairs, so four is the least above three) to
-   <results>\b53-paired-smoke, replaced each time. -DryRun plays nothing and checks the run. A game run
-   refuses a directory that already holds one. #>
+   <results>\b53-<run>-smoke, replaced each time. -DryRun plays nothing and checks the run. A game run
+   refuses a directory that already holds one, and a run before its predecessor. #>
 param(
-    [ValidateSet('paired')][string]$Run = 'paired',
+    [ValidateSet('paired', 'width')][string]$Run = 'paired',
     [switch]$DryRun,
     [switch]$Smoke,
     [switch]$CheckOnly,
@@ -23,14 +27,25 @@ $wrapper = Join-Path $PSScriptRoot 'colosseum.ps1'
 $results = if ($ResultsRoot) { $ResultsRoot } else { Join-Path $PSScriptRoot 'results' }
 $engines = if ($EnginesDir) { $EnginesDir } else { Join-Path $PSScriptRoot 'test_engines' }
 $revision = 'd07380daa5d707c237e3e6865022f370566b39eb'
-$on  = @{ Path = Join-Path $engines 'basilisk-b53-on-pgo1-pext-pgo.exe';  Sha = 'A1D8CE882DD467952BBCCC920D73EE669BEF26535BB71163CAFDAB86F422329F'; Bench = 3920652 }
-$off = @{ Path = Join-Path $engines 'basilisk-b53-off-pgo1-pext-pgo.exe'; Sha = '64E4ECC76528C7C6406879B5F09BA0E5CADD0AA1767B0FA7E64D5E6B38F3FB85'; Bench = 4144790 }
-$dir = Join-Path $results $(if ($Smoke) { 'b53-paired-smoke' } else { 'b53-paired' })
+$on   = @{ Path = Join-Path $engines 'basilisk-b53-on-pgo1-pext-pgo.exe';       Sha = 'A1D8CE882DD467952BBCCC920D73EE669BEF26535BB71163CAFDAB86F422329F'; Bench = 3920652 }
+$off  = @{ Path = Join-Path $engines 'basilisk-b53-off-pgo1-pext-pgo.exe';      Sha = '64E4ECC76528C7C6406879B5F09BA0E5CADD0AA1767B0FA7E64D5E6B38F3FB85'; Bench = 4144790 }
+$tune = @{ Path = Join-Path $engines 'basilisk-b53-on-tune-pext-tune-pgo.exe'; Sha = 'D8D9BC6765E19A1645A95763572CD2E8E97099CCEB3C2928346A722EBBE90328'; Bench = 3920652 }
+$name = @{ paired = 'b53-paired'; width = 'b53-width' }[$Run]
+$dir = Join-Path $results $(if ($Smoke) { "$name-smoke" } else { $name })
 
-foreach ($engine in @($on, $off)) {
+$used = if ($Run -eq 'paired') { @($on, $off) } else { @($tune) }
+foreach ($engine in $used) {
     if (-not (Test-Path -LiteralPath $engine.Path)) { throw "PROVENANCE MISMATCH - no binary at $($engine.Path)." }
     $actual = Get-HarnessSha256 $engine.Path
     if ($actual -ne $engine.Sha) { throw "PROVENANCE MISMATCH - $($engine.Path) is $actual, not $($engine.Sha)." }
+}
+# The width run follows a completed whole-arm run. Whatever that run reads, the width run is next:
+# P1's falsifier also sends a read below -20 to the width run before any ablation.
+if ($Run -eq 'width' -and -not $Smoke) {
+    $previous = Join-Path $results 'b53-paired\result.json'
+    if (-not (Test-Path -LiteralPath $previous)) { throw 'ORDER - the whole-arm run has not been played.' }
+    $done = Get-Content -LiteralPath $previous -Raw | ConvertFrom-Json
+    if ($done.status -ne 'completed' -or [int]$done.games_completed -ne 2000) { throw 'ORDER - the whole-arm run is not a completed 2,000-game run.' }
 }
 if (-not $Smoke -and -not $DryRun -and (Test-Path -LiteralPath (Join-Path $dir 'result.json'))) {
     throw "STALE RESULT - $dir holds a run; it is not extended or replaced. Move it first."
@@ -48,11 +63,23 @@ $arguments = @{
     IncrementMs = 30
     ExpectRevision = $revision
     DryRun = $DryRun
-    EngineA = $on.Path; NameA = 'B5Root'
-    EngineB = $off.Path; NameB = 'B4Head'
-    Seed = 53000
-    ExpectBench = @($on.Bench, $off.Bench)
     Dir = $dir
+}
+if ($Run -eq 'paired') {
+    $arguments += @{
+        EngineA = $on.Path; NameA = 'B5Root'
+        EngineB = $off.Path; NameB = 'B4Head'
+        Seed = 53000
+        ExpectBench = @($on.Bench, $off.Bench)
+    }
+} else {
+    $arguments += @{
+        EngineA = $tune.Path; NameA = 'AspBase19000'
+        EngineB = $tune.Path; NameB = 'Defaults'
+        OptionsA = @('B5AspBase=19000')
+        Seed = 53001
+        ExpectBench = @($tune.Bench, $tune.Bench)
+    }
 }
 & $wrapper @arguments
 if ($LASTEXITCODE) { exit $LASTEXITCODE }
