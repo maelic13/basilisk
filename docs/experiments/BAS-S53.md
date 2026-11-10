@@ -375,6 +375,12 @@ Packet §11's table, frozen 2026-11-08, before any ON-arm build; A1 to A5 frozen
   | P10 | 0.989× against 0.99 to 1.01× | **miss** by 0.1 point, low; the falsifier (below 0.98) does not fire |
   | A12 | won-band time 1.04× against 0.95 to 1.12×; unconverted at 300, 38 against 48 | **hit** on both |
 
+- **The width run is prepared** (2026-11-10): `tools/run_b53_games.ps1 -Run width`, the arm's
+  Tune build `D8D9BC67…` on both sides, `B5AspBase=19000` on arm A only, seed 53001, after
+  a completed whole-arm run. Its guards pass both ways (`b5-20261109/b53/guard_test.ps1`,
+  24 cases, 0 failures); its dry run is accepted, and its four-game smoke completes with
+  no fault, the option on arm A alone in the resolved configuration;
+  `pgn_time_census.py` read the smoke's PGN.
 - *The width run and §9's items have not run.*
 
 #### PREDICTION CALIBRATION — preserve the original prediction above

@@ -2522,8 +2522,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           and nothing is ablated. A12 hits. In won positions the arm
           spends half its clock or more on 3.6 times the OFF arm's share
           of moves, which is (e)'s trigger if it carries to (d)'s games.
-      - Next: the width run (`B5AspBase` 19000 against 1410), then §9's
-        items, in §A1.5's order.
+      - The width run (`B5AspBase` 19000 against 1410) is prepared
+        2026-11-10, its guards tested and its dry run and smoke passed,
+        and handed over. Then §9's items, at the width it leaves.
     - [ ] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep on the three window seeds and the
       Cluster 1 to 3 coordinates §5.8 pulls onto the surface, then
@@ -3224,7 +3225,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.3 | GAME_GATE | V | The next action: prepare the width run (`B5AspBase` 19000 against 1410, §A1.5) for the maintainer, then §9's items. M1, the NPS read and the whole-arm run are read (BAS-R10, BAS-S53): the rule sends the stop to 2× against 1× for B.5.5, and D.1 owes the hole a research card |
+| B.5.3 | GAME_GATE | V | The next action is the maintainer's: the width run (`B5AspBase` 19000 against 1410, BAS-S53) is prepared and handed over. Then §9's two items at the width it leaves. M1's rule sends the stop to 2× against 1× for B.5.5, and D.1 owes the hole a research card |
 | B.5.4 | RESEARCH | V | After B.5.3; BAS-S54 |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
