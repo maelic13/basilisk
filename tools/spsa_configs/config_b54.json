@@ -1,0 +1,50 @@
+{
+    "B5AspBase": {
+        "value": 1410,
+        "min_value": 500,
+        "max_value": 40000,
+        "step": 705
+    },
+    "B5AspMsqDiv": {
+        "value": 2874,
+        "min_value": 1000,
+        "max_value": 12000,
+        "step": 688
+    },
+    "B5AspGrowth": {
+        "value": 47,
+        "min_value": 32,
+        "max_value": 96,
+        "step": 4
+    },
+    "CoreContHistPruneSlope": {
+        "value": 3832,
+        "min_value": 1500,
+        "max_value": 8000,
+        "step": 406
+    },
+    "CoreCorrUpdateScale": {
+        "value": 17,
+        "min_value": 4,
+        "max_value": 30,
+        "step": 2
+    },
+    "B3NmpPerPly": {
+        "value": 13,
+        "min_value": 2,
+        "max_value": 32,
+        "step": 2
+    },
+    "B3SingMargin": {
+        "value": 232,
+        "min_value": 13,
+        "max_value": 378,
+        "step": 23
+    },
+    "B3IirMinDepth": {
+        "value": 6,
+        "min_value": 3,
+        "max_value": 10,
+        "step": 2
+    }
+}

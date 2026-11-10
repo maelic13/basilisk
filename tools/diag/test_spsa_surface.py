@@ -248,6 +248,37 @@ class SurfaceTests(unittest.TestCase):
         finally:
             surface.B46_ADMITTED = saved
 
+    def test_b54_surface_is_the_b5_lines_and_the_joiners(self):
+        # BAS-S54: Cluster 4's X lines, then the five coordinates section 5.8's
+        # median rule admitted (analysis/b54_sweep_2026-11-10.md), each from the
+        # value the arm runs: Cluster 3's refit, then Cluster 2's, then the line.
+        text = surface.HEADER.read_text(encoding="utf-8")
+        b5 = [item[0] for item in surface.parse_parameters(text, b5=True)]
+        generated = json.loads(surface.B54_CONFIG.read_text(encoding="utf-8"))
+        self.assertEqual(list(generated), b5 + ["CoreContHistPruneSlope", "CoreCorrUpdateScale",
+                                                "B3NmpPerPly", "B3SingMargin", "B3IirMinDepth"])
+        self.assertEqual({name: spec["value"] for name, spec in generated.items()},
+                         {"B5AspBase": 1410, "B5AspMsqDiv": 2874, "B5AspGrowth": 47,
+                          "CoreContHistPruneSlope": 3832, "CoreCorrUpdateScale": 17,
+                          "B3NmpPerPly": 13, "B3SingMargin": 232, "B3IirMinDepth": 6})
+        self.assertEqual(generated["B5AspBase"]["step"], 705)
+        core = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
+        b3 = json.loads(surface.B3_CONFIG.read_text(encoding="utf-8"))
+        for name in surface.B54_ADMITTED:
+            source = core[name] if name in core else b3[name]
+            self.assertEqual({k: generated[name][k] for k in ("min_value", "max_value", "step")},
+                             {k: source[k] for k in ("min_value", "max_value", "step")})
+
+    def test_b54_surface_rejects_a_name_with_no_x_line(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        saved = surface.B54_ADMITTED
+        try:
+            surface.B54_ADMITTED = saved + ("CoreNoSuchCoordinate",)
+            with self.assertRaises(ValueError):
+                surface.b54_parameters(text)
+        finally:
+            surface.B54_ADMITTED = saved
+
     def test_the_window_base_steps_at_most_half_its_start(self):
         # Research amendment 2 (B.5 packet section A2.5): B5AspBase's step is
         # the smaller of the generator's and half the start value, so the low

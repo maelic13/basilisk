@@ -74,6 +74,15 @@ B46_ADMITTED = (
     "CoreRfpCorrMult", "CoreRfpBetaWeight", "CoreRfpDepthCap", "B3NmpBase",
     "B3IirMinDepth", "CoreLmrCutNodeNoTt", "B3NmpPerPly", "CoreResearchDeeper",
 )
+# B.5.4's fit surface (BAS-S54): the B5 table's X lines with the coordinates
+# packet section 5.8's median rule admitted (analysis/b54_sweep_2026-11-10.md),
+# on the same run file.
+B54_CONFIG = ROOT / "tools" / "spsa_configs" / "config_b54.json"
+B54_TUNE = COLOSSEUM / "b54.tune.toml"
+B54_ADMITTED = (
+    "CoreContHistPruneSlope", "CoreCorrUpdateScale", "B3NmpPerPly", "B3SingMargin",
+    "B3IirMinDepth",
+)
 PARAM_RE = re.compile(
     r"^\s*X\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,"
     r"\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)"
@@ -280,6 +289,22 @@ def b46_parameters(text: str) -> list[tuple[str, int, int, int]]:
     return parse_parameters(text, b4=True) + [earlier[name] for name in B46_ADMITTED]
 
 
+def b54_parameters(text: str) -> list[tuple[str, int, int, int]]:
+    """B.5.4's fit surface: the B5 X lines, then the coordinates B54_ADMITTED
+    names from the core, B3 and B4 tables, in that order; every name is checked.
+    Each starts from the value the engine runs: Cluster 3's refit where it has
+    one, then Cluster 2's."""
+    overrides = {**b3_core_defaults(text), **b4_core_defaults(text)}
+    earlier = {name: (name, overrides.get(name, default), minimum, maximum)
+               for name, default, minimum, maximum in
+               [*parse_parameters(text, core=True), *parse_parameters(text, b3=True),
+                *parse_parameters(text, b4=True)]}
+    missing = [name for name in B54_ADMITTED if name not in earlier]
+    if missing:
+        raise ValueError(f"B.5.4 surface names no X line: {', '.join(missing)}")
+    return parse_parameters(text, b5=True) + [earlier[name] for name in B54_ADMITTED]
+
+
 def perturbation(minimum: int, maximum: int) -> int:
     # Positive integer half-up rounding; unlike Python round(), ties do not
     # depend on parity.
@@ -351,8 +376,8 @@ option = ["Hash=64", "Threads=1"]
 
 
 def render_all(text: str, iterations: int) -> dict[pathlib.Path, str]:
-    """The default surface and run file, then the core, B3, B.3.3, B4, B.4.6
-    and B5 surfaces."""
+    """The default surface and run file, then the core, B3, B.3.3, B4, B.4.6,
+    B5 and B.5.4 surfaces."""
     outputs = render(parse_parameters(text), iterations)
     outputs.update(render(parse_parameters(text, core=True), iterations,
                           config=CORE_CONFIG, tune=CORE_TUNE, run=None))
@@ -373,6 +398,10 @@ def render_all(text: str, iterations: int) -> dict[pathlib.Path, str]:
                                  "section 5.8's coordinates."]))
     outputs.update(render(parse_parameters(text, b5=True), iterations,
                           config=B5_CONFIG, tune=B5_TUNE, run=None))
+    outputs.update(render(b54_parameters(text), iterations,
+                          config=B54_CONFIG, tune=B54_TUNE, run=None,
+                          notes=["# B.5.4's fit surface (BAS-S54): the B5 X lines with "
+                                 "section 5.8's median-rule joiners."]))
     return outputs
 
 
@@ -404,8 +433,10 @@ def main() -> int:
               f"{len(parse_parameters(text, core=True))} core, "
               f"{len(parse_parameters(text, b3=True))} B3, "
               f"{len(b33_parameters(text))} B.3.3 fit-surface, "
-              f"{len(parse_parameters(text, b4=True))} B4 and "
-              f"{len(b46_parameters(text))} B.4.6 fit-surface parameters)")
+              f"{len(parse_parameters(text, b4=True))} B4, "
+              f"{len(b46_parameters(text))} B.4.6 fit-surface, "
+              f"{len(parse_parameters(text, b5=True))} B5 and "
+              f"{len(b54_parameters(text))} B.5.4 fit-surface parameters)")
         return 0
     COLOSSEUM.mkdir(parents=True, exist_ok=True)
     for path, content in outputs.items():
