@@ -2562,6 +2562,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         takes the rule with a test. The packet's §5.8 joiner rule is
         read by the median position with the total beside it:
         `cont_hist_pruned`'s −51.6% is a few decided positions.
+      - Opened 2026-11-10 on the B.5.3-closed arm at `d07380d`
+        (`B5AspBase` 1410, both categoricals 0; Tune `D8D9BC67…`,
+        `bench 13` 3,920,652):
+        - The generator takes §A2.5's step rule with a test
+          (`850050f`): `B5AspBase` steps 705 at the seed.
+        - BAS-S54 is registered, with the joiner read and the sweep
+          frozen before either runs (`analysis/b54_sweep_2026-11-10.md`):
+          18 rows for §5.8's median rule; the base at nine points and
+          the growth at three, at the seed and the cheapest base;
+          `bench 13`, WAC at 100,000 nodes and `suite_v2` at depths 14
+          and 17 a point; Rarog's classification on WAC.
     - [ ] **B.5.5** `[V]` Cluster 4 gates
       SPRT `[0,3]` for the cluster, and each categorical and
       attribution arm at the bounds the packet registers (BAS-S55);
@@ -3250,7 +3261,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.4 | RESEARCH | V | Next: register BAS-S54, then the sweep and SPSA from `B5AspBase` 1410, where B.5.3's width run left it; both categoricals stay 0 |
+| B.5.4 | RESEARCH | V | BAS-S54 registered and the sweep frozen; next: the joiner read and the sweep (zero-game, agent-run), then the surface and block 1 for the maintainer |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
 | B.6.2 | RESEARCH | V | Runs (maintainer 2026-11-05); the curvature evidence chooses its surface |
