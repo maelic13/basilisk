@@ -158,7 +158,8 @@ changes nothing registered above; what it bears on is the maintainer's to decide
 - **Whatever is decided,** the fitted-constant analysis reads any movement of
   `B5AspBase` and `B5AspGrowth` against this table before the bake. The effort share's
   dilution by the re-search count (§A2.4 e) stays D.1's.
-- **Disposition:** put to the maintainer 2026-11-10; block 1 not started.
+- **Decided 2026-11-10 (maintainer):** the stop's gate first. BAS-S55 (c)'s stop bracket
+  is played on the seeds before block 1, and the fit runs on its winner.
 
 #### Block 1 (registered 2026-11-10, before its first game)
 
@@ -181,7 +182,11 @@ changes nothing registered above; what it bears on is the maintainer's to decide
   accepts: 8 parameters, 2,000 × 30, concurrency 15, `r_end` 0.0031, seed 54001, no
   adjudication, the binary's revision, fingerprint and every option checked.
 - **Launch:** `pwsh -NoProfile -File tools/spsa_colosseum.ps1 -Engine tools/test_engines/basilisk-b53-on-tune-pext-tune-pgo.exe -ExpectBench 3920652 -ExpectRevision d07380daa5d707c237e3e6865022f370566b39eb -Tune tools/spsa_configs/colosseum/b54.tune.toml -Seed 54001 -Dir tools/results/b54-spsa-block1`.
-- Disposition: block 1 is prepared, maintainer-run, not started.
+- **After BAS-S55 (c)'s stop gate (maintainer 2026-11-10).** On H0 or the cap, block 1
+  runs as registered here. On H1 the arm's default stop moves to 200, the Tune build is
+  rebuilt and re-pinned, and this block is registered again on it, its dry run repeated,
+  before its first game; the surface, the seeds, the steps and the stop rule do not change.
+- Disposition: block 1 is prepared, maintainer-run, not started; it waits on the gate.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

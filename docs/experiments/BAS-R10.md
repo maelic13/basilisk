@@ -185,6 +185,10 @@ points. §5.2's mechanism for the effort share was wrong (§A2.4 e).
   | A7 | the rule sends the arm to 2× against 1× | **hit**; the second clause missed at the battery (removal fails the gate) |
   | A8 | the arm's won-band hole 10.90% at `10+0.1`, 65% of it after the optimum; the OFF arm 2.21%; the arm 4.80% over all searches | **miss** on the first clause, high; **hit** on the other three |
 
+- **The gate's place (2026-11-10, maintainer):** 2× against 1× is played before B.5.4's
+  fit, on the seeds, as BAS-S55 (c)'s stop bracket, since the stop's rate moves with the
+  window the fit moves (BAS-S54 *AUDIT READ*). The rule, the bracket and the battery's
+  gate are unchanged.
 - **Not in the predictions:** the OFF arm hit the ply cap 384 times in one game of the
   direction corpus (game 96), 3.84 a game; it is the OFF arm's, outside P9 and this
   leaf, and is reported to the maintainer.

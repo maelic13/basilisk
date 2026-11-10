@@ -2584,6 +2584,24 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - The surface is eight coordinates (`2beb0bd`). Block 1 is
           prepared (seed 54001) and its dry run accepted. Maintainer-run
           overnight.
+      - Audit 2026-11-10, at the maintainer's request (BAS-S54 *AUDIT
+        READ*): the arm's code read against `sf_19` again and block 1's
+        preparation verified again (all eight coordinates live at one
+        step either side of the seed; the dry run reproduces). Nothing
+        to repair. One finding, on the order:
+        - The fail-high stop's rate is set by the window the fit moves.
+          On 60 replayed games the stop ends 27% of searches at
+          `B5AspBase` 1410 and 10% at 19000, and `TmEffortLo`'s share
+          falls from 36% to 18%. The stop's 2× gate sat after the fit.
+        - Decided 2026-11-10 (maintainer): the stop's gate is played
+          first, on the seeds, and the fit runs on its winner. It is
+          BAS-S55 (c)'s stop bracket: SPRT `[0,3]`, cap 6,000 pairs,
+          seed 55003, one Tune build, `tools/run_b55_gates.ps1 -Gate
+          stop`. H1 moves the arm's default to 200 and rebuilds and
+          re-pins before block 1; H0 or the cap leaves block 1 as
+          prepared.
+        - The gate is prepared: its dry run accepted, its guards read
+          both ways. Maintainer-run.
     - [ ] **B.5.5** `[V]` Cluster 4 gates
       SPRT `[0,3]` for the cluster, and each categorical and
       attribution arm at the bounds the packet registers (BAS-S55);
@@ -2604,6 +2622,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - At the pull request the arm's printed fingerprint is read,
         since its CI cell asserts no value; the counter-reading tests
         run in no CI cell.
+      - (c)'s stop bracket, 2× against 1×, is played before B.5.4's fit
+        (maintainer 2026-11-10; BAS-S55) and not again here.
 - [ ] **B.6** Donor-form reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live;
   registered surface; PGO bake; SPRT `[0,3]`. It runs (maintainer
@@ -3272,8 +3292,8 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.4 | RESEARCH | V | The next action is the maintainer's: SPSA block 1 (BAS-S54, seed 54001, eight coordinates, 60,000 games) is prepared and its dry run accepted; then `spsa_block_rule.py` decides block 2 |
-| B.5.5 | RESEARCH | V | After B.5.4; BAS-S55 |
+| B.5.4 | RESEARCH | V | The next action is the maintainer's: the stop's gate first (BAS-S55 (c), 2× against 1×, SPRT `[0,3]`, cap 6,000 pairs), then SPSA block 1 on its winner (BAS-S54, seed 54001, eight coordinates, 60,000 games); then `spsa_block_rule.py` decides block 2 |
+| B.5.5 | RESEARCH | V | After B.5.4; BAS-S55, whose (c) stop bracket is played before the fit |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
 | B.6.2 | RESEARCH | V | Runs (maintainer 2026-11-05); the curvature evidence chooses its surface |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
