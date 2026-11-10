@@ -381,7 +381,34 @@ Packet §11's table, frozen 2026-11-08, before any ON-arm build; A1 to A5 frozen
   24 cases, 0 failures); its dry run is accepted, and its four-game smoke completes with
   no fault, the option on arm A alone in the resolved configuration;
   `pgn_time_census.py` read the smoke's PGN.
-- *The width run and §9's items have not run.*
+- **The width run** (2026-11-10, maintainer-run, `tools/results/b53-width/`; the Tune
+  build `D8D9BC67…` on both sides at `d07380d`, `B5AspBase=19000` on arm A alone, seed
+  53001, `match-fixed`, 2,000 games at `3+0.03`, no fault, no time loss): 19000 reads
+  **−1.0 ± 9.1 Elo** (nElo −1.7 ± 15.2) against 1410, 505 wins, 984 draws, 511 losses,
+  pentanomial [38, 223, 471, 243, 25]. At 19000 the arm searches 18.67 plies a move
+  against 18.03, at the same 68.3 ms a move.
+- **Read by §9's rule:** not +5 or more, so 19000 is not adopted. §9's items are read at
+  the seed, 1410, and BAS-S54's SPSA starts `B5AspBase` at the seed. The −5 clause does
+  not fire either.
+- **The games census** (`b5-20261109/b53/width-census.txt` and `.json`):
+
+  | | 19000 | 1410 |
+  |---|---:|---:|
+  | Decided at 300; unconverted | 549; 44 (8.01%), one lost | 548; 37 (6.75%) |
+  | Decided at 800; unconverted | 504; 1 | 509; 2 |
+  | Won band: mean time a move; at half the clock or more | 58.7 ms; 1.86% | 58.6 ms; 1.78% |
+  | Even band | 77.3 ms; 0.11% | 76.9 ms; 0.07% |
+  | Lost band | 54.6 ms; 3.26% | 56.4 ms; 2.86% |
+
+  The won band's share at half the clock or more on the Tune build, 1.78% at the seed,
+  reproduces the release arm's 1.76% in the whole-arm run; the width does not move it.
+- **Scored as frozen:**
+
+  | # | Read | Verdict |
+  |---|---|---|
+  | A5 | −1.0 ± 9.1 against +10, [−2, +22] | **miss**: inside the interval, far below the point; not adopted, against 55%. The falsifier (0 or below) fires: the node read at fixed depth does not carry to games here |
+
+- *§9's items have not run.*
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

@@ -2522,9 +2522,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           and nothing is ablated. A12 hits. In won positions the arm
           spends half its clock or more on 3.6 times the OFF arm's share
           of moves, which is (e)'s trigger if it carries to (d)'s games.
-      - The width run (`B5AspBase` 19000 against 1410) is prepared
-        2026-11-10, its guards tested and its dry run and smoke passed,
-        and handed over. Then §9's items, at the width it leaves.
+      - The width run (`B5AspBase` 19000 against 1410), prepared and
+        handed over 2026-11-10 and maintainer-run: −1.0 ± 9.1 Elo over
+        2,000 games, no fault. By §9's rule 19000 is not adopted, so
+        §9's items are read at 1410 and B.5.4's SPSA starts the base at
+        the seed. A5 misses and its falsifier fires: the fixed-depth
+        node read does not carry to games on this coordinate.
+      - Next: §9 item 1 (`B5NegExtMax` 1 against 0, seed 53002), then
+        item 2 (`B5FailHighReduce` 1 against 0, seed 53003), at 1410.
     - [ ] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep on the three window seeds and the
       Cluster 1 to 3 coordinates §5.8 pulls onto the surface, then
@@ -3225,7 +3230,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.3 | GAME_GATE | V | The next action is the maintainer's: the width run (`B5AspBase` 19000 against 1410, BAS-S53) is prepared and handed over. Then §9's two items at the width it leaves. M1's rule sends the stop to 2× against 1× for B.5.5, and D.1 owes the hole a research card |
+| B.5.3 | GAME_GATE | V | The next action: prepare §9 item 1 (`B5NegExtMax` 1 against 0, seed 53002, BAS-S53) for the maintainer, then item 2, both at 1410: the width run leaves the seed (−1.0 ± 9.1). M1's rule sends the stop to 2× against 1× for B.5.5, and D.1 owes the hole a research card |
 | B.5.4 | RESEARCH | V | After B.5.3; BAS-S54 |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
