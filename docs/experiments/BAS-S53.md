@@ -408,6 +408,12 @@ Packet §11's table, frozen 2026-11-08, before any ON-arm build; A1 to A5 frozen
   |---|---|---|
   | A5 | −1.0 ± 9.1 against +10, [−2, +22] | **miss**: inside the interval, far below the point; not adopted, against 55%. The falsifier (0 or below) fires: the node read at fixed depth does not carry to games here |
 
+- **§9 item 1's paired run is prepared** (2026-11-10): `tools/run_b53_games.ps1 -Run
+  negext`, the Tune build `D8D9BC67…` on both sides, `B5NegExtMax=1` on arm A only, at
+  the seed's width, seed 53002, after a completed width run. Its guards pass both ways
+  (`b5-20261109/b53/guard_test.ps1`, 31 cases, 0 failures); its dry run is accepted, and
+  its four-game smoke completes with no fault, the option on arm A alone in the resolved
+  configuration; `pgn_time_census.py` read the smoke's PGN.
 - *§9's items have not run.*
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
