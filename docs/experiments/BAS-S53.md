@@ -414,7 +414,42 @@ Packet §11's table, frozen 2026-11-08, before any ON-arm build; A1 to A5 frozen
   (`b5-20261109/b53/guard_test.ps1`, 31 cases, 0 failures); its dry run is accepted, and
   its four-game smoke completes with no fault, the option on arm A alone in the resolved
   configuration; `pgn_time_census.py` read the smoke's PGN.
-- *§9's items have not run.*
+- **§9 item 1's paired run** (2026-11-10, maintainer-run, `tools/results/b53-negext/`; the
+  Tune build `D8D9BC67…` on both sides at `d07380d`, `B5NegExtMax=1` on arm A alone, at
+  1410, seed 53002, `match-fixed`, the clean tree of `2074fa9`, 2,000 games at `3+0.03`, no
+  fault, no time loss): the cap reads **−3.6 ± 9.1 Elo** (nElo −6.1 ± 15.2) against 0,
+  513 wins, 953 draws, 534 losses, pentanomial [31, 249, 458, 234, 28]. At 1 the arm
+  searches 18.74 plies a move against 18.14, at 68.9 ms against 69.2.
+- **Read by §9's rule:** neither +5 nor −5 with the interval excluding 0, so `B5NegExtMax`
+  stays at its default, 0, unbounded. The value 2 is read only if 1 is adopted, so it is
+  not read.
+- **The games census** (`b5-20261109/b53/negext-census.txt` and `.json`):
+
+  | | `B5NegExtMax` 1 | 0 |
+  |---|---:|---:|
+  | Decided at 300; unconverted | 540; 27 (5.00%) | 577; 44 (7.63%), three lost |
+  | Decided at 800; unconverted | 512; 0 | 534; 1 |
+  | Won band: mean time a move; at half the clock or more | 59.1 ms; 0.97% | 58.4 ms; 1.94% |
+  | Even band | 77.9 ms; 0.09% | 78.0 ms; 0.09% |
+  | Lost band | 55.8 ms; 2.37% | 58.8 ms; 3.25% |
+
+  The cap halves the won band's share of moves at half the clock or more, 0.97% against
+  1.94%, between the arm's 1.76% and the OFF arm's 0.49% in the whole-arm run, and
+  leaves fewer games unconverted at 300; nothing registered judges either, and the Elo
+  does not follow.
+- **Scored as frozen:**
+
+  | # | Read | Verdict |
+  |---|---|---|
+  | P5 | the paired run −3.6 ± 9.1 against within ±6 | **hit** on the paired clause; nodes and the cost screen were read at the screens |
+  | P12 | item 1 −3.6 against within ±6 | **hit** on item 1's clause; its falsifier (+5 or more) does not fire |
+
+- **§9 item 2's WAC veto, read ahead of its games** (2026-11-10,
+  `fixed_budget_probe.py nodes 100000`, the Tune build, `b5-20261109/b53/screens/wac_fhr100k.json`):
+  `B5FailHighReduce` 0 solves **263**, the release arm's 263 on the same 20,598,984
+  nodes; 1 solves **269**, mean depth 25.72 against 24.79. The floor, 246, holds at 1, so
+  the veto does not fire whatever the games read.
+- *§9 item 2 has not run.*
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 
