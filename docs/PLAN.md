@@ -3972,6 +3972,14 @@ has lost games in both engines (BAS-X02).
     share of iterations at or under `TmEffortLo` rises 12 points at
     fixed depth (44.5% to 56.6%); the share at or over `TmEffortHi`
     does not move.
+  - The window's width sets these inputs (2026-11-10; BAS-S54 *AUDIT
+    READ*, 60 replayed games). From `B5AspBase` 1410 to 19000 the
+    fail-high stop ends 27% of searches against 10%, the share at or
+    under `TmEffortLo` falls from 36% to 18% (the OFF arm 22%) and the
+    share at or over `TmEffortHi` rises from 21% to 32%. B.5.4 fits
+    the window under today's measure and the stop BAS-S55 (c) leaves,
+    so a change here to the measure or the stop re-reads `B5AspBase`
+    and `B5AspGrowth`.
   - Cluster 3's arm spends 7 to 8% more time a move in the won band
     than its base at both clocks (the B.4.7 runs, by amendment 2's
     census). A side whose own score reached 1,500 won all 2,260 such
