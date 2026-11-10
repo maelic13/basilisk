@@ -449,6 +449,12 @@ Packet §11's table, frozen 2026-11-08, before any ON-arm build; A1 to A5 frozen
   `B5FailHighReduce` 0 solves **263**, the release arm's 263 on the same 20,598,984
   nodes; 1 solves **269**, mean depth 25.72 against 24.79. The floor, 246, holds at 1, so
   the veto does not fire whatever the games read.
+- **§9 item 2's paired run is prepared** (2026-11-10): `tools/run_b53_games.ps1 -Run fhr`,
+  the Tune build `D8D9BC67…` on both sides, `B5FailHighReduce=1` on arm A only, at 1410
+  and `B5NegExtMax` 0, seed 53003, after a completed item-1 run. Its guards pass both
+  ways (`b5-20261109/b53/guard_test.ps1`, 38 cases, 0 failures); its dry run is
+  accepted, and its four-game smoke completes with no fault, the option on arm A alone in
+  the resolved configuration; `pgn_time_census.py` read the smoke's PGN.
 - *§9 item 2 has not run.*
 
 #### PREDICTION CALIBRATION — preserve the original prediction above

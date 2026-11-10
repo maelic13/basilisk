@@ -2536,8 +2536,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         1.94%), which nothing registered judges.
       - §9 item 2's WAC veto, read 2026-11-10: 269 at 1 against 263 at
         0, above the floor 246, so it cannot veto.
-      - Next: item 2's paired run (`B5FailHighReduce` 1 against 0 at
-        1410, seed 53003).
+      - §9 item 2's paired run (`B5FailHighReduce` 1 against 0 at 1410,
+        seed 53003) is prepared 2026-11-10, its guards tested and its
+        dry run and smoke passed, and handed over.
     - [ ] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep on the three window seeds and the
       Cluster 1 to 3 coordinates §5.8 pulls onto the surface, then
@@ -3238,7 +3239,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.3 | GAME_GATE | V | The next action: prepare §9 item 2's paired run (`B5FailHighReduce` 1 against 0 at 1410, seed 53003, BAS-S53) for the maintainer; its WAC veto is read and holds. Item 1 left the cap at 0 (−3.6 ± 9.1). M1's rule sends the stop to 2× against 1× for B.5.5, and D.1 owes the hole a research card |
+| B.5.3 | GAME_GATE | V | The next action is the maintainer's: §9 item 2's paired run (`B5FailHighReduce` 1 against 0 at 1410, BAS-S53) is prepared and handed over; its WAC veto is read and holds. Item 1 left the cap at 0. M1's rule sends the stop to 2× against 1× for B.5.5, and D.1 owes the hole a research card |
 | B.5.4 | RESEARCH | V | After B.5.3; BAS-S54 |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55 |
 | B.6.1 | RESEARCH | R2 | Added 2026-10-31; after B.4 and B.5 close |
