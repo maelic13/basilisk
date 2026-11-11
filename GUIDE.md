@@ -14,7 +14,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Bench fingerprint | **4,144,790** (`bench 13`, since B.4.7's gates turned Cluster 3 on; 6,090,091 at B.4.2; 5,361,058 at B.3.6; 5,369,042 at B.3.5; 11,880,564 at B.14; 16,615,757 at B.12; 19,470,325 at A.13.2; 19,108,490 at A.13.1; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
 | Active experiment | None (BAS-S52 closed: B.4.7's gates, all H1) |
 | Long job | None |
-| Next release | **1.11.0** after B (B.11.2), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
+| Next release | **1.11.0** after B (B.11.4), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
 
 ## Model by class
 
@@ -29,6 +29,10 @@ generations change. These are maintainer judgments, not measured rankings.
 | `I1` | Well-specified implementation | Claude Sonnet 5 — Medium |
 | `M` | Mechanical/docs/provenance | Claude Sonnet 5 — Medium |
 | `V` | Verification/measurement | Claude Sonnet 5 — High |
+
+Research runs at High; a leaf whose PLAN text says `Mode: Extra` runs at
+Extra on the same model (maintainer, 2026-11-11: research on Opus or
+Fable, High or Extra by difficulty; implementation by its class).
 
 ## Steps
 
@@ -111,9 +115,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.5.3** `[V]` Diagnostics, M1 and the unfitted paired run
     - [ ] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
     - [ ] **B.5.5** `[V]` Cluster 4 gates
-- [ ] **B.6** Donor-form reconciliation, then joint search SPSA
-    - [ ] **B.6.1** `[R2]` Donor-form reconciliation
-    - [ ] **B.6.2** `[V]` Joint search SPSA
+- [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
+    - [ ] **B.6.3** `[I1]` Search-path perft and kernel pins
+    - [ ] **B.6.4** `[R3]` Engine audit on the four-cluster head
+    - [ ] **B.6.5** `[I2]` Audit repairs before the fit
+    - [ ] **B.6.6** `[R2]` Donor-form reconciliation
+    - [ ] **B.6.7** `[V]` Joint search SPSA
 - [ ] **B.7** Board review and rebuild
     - [ ] **B.7.1** `[R2]` Board contract audit and instruments
     - [ ] **B.7.2** `[R2]` Board review against Stockfish and Triumviratus
@@ -126,12 +133,15 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [ ] **B.8.4** `[I1]` Large pages on every platform
     - [ ] **B.8.5** `[I1]` Speed pass
     - [x] **B.8.6** `[I1]` Delete the old search arms (ANY TIME) — before B.5
-- [ ] **B.9** Robustness and protocol before the release
+- [ ] **B.9** Robustness, verdicts and protocol before the release
     - [ ] **B.9.1** `[R2]` Lifecycle and protocol audit and tests
-    - [ ] **B.9.2** `[I2]` Repairs and the repair gate
+    - [ ] **B.9.3** `[R2]` Hard verdicts against Syzygy
+    - [ ] **B.9.4** `[R2]` Deferred defects: repair now or justify
+    - [ ] **B.9.5** `[I2]` Repairs and the repair gate
 - [ ] **B.11** Checkpoint and interim release
     - [ ] **B.11.1** `[V]` Search programme checkpoint
-    - [ ] **B.11.2** `[M]` Interim release 1.11.0
+    - [ ] **B.11.3** `[R2]` Originality and licence disclosure
+    - [ ] **B.11.4** `[M]` Interim release 1.11.0
 - [x] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
 - [x] **B.13** `[I1]` Colosseum re-pinned to 0.5.0 (ANY TIME)
 - [x] **B.14** `[I2]` Correction added to recognised draws (ANY TIME) — before B.3.2
@@ -140,19 +150,19 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
 
 - [ ] **C.0** `[R3]` Evaluation programme investigation
 - [ ] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
-- [ ] **C.2** Fit pipeline, corpus and label contract
+- [ ] **C.2** Fit pipeline, corpus, labels and gate instruments
     - [ ] **C.2.1** `[I1]` Fit-tooling contract and Texel handbook
     - [ ] **C.2.2** `[R2]` Corpus design
     - [ ] **C.2.3** `[V]` Generate and publish corpus A
     - [ ] **C.2.4** `[R2]` Matched label arms
     - [ ] **C.2.5** `[R2]` Initialization control
-    - [ ] **C.2.6** `[V]` Matched fits and the label-contract gate
+    - [ ] **C.2.7** `[R2]` Endgame instruments and gate integrity
+    - [ ] **C.2.8** `[V]` Matched fits and the label-contract gate
 - [ ] **C.3** `[I2]` King safety and phase cluster
 - [ ] **C.4** `[I2]` Threats and mobility cluster
 - [ ] **C.5** `[I2]` Pawns and passers cluster
 - [ ] **C.6** `[I2]` Material, imbalance and pieces cluster
 - [ ] **C.7** Endgame handling and winnability
-    - [ ] **C.7.1** `[R2]` Instruments and gate integrity
     - [ ] **C.7.2** `[R3]` Occurrence, classification and ranking
     - [ ] **C.7.3** `[I2]` Generic winnability and scaling
     - [ ] **C.7.4** `[R3]` Won-rook-ending only-move precision (BAS-E53)
@@ -182,13 +192,13 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
 
 - [ ] **F.0** `[R3]` NNUE investigation
 - [ ] **F.1** `[I2]` Board events and accumulator scaffolding
-- [ ] **F.2** Data generation at scale and the classical refit on it
-    - [ ] **F.2.1** `[V]` Data generation at scale
-    - [ ] **F.2.2** `[V]` Classical refit on search-visited data
-- [ ] **F.3** `[I2]` Trainer hardening and baseline nets
-- [ ] **F.4** `[I2]` Scalar integration, integer-exact conformance
+- [ ] **F.2** Network contract, trainer and corpus
+    - [ ] **F.2.3** `[I2]` Scalar integration, integer-exact conformance
+    - [ ] **F.2.4** `[I2]` Trainer hardening and the learning curve
+    - [ ] **F.2.5** `[V]` Data generation at scale
+    - [ ] **F.2.6** `[V]` Classical refit on search-visited data
 - [ ] **F.5** `[I2]` Incremental and SIMD inference
-- [ ] **F.6** `[V]` Search re-fit for the network
+- [ ] **F.6** `[V]` First nets, then the search re-fit for the network
 - [ ] **F.7** `[R3]` Architecture ladder, one axis at a time
 - [ ] **F.8** `[V]` Data frontier
 - [ ] **F.9** `[M]` NNUE release
@@ -205,5 +215,6 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
 - [ ] **H.1** `[R2]` Refinement backlog triage
 - [ ] **H.2** `[I2]` Search refinements, one at a time
 - [ ] **H.3** `[I2]` Time-management refinements at their own control
+- [ ] **H.4** `[R2]` Throughput at an identical tree on the network head
 
 <!-- END GENERATED -->
