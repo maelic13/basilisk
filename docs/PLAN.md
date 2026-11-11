@@ -2699,8 +2699,6 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       own handoff; nothing has read them together. No engine source
       changes; the deliverable is a packet whose findings each carry a
       failing test or a counter.
-      Mode: Extra (GUIDE, *Model by class*), because its breadth decides
-      what the fit is made on.
       - Scope, read in full: the node kernel and quiescence, the picker,
         the histories and the correction, the table, the root driver and
         the inputs it hands the clock, the pool. The protocol is

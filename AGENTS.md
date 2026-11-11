@@ -216,6 +216,7 @@ name says.**
   block and restate them rather than referring back.
 - End-step reports are short: outcome, essential verification, commit, any
   separate findings/ideas, and the exact next unchecked leaf with a model
-  recommendation from its class and GUIDE's mapping (`Claude: <model> —
-  <mode>`) and a one-line reason. Prefer the least costly model judged
+  recommendation from its class and GUIDE's mapping (`Claude: <model>`, the
+  tier only, with a thinking mode only where the leaf needs a specific
+  one) and a one-line reason. Prefer the least costly model judged
   sufficient; never substitute a model the mapping does not name.
