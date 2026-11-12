@@ -218,4 +218,61 @@ the fit), the battery above.
 
 #### RESULT for (a), (d) and (e) — append after exposure
 
-- *Not run.*
+- **(a)** (2026-11-12, maintainer-run, `tools/results/b55-gate-a/`; manifest
+  `colosseum_sprt_b55-gate-a_20261112_104025`, dry run D66C7499… as validated, both pins
+  and `bench 13` counts confirmed, exit 0): **H1 at 2,231 pairs**, LLR +2.96. **+16.8 ±
+  6.1 Elo** (nElo +28.4 ± 10.2), 1,244 wins, 2,190 draws, 1,028 losses, pentanomial
+  [49, 460, 1027, 616, 79]; the PGN recount agrees. No fault, no time loss; 14 pairs past
+  the crossing kept outside the sample. The estimate is a first crossing's and reads
+  high. The arm searches 17.70 plies a move against 18.33, at 70.8 ms against 69.5.
+- **(d)** (2026-11-12, maintainer-run, `tools/results/b55-direction-ltc/`; manifest
+  `colosseum_match_b55-direction-ltc_20261112_112529`, dry run 34352B20… as validated,
+  same pins, exit 0): **+20.9 ± 8.5 Elo** (nElo +37.5 ± 15.2) at `10+0.1`, 558 wins,
+  1,004 draws, 438 losses, pentanomial [14, 186, 494, 278, 28]; the PGN recount agrees.
+  No fault, no time loss. Direction only: positive, and not compressed from (a).
+- **The games census** (`pgn_time_census.py` e96e9651…; `census/` in each directory,
+  (a) c7ca4bc7…, (d) a7fb3712…):
+
+  | | (d) the arm | (d) OFF | (a) the arm | (a) OFF |
+  |---|---:|---:|---:|---:|
+  | Decided at 300; unconverted | 605; **48** (7.93%) | 465; **28** (6.02%) | 1,358; 105 (7.73%) | 1,102; 72 (6.53%) |
+  | Decided at 800; unconverted | 559; 3 | 435; 1 | 1,254; 2 | 1,026; 0 |
+  | Decided at 1,500; unconverted | 536; 0 | 434; 0 | 1,185; 0 | 994; 0 |
+  | Won band: mean ms; at half the clock or more | 184.3; **6.82%** | 184.2; **1.30%** | 54.3; 2.53% | 56.3; 0.62% |
+  | Even band | 279.3; 0.35% | 268.8; 0.19% | 82.5; 0.28% | 78.6; 0.12% |
+  | Lost band | 163.1; 5.45% | 192.1; 10.46% | 50.4; 4.14% | 57.2; 4.56% |
+
+  Every unconverted game at 300 in (d) is a draw on both sides.
+- **L1 fails as registered.** The arm's unconverted games at 300 exceed the OFF arm's by
+  20 (48 − 28), past the bound max(6, 3·√28) = 15.9. At 800 the arm has 3, under the
+  four that call for a read; at 1,500 none.
+  - What the count carries, judging nothing: the arm reaches 300 in 140 more games, so
+    the count grows with its strength. Per decided game the rates are 7.93% and 6.02%
+    (two-proportion z ≈ 1.2), and (a) reads the same direction, 7.73% against 6.53%. The
+    rule is the count, and it stands.
+- **(e)'s second trigger fires.** The arm's won-band share of moves at half the clock or
+  more is 6.82% against 1.30%, 5.2 times the OFF arm's, past 1.5. At `3+0.03`, (a) reads
+  4.1 times (2.53% against 0.62%), so the long thinks in won positions grow with the
+  clock. The trigger is the maintainer's to agree or refuse; `$eAgreed` stays false.
+- **Disposition by the registration:** the flip waits. The first read is the failing run
+  again, (d) with `B5NegExtMax` 1 on the arm, since §9 item 1's paired run did not
+  reject it (−3.6 ± 9.1, BAS-S53). That run's census read the cap at 5.00% unconverted
+  at 300 and 0.97% won-band long thinks, against 7.63% and 1.94% uncapped. If it fails
+  too, the hole's repair is pulled from D.1 as a research card, with the maintainer's
+  agreement.
+- **Not settled by the registration**, and the maintainer's: whether a passing rerun
+  makes the arm with `B5NegExtMax` 1 the flip's candidate without (a) again on it, and
+  whether (e) is played on (a)'s pair or the rerun's.
+
+#### PREDICTION CALIBRATION for (a), (d) and (e) — preserve the prediction above
+
+- **G3: hit.** H1 (called 80%); +16.8 against +15, inside [+6, +24].
+- **G4: hit.** +20.9 against +12, inside [−3, +27], positive (85%). The compression from
+  the longer clock did not come.
+- **G5: miss on both parts.** L1 fails (passing was called 85%); the trigger fires
+  (called 15%). The reasoning held that the hole wastes time in decided positions
+  without costing points. At `10+0.1` the long thinks quintuple and the arm has 20 more
+  draws from +300, though the rate excess is not significant on its own.
+- **For the next prior:** the won-band long-think share scaled with the clock (4.1× at
+  `3+0.03`, 5.2× at `10+0.1`), so a hole seen at the short clock is a lower bound at the
+  long one.

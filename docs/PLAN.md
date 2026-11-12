@@ -2690,6 +2690,13 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           maximum against the OFF arm's 1, so it does not fire; the
           census trigger is read after (d).
         - Maintainer-run: (a), then (d).
+        - 2026-11-12: (a) H1 at 2,231 pairs, +16.8 ± 6.1 Elo; (d) +20.9
+          ± 8.5 at `10+0.1`. **L1 fails**: 48 unconverted games at 300
+          on the arm against the OFF arm's 28, past the bound of 15.9.
+          (e)'s census trigger fires (won-band long thinks 6.82% against
+          1.30%). The flip waits; the registered first read is (d) again
+          with `B5NegExtMax` 1 on the arm (BAS-S55 *RESULT for (a), (d)
+          and (e)*).
     - [ ] **B.5.6** `[R3]` SPSA method investigation and redesign
       Added 2026-11-12 (maintainer), after B.5.5 and before any later
       tune (B.6.7, C.10): a proper investigation of how Basilisk runs
@@ -3766,7 +3773,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.5 | RESEARCH | V | The next action is the maintainer's: gate (a), the fitted arm against the OFF arm (SPRT `[0,3]`, cap 4,500 pairs), then (d) at `10+0.1` (BAS-S55); (b) retired, (c) closed, (e) only on a trigger |
+| B.5.5 | RESEARCH | V | (a) H1 (+16.8 ± 6.1); (d) +20.9 ± 8.5 but L1 fails (48 against 28, bound 15.9) and (e)'s census trigger fires; the flip waits on the registered remedy, (d) again with `B5NegExtMax` 1, and the maintainer's call on (e) (BAS-S55) |
 | B.5.6 | RESEARCH | R3 | Added 2026-11-12; the SPSA method investigation, after B.5.5 and before any later tune |
 | B.5.7 | RESEARCH | R2 | Added 2026-11-12; two games per physical core on SMT siblings, at `3+0.03` and at a control lengthened to today's nodes per move, read against B.5.5's games |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
