@@ -509,6 +509,7 @@ static void test_the_limit_holds_on_the_line(const char* suite) {
         for (const std::string& fen : suite_positions(suite, 20)) {
             SearchLimits lim;
             lim.depth = 10;
+            lim.params.b5_neg_ext_max = 0;
             const Run open = search_limits(fen, lim);
             unlimited += counter(open, "negext_chain1") + counter(open, "negext_chain2p");
             lim.params.b5_neg_ext_max = 1;
