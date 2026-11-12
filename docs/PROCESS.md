@@ -311,9 +311,10 @@ deterministic diagnostics.
 
 **Colosseum CLI is the main path** for gates, fixed matches, tunes, null pairs
 and gauntlets. `tools/colosseum.ps1` drives matches from the committed run
-files in `tools/colosseum/`; `tools/spsa_colosseum.ps1` drives generated tune
-blocks from `tools/spsa_configs/colosseum/`. The experiment registration owns
-the engines, cap or horizon, seed and evidence directory. The runner is pinned
+files in `tools/colosseum/`; `tools/spsa_colosseum.ps1` drives a tune from a
+rule 7c tune file generated into `tools/spsa_configs/colosseum/`. The
+experiment registration owns the engines, cap or ceiling, seed and evidence
+directory. The runner is pinned
 by revision and SHA-256 in `colosseum.pin.json` (`colosseum-cli` 0.5.0 since
 2026-10-30); a different binary is refused, not substituted. Colosseum is
 qualified in its own repository, with Rarog as the validation engine, and
@@ -330,16 +331,20 @@ The wrappers prove an idle host, runner and engine hashes, build manifests,
 the expected revision and bench fingerprint, advertised UCI options, natural
 termination, placement and the fully resolved policy before play. Match exits
 are interpreted as outcomes rather than shell success/failure, faults are read
-from durable state and the PGN is independently recounted. Tune blocks require
-zero engine, time and infrastructure faults. A gauntlet reads faults per
+from durable state and the PGN is independently recounted. A tune requires
+zero engine, time and infrastructure faults, read at every checkpoint. A gauntlet reads faults per
 engine from `colosseum-cli stats`: any fault or time loss by a Basilisk build
 (a participant with a build manifest) voids it, as does any infrastructure
 fault, while a foreign opponent's faults are read when they stay within 1% of
 that opponent's games (`-OpponentFaultRatePercent`) and are quoted in the
 manifest. The runner's fault cap is that 1% of the foreign games, zero for an
-all-Basilisk field. An existing match directory
-resumes only at its recorded seed; a later tune block uses `-SeedFrom`, a fresh
-seed and a fresh schedule.
+all-Basilisk field. An existing match or tune directory resumes only at its
+recorded seed. A tune is one run (PLAN rule 7c): `tools/spsa_colosseum.ps1`
+plays it to its registered ceiling a checkpoint at a time with Colosseum's
+`--stop-after-iteration`, reads each checkpoint with `tools/spsa_read.py`, and
+resumes or stops; a `STOP` file in the run directory stops it at the next
+checkpoint. Its tune file is `tools/generate_spsa_surface.py --rule7c` for that
+ceiling.
 
 **fastchess and weather-factory stay installed, working and documented** as
 the backup path, for when Colosseum cannot run, until at least the classical
@@ -838,11 +843,15 @@ python tools/diag/check_roadmap.py --self-test
   -ExpectRevision <sha> -ExpectBench <candidate-bench>,<baseline-bench> `
   -Dir tools/results/<experiment>
 
-# MAIN PATH — one registered SPSA block; later blocks add
-# -SeedFrom tools/results/<previous-block> and use a fresh seed.
+# MAIN PATH — one registered SPSA tune (PLAN rule 7c): the tune file for its
+# ceiling, then the run, read and stopped at its checkpoints; -DryRun first.
+python tools/generate_spsa_surface.py --rule7c <surface> --ceiling 6000 `
+  --output tools/spsa_configs/colosseum/<tune>.rule7c.tune.toml
 ./tools/spsa_colosseum.ps1 -Engine <tune.exe> -ExpectBench <bench> `
-  -Seed <seed> -Dir tools/results/<block>
-python tools/spsa_block_rule.py tools/results/<block>
+  -Tune tools/spsa_configs/colosseum/<tune>.rule7c.tune.toml `
+  -Seed <seed> -Dir tools/results/<tune>
+# A live read between checkpoints decides nothing; it is safe while the tune runs.
+python tools/spsa_read.py tools/results/<tune>
 
 # BACKUP / SECOND OPINION. Pass the registered bounds: this wrapper's gainer
 # default upper bound is 5, not the registered 3.

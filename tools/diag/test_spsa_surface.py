@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import pathlib
 import tempfile
 import unittest
@@ -18,7 +19,6 @@ def load(name: str, path: pathlib.Path):
 
 
 surface = load("surface", ROOT / "tools" / "generate_spsa_surface.py")
-block = load("block", ROOT / "tools" / "spsa_block_rule.py")
 
 
 class SurfaceTests(unittest.TestCase):
@@ -315,35 +315,55 @@ class SurfaceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "outside"):
             surface.parse_parameters("X(field, Name, 11, 0, 10)")
 
-    def test_block_rule_uses_block_seed_and_registered_step(self):
-        config = {
-            "A": {"step": 2},
-            "B": {"step": 4},
-            "C": {"step": 10},
-        }
-        result = {
-            "driver": {"status": "completed"},
-            "tuned_result": {
-                "settings": {"iterations": 2000},
-                "completed_iterations": 2000,
-                "parameters": [
-                    {"name": "A", "original": 5, "tuned": 7},
-                    {"name": "B", "original": 10, "tuned": 6},
-                    {"name": "C", "original": 20, "tuned": 25},
-                ],
-            },
-        }
-        verdict, movers = block.evaluate(result, config, 3)
-        self.assertEqual(verdict, "STOP")
-        self.assertEqual([item[0] for item in movers], ["A", "B"])
+    def test_rule7c_grades_the_perturbation_by_room(self):
+        # Two steps where the seed has the room, else the largest from one to
+        # two that stays inside the range, never under one step.
+        self.assertEqual(surface.graded_perturbation(10, 0, 100, 4), (2.0, 2.5))
+        self.assertEqual(surface.graded_perturbation(8, 0, 100, 4), (2.0, 2.0))
+        self.assertEqual(surface.graded_perturbation(6, 0, 100, 4), (1.5, 1.5))
+        self.assertEqual(surface.graded_perturbation(94, 0, 100, 4), (1.5, 1.5))
+        self.assertEqual(surface.graded_perturbation(2, 0, 100, 4), (1.0, 0.5))
 
-    def test_incomplete_block_is_rejected(self):
-        result = {
-            "driver": {"status": "stopped"},
-            "tuned_result": {"settings": {"iterations": 2000}, "completed_iterations": 1999},
-        }
-        with self.assertRaisesRegex(ValueError, "not a completed block"):
-            block.evaluate(result, {}, 3)
+    def test_rule7c_tune_file_scales_c_end_by_the_graded_steps(self):
+        parameters = [("Wide", 50, 0, 100), ("Edge", 9, 0, 100), ("Tight", 1, 0, 100)]
+        tune, report = surface.render_rule7c(parameters, 6000, "test")
+        decay = 6000 ** -surface.GAMMA
+        values = {}
+        for block_text in tune.split("[[parameters]]")[1:]:
+            fields = dict(line.split(" = ", 1) for line in block_text.strip().splitlines()
+                          if " = " in line and not line.startswith("#"))
+            values[fields["name"].strip('"')] = float(fields["c_end"])
+        step = surface.perturbation(0, 100)
+        down = lambda value: math.floor(value * 1e4) / 1e4  # noqa: E731
+        self.assertAlmostEqual(values["Wide"], down(2 * step * decay))
+        self.assertAlmostEqual(values["Edge"], down(9 / step * step * decay))
+        self.assertAlmostEqual(values["Tight"], down(step * decay))
+        # The runner's c0 never exceeds the room, so no first arm is clamped.
+        self.assertLessEqual(values["Edge"] * 6000 ** surface.GAMMA, 9.0)
+        self.assertIn("N = 6000", tune)
+        self.assertEqual(len(report), 2)
+        self.assertIn("under one step of room", report[1])
+
+    def test_rule7c_head_room_matches_the_recorded_count(self):
+        # BAS-S57: of the head's 74 coordinates, 10 lack two steps of room at
+        # their seeds and 3 of those lack one.
+        text = surface.HEADER.read_text(encoding="utf-8")
+        parameters = surface.head_parameters(text)
+        _, report = surface.render_rule7c(parameters, 6000, "head")
+        self.assertEqual(len(parameters), 74)
+        self.assertEqual(len(report), 10)
+        self.assertEqual(sum("under one step" in line for line in report), 3)
+        names = {line.split(":")[0] for line in report if "under one step" in line}
+        self.assertEqual(names, {"CoreCaptFutHistDiv", "CoreResearchShallower", "B3SingTripleQuiet"})
+
+    def test_rule7c_seeds_are_the_values_the_head_runs(self):
+        text = surface.HEADER.read_text(encoding="utf-8")
+        overrides = {**surface.b3_core_defaults(text), **surface.b4_core_defaults(text),
+                     **surface.b5_core_defaults(text)}
+        seeds = {name: start for name, start, _, _ in surface.head_parameters(text)}
+        for name, value in overrides.items():
+            if name in seeds:
+                self.assertEqual(seeds[name], value, name)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,378 @@
+"""Tests for tools/spsa_read.py: the runner's signs, the statistics, synthetic
+runs of every verdict, and the five recorded blocks where they are on disk."""
+
+from __future__ import annotations
+
+import importlib.util
+import json
+import math
+import pathlib
+import random
+import struct
+import sys
+import tempfile
+import unittest
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+RESULTS = ROOT / "tools" / "results"
+
+
+def load(name: str, path: pathlib.Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader
+    sys.modules[name] = module  # dataclasses resolve their module by name
+    spec.loader.exec_module(module)
+    return module
+
+
+sr = load("spsa_read", ROOT / "tools" / "spsa_read.py")
+
+
+class RunnerSignTests(unittest.TestCase):
+    """Colosseum's own golden vectors (colosseum-core rng.rs and spsa.rs)."""
+
+    MASTER = 0x0123_4567_89AB_CDEF
+
+    def test_stream_seed_derivation(self):
+        self.assertEqual(sr.stream_seed(self.MASTER, "spsa-perturbations").hex(),
+                         "e58ef38a32c2012aa43f0ff3de0a4e1acabf563789afb301c0feff708776dc6f")
+
+    def test_chacha12_block(self):
+        key = struct.unpack("<8I", sr.stream_seed(self.MASTER, "opening-order"))
+        self.assertEqual(sr._chacha12_block(key, 0).hex(),
+                         "c2198a09daf1a2cd09160d69492bff7c848323cd90f7fa7a916110036907f455"
+                         "3565d341820734b4348b985eb06a2ec5e975f2d492da09119596fc7ef6da02ff")
+
+    def test_rademacher_draws_and_iteration_major_order(self):
+        self.assertEqual(sr.perturbation_signs(self.MASTER, 1, 16)[0],
+                         [-1, 1, 1, -1, 1, -1, 1, -1, -1, 1, -1, -1, 1, 1, 1, 1])
+        self.assertEqual(sr.perturbation_signs(self.MASTER, 2, 3)[1], [-1, 1, -1])
+
+
+class StatisticTests(unittest.TestCase):
+    def test_familywise_lines(self):
+        for n, line in ((8, 2.73), (15, 2.93), (29, 3.13), (49, 3.28)):
+            self.assertAlmostEqual(sr.familywise_line(n), line, places=2)
+
+    def test_forecast_floor_matches_the_recorded_shape(self):
+        # B.5.6 forecast.txt: the floor of a quiet read at 2,000 for the next
+        # 2,000 iterations at a mean D^2 of 11.6.
+        elo = sr.elo_per_d(30)
+        for r_end, floors in ((0.0031, (3.6, 5.0, 6.9, 9.0)), (0.00155, (1.8, 2.5, 3.5, 4.5))):
+            schedule = sr.Schedule(6000, 0.601, 0.102, 600.0, r_end)
+            factor = sr.forecast_factor(schedule, range(1000, 2000), range(2000, 4000), 11.6, elo)
+            for n, floor in zip((8, 15, 29, 49), floors):
+                self.assertAlmostEqual(2 * factor * math.sqrt(2 * n), floor, places=1)
+
+    def test_rounding_is_the_runners(self):
+        for value, expected in ((2.5, 3), (-2.5, -3), (2.4999, 2), (-0.5, -1), (7.945, 8)):
+            self.assertEqual(sr.round_half_away(value), expected)
+
+
+# --------------------------------------------------------------------------
+# synthetic runs, played through the runner's own update rule
+
+def simulate(directory: pathlib.Path, *, gradients, starts, bounds, c0, ceiling=3000, completed=None,
+             games=6, seed=57001, master_seed=9001, faults=None, corrupt_at=None):
+    """Write a run directory whose journal a real tune would leave behind.
+
+    Each game is won by the plus side with probability 0.3 + b and lost with
+    0.3 - b, b = 0.5 * sum(g_i * delta_i): g_i is coordinate i's gradient.
+    """
+    rng = random.Random(seed)
+    completed = ceiling if completed is None else completed
+    n = len(gradients)
+    schedule = sr.Schedule(ceiling, 0.601, 0.102, ceiling / 10.0, 0.00155)
+    delta = sr.perturbation_signs(master_seed, completed, n)
+    centres = [list(map(float, starts))]
+    games_out = []
+    for k in range(completed):
+        bias = 0.5 * sum(g * d for g, d in zip(gradients, delta[k]))
+        win, loss = 0.3 + bias, 0.3 - bias
+        score = 0
+        for game in range(games):
+            u = rng.random()
+            result = "plus" if u < win else "minus" if u < win + loss else "draw"
+            score += (result == "plus") - (result == "minus")
+            plus_white = game % 2 == 0
+            white_result = {"plus": "WhiteWin" if plus_white else "BlackWin",
+                            "minus": "BlackWin" if plus_white else "WhiteWin", "draw": "Draw"}[result]
+            games_out.append({"game": {"iteration": k, "white": "a" if plus_white else "b",
+                                       "result": white_result, "sample": "official", "scorable": True}})
+        r = schedule.ratio(k)
+        nxt = []
+        for i in range(n):
+            c = c0[i] * schedule.perturbation_factor(k)
+            nxt.append(min(max(centres[-1][i] + c * r * score * delta[k][i], bounds[i][0]), bounds[i][1]))
+        centres.append(nxt)
+    if corrupt_at is not None:
+        centres[corrupt_at][0] += 0.25 * c0[0]
+    names = [f"K{i}" for i in range(n)]
+    plan = {
+        "schedule": {"iterations": ceiling, "alpha": 0.601, "gamma": 0.102, "stability_constant": ceiling / 10.0},
+        "r_end": 0.00155,
+        "perturbations": {**sr.RNG, "master_seed": master_seed,
+                          "stream_seed_sha256": sr.stream_seed(master_seed, sr.RNG["stream_name"]).hex()},
+        "knobs": [{"name": names[i], "min": bounds[i][0], "max": bounds[i][1], "c0": c0[i],
+                   "c_end": c0[i] * ceiling ** -0.102} for i in range(n)],
+    }
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "spsa-schedule.json").write_text(json.dumps(plan), encoding="utf-8")
+    (directory / "resolved-config.json").write_text(json.dumps({"settings": {"games_per_iteration": games}}),
+                                                    encoding="utf-8")
+    with (directory / "games.jsonl").open("w", encoding="utf-8") as handle:
+        for record in games_out:
+            handle.write(json.dumps(record) + "\n")
+    history = {"report": {"run_status": "completed" if completed == ceiling else "stopped",
+                          "completed_iterations": completed, "knobs": names,
+                          "rows": [{"iteration": k, "centers": c, "clamped_at_min": [0] * n,
+                                    "clamped_at_max": [0] * n} for k, c in enumerate(centres)]}}
+    (directory / "history.json").write_text(json.dumps(history), encoding="utf-8")
+    (directory / "checkpoint.json").write_text(json.dumps({"payload": {"faults": faults or {
+        "engine_a": 0, "engine_b": 0, "time_losses_a": 0, "time_losses_b": 0, "infrastructure": 0}}}),
+        encoding="utf-8")
+    return directory
+
+
+QUIET = dict(gradients=[0.0, 0.0, 0.0, 0.0], starts=[50, 50, 50, 50], bounds=[(0, 100)] * 4, c0=[8.0] * 4)
+LIVE = dict(gradients=[0.12, 0.0, 0.0, 0.0], starts=[30, 50, 50, 50], bounds=[(0, 100)] * 4, c0=[8.0] * 4)
+RAIL = dict(gradients=[0.12, 0.0, 0.0, 0.0], starts=[96, 50, 50, 50], bounds=[(0, 100)] * 4, c0=[8.0] * 4)
+
+
+class SyntheticRunTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_of(self, name, spec, **extra):
+        directory = simulate(self.root / name, **spec, **extra)
+        return sr.load_run(directory, cli=None, history_json=directory / "history.json")
+
+    def test_a_run_with_no_gradient_reads_quiet_and_stops(self):
+        run = self.run_of("quiet", QUIET)
+        result = sr.read(run, 2000, null_reps=5)
+        self.assertFalse(result["live"], result["max_abs_z"])
+        self.assertEqual(result["verdict"], "STOP_QUIET")
+        self.assertLess(abs(result["gain"]["elo"]), 4 * max(result["gain"]["null_sd"], 0.5))
+
+    def test_a_run_with_a_gradient_reads_live_and_continues_to_its_ceiling(self):
+        run = self.run_of("live", LIVE)
+        at_first = sr.read(run, 2000, null_reps=5)
+        self.assertTrue(at_first["live"])
+        self.assertEqual(at_first["verdict"], "CONTINUE")
+        self.assertEqual(at_first["over_line"], ["K0"])
+        self.assertGreater(at_first["coordinates"][0]["z"], sr.familywise_line(4))
+        self.assertGreater(at_first["gain"]["elo"], 2 * at_first["gain"]["null_sd"])
+        self.assertEqual(at_first["forecast"]["segment"], [2000, 3000])
+        self.assertGreater(at_first["forecast"]["elo"], 0)
+        self.assertEqual(sr.read(run, 3000, null_reps=5)["verdict"], "STOP_CEILING")
+        self.assertEqual(sr.read(run, 2500, null_reps=5)["verdict"], "INTERIM")
+
+    def test_a_centre_at_its_bound_pushed_outward_is_a_rail(self):
+        run = self.run_of("rail", RAIL)
+        result = sr.read(run, 2000, null_reps=5)
+        self.assertEqual(result["rails"], ["K0"])
+        self.assertEqual(result["verdict"], "STOP_RAIL")
+        self.assertGreater(result["coordinates"][0]["arm_clamped_share"], 0.5)
+        # The true signs keep the clamped iterations; a sign read from the
+        # moves loses them and points the gradient inward.
+        self.assertGreater(result["coordinates"][0]["z"], 3)
+        self.assertEqual(sr.read(run, 2000, null_reps=5, rail_z=1e9)["verdict"], "CONTINUE")
+
+    def test_faults_stop_the_read(self):
+        run = self.run_of("fault", QUIET, faults={"engine_a": 0, "time_losses_a": 1})
+        self.assertEqual(sr.read(run, 2000, null_reps=5)["verdict"], "FAULT")
+
+    def test_a_misread_journal_fails_loudly(self):
+        directory = simulate(self.root / "corrupt", **QUIET, corrupt_at=1500)
+        with self.assertRaisesRegex(sr.ReadError, "disagree with the runner's update"):
+            sr.load_run(directory, cli=None, history_json=directory / "history.json")
+        directory = simulate(self.root / "seed", **QUIET)
+        plan = json.loads((directory / "spsa-schedule.json").read_text(encoding="utf-8"))
+        plan["perturbations"]["master_seed"] += 1
+        (directory / "spsa-schedule.json").write_text(json.dumps(plan), encoding="utf-8")
+        with self.assertRaisesRegex(sr.ReadError, "stream seed"):
+            sr.load_run(directory, cli=None, history_json=directory / "history.json")
+
+    def test_a_partial_iteration_is_refused(self):
+        directory = simulate(self.root / "short", **QUIET, completed=2000)
+        lines = (directory / "games.jsonl").read_text(encoding="utf-8").splitlines()
+        (directory / "games.jsonl").write_text("\n".join(lines[:-1]) + "\n", encoding="utf-8")
+        with self.assertRaisesRegex(sr.ReadError, "scored games"):
+            sr.load_run(directory, cli=None, history_json=directory / "history.json")
+
+    def test_a_live_read_mid_run_uses_only_completed_iterations(self):
+        run = self.run_of("midrun", LIVE, completed=2200)
+        self.assertEqual(run.completed, 2200)
+        self.assertEqual(sr.read(run, 2000, null_reps=5)["verdict"], "CONTINUE")
+        self.assertEqual(sr.read(run, 2200, null_reps=5)["verdict"], "INTERIM")
+        with self.assertRaises(sr.ReadError):
+            sr.read(run, 2300, null_reps=5)
+
+    def test_the_record_is_kept_once_and_scores_its_forecast(self):
+        run = self.run_of("record", LIVE)
+        first = sr.read(run, 2000, null_reps=5)
+        self.assertEqual(sr.record(run.directory, first), "recorded")
+        self.assertEqual(sr.record(run.directory, first), "already recorded")
+        altered = dict(first, verdict="STOP_QUIET")
+        with self.assertRaisesRegex(sr.ReadError, "different read"):
+            sr.record(run.directory, altered)
+        scored = sr.score_forecasts(run, sr.load_records(run.directory), 3000)
+        self.assertEqual(len(scored), 1)
+        self.assertEqual(scored[0]["segment"], [2000, 3000])
+        self.assertIn("1 of 3", sr.forecast_status(scored))
+        written = sr.write_theta(run.directory, sr.read(run, 3000, null_reps=5))
+        text = written[0].read_text(encoding="utf-8")
+        self.assertIn("setoption name K0 value", text)
+        self.assertEqual(len(text.splitlines()), 4)
+
+
+class CommandLineTests(unittest.TestCase):
+    """The reader as the wrapper runs it: --record, theta at a stop only."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def read(self, directory, *extra):
+        import subprocess
+        process = subprocess.run([sys.executable, str(ROOT / "tools" / "spsa_read.py"), str(directory),
+                                  "--at", "2000", "--history-json", str(directory / "history.json"),
+                                  "--null-reps", "3", "--record", "--json", *extra],
+                                 capture_output=True, text=True)
+        self.assertEqual(process.returncode, 0, process.stderr)
+        return json.loads(process.stdout)
+
+    def test_theta_is_written_at_a_stop_and_by_the_maintainer_only(self):
+        quiet = simulate(self.root / "quiet", **QUIET)
+        self.assertEqual(self.read(quiet)["verdict"], "STOP_QUIET")
+        self.assertTrue((quiet / "theta-2000.txt").is_file())
+        rail = simulate(self.root / "rail", **RAIL)
+        self.assertEqual(self.read(rail)["verdict"], "STOP_RAIL")
+        self.assertFalse((rail / "theta-2000.txt").exists())
+        live = simulate(self.root / "live", **LIVE)
+        self.assertEqual(self.read(live)["verdict"], "CONTINUE")
+        self.assertFalse((live / "theta-2000.txt").exists())
+        self.assertEqual(self.read(live, "--write-theta")["record"], "already recorded")
+        self.assertTrue((live / "theta-2000.txt").is_file())
+
+    def test_an_error_exits_2(self):
+        import subprocess
+        directory = simulate(self.root / "bad", **QUIET, corrupt_at=10)
+        process = subprocess.run([sys.executable, str(ROOT / "tools" / "spsa_read.py"), str(directory),
+                                  "--history-json", str(directory / "history.json")],
+                                 capture_output=True, text=True)
+        self.assertEqual(process.returncode, 2)
+        self.assertIn("disagree", process.stderr)
+
+
+# --------------------------------------------------------------------------
+# the five recorded blocks (B.5.6 fixtures), where they are on disk
+
+BLOCKS = {
+    # max |z| and excess SD over iterations 1,000-2,000 (stop.txt), the
+    # coordinates over the line, the cross-fitted gain and its null SD (gain.txt)
+    "b33-spsa-block1": (1.97, -0.8, [], 13.3, 6.91),
+    "b46-spsa-block1": (3.20, 3.1, ["B3NmpPerPly"], 8.0, 5.23),
+    "b54-spsa-block1": (3.63, 6.6, ["B3SingMargin"], 11.3, 3.76),
+}
+
+
+def history_from_result(directory: pathlib.Path, out: pathlib.Path) -> pathlib.Path:
+    """The history the runner would print, from a completed block's result.json."""
+    result = json.loads((directory / "result.json").read_text(encoding="utf-8"))
+    names = [k["name"] for k in result["schedule"]["knobs"]]
+    rows = [{"iteration": 0, "centers": [float(p["original"]) for p in result["tuned_result"]["parameters"]]}]
+    for k, iteration in enumerate(result["driver"]["completed_iterations"]):
+        rows.append({"iteration": k + 1, "centers": iteration["centers_after"]})
+    for row in rows:
+        row["clamped_at_min"] = row["clamped_at_max"] = [0] * len(names)
+    out.write_text(json.dumps({"report": {"run_status": result["driver"]["status"],
+                                          "completed_iterations": len(rows) - 1,
+                                          "knobs": names, "rows": rows}}), encoding="utf-8")
+    return out
+
+
+# B.2.3's blocks, read by B.5.6 with signs recovered from the moves: max |z|
+# and excess SD over iterations 1,000-2,000, and the gain. Their clamped
+# coordinates make the runner's signs read differently.
+LEGACY = {"b23-spsa-block1": (2.58, 1.6, 33.2), "b23-spsa-block2": (2.39, 0.1, 3.1)}
+
+
+def legacy_window(run, lo: int, hi: int) -> tuple[float, float]:
+    """B.5.6's read: a sign is recovered from the move, none from a zero move."""
+    signs = []
+    for k, d in enumerate(run.d):
+        s = 1 if d > 0 else -1 if d < 0 else 0
+        signs.append([(1 if (run.centres[k + 1][i] - run.centres[k][i]) * s > 0 else
+                       -1 if (run.centres[k + 1][i] - run.centres[k][i]) * s < 0 else 0)
+                      for i in range(run.n)])
+    z = []
+    for i in range(run.n):
+        num = sum(signs[k][i] * run.d[k] for k in range(lo, hi))
+        den = math.sqrt(sum(run.d[k] ** 2 for k in range(lo, hi) if signs[k][i] != 0))
+        z.append(num / den if den else 0.0)
+    return max(abs(x) for x in z), (sum(x * x for x in z) - run.n) / math.sqrt(2 * run.n)
+
+
+@unittest.skipUnless(all((RESULTS / b / "result.json").is_file() for b in [*BLOCKS, *LEGACY]),
+                     "the recorded blocks are not on disk")
+class RecordedBlockTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls.reads = {}
+        for block in [*BLOCKS, *LEGACY]:
+            history = history_from_result(RESULTS / block, pathlib.Path(cls.tmp.name) / f"{block}.json")
+            run = sr.load_run(RESULTS / block, cli=None, history_json=history)
+            cls.reads[block] = (run, sr.read(run, 2000))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_three_unclamped_blocks_reproduce_the_recorded_reads(self):
+        for block, (max_z, excess, over, gain, null_sd) in BLOCKS.items():
+            _, result = self.reads[block]
+            with self.subTest(block=block):
+                self.assertAlmostEqual(result["max_abs_z"], max_z, places=2)
+                self.assertAlmostEqual(result["excess_sd"], excess, places=1)
+                self.assertEqual(result["over_line"], over)
+                self.assertAlmostEqual(result["gain"]["elo"], gain, delta=0.25)
+                self.assertAlmostEqual(result["gain"]["null_sd"], null_sd, places=2)
+
+    def test_every_recorded_move_is_the_runners_update(self):
+        for block, (run, _) in self.reads.items():
+            with self.subTest(block=block):
+                self.assertLess(run.sources["move_check_worst_error"], 1e-9)
+
+    def test_b23_block1_is_a_rail_that_move_signs_missed(self):
+        # B.5.6 read this window quiet (max |z| 2.58): its signs came from the
+        # moves, and CoreIirMinDepth sat clamped at its maximum, 8, with no
+        # move to read. The runner's own signs show it pushing outward.
+        run, result = self.reads["b23-spsa-block1"]
+        coordinate = next(c for c in result["coordinates"] if c["name"] == "CoreIirMinDepth")
+        self.assertGreater(coordinate["z"], 5.0)
+        self.assertGreater(coordinate["arm_clamped_share"], 0.5)
+        self.assertEqual(result["rails"], ["CoreIirMinDepth"])
+        self.assertEqual(result["verdict"], "STOP_RAIL")
+
+    def test_move_signs_reproduce_b56s_reads_of_b23(self):
+        for block, (max_z, excess, gain) in LEGACY.items():
+            run, result = self.reads[block]
+            with self.subTest(block=block):
+                legacy_max, legacy_excess = legacy_window(run, 1000, 2000)
+                self.assertAlmostEqual(legacy_max, max_z, places=2)
+                self.assertAlmostEqual(legacy_excess, excess, places=1)
+                self.assertAlmostEqual(result["gain"]["elo"], gain, delta=0.25)
+
+
+if __name__ == "__main__":
+    unittest.main()
