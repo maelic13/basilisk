@@ -135,6 +135,30 @@ def simulate(directory: pathlib.Path, *, gradients, starts, bounds, c0, ceiling=
     return directory
 
 
+def crafted_run(push: int, centre: float, n: int = 4, at: int = 2000, ceiling: int = 3000):
+    """A run whose window sets coordinate 0's z exactly: in the last 1,000
+    iterations D = delta_0 on `push` of them (against it when negative), and
+    on the rest D cancels in pairs, so z_0 = push / sqrt(1000); the others'
+    signs cancel against D, so their z is 0. Coordinate 0
+    sits at `centre` in [0, 100], within one perturbation of a bound when near
+    0 or 100; the others sit mid-range. Only the reads are exercised."""
+    delta = sr.perturbation_signs(4242, at, n)
+    d = [0] * at
+    sign = 1 if push >= 0 else -1
+    lo = at - 1000
+    for j, k in enumerate(range(lo, at)):
+        if j < abs(push):
+            d[k] = sign * delta[k][0]
+        else:
+            d[k] = delta[k][0] if (j - abs(push)) % 2 == 0 else -delta[k][0]
+        for i in range(1, n):   # the other coordinates' z is exactly 0
+            delta[k][i] = d[k] if j % 2 == 0 else -d[k]
+    centres = [[centre] + [50.0] * (n - 1) for _ in range(at + 1)]
+    return sr.Run(pathlib.Path("crafted"), [f"K{i}" for i in range(n)], [8.0] * n, [0.0] * n, [100.0] * n,
+                  sr.Schedule(ceiling, 0.601, 0.102, ceiling / 10.0, 0.00155), 6, centres, delta, d, "stopped",
+                  {})
+
+
 QUIET = dict(gradients=[0.0, 0.0, 0.0, 0.0], starts=[50, 50, 50, 50], bounds=[(0, 100)] * 4, c0=[8.0] * 4)
 LIVE = dict(gradients=[0.12, 0.0, 0.0, 0.0], starts=[30, 50, 50, 50], bounds=[(0, 100)] * 4, c0=[8.0] * 4)
 RAIL = dict(gradients=[0.12, 0.0, 0.0, 0.0], starts=[96, 50, 50, 50], bounds=[(0, 100)] * 4, c0=[8.0] * 4)
@@ -180,8 +204,32 @@ class SyntheticRunTests(unittest.TestCase):
         self.assertGreater(result["coordinates"][0]["arm_clamped_share"], 0.5)
         # The true signs keep the clamped iterations; a sign read from the
         # moves loses them and points the gradient inward.
-        self.assertGreater(result["coordinates"][0]["z"], 3)
-        self.assertEqual(sr.read(run, 2000, null_reps=5, rail_z=1e9)["verdict"], "CONTINUE")
+        self.assertGreater(result["coordinates"][0]["z"], sr.familywise_line(4))
+
+    def test_a_weak_outward_push_is_a_candidate_and_stops_nothing(self):
+        result = sr.read(crafted_run(push=70, centre=98.0), 2000, null_reps=3)
+        self.assertGreaterEqual(result["coordinates"][0]["z"], sr.RAIL_CANDIDATE_Z)
+        self.assertLess(result["coordinates"][0]["z"], result["familywise_line"])
+        self.assertFalse(result["live"])
+        self.assertEqual(result["rails"], [])
+        self.assertEqual(result["rail_candidates"], ["K0"])
+        self.assertEqual(result["verdict"], "STOP_QUIET")
+
+    def test_an_outward_push_past_the_line_is_a_rail(self):
+        result = sr.read(crafted_run(push=120, centre=98.0), 2000, null_reps=3)
+        self.assertGreater(result["coordinates"][0]["z"], result["familywise_line"])
+        self.assertEqual(result["rails"], ["K0"])
+        self.assertEqual(result["verdict"], "STOP_RAIL")
+        at_min = sr.read(crafted_run(push=-120, centre=2.0), 2000, null_reps=3)
+        self.assertEqual(at_min["rails"], ["K0"])
+
+    def test_an_inward_push_near_a_bound_is_no_rail(self):
+        result = sr.read(crafted_run(push=-120, centre=98.0), 2000, null_reps=3)
+        self.assertLess(result["coordinates"][0]["z"], -result["familywise_line"])
+        self.assertEqual(result["rails"], [])
+        self.assertEqual(result["rail_candidates"], [])
+        self.assertTrue(result["live"])
+        self.assertEqual(result["verdict"], "CONTINUE")
 
     def test_faults_stop_the_read(self):
         run = self.run_of("fault", QUIET, faults={"engine_a": 0, "time_losses_a": 1})
@@ -363,6 +411,16 @@ class RecordedBlockTests(unittest.TestCase):
         self.assertGreater(coordinate["arm_clamped_share"], 0.5)
         self.assertEqual(result["rails"], ["CoreIirMinDepth"])
         self.assertEqual(result["verdict"], "STOP_RAIL")
+
+    def test_b23_block2s_weak_outward_push_is_no_rail(self):
+        # Before the rail needed the familywise line, the sign alone made a
+        # rail of CoreIirMinDepth's z +0.91 at its bound.
+        _, result = self.reads["b23-spsa-block2"]
+        coordinate = next(c for c in result["coordinates"] if c["name"] == "CoreIirMinDepth")
+        self.assertAlmostEqual(coordinate["z"], 0.91, places=2)
+        self.assertEqual(result["rails"], [])
+        self.assertEqual(result["rail_candidates"], [])
+        self.assertEqual(result["verdict"], "STOP_QUIET")
 
     def test_move_signs_reproduce_b56s_reads_of_b23(self):
         for block, (max_z, excess, gain) in LEGACY.items():

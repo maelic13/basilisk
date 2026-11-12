@@ -39,7 +39,6 @@ param(
     [int]$FirstCheckpoint = 2000,
     [int]$CheckpointEvery = 1000,
     [int]$Window = 1000,
-    [double]$RailZ = 0.0,
     [int]$GamesPerIteration = 30,
     [int]$Concurrency = 15,
     [switch]$AllowShortRun,
@@ -159,7 +158,7 @@ $lines = [Collections.Generic.List[string]]::new()
     "tune_sha256:      $(Get-HarnessSha256 $tunePath)"
     "ceiling:          $Ceiling iterations"
     "r_end:            $REnd"
-    "checkpoints:      $($checkpoints -join ', ') (window $Window; rail z $RailZ)"
+    "checkpoints:      $($checkpoints -join ', ') (window $Window)"
     "games_per_iter:   $GamesPerIteration"
     "concurrency:      $Concurrency"
     "seed:             $Seed"
@@ -192,7 +191,7 @@ function Test-Recorded([int]$At) {
 
 function Read-Checkpoint([int]$At, [switch]$WriteTheta) {
     $readArgs = @($reader, $Dir, '--at', "$At", '--window', "$Window", '--first', "$FirstCheckpoint",
-        '--every', "$CheckpointEvery", '--rail-z', "$RailZ", '--cli', $cli.Path, '--record', '--json')
+        '--every', "$CheckpointEvery", '--cli', $cli.Path, '--record', '--json')
     if ($WriteTheta) { $readArgs += '--write-theta' }
     $text = & $Python @readArgs
     if ($LASTEXITCODE -ne 0) { throw "spsa_read.py failed at iteration $At (exit $LASTEXITCODE)." }
@@ -257,7 +256,7 @@ switch ($verdict) {
         Write-Host "Tune stopped ($verdict) at iteration $($read.at). Theta: $(Join-Path $Dir "theta-$($read.at).txt"); the read: $(Join-Path $Dir 'spsa-read.txt')"
         exit 0
     }
-    'STOP_RAIL' { throw "RAIL - $($read.rails -join ', ') at a bound with z pointing outward at iteration $($read.at): register the range again; no theta." }
+    'STOP_RAIL' { throw "RAIL - $($read.rails -join ', ') at a bound with z pointing outward past the familywise line at iteration $($read.at): register the range again; no theta." }
     'FAULT' { throw "FAULT - the run recorded faults by iteration $($read.at): $(($read.faults.PSObject.Properties | Where-Object Value | ForEach-Object { "$($_.Name) $($_.Value)" }) -join ', '). The maintainer decides." }
     default { throw "Unexpected verdict '$verdict' at a registered checkpoint." }
 }

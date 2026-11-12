@@ -15,8 +15,11 @@ last --window iterations are read:
   floor   what quiet rules out: no coordinate is worth more than the line times
           a coordinate's standard error across one perturbation, and the
           forecast's upper reading for the next segment is under 2 SD.
-  rails   a centre within one current perturbation of a bound, with its z
-          pointing outward (beyond --rail-z; rule 7c as signed reads the sign).
+  rails   a centre within one current perturbation of a bound, its z
+          pointing outward past the familywise line: the window would stay
+          live for a coordinate that cannot move. An outward z of
+          RAIL_CANDIDATE_Z or more under the line is a candidate, reported
+          and deciding nothing.
   gain    the tune's own read of what it has gained since iteration 0: the
           sum of gradient times move, cross-fitted (even iterations' gradient
           against odd iterations' move and the reverse) within segments of
@@ -76,6 +79,7 @@ GAIN_SEGMENT = 500
 NULL_REPS = 40
 NULL_SEED = 1
 FORECAST_SPAN = 2000
+RAIL_CANDIDATE_Z = 2.0
 MOVE_TOLERANCE = 1e-6
 SCHEMA = "basilisk-spsa-read-v1"
 
@@ -375,7 +379,7 @@ def null_gain_sd(run: Run, span: range, reps: int = NULL_REPS, seed: int = NULL_
 
 
 def read(run: Run, at: int, window_size: int = 1000, first: int = 2000, every: int = 1000,
-         null_reps: int = NULL_REPS, rail_z: float = 0.0) -> dict:
+         null_reps: int = NULL_REPS) -> dict:
     if not 0 < at <= run.completed:
         raise ReadError(f"--at {at}: the run has {run.completed} completed iterations")
     if at < window_size:
@@ -395,20 +399,26 @@ def read(run: Run, at: int, window_size: int = 1000, first: int = 2000, every: i
     se_elo = elo * math.sqrt(sum(d2)) / window_size
     coordinates = []
     rails = []
+    candidates = []
     for i, name in enumerate(run.names):
         centre = run.centres[at][i]
         perturbation = run.perturbation(at - 1, i)
         num = sum(delta[k][i] * run.d[k] for k in window)
         near_min = centre - run.minimum[i] <= perturbation
         near_max = run.maximum[i] - centre <= perturbation
-        outward = (near_max and z[i] > rail_z) or (near_min and z[i] < -rail_z)
-        if outward:
+        # Near both bounds of a narrow range, either push is outward.
+        outward = (abs(z[i]) if near_max and near_min else z[i] if near_max
+                   else -z[i] if near_min else 0.0)
+        rail = outward >= line
+        if rail:
             rails.append(name)
+        elif outward >= RAIL_CANDIDATE_Z:
+            candidates.append(name)
         coordinates.append({
             "name": name, "z": round(z[i], 4), "elo_across_perturbation": round(elo * num / window_size, 3),
             "centre": centre, "start": run.centres[0][i], "theta": round_half_away(centre),
             "arm_clamped_share": round(sum(run.arm_clamped(k, i) for k in range(at)) / at, 5),
-            "perturbation": perturbation, "rail": outward,
+            "perturbation": perturbation, "rail": rail, "rail_candidate": name in candidates,
         })
     segment = range(at, min(at + FORECAST_SPAN, ceiling))
     factor = forecast_factor(run.schedule, window, segment, statistics.mean(d2), elo)
@@ -446,7 +456,7 @@ def read(run: Run, at: int, window_size: int = 1000, first: int = 2000, every: i
         "gain": {"elo": round(gain, 2), "null_sd": round(gain_sd, 2), "span": [0, at], "null_reps": null_reps},
         "forecast": {"segment": [segment.start, segment.stop], "elo": round(factor * excess, 2),
                      "sd": round(factor * math.sqrt(2.0 * n), 2)},
-        "rails": rails, "rail_z": rail_z, "faults": faults, "verdict": verdict,
+        "rails": rails, "rail_candidates": candidates, "faults": faults, "verdict": verdict,
         "coordinates": coordinates,
         "move_check_worst_error": run.sources.get("move_check_worst_error"),
         "clamped_over_one_percent": [c["name"] for c in coordinates if c["arm_clamped_share"] > 0.01],
@@ -504,7 +514,10 @@ def render(result: dict) -> str:
         f"  forecast for iterations {result['forecast']['segment'][0]}-{result['forecast']['segment'][1]}: "
         f"at most {result['forecast']['elo']:+.1f} +/- {result['forecast']['sd']:.1f} Elo",
         f"  arms clamped on over 1% of iterations: {', '.join(result['clamped_over_one_percent']) or 'none'}",
-        f"  rails: {', '.join(result['rails']) or 'none'}; faults: "
+        f"  rails: {', '.join(result['rails']) or 'none'}; rail candidates (outward z of "
+        f"{RAIL_CANDIDATE_Z:g} or more, under the line; they decide nothing): "
+        f"{', '.join(result['rail_candidates']) or 'none'}",
+        f"  faults: "
         f"{', '.join(f'{k} {v}' for k, v in result['faults'].items() if v) or 'none'}",
     ]
     for item in result.get("scored_forecasts", []):
@@ -516,7 +529,7 @@ def render(result: dict) -> str:
     lines.append("  coordinates (z, Elo across one perturbation, centre, theta):")
     for c in sorted(result["coordinates"], key=lambda c: -abs(c["z"])):
         lines.append(f"    {c['name']:32} z {c['z']:+6.2f}  {c['elo_across_perturbation']:+6.2f} Elo  "
-                     f"{c['centre']:12.4f}  {c['theta']}{'  RAIL' if c['rail'] else ''}")
+                     f"{c['centre']:12.4f}  {c['theta']}{'  RAIL' if c['rail'] else '  rail candidate' if c['rail_candidate'] else ''}")
     return "\n".join(lines) + "\n"
 
 
@@ -566,15 +579,13 @@ def main() -> int:
     parser.add_argument("--cli", type=Path, default=DEFAULT_CLI)
     parser.add_argument("--history-json", type=Path, default=None, help="a saved `spsa history --json` (tests)")
     parser.add_argument("--null-reps", type=int, default=NULL_REPS)
-    parser.add_argument("--rail-z", type=float, default=0.0,
-                        help="how far z must point outward for a rail (rule 7c as signed: 0, the sign alone)")
     parser.add_argument("--write-theta", action="store_true",
                         help="with --record: the maintainer stops a live tune at this checkpoint; write its theta")
     args = parser.parse_args()
     try:
         run = load_run(args.run_dir, args.cli, args.history_json)
         at = args.at or run.completed
-        result = read(run, at, args.window, args.first, args.every, args.null_reps, args.rail_z)
+        result = read(run, at, args.window, args.first, args.every, args.null_reps)
         earlier = [r for r in load_records(args.run_dir) if r["at"] < at]
         result["scored_forecasts"] = score_forecasts(run, earlier, at)
         result["forecast_status"] = forecast_status(result["scored_forecasts"])
