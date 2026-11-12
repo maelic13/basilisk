@@ -276,3 +276,57 @@ the fit), the battery above.
 - **For the next prior:** the won-band long-think share scaled with the clock (4.1× at
   `3+0.03`, 5.2× at `10+0.1`), so a hole seen at the short clock is a lower bound at the
   long one.
+
+#### L1'S FIRST REMEDY: (d) WITH `B5NegExtMax` 1 (registered 2026-11-12, before any of its games)
+
+The read §A2.5 names for a failed condition: the failing run again with the arm at
+`B5NegExtMax` 1, available because §9 item 1's paired run did not reject it. Maintainer
+agreement 2026-11-12.
+
+- **Binaries.** Final-PGO PEXT Release builds of one clean revision, `833659f` (the cap's
+  default set to 1; it is read on the `B5_ROOT` arm alone), by `tools/build_test.ps1`:
+  - the arm, `basilisk-b55-cap1-on-pext-pgo.exe`, SHA-256 122BE50F…, `bench 13`
+    3,783,135. The Tune build `F2AF4E1E…` at `B5NegExtMax=1` replays the same count, so
+    the built-in default is the option exactly;
+  - the OFF arm, `basilisk-b55-cap1-off-pext-pgo.exe`, SHA-256 17978E36…, `bench 13`
+    4,144,790, unchanged. CTest passes 28 of 28 on both arms' dev trees.
+- **The run.** (d)'s exactly: 2,000 games at `10+0.1` (`match-fixed-ltc.toml`, the same
+  run file, 9B45B36D…), seed 55004 and so (d)'s openings, 1T, Hash 64, no adjudication.
+  Results in `tools/results/b55-direction-ltc-cap1`.
+- **What it reads.** L1 on its own PGN by the same census and bound: it fails when the
+  arm's unconverted games at 300 exceed the OFF arm's by more than max(6, 3·√OFF). At
+  800 and 1,500, four or more on the arm are read game by game. (e)'s second trigger is
+  re-read. Its Elo is direction only.
+- **If L1 fails again:** the hole's repair is pulled from D.1 as a research card, with
+  the maintainer's agreement (§A2.5).
+- **Not decided by this run:** whether a pass makes the capped arm the flip's candidate
+  without (a) on it, and on which pair (e) is played. Both are the maintainer's.
+- **Launch:** `pwsh -NoProfile -File tools/run_b55_gates.ps1 -Gate dcap`. Its dry run
+  from the clean tree at `4b59706` is accepted
+  (`colosseum_match_b55-direction-ltc-cap1_20261112_125434`); the guard test
+  (`b55-20261112/guard_test.ps1` 6543cc32…, output `guard_test_dcap.txt` 8a9d8d75…)
+  passes 13 of 13, among them a wrong binary, a missing binary and a finished read for
+  this run.
+
+#### PRE-REGISTERED PREDICTION for the remedy — freeze before exposure
+
+Frozen 2026-11-12. Seen before freezing: (a), (d) and their census; §9 item 1's paired
+run and census at `3+0.03` (the cap: 5.00% unconverted at 300, 0.97% won-band long
+thinks, against 7.63% and 1.94% uncapped; −3.6 ± 9.1 Elo); the bench count.
+
+| # | Prediction | Confidence | Falsifier |
+|---|---|---|---|
+| G6 | L1 passes (75%); the arm's unconverted rate at 300 about **6%**, [4.5%, 7.5%] | moderate | a fail, or a rate at or above (d)'s 7.9%: the chains are not where the draws come from |
+| G7 | the arm reads **+17 Elo** over OFF, 80% interval [+4, +30] | low-moderate | an interval wholly below (d)'s +20.9 centre and under +4: the cap costs strength at `10+0.1` |
+| G8 | the won-band long-think share falls to about **3.5%**, [2%, 5%]; (e)'s trigger still fires (70%) | moderate | a share at (d)'s 6.8% or above: the chains do not cause the long thinks |
+
+- **The reasoning.** At `3+0.03` the cap cut the arm's unconverted rate by a third and
+  its won-band long thinks by half, at a cost inside the noise. Applied to (d), that gives
+  a rate near 6%, the OFF arm's. On (d)'s openings the OFF count stays near 28, so a
+  count near 35 sits under a bound near 16. The long-think share halves to about 3.5%,
+  still past 1.5 times the OFF arm's 1.3%. The cap trims 17.5% of the bench tree, and
+  item 1 read it near neutral, so the arm keeps most of (d)'s gain.
+
+#### RESULT for the remedy — append after exposure
+
+- *Not run.*
