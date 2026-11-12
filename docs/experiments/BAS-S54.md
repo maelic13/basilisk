@@ -283,6 +283,41 @@ changes nothing registered above; what it bears on is the maintainer's to decide
 - Disposition: one block; theta is block 1's centres. The fitted-constant analysis and
   the bake follow.
 
+#### The fitted-constant analysis and the bake (2026-11-12)
+
+- **Analysis** (`analysis/b54_constants_2026-11-12.md`): no rail and no clamped
+  perturbation. The window widened and stopped. The singular margin falls for the
+  second fit running and was still moving; the null move's entry tightens for the third
+  fit running, for B.6.4's audit and B.6.7's surface; the correction scale and IIR's
+  depth keep drifting one way across fits. Theta replays `bench 13` at 4,585,613 (+17.0%)
+  and reads WAC 263 → 262 at 100,000 nodes, over the floor of 246. Nothing blocks the
+  bake.
+- `891edc0` is the bake: the window's three constants in their X lines, the five joiners
+  in `BASILISK_B5_CORE_DEFAULTS`. `d73827b` seeds the B5 surfaces from the arm's baked
+  defaults, so `config_b54.json` now equals theta (the registered seeds are `2beb0bd`'s).
+- **ON `bench 13` 4,585,613** (was 3,920,652), equal to the block's binary's replay of
+  theta; **OFF unchanged at 4,144,790.** Both hold on the Release and the Tune builds
+  (`tools/results/b54-bake/bench_*.txt`).
+- Release CTest 28/28 on both arms. `test_search`, `test_b3_proof` and `test_b4_qsearch`
+  pass on both Tune builds. `tools/diag/test_spsa_surface.py` 24/24.
+- **BAS-S56's condition holds:** the baked binary reads the Tune build's count with
+  theta set, so BAS-S55's gate (b) is retired, answered by BAS-S56's +10.8 ± 5.3.
+- Disposition: **CLOSED 2026-11-12.** One block, theta baked on the arm. Whether the
+  cluster pays is BAS-S55's gate (a).
+
 #### PREDICTION CALIBRATION — preserve the original prediction above
 
-- *Owed at the leaf's close.*
+- **The joiner read and the sweep:** J1 (at most four rows join, 60%) missed, five
+  joined; J2 (continuation pruning moves in total and not by the median, 70%) missed,
+  it joined by the median. S1 (the base curved on WAC, 55%), S2 (the depth-14 total
+  lowest at 19000 or 30000, 75%) and S4 (the seed's depth-17 median within ±5% of the
+  OFF arm's, 70%) hit; S3 (the growth monotone toward 96, 45%) missed, toward 32. Three
+  of six, against an expected 3.75: the joiner rule's reach was underestimated twice.
+- **The fit:** A3 (`B5AspBase` to 2820 or above, 80%; to 4000 or above, 65%) missed on
+  both clauses: the base stopped at 2202. The model took WAC's peak at 2820 and the
+  audit's time-management dial as a pull the games did not exert; the width's direct
+  signal stayed as small as the width run read.
+- **The competing explanation** (a flat surface, the fit noise) is contradicted: theta
+  reads +10.8 ± 5.3 over the seeds (BAS-S56), above that entry's own 80% interval.
+  Which coordinates carry it is not read (the analysis's finding 7).
+- P2 (B.5 +8 at STC after the fit and the gate) is scored at B.5.5.

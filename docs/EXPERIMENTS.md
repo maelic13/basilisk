@@ -548,7 +548,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S53](experiments/BAS-S53.md) — B.5.3: Cluster 4 diagnostics, M1 and the unfitted paired run — closed: the unfitted arm +3.3 ± 9.3 Elo; the width stays at 1410; both categoricals stay 0 (item 2 rejected, −10.9 ± 9.4)
 
-- [BAS-S54](experiments/BAS-S54.md) — B.5.4: the Cluster 4 curvature sweep, then SPSA in blocks — sweep read: five joiners, the base curved; eight coordinates; block 1 complete on the arm with the stop at 2× (CONTINUE: `B3SingMargin`, `B5AspBase`, `B3NmpPerPly` moved a step; two host-caused forfeits accepted by the maintainer); block 2 withdrawn by the maintainer, theta is block 1's centres
+- [BAS-S54](experiments/BAS-S54.md) — B.5.4: the Cluster 4 curvature sweep, then SPSA in blocks — closed: one block (block 2 withdrawn by the maintainer), theta baked on the arm, ON `bench 13` 4,585,613
 
 - [BAS-S55](experiments/BAS-S55.md) — B.5.5: the Cluster 4 gates — (c)'s stop bracket played ahead of the fit: H1, 2× against 1× reads +9.3 ± 4.4 Elo over 8,260 games, the arm's stop moved to 2×; the other gates open at B.5.5
 

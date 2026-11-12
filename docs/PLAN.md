@@ -2554,7 +2554,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         condition. M1's rule owes B.5.5 the SPRT of 2× against 1×, and
         D.1 owes the hole a research card. No default moved and no
         engine source changed. CLOSED.
-    - [ ] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
+    - [x] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
       The packet's registered sweep on the three window seeds and the
       Cluster 1 to 3 coordinates §5.8 pulls onto the surface, then
       SPSA in blocks (BAS-S54); the fitted-constant analysis precedes
@@ -2638,6 +2638,16 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         (`tuned-options.txt` 09b3a055…), so BAS-S56 reads the whole fit.
         Next: the fitted-constant analysis, then the bake into
         `BASILISK_B5_CORE_DEFAULTS` with the arm's new fingerprint.
+      - BAS-S56 2026-11-12, maintainer-run: theta +10.8 ± 5.3 Elo over the
+        seeds over 6,000 games, so gate (b) is retired by its rule.
+      - Closed 2026-11-12 (BAS-S54 *The fitted-constant analysis and the
+        bake* and *PREDICTION CALIBRATION*;
+        `analysis/b54_constants_2026-11-12.md`). No rail, no clamp; the
+        singular margin and the null move's entry keep moving fit after
+        fit, for B.6.4 and B.6.7. `891edc0` bakes theta on the arm: ON
+        `bench 13` 4,585,613, equal to the Tune build's replay of theta,
+        so gate (b)'s condition holds; OFF unchanged at 4,144,790. CTest
+        28/28 on both arms. CLOSED.
     - [ ] **B.5.5** `[V]` Cluster 4 gates
       SPRT `[0,3]` for the cluster, and each categorical and
       attribution arm at the bounds the packet registers (BAS-S55);
@@ -2664,7 +2674,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         6,000 games read a 95% interval excluding 0 on the positive side,
         the bake's `bench 13` reproducing the Tune build's count with
         theta set; otherwise it runs as registered (maintainer
-        2026-11-12, BAS-S56).
+        2026-11-12, BAS-S56). Both held (2026-11-12: +10.8 ± 5.3, ON
+        `bench 13` 4,585,613), so gate (b) is retired.
     - [ ] **B.5.6** `[R3]` SPSA method investigation and redesign
       Added 2026-11-12 (maintainer), after B.5.5 and before any later
       tune (B.6.7, C.10): a proper investigation of how Basilisk runs
@@ -3694,8 +3705,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.4 | RESEARCH | V | Block 1 complete (three movers; its two host-caused forfeits accepted by the maintainer); block 2 withdrawn by the maintainer, so theta is block 1's centres. Next: the fitted-constant analysis, then the bake. BAS-S56 read theta +10.8 ± 5.3 over the seeds, which retires gate (b) once the bake's bench check holds |
-| B.5.5 | RESEARCH | V | After B.5.4; BAS-S55, whose (c) stop bracket is closed, H1 |
+| B.5.5 | RESEARCH | V | Next. BAS-S55: (c)'s stop bracket closed (H1) and (b) retired by BAS-S56; (a) and (d) to register on the baked arm's rebuilt binaries |
 | B.5.6 | RESEARCH | R3 | Added 2026-11-12; the SPSA method investigation, after B.5.5 and before any later tune |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
 | B.6.4 | RESEARCH | R3 | Added 2026-11-11; the whole engine read once after B.5 closes, before the fit |
