@@ -1,0 +1,9 @@
+# Long-clock control: 60+0.6, otherwise the fixed-match policy.
+extend = "match-fixed.toml"
+
+[options]
+games = 400
+a-base-ms = 60000
+a-increment-ms = 600
+b-base-ms = 60000
+b-increment-ms = 600

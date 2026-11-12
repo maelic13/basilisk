@@ -22,6 +22,7 @@ asset and checks both digests.
 | `sprt-wide.toml` | Registered large prior `[0,10]` |
 | `match-fixed.toml` | Fixed measurement at `3+0.03` |
 | `match-fixed-ltc.toml` | Fixed measurement at `10+0.1` |
+| `match-fixed-long.toml` | Fixed measurement at `60+0.6` |
 | `calibrate-null.toml` | Triggered null pair |
 | `gauntlet.toml` | Rating gauntlet |
 | `gauntlet-ltc.toml` | Rating gauntlet at `10+0.1` |
