@@ -107,7 +107,7 @@ B3_CORE_DEFAULTS_TABLE = "#define BASILISK_B3_CORE_DEFAULTS("
 # tuned after Cluster 3 starts from these, over the B3 table's.
 B4_CORE_DEFAULTS_TABLE = "#define BASILISK_B4_CORE_DEFAULTS("
 # Cluster 4's refit of earlier clusters' lines, in the same form, applied over
-# the B4 table's on the B5_ROOT arm.
+# the B4 table's.
 B5_CORE_DEFAULTS_TABLE = "#define BASILISK_B5_CORE_DEFAULTS("
 TABLES = (CORE_TABLE, B3_TABLE, B4_TABLE, B5_TABLE, B3_CORE_DEFAULTS_TABLE,
           B4_CORE_DEFAULTS_TABLE, B5_CORE_DEFAULTS_TABLE)
