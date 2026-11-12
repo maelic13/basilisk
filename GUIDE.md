@@ -217,5 +217,6 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
 - [ ] **H.2** `[I2]` Search refinements, one at a time
 - [ ] **H.3** `[I2]` Time-management refinements at their own control
 - [ ] **H.4** `[R2]` Throughput at an identical tree on the network head
+- [ ] **H.5** `[I2]` Harness rewritten in Python for a Linux host
 
 <!-- END GENERATED -->

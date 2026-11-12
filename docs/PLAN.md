@@ -5092,6 +5092,39 @@ already repairing or a form it must choose anyway, and says so.
   negatives). The profile is the first reading, and an item under 0.5%
   of samples is not built. Each change is behaviour-neutral: the exact
   fingerprint and the pooled read.
+- [ ] **H.5** `[I2]` Harness rewritten in Python for a Linux host
+  Added 2026-11-12 at the maintainer's request, so that development can
+  move to Linux, or run on a second Linux host, when the maintainer
+  decides; the move itself is not scheduled. PowerShell 7 runs on Linux,
+  but the harness is bound to Windows in places (survey 2026-11-12): the
+  idle-host refusal is skipped off Windows (`Get-HarnessHostBusyPercent`
+  returns nothing there), `host_sampler.ps1` reads `typeperf`,
+  `nps_read.ps1` reads Windows counters and priority classes, the
+  Colosseum and fastchess pins name only Windows assets, and the live
+  scripts default to backslash paths, `.exe` names and the `D:/chess`
+  tablebase path. The engine already builds and passes CI on Linux.
+  - Python, already most of `tools/`, with `psutil` for affinity, host
+    load and priority on both systems. One script per change, not a
+    wholesale rewrite: the shared guards (`harness_common.ps1`) first,
+    then `colosseum.ps1`, `build_test.ps1`, the NPS tools,
+    `setup_tools.ps1`, `datagen.ps1`, `gauntlet.ps1` and
+    `spsa_colosseum.ps1`. The historical `run_*.ps1` scripts are not
+    ported.
+  - A port replaces its script only after parity: on fixed synthetic
+    inputs covering the pass and fail case of every guard, old and new
+    accept and refuse the same runs, and a dry-run preflight agrees on
+    Windows and Linux. The `.ps1` is deleted in the commit that switches
+    its callers.
+  - Linux acceptance: a Linux build reproduces the bench fingerprint, the
+    byte-hash fixtures pass in a Linux checkout, and Colosseum's Linux
+    release is pinned beside the Windows one with its own SHA-256.
+  - Windows-only opponents (Rybka and the other old gauntlet `.exe`
+    engines) run under Wine: check that Colosseum accepts a wrapped
+    engine command, and read those opponents' fault rate and time losses
+    at `3+0.03` before a Linux gauntlet is trusted.
+  - Speed reads and NPS baselines become specific to host and OS: both
+    arms of a read or a gate run on one host under one OS, and the build
+    manifest records the OS.
 
 ## 4. Measurement protocols
 
