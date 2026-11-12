@@ -556,6 +556,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S57](experiments/BAS-S57.md) — B.5.6: two zero-game reads for the SPSA method (steps by effect; the doubled perturbation) — CLOSED 2026-11-12: steps by tree effect not adopted (pooled rank correlation +0.24 against +0.40); two-step perturbations run clean; rule 7c's range exception graded by room
 
+- [BAS-S58](experiments/BAS-S58.md) — B.5.7: 28 or 30 one-thread games on SMT siblings against 15 on 15 cores, at `3+0.03` (a speed read and two direction replays) — registered
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |

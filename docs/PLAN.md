@@ -2870,6 +2870,32 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         registered conditions and the wrapper's placement guards, with
         a calibration that ties gates before the change to gates after
         it. Games are maintainer-run.
+      - Prepared 2026-11-12 (BAS-S58), on the design the maintainer chose
+        the same day:
+        - The premise corrected: today's gates run 15 games, one per
+          physical core 1–15, with CPU 0's core free (the run records);
+          the fourteen above was the fastchess path's sizing. The forms
+          are 28 (cores 1–14, cores 0 and 15 free) and 30 (cores 1–15),
+          1.87 and 2.0 times today's games an hour, both at `3+0.03`
+          with the effective control allowed to change. The lengthened
+          control is not read.
+        - Colosseum 0.5.0 cannot place two games on one core. A
+          prototype runs them: `--slot-per-logical-cpu` on Colosseum's
+          branch `smt-slot-prototype` (`e27a201`), pinned for these
+          reads alone; a release follows only if a form is adopted.
+          `colosseum.ps1 -Placement siblings` drives it, its guards
+          tested 20 of 20.
+        - Maintainer-run, in order, with `tools/run_b57_reads.ps1`:
+          `-Read speed`, a zero-game read of about 40 minutes
+          (`tools/smt_read.py`: each engine's share of a core, a
+          memory-latency and a compute pair that search identical trees,
+          and Stockfish standing in for a network engine); then `-Read
+          g28` and `-Read g30`, B.5.5's capped pair over gate (a)'s 2,503
+          openings (seed 55006), about 27 minutes each, read against (a)
+          opening by opening (`tools/diag/replay_compare.py`). Dry runs
+          accepted; predictions and the direction rule frozen.
+        - A promising form goes to a separately registered resolving
+          stage; nothing is adopted on direction reads alone.
     - [ ] **B.5.8** `[I1]` SPSA read tool and checkpoint wrapper
       Added 2026-11-12 from B.5.6, on the maintainer's sign-off: the
       tooling rule 7c's redesign needs, before any later tune (B.6.7,
@@ -3890,7 +3916,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.7 | RESEARCH | R2 | Added 2026-11-12; two games per physical core on SMT siblings, at `3+0.03` and at a control lengthened to today's nodes per move, read against B.5.5's games |
+| B.5.7 | RESEARCH | R2 | Added 2026-11-12; 28 or 30 games on SMT siblings at `3+0.03` against B.5.5's gate (a); BAS-S58's speed read and two direction replays prepared, maintainer-run |
 | B.5.8 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-12 from B.5.6; the read tool, the generator's perturbation and the checkpoint wrapper, before any later tune |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
 | B.6.4 | RESEARCH | R3 | Added 2026-11-11; the whole engine read once after B.5 closes, before the fit |

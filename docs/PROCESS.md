@@ -378,9 +378,10 @@ stop at unrelated depths and contaminate a mean over all moves) and, from
 the sampler, how many physical cores each slot's hot logical CPUs spanned.
 Windows CPU 0 is never a timed game core; on hybrid
 CPUs only the highest efficiency class is eligible. The Ryzen
-9 5950X production host therefore runs fourteen concurrent match games with
-two physical cores free. A tune runs the registered fifteen slots × thirty
-games per iteration there, because its two perturbation arms share a slot; a
+9 5950X production host therefore runs fifteen concurrent Colosseum games, one
+per physical core 1–15, with CPU 0's core free; the fastchess backup path
+keeps a second core free and runs fourteen. A tune runs the registered fifteen
+slots × thirty games per iteration there; a
 different host may reduce concurrency only for an explicitly labelled
 instrument smoke, never for a registered tune. fastchess pins one core per
 game and starves `Threads > 1`, so multi-thread runs on that path drop affinity.
