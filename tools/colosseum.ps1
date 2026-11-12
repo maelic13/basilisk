@@ -18,6 +18,12 @@
     automatic slots cut to one logical CPU per physical core and passed as an
     explicit list, because an automatic slot holds both SMT siblings of its
     cores and Windows packs a multi-thread engine onto them (Rarog RAR-M82).
+
+    -Placement siblings is B.5.7's sibling-paired one-thread form: -Concurrency
+    games, two per physical core, one on each SMT sibling, on the first
+    Concurrency/2 game cores (never CPU 0's), the rest left free. It needs the
+    prototype runner's --slot-per-logical-cpu, named by -CliPath and -PinPath;
+    the pinned 0.5.0 refuses it. A registered experiment only (BAS-S58).
 #>
 param(
     [ValidateSet('sprt', 'match', 'calibrate', 'gauntlet')][string]$Mode = 'sprt',
@@ -39,7 +45,7 @@ param(
     [int]$IncrementMs = 30,
     [int]$BaseMsB = -1,
     [int]$IncrementMsB = -1,
-    [ValidateSet('', 'auto', 'sibling-free')][string]$Placement = '',
+    [ValidateSet('', 'auto', 'sibling-free', 'siblings')][string]$Placement = '',
     [int]$MarginMs = 20,
     [int]$Concurrency = 0,
     [string]$ExpectRevision = '',
@@ -97,6 +103,14 @@ $maxThreads = [Math]::Max($Threads, $threadsB)
 if (-not $Placement) { $Placement = if ($maxThreads -gt 1) { 'sibling-free' } else { 'auto' } }
 if ($Placement -eq 'auto' -and $maxThreads -gt 1) {
     throw "-Placement auto with $maxThreads threads packs them on SMT siblings; a multi-thread run is sibling-free."
+}
+if ($Placement -eq 'siblings') {
+    if ($maxThreads -ne 1) { throw '-Placement siblings is a one-thread form; both sides play at Threads=1.' }
+    if ($Mode -eq 'gauntlet') { throw '-Placement siblings is a two-arm form; a gauntlet refuses it.' }
+    if ($Concurrency -le 0) { throw '-Placement siblings needs an explicit -Concurrency (the registered 28 or 30).' }
+    if (-not $PSBoundParameters.ContainsKey('PinPath') -or -not $PSBoundParameters.ContainsKey('CliPath')) {
+        throw '-Placement siblings needs the prototype runner: pass -CliPath and -PinPath; the pinned 0.5.0 has no --slot-per-logical-cpu.'
+    }
 }
 
 Write-Host ''
@@ -211,8 +225,14 @@ if (Test-Path -LiteralPath $storedConfig) {
     elseif ($Seed -ne $storedSeed) { throw "$Dir records seed $storedSeed; -Seed $Seed would change a resumed run." }
 }
 $Seed = New-HarnessSeed -Requested $Seed
-$concurrencyInfo = Resolve-HarnessConcurrency -Requested $Concurrency -ReservePhysicalCores 1 -ThreadsPerGame $maxThreads
-$expectedConcurrency = $concurrencyInfo.Concurrency
+$siblingCpus = @()
+if ($Placement -eq 'siblings') {
+    $siblingCpus = @(Get-HarnessSiblingPairCpuList -Concurrency $Concurrency)
+    $expectedConcurrency = $Concurrency
+} else {
+    $concurrencyInfo = Resolve-HarnessConcurrency -Requested $Concurrency -ReservePhysicalCores 1 -ThreadsPerGame $maxThreads
+    $expectedConcurrency = $concurrencyInfo.Concurrency
+}
 
 $commandArgs = @('--run-file', $RunFile)
 if ($Mode -eq 'gauntlet') { $commandArgs += @('tournament', 'run') }
@@ -237,7 +257,11 @@ if ($twoArm) {
     $commandArgs += $ExtraArgs
 }
 $commandArgs += @('--concurrency', "$expectedConcurrency")
-$commandArgs += @('--cores-per-game', "$maxThreads")
+if ($Placement -eq 'siblings') {
+    $commandArgs += @('--slot-per-logical-cpu', '--placement', ($siblingCpus -join ','))
+} else {
+    $commandArgs += @('--cores-per-game', "$maxThreads")
+}
 $commandArgs += @('--seed', "$Seed", '--dir', $Dir)
 # The run files name the UHO book; only a launcher that names another passes it.
 if ($PSBoundParameters.ContainsKey('Book')) { $commandArgs += @('--book', $Book) }
@@ -356,7 +380,8 @@ if ("$($resolved.openings.order)" -ne 'Random') { Add-Violation "opening order i
 if ($resolved.openings.wrap) { Add-Violation 'openings wrap; a run must not replay its book' }
 try {
     Assert-HarnessResolvedPlacement -Resolved $resolved `
-        -ExpectedConcurrency $expectedConcurrency -ThreadsPerGame $maxThreads -Placement $Placement
+        -ExpectedConcurrency $expectedConcurrency -ThreadsPerGame $maxThreads -Placement $Placement `
+        -ExpectedCpus $siblingCpus
 } catch {
     Add-Violation $_.Exception.Message
 }
@@ -410,8 +435,13 @@ $lines.Add("adjudication:     none (natural termination)")
 $lines.Add("hash_mb:          $Hash")
 $lines.Add("threads:          $(if ($threadOdds) { "A $Threads, B $threadsB" } else { $Threads })")
 $lines.Add("time_control:     $(if ($clockOdds) { "A ${BaseMs}+${IncrementMs} ms, B ${baseMsB}+${incrementMsB} ms" } else { "${BaseMs}+${IncrementMs} ms" }); margin $MarginMs ms")
-$lines.Add("cores_per_game:   $($resolved.execution.allocation.cores_per_game)")
-$lines.Add("placement:        $(if ($Placement -eq 'sibling-free') { "sibling-free, explicit ($($placementCpus -join ',')), one logical CPU per physical core" } else { "auto, headroom $($resolved.execution.placement_policy.headroom_physical_cores) physical core(s)" })")
+$lines.Add("cores_per_game:   $(if ($Placement -eq 'siblings') { 'one logical CPU (shared-logical-cpu)' } else { $resolved.execution.allocation.cores_per_game })")
+$placementText = switch ($Placement) {
+    'sibling-free' { "sibling-free, explicit ($($placementCpus -join ',')), one logical CPU per physical core" }
+    'siblings' { "siblings, explicit ($($siblingCpus -join ',')), one game per logical CPU, two per physical core" }
+    default { "auto, headroom $($resolved.execution.placement_policy.headroom_physical_cores) physical core(s)" }
+}
+$lines.Add("placement:        $placementText")
 $lines.Add("concurrency:      $($resolved.execution.concurrency)")
 $lines.Add("host_busy_percent: $($hostState.BusyPercent)")
 $lines.Add("host_idle_waived: $($hostState.Waived)")

@@ -1,0 +1,16 @@
+{
+  "revision": "e27a201a83d1dc2c528caf9431ec6bc002d3f6ed",
+  "sha256": "87A95FA5829C28AC3013C219FC6627AE0D7C5A2FAA68CFBAAE6E85A5A82FFDD5",
+  "version": "colosseum-cli 0.5.0",
+  "pinned_utc": "2026-11-12",
+  "purpose": "B.5.7 (BAS-S58) only: the sibling-paired prototype, --slot-per-logical-cpu; every other run uses colosseum.pin.json",
+  "source": {
+    "kind": "local-branch",
+    "repository": "D:/code/colosseum",
+    "branch": "smt-slot-prototype",
+    "base": "8fa63cc65b69c9c84b8e259ce590713f063c4500",
+    "build_command": "cargo build --release -p colosseum-cli",
+    "artifact": "target/release/colosseum-cli.exe",
+    "staged_as": "tools/bin/colosseum-cli-smt-proto.exe"
+  }
+}

@@ -119,3 +119,4 @@ d6a79a8	external	Triumviratus: shared enemy attack map
 e1a884c	external	Triumviratus: per-expert margins of experts 5-7 unbaked
 f7a83be	external	Triumviratus: NUMA spread on Linux
 f7e1489	external	Triumviratus: per-thread state aligned to 128 bytes
+e27a201	external	Colosseum: the smt-slot-prototype branch (--slot-per-logical-cpu) on 0.5.0, pinned for B.5.7 by colosseum-smt-proto.pin.json
