@@ -323,6 +323,8 @@ drafted here:
 > - *The record.* Each read appends the per-coordinate z, the tune's own read of its
 >   gain, and a frozen forecast for the next 2,000 iterations. The forecast decides
 >   nothing until three scored forecasts have each fallen within twice their SD.
+>   (Recorded since as the combined SD of the forecast and of the gain read it is
+>   scored against; §14.)
 > - A tune is judged by its gate, not by its read.
 
 The familywise line is 2.73 at 8 coordinates, 2.93 at 15, 3.13 at 29 and 3.28 at 49. With
@@ -565,3 +567,40 @@ recorded centre of the five blocks is the runner's update of the one before it.
   between the blocks is +0.41 (was +0.34). The unlock premise stays unsupported.
 - The fixtures and the comparison are `tools/diag/test_spsa_read.py`, which also
   shows that the move-recovered signs reproduce `stop.txt`'s 2.58 and +1.6 SD.
+
+**Second erratum (B.5.8's review, 2026-11-12): the tune's own read of its gain read
+high.** §5's cross-fitted gain divides each coordinate's gradient by the summed squared
+perturbations of the iterations whose `D` was not zero. An iteration with `D` of zero is
+an observation like any other, so leaving it out selects on the outcome and reads the
+gradient, and so the gain, high by the share of such iterations: 10% to 12% in the five
+blocks. `tools/spsa_read.py` now divides by every iteration.
+
+- **The check.** 1,000 simulated runs of 2,000 iterations with a known gradient, played
+  through the runner's update: this packet's form reads 1.106 times the true gain
+  (+0.51 ± 0.16 on 4.78 Elo), the corrected form 0.995 (−0.02 ± 0.14).
+  `tools/results/b58-review-20261112/`: `gain_bias.py` 24b519a6…, `gain_bias.txt`
+  ad16ac10….
+- **§5's table, corrected** (the runner's signs, every iteration in the denominator):
+
+  | Block | Tune's own read | Its null SD | Measured |
+  |---|---:|---:|---|
+  | B.2.3 block 1 | +29.8 | 8.3 | +57.0 ± 9.8 |
+  | B.2.3 block 2 | +2.4 | 7.6 | – |
+  | B.3.3 | +11.6 | 6.1 | +17.6 ± 6.4 (SPRT) |
+  | B.4.6 | +7.0 | 4.6 | +6.5 ± 3.6 (SPRT) |
+  | B.5.4 | +9.95 | 3.3 | +10.8 ± 5.3 |
+
+- **What it changes.** Three blocks still agree with their matches within both errors.
+  B.2.3's block 1 now reads 2.8 combined SDs under its match, where §5 had it "low": on
+  a surface of 49 with a coordinate clamped at its bound for most of the block, the
+  gain read misses a good part of what the match measured. It errs low, which sends a
+  fit to the SPRT sooner than to the fixed 6,000 games, the cautious side of PROCESS
+  item 6.
+- **What it does not change.** The gradient z, the live and quiet verdicts, the
+  forecast and the floors: all of them sum `D²` over every iteration already. The
+  line of +10 Elo in PROCESS item 6 comes from the fixed gate's power at a true +10,
+  not from B.5.4's read, which is now just under it.
+- **The forecast's score.** §8 scores a forecast "within twice their SD". Read as the
+  forecast's own SD, a perfect forecast fails more often than not, because the gain
+  read it is scored against carries a null SD of 3.3 to 8.3 Elo over a block. Rule 7c
+  now reads: within twice the combined SD of the forecast and of that gain read.

@@ -233,7 +233,10 @@ roadmap.
    - *The record.* Each read appends every coordinate's z, the tune's own
      read of its gain, the stop's floor in Elo and a frozen forecast for
      the next 2,000 iterations. The forecast decides nothing until three
-     scored forecasts have each fallen within twice their SD.
+     scored forecasts have each fallen within twice the combined SD of the
+     forecast and of the gain read it is scored against (the gain read is
+     the noisier of the two, so the forecast's own SD alone would fail a
+     perfect forecast more often than not).
 
    Quiet means no gradient above the stated floor, not convergence. A
    tune is judged by its gate, not by its read, and movement is never read
@@ -2998,6 +3001,38 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           STOP_QUIET, the one change; B.3.3 STOP_QUIET, B.4.6
           STOP_CEILING and B.5.4 FAULT (its two recorded time forfeits)
           unchanged.
+        - Reviewed 2026-11-12 in a separate session, against the packet's
+          §8: the reader's 24 tests and the surface's 26 reproduce, the
+          guard log reads 13 of 13, and the real smoke run reads through
+          the pinned runner. Four corrections to the reader, none to the
+          wrapper or the generator; 28 reader tests on the final state:
+          - The tune's own read of its gain read high. Its gradient's
+            denominator left out iterations whose D came out 0, which
+            selects on the outcome. The form came from B.5.6's packet,
+            which the reader had reproduced faithfully. Over 1,000
+            simulated runs with a known gradient B.5.6's form reads
+            1.106 times the true gain (+0.51 ± 0.16 on 4.78 Elo), the
+            corrected one 0.995 (−0.02 ± 0.14;
+            `tools/results/b58-review-20261112/`). The five blocks'
+            reads fall by 11% to 16%: B.2.3 +29.8 and +2.4, B.3.3
+            +11.6, B.4.6 +7.0, B.5.4 +9.95 (the packet's §14).
+          - A forecast was scored against twice its own SD. The gain
+            read it is scored against is noisier (null SD 3.3 to 8.3
+            Elo over a block, against a forecast SD near 1 to 2), so a
+            perfect forecast would have failed. It is now scored
+            against the combined SD, and rule 7c says so.
+          - `--record` on a read between checkpoints wrote a record. The
+            wrapper takes the record's last line as the tune's state
+            and would have refused to resume; the forecast would also
+            have been scored. Such a read is now printed and not
+            recorded.
+          - At the ceiling the floor claimed "the forecast's 2 SD is
+            0.0 Elo" for an empty segment. It now claims none.
+          - Left as built and reported to the maintainer: a fault
+            leaves no path to a theta after the maintainer accepts it
+            (B.5.4's two forfeits were accepted by exception), and
+            `--rule7c` writes whole tables only, where B.6.7's surface
+            is a chosen subset.
 - [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live;
   registered surface; PGO bake; SPRT `[0,3]`. It runs (maintainer
