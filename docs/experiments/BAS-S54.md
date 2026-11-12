@@ -196,6 +196,61 @@ changes nothing registered above; what it bears on is the maintainer's to decide
   binary.
 - Disposition: block 1 is prepared on the arm with the stop at 2×, maintainer-run, not
   started.
+- **Block 1 (maintainer-run, 2026-11-10 20:25 to 2026-11-12 04:59 UTC):**
+  - 2,000 iterations, 60,000 games, in three sessions: Windows Update restarted the host
+    at iteration 650 (KB5132061), the maintainer stopped it at 844, and each session
+    resumed from the block's own checkpoint at the stored seed and horizon. The three
+    manifests (`colosseum_spsa_b54-spsa-block1_20261110_212550`, `…_20261111_072413`,
+    `…_20261111_224716`) name the same binary, revision, surface file and runner.
+  - The PGN recount agrees with the journal and the driver: 60,000 games, 2,000
+    iterations of 30, the plus side 15,432 / 28,935 / 15,633. `result.json` 4bc6ef38…,
+    `tuned-options.txt` 09b3a055….
+  - **Two time forfeits:** games 571 (the minus side) and 601 (the plus side), iterations
+    19 and 20, both while Windows installed a Visual Studio security update and the
+    malicious-software removal tool. No other engine fault and no infrastructure fault.
+    PROCESS *Harness* requires a tune block to have none, and the wrapper refused to
+    certify the block (its last manifest has no completion lines).
+  - **Their bound:** at iterations 19 and 20 one game point moves every centre 0.0036 of
+    a step, so the two games together shift any centre by at most 0.0144 steps to first
+    order. The nearest decision edge is `B3NmpPerPly`'s rounding edge, 0.073 steps away:
+    the movement verdict and its three movers cannot change, and theta can change by at
+    most one unit of a coordinate, at most 1/23 of a step.
+  - **Accepted by the maintainer 2026-11-12** as an exception to the zero-fault rule for
+    this block, on that bound and the host cause. The rule stands for later blocks, and
+    the wrapper still enforces it.
+  - **Movement rule: CONTINUE**, three of eight coordinates moved a full step:
+    `B3SingMargin` 232 → 201 (−1.35 steps), `B5AspBase` 1410 → 2202 (+1.12) and
+    `B3NmpPerPly` 13 → 11 (−1.00). The rest: `B5AspMsqDiv` 2874 → 2907, `B5AspGrowth`
+    47 → 46, `CoreContHistPruneSlope` 3832 → 3783, `CoreCorrUpdateScale` 17 → 18,
+    `B3IirMinDepth` 6 → 7.
+  - **Interim reading of the constants** (the full analysis is written before the bake):
+    - No rail. Every centre stayed at least 1.27 steps inside its range: `B5AspBase` at
+      its lowest, early, and `B3IirMinDepth` 1.45 from both ends of 3–10.
+    - Net travel against a random walk (net over the root sum of squared moves; PLAN
+      B.6's B-101): `B3SingMargin` −4.06, `B5AspBase` +3.41, `B3NmpPerPly` −2.50, every
+      other within ±1.6. `CoreCorrUpdateScale` reads +2.26 in the second half alone.
+    - Two reversals, both on coordinates without a signal: `B5AspMsqDiv` fell to 2626
+      and came back to 2907; `CoreContHistPruneSlope` rose to 3925 and came back to 3783.
+    - `B5AspBase` flattened: its highest centre was 2282, and the last 300 iterations
+      moved it −0.07 steps. It is under 2820, so BAS-S53 *CONDITIONS* sends nothing back to
+      BAS-S55 (c). Beside the audit table's 2115 column the stop still ends about 26% of
+      searches, as at the seed.
+    - `B3SingMargin` is still moving (−0.26 steps over the last 300 iterations), and this
+      is its second fit down (B.3's sweep seed 252, B.3's fit 232). A smaller margin puts
+      the singular bound nearer the TT score, so more TT moves are extended. The analysis
+      reads it against the arm's +39.4% singular tries by the median.
+    - `B3NmpPerPly` lower makes the null move's entry stricter at depth: the allowance
+      the static eval may fall below beta drops from 13·depth to 11·depth.
+- **Block 2 (registered 2026-11-12, before its first game):** seed 54002, `-SeedFrom`
+  block 1; the binary, surface file, steps, shape and stop rule are block 1's.
+  - **Validation:** `tools/results/b54-20261110/validate_block2.ps1` (49bfdeee…, output
+    `validate_block2.txt` 08d83016…; `dryrun-block2.json` 0C05CB5A…) accepts: 8
+    parameters, 2,000 × 30, concurrency 15, `r_end` 0.0031, seed 54002, no adjudication,
+    the binary's revision, fingerprint and options, the stop advertised at 200, and every
+    start equal to block 1's rounded centre with block 1's `c_end` and bounds.
+  - **Launch:** `pwsh -NoProfile -File tools/spsa_colosseum.ps1 -Engine tools/test_engines/basilisk-b54-on-tune-pext-tune-pgo.exe -ExpectBench 3920652 -ExpectRevision a4637b6b4c91fefa0e7909a9120d64afef895cf5 -Tune tools/spsa_configs/colosseum/b54.tune.toml -Seed 54002 -SeedFrom tools/results/b54-spsa-block1 -Dir tools/results/b54-spsa-block2`.
+- Disposition: block 1 complete (CONTINUE; its two forfeits accepted by the maintainer);
+  block 2 prepared, maintainer-run, not started.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 

@@ -2616,6 +2616,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           `a4637b6`) and block 1 is registered again on it, its dry run
           accepted (`877DD4D6…`). Surface, seeds, steps and stop rule
           are unchanged. Maintainer-run.
+      - Block 1 2026-11-10 to 2026-11-12, maintainer-run (BAS-S54
+        *Block 1*): 60,000 games, the PGN recount agreeing. Rule 7c:
+        CONTINUE, three movers (`B3SingMargin` 232 → 201, `B5AspBase`
+        1410 → 2202, `B3NmpPerPly` 13 → 11); no rail.
+        - Two time forfeits at iterations 19 and 20, during a Windows
+          Update install, break PROCESS's zero-fault rule for tune
+          blocks. They shift any centre by at most 0.0144 steps, which
+          changes neither the verdict nor a mover; the maintainer
+          accepted the block as an exception (2026-11-12).
+        - Block 2 is prepared (seed 54002, `-SeedFrom` block 1) and its
+          dry run accepted (`0C05CB5A…`). Maintainer-run.
     - [ ] **B.5.5** `[V]` Cluster 4 gates
       SPRT `[0,3]` for the cluster, and each categorical and
       attribution arm at the bounds the packet registers (BAS-S55);
@@ -3618,7 +3629,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.4 | RESEARCH | V | The stop's gate read H1 and the arm's stop is at 2× (BAS-S55 (c)). The next action is the maintainer's: SPSA block 1 on the re-pinned Tune build (BAS-S54, seed 54001, eight coordinates, 60,000 games); then `spsa_block_rule.py` decides block 2 |
+| B.5.4 | RESEARCH | V | Block 1 read CONTINUE (three movers; its two host-caused forfeits accepted by the maintainer). The next action is the maintainer's: SPSA block 2 (BAS-S54, seed 54002, `-SeedFrom` block 1, 60,000 games); then `spsa_block_rule.py` decides block 3 or theta |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55, whose (c) stop bracket is closed, H1 |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
 | B.6.4 | RESEARCH | R3 | Added 2026-11-11; the whole engine read once after B.5 closes, before the fit |
