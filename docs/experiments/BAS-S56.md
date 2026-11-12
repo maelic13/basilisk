@@ -67,6 +67,20 @@
   block 1's centres are theta and this match reads the whole fit against its seeds. The
   arms, conditions and prediction above are unchanged.
 
+- **Stopped and resumed (2026-11-12).** The maintainer stopped the run at 3,349 games
+  (+12.3 ± 7.0 on the console) and resumed it to its registered 6,000. The read is the
+  full 6,000; the partial count is not a result.
+- **Gate (b) rule (maintainer 2026-11-12, after that partial read and before the
+  remaining games were seen; the record says so):** BAS-S56 and BAS-S55's gate (b), the
+  fit against the seeds, are one pair, and PROCESS allows one read of a pair.
+  - If the 95% interval at 6,000 games excludes 0 on the positive side, gate (b) is
+    answered by this read and retired unrun: a one-sided 2.5% error, no looser than the
+    SPRT's. The bake's `bench 13` must then reproduce this Tune build's count with
+    theta set, which shows the baked binary plays this tree.
+  - Otherwise gate (b) runs as registered.
+  - An SPRT read of these games is not used: the log-likelihood ratio on `[0,3]` was
+    1.59 at 1,665 pairs, and this sample cannot reach 2.94.
+
 #### RESULT — append after exposure
 
 - *Not run.*

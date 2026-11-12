@@ -2660,6 +2660,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         run in no CI cell.
       - (c)'s stop bracket, 2× against 1×, is played before B.5.4's fit
         (maintainer 2026-11-10; BAS-S55) and not again here.
+      - Gate (b), the fit against the seeds, is retired unrun if BAS-S56's
+        6,000 games read a 95% interval excluding 0 on the positive side,
+        the bake's `bench 13` reproducing the Tune build's count with
+        theta set; otherwise it runs as registered (maintainer
+        2026-11-12, BAS-S56).
 - [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live;
   registered surface; PGO bake; SPRT `[0,3]`. It runs (maintainer
