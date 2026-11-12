@@ -554,6 +554,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S56](experiments/BAS-S56.md) — B.5.4 diagnostic: SPSA block 1's centres (theta) against the seeds — +10.8 ± 5.3 Elo over 6,000 games; gate (b) retired by its rule
 
+- [BAS-S57](experiments/BAS-S57.md) — B.5.6: two zero-game reads for the SPSA method (steps by effect; the doubled perturbation) — registered 2026-11-12, zero games; not yet run
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
