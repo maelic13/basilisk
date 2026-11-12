@@ -105,8 +105,7 @@ void Searcher::update_all_stats(SearchStack* ss, Move best, Move tt_move,
     if (!pv_node)
         bonus += int(int64_t(bonus) * (quiet_count + capture_count) / 256);
 
-    const bool best_capture_stage = b.piece_on(to_sq(best)) != NO_PIECE
-                                 || move_type(best) == EN_PASSANT || move_type(best) == PROMOTION;
+    const bool best_capture_stage = is_capture_stage(b, best);
     if (!best_capture_stage) {
         update_quiet_histories(ss, best, bonus * 899 / 1024);
         int actual_malus = malus * 1159 / 1024;

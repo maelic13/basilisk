@@ -140,13 +140,10 @@ Move CoreMovePicker::next() {
         switch (stage_) {
             case Stage::TT:
                 stage_ = Stage::CaptureInit;
-                if (tt_move_ != MOVE_NONE && tt_move_ != excluded_) {
-                    const Piece p = board_.piece_on(from_sq(tt_move_));
-                    if (p != NO_PIECE && color_of(p) == board_.turn() && board_.is_legal(tt_move_)) {
-                        tt_delivered_ = true;
-                        last_src_ = Src::TT;
-                        return tt_move_;
-                    }
+                if (tt_move_ != excluded_ && table_move_usable(board_, tt_move_)) {
+                    tt_delivered_ = true;
+                    last_src_ = Src::TT;
+                    return tt_move_;
                 }
                 break;
 
@@ -275,7 +272,7 @@ Move CoreMovePicker::first_denied_quiet(ScoredMove* scratch) {
 bool ProbCutPicker::candidate(Move m) const {
     if (move_type(m) == PROMOTION)
         return promo_type(m) == QUEEN;
-    return move_type(m) == EN_PASSANT || board_.piece_on(to_sq(m)) != NO_PIECE;
+    return captures_piece(board_, m);
 }
 
 Move ProbCutPicker::next() {
@@ -283,14 +280,11 @@ Move ProbCutPicker::next() {
         switch (stage_) {
             case Stage::TT:
                 stage_ = Stage::Init;
-                if (tt_move_ != MOVE_NONE && tt_move_ != excluded_) {
-                    const Piece p = board_.piece_on(from_sq(tt_move_));
-                    if (p != NO_PIECE && color_of(p) == board_.turn() && board_.is_legal(tt_move_)
-                        && candidate(tt_move_)) {
-                        tt_delivered_ = true;
-                        if (board_.see_ge(tt_move_, threshold_))
-                            return tt_move_;
-                    }
+                if (tt_move_ != excluded_ && table_move_usable(board_, tt_move_)
+                    && candidate(tt_move_)) {
+                    tt_delivered_ = true;
+                    if (board_.see_ge(tt_move_, threshold_))
+                        return tt_move_;
                 }
                 break;
 

@@ -313,8 +313,7 @@ private:
     // piece and its destination. The null move selects the sentinel row.
     void do_move(SearchStack* ss, Move m) {
         const Square to = Square(to_sq(m));
-        const bool capture_stage = state_.board->piece_on(to) != NO_PIECE
-                                || move_type(m) == EN_PASSANT || move_type(m) == PROMOTION;
+        const bool capture_stage = is_capture_stage(*state_.board, m);
         ss->move        = m;
         const Piece piece = state_.board->piece_on(from_sq(m));
         ss->moved_piece = type_of(piece);

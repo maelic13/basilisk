@@ -86,4 +86,22 @@ namespace b3 {
     return root_depth >= min_depth && (root_score >= min_score || root_score <= -min_score);
 }
 
+// IIR, the donor's form: a PV or cut node off the previous iteration's PV,
+// not in check and at least `min_depth` deep, loses a ply when it has no
+// table move, or, with `stale`, when its table entry is more than three
+// plies shallower than the node.
+[[nodiscard]] inline bool iir_applies(bool is_pv, bool cut_node, bool in_check, bool follow_pv,
+                                      int depth, int min_depth, bool has_tt_move, bool stale,
+                                      bool tt_found, int tt_depth) {
+    return !in_check && !follow_pv && (is_pv || cut_node) && depth >= min_depth
+        && (!has_tt_move || (stale && tt_found && tt_depth < depth - 3));
+}
+
+// The main search takes a table cutoff only while the rule-50 count is below
+// 96: nearer the limit a stored score may no longer hold, since the entry's
+// key does not carry the count.
+[[nodiscard]] inline bool tt_cutoff_rule50_allows(int rule50) {
+    return rule50 < 96;
+}
+
 }  // namespace b3
