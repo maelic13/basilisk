@@ -438,9 +438,9 @@
 //   itself lost to the stop at twice it, so the arm's default is
 //   BASILISK_B5_CORE_DEFAULTS's.
 #define BASILISK_B5_PARAMS(X, F, S)                                      \
-    X(b5_asp_base,           B5AspBase,           1410,  500, 40000)     \
-    X(b5_asp_msq_div,        B5AspMsqDiv,         2874, 1000, 12000)     \
-    X(b5_asp_growth,         B5AspGrowth,           47,   32,    96)     \
+    X(b5_asp_base,           B5AspBase,           2202,  500, 40000)     \
+    X(b5_asp_msq_div,        B5AspMsqDiv,         2907, 1000, 12000)     \
+    X(b5_asp_growth,         B5AspGrowth,           46,   32,    96)     \
     S(b5_fail_high_reduce,   B5FailHighReduce,       0,    0,     1)     \
     S(b5_neg_ext_max,        B5NegExtMax,            0,    0,     2)     \
     S(b5_window,             B5Window,               1,    0,     1)     \
@@ -450,9 +450,15 @@
 
 // The arm's own defaults where they differ from a line's, in the form of
 // BASILISK_B4_CORE_DEFAULTS and applied after it on the B5_ROOT arm alone; the
-// build without the arm keeps every line's.
+// build without the arm keeps every line's. The earlier clusters' coordinates
+// here were fitted on this arm's tree beside the window's.
 #define BASILISK_B5_CORE_DEFAULTS(A)                                     \
-    A(b5_fail_high_stop,     B5FailHighStop,        200)
+    A(b5_fail_high_stop,     B5FailHighStop,        200)                \
+    A(cont_hist_prune_slope, CoreContHistPruneSlope, 3783)              \
+    A(corr_update_scale,     CoreCorrUpdateScale,    18)                \
+    A(b3_nmp_per_ply,        B3NmpPerPly,            11)                \
+    A(b3_sing_margin,        B3SingMargin,          201)                \
+    A(b3_iir_min_depth,      B3IirMinDepth,           7)
 
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
