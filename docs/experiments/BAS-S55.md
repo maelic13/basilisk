@@ -419,4 +419,27 @@ Frozen 2026-11-12. Seen before freezing: (a), (d), the remedy and their censuses
 
 #### RESULT for (a) on the capped arm — append after exposure
 
-- *Not run.*
+- **(a) on the candidate** (2026-11-12, maintainer-run, `tools/results/b55-gate-a-cap1/`;
+  manifest `colosseum_sprt_b55-gate-a-cap1_20261112_141218`, dry run 9DC37DAC… as
+  validated, both pins and `bench 13` counts confirmed, exit 0): **H1 at 2,503 pairs**,
+  LLR +2.94. **+15.6 ± 5.9 Elo** (nElo +25.4 ± 9.6), 1,437 wins, 2,390 draws, 1,215
+  losses, pentanomial [75, 516, 1117, 700, 95]; the PGN recount agrees. No fault, no time
+  loss; 18 pairs past the crossing kept outside the sample. The arm searches 18.33 plies
+  a move against 18.37, at 70.9 ms against 70.0.
+- **The games census** (`census/census.json` 4d83b54e…), judging nothing: unconverted at
+  300, the arm 117 of 1,552 (7.54%) and OFF 80 of 1,294 (6.18%); at 800, 7 of 1,432 and 2
+  of 1,207; won-band long thinks 1.62% against 0.69%.
+- **The arm's seven unconverted games at 800, read** (the clause is (d)'s; read here
+  because seven is past its four): games 1877, 2474, 3149, 3232, 3359, 3762 and 4580, all
+  drawn, from endings the evaluation scores at +9 to +12 that are not won: rook against
+  bishop with a rook pawn, rook against rook and two pawns, minor-piece endings with a
+  wrong-coloured bishop and a rook pawn (3232 ends in stalemate), bishop against bishop.
+  The scores, not the search, are what is wrong; both arms share the evaluation. It goes
+  to the evaluation's ending knowledge (Phase C) as a finding and judges nothing here.
+- **Disposition:** the candidate is accepted. The flip follows: `B5_ROOT` defaults ON at
+  `B5NegExtMax` 1, and the fingerprint record moves to 3,783,135.
+
+#### PREDICTION CALIBRATION for (a) on the capped arm — preserve the prediction above
+
+- **G9: hit.** H1 (called 80%); +15.6 against +15, inside [+6, +24]. Against the
+  uncapped (a)'s +16.8 ± 6.1, the cap costs nothing visible at `3+0.03` either.

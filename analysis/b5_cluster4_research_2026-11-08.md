@@ -887,7 +887,7 @@ leaves a donor mechanism unbuilt, with what the re-read waits on.
 | Place | Basilisk's form (kept) | The donor's form | Why kept | Waits on |
 |---|---|---|---|---|
 | Fail-high depth reduction (`B5FailHighReduce` 0) | re-searches at full depth | `rootDepth − failedHighCnt − 3·(searchAgainCounter + 1)/4` | BAS-D17 (WAC 137 → 119 on the pre-B.2 search); the clock half is time management's | D.1 (`increaseDepth`), then the §9 item 2 gate; H.2 if neither |
-| Negative-reduction ceiling (`B5NegExtMax` 0) | unbounded along a line | the same in `sf_19`; a ply bound after 19; Triumviratus's count cap | today's form works; TS-1 is a prior | the diagnostics leaf's item 1 |
+| Negative-reduction ceiling (`B5NegExtMax` 1, adopted at B.5.5, 2026-11-12) | one extension from a negative reduction a line: Triumviratus's count cap (TS-1) | unbounded along a line in `sf_19`; a ply bound against the root depth after 19 | BAS-S55: the cap removed the arm's won-band long thinks at `10+0.1` (6.82% to 2.00%) at no visible cost (+20.3 against +20.9 there; (a) +15.6 against +16.8) | Phase H: the ply bound after 19 against the count cap, a refinement of a few Elo at most |
 | Optimism | none | `114·avg/(|avg| + 85)` inside the NNUE blend | the form is the network's; Rarog's HCE read −5.6; the evaluation is frozen | F, with the donor's blend adopted whole |
 | Draw value | 0 | `−1 + (nodes & 2)` | Rarog −1.2; blindness unmeasured | the diagnostics leaf's judge read; then H.2 |
 | Fail-high clock stop (`B5FailHighStop` 100) | A.8.17's stop at the optimum on the previous best | none | BAS-S20; the battery passes stop-free at `60000+600`, the hole stands at `180000+2000` | M1 (BAS-R10); the hole is D.1's |

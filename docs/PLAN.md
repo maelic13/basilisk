@@ -2648,7 +2648,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         `bench 13` 4,585,613, equal to the Tune build's replay of theta,
         so gate (b)'s condition holds; OFF unchanged at 4,144,790. CTest
         28/28 on both arms. CLOSED.
-    - [ ] **B.5.5** `[V]` Cluster 4 gates
+    - [x] **B.5.5** `[V]` Cluster 4 gates
       SPRT `[0,3]` for the cluster, and each categorical and
       attribution arm at the bounds the packet registers (BAS-S55);
       then the flip, the OFF arm deleted and the fingerprint record
@@ -2715,6 +2715,27 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           `[0,3]`, cap 4,500 pairs, seed 55006, `-Gate acap`; dry run
           accepted, guards 17 of 17; G9 frozen. Maintainer-run; on H1 the
           flip follows, and the packet's ceiling row moves with it.
+      - Closed 2026-11-12 (BAS-S55; maintainer-run, every count recounted,
+        no fault):
+        - (a) on the capped arm **H1, +15.6 ± 5.9 Elo** (5,006 games)
+          against the OFF arm; (d), the remedy's read, **+20.3 ± 8.9** at
+          `10+0.1` (2,000 games); the fit alone +10.8 ± 5.3 (BAS-S56). L1
+          waived by the maintainer; (e) not owed; (b) retired, (c) closed.
+        - The arm's seven unconverted games at 800 in (a) are drawn
+          endings the evaluation scores at +9 to +12; a finding for the
+          evaluation's ending knowledge, judging nothing here.
+        - WAC at 100,000 nodes reads 259 on the capped arm (floor 246);
+          depth 6 solves 189 (floor 186).
+        - So `B5_ROOT` defaults ON at `B5NegExtMax` 1 (`fe107e4`), and the
+          fingerprint record moves to 3,783,135. The OFF arm is deleted
+          (`c7c6326`); the tests bind the default alone with their check
+          counts unchanged (release 217, Diag 294 in `test_b5_root`), and
+          CI's ON-arm cell goes with it. A fresh default build reads
+          3,783,135 and passes Release and Diag CTest 28/28.
+        - `00024ee` sets the line-limit test's open leg to 0 itself, the
+          precondition the cap's default had changed (Diag only).
+        - The packet's ceiling row (§14) records the cap as a departure
+          from `sf_19`, with the ply bound after 19 for Phase H.
     - [ ] **B.5.6** `[R3]` SPSA method investigation and redesign
       Added 2026-11-12 (maintainer), after B.5.5 and before any later
       tune (B.6.7, C.10): a proper investigation of how Basilisk runs
@@ -3791,7 +3812,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.5 | RESEARCH | V | L1 waived and the cap adopted (maintainer); (e) not owed. The next action is the maintainer's: gate (a) on the capped arm (`-Gate acap`, SPRT `[0,3]`, cap 4,500 pairs), then the flip (BAS-S55) |
 | B.5.6 | RESEARCH | R3 | Added 2026-11-12; the SPSA method investigation, after B.5.5 and before any later tune |
 | B.5.7 | RESEARCH | R2 | Added 2026-11-12; two games per physical core on SMT siblings, at `3+0.03` and at a control lengthened to today's nodes per move, read against B.5.5's games |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
