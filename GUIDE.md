@@ -115,6 +115,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.5.5** `[V]` Cluster 4 gates
     - [ ] **B.5.6** `[R3]` SPSA method investigation and redesign
     - [ ] **B.5.7** `[R2]` Two games per core on SMT siblings
+    - [ ] **B.5.8** `[I1]` SPSA read tool and checkpoint wrapper
 - [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
     - [ ] **B.6.3** `[I1]` Search-path perft and kernel pins
     - [ ] **B.6.4** `[R3]` Engine audit on the four-cluster head

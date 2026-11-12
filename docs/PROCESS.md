@@ -193,8 +193,8 @@ structures hide.
    the per-position and equal-cost results explain it.
 7. **Paired run** — the unfitted 2,000-game paired run, which governs.
 8. **Fit** — categorical semantics held fixed, the curvature sweep, then SPSA
-   in blocks over the live surface; theta is the last completed block's
-   rounded centres, never a selected checkpoint.
+   over the live surface (PLAN rule 7c); theta is the rounded centres at the
+   checkpoint where the tune stopped, never one selected among checkpoints.
 9. **Gate** — prepare and verify the fitted candidate, the revision-matched
    baseline, clean final-PGO builds, manifests and the registered command. The
    maintainer starts it. Do not change the candidate, bounds, cap, book or
@@ -666,14 +666,19 @@ evaluation and search coordinates never share a run.
 4. Select continuous coordinates from activation and interaction evidence,
    never from a historical coordinate count. Generate the surface from the
    X-macro table in `src/search_params.h` so defaults and ranges cannot drift.
-5. Register the tune in blocks (PLAN rule 7c): 2,000 iterations × 30 games,
-   later blocks seeded from the previous block's rounded centres with a fresh
-   schedule and the same steps, the movement stop rule, a ceiling of three
-   blocks; block size, rule and ceiling never change after the first game.
-   Register the surface, fixed values, binary hash and fingerprint, slots,
-   the budget in games, gain (`r_end` 0.0031) and estimator before launch.
-6. Theta is the last completed block's rounded centres, without checkpoint
-   selection; bake it into a fresh clean PGO binary and run a paired SPRT.
+5. Register the tune as one run (PLAN rule 7c): the surface, fixed values,
+   binary hash and fingerprint, slots, the ceiling in games, the
+   perturbation, the gain (`r_end` 0.00155), the checkpoints and the
+   estimator, before launch. The test, the checkpoints and the ceiling never
+   change after the first game.
+6. Theta is the rounded centres at the checkpoint where the tune stopped,
+   without selection among checkpoints. The fit is gated once, theta against
+   the seeds on the tune binary. Where the tune's own read of its gain is
+   +10 Elo or more, the gate is a fixed 6,000 games and passes when its 95%
+   interval excludes 0 (BAS-S56's rule); otherwise it is the `[0,3]` SPRT.
+   The read chooses the instrument before any gate game. Bake theta into a
+   fresh clean PGO binary whose `bench 13` reproduces the tune binary's
+   count with theta set.
 7. Verify at bake time that every correctness floor still passes under
    generous limits, not only the fixed-depth test: a tuned optimum once broke
    the KBNK conversion core that the fast-TC games never reached, and was

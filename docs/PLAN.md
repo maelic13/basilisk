@@ -199,29 +199,44 @@ roadmap.
    case by case with the argument, the horizon and what the gate would
    otherwise measure.
 
-   7c. **A tune runs in blocks with a movement stop rule.** Each block is
-   2,000 iterations × 30 games (60,000 games, about 12.5 hours at Rarog's
-   measured rate). It starts from the previous block's rounded centres with a
-   fresh gain schedule, the same surface and the same steps. After a block:
-   - at least three coordinates moved a full step → the next block runs;
-   - fewer → the tune stops, and theta is the last block's rounded centres;
-   - never more than three blocks without a new registration.
+   7c. **A tune is one run, read at checkpoints, and stopped when its
+   gradients are gone.**
+   - *Shape.* 30 games an iteration on 15 slots, with a registered ceiling:
+     6,000 iterations (180,000 games) unless the registration argues
+     another. The perturbation is twice the generator's step schedule and
+     `r_end` is 0.00155, half the earlier 0.0031: the move per result is
+     unchanged and each gradient's signal doubles. A coordinate whose seed
+     plus or minus two steps leaves its range keeps the single step.
+   - *Checkpoints.* Iteration 2,000, then every 1,000. At each,
+     `tools/spsa_read.py` reads the last 1,000 iterations.
+   - *The test.* For each coordinate, `z = Σ δ·D / √(Σ D²)`: δ is its
+     perturbation's sign at an iteration and D the plus side's wins less
+     its losses. For a coordinate with no gradient z has mean 0 and
+     variance 1 exactly, because the tuner drew the signs. The window is
+     **live** if any |z| passes the familywise 5% line for the surface's
+     coordinate count, or if `Σ z² − n` is at least `2·√(2n)`; otherwise
+     it is **quiet**.
+   - *The rule.* Quiet: the tune stops, and theta is that checkpoint's
+     rounded centres. Live: the next 1,000 iterations may run. The
+     maintainer may stop at any checkpoint, and theta is then that
+     checkpoint's centres. A run stopped between checkpoints is not
+     theta; it resumes.
+   - *Rails.* A centre within one perturbation of a bound, its z pointing
+     outward, stops the tune for a new registration of the range.
+   - *The record.* Each read appends every coordinate's z, the tune's own
+     read of its gain, the stop's floor in Elo and a frozen forecast for
+     the next 2,000 iterations. The forecast decides nothing until three
+     scored forecasts have each fallen within twice their SD.
 
-   The count saves unattended compute only: a tune the maintainer is watching
-   may run every registered block. A block cut short never counts, and a tune
-   is judged by its gate, not by its movement. This is Rarog rule 7c
-   (RAR-S75, RAR-S78, RAR-S82–S83, imported as BAS-X31).
-
-   The blocks are the shape for seeds far from their optimum. Where a
-   zero-game curvature sweep and an earlier block read the surface as near
-   its optimum with small gradients, a tune may instead be registered as
-   one longer run with a larger perturbation and a smaller gain ratio: a
-   restarted schedule only re-inflates the random walk near an optimum,
-   while a larger perturbation raises each gradient estimate's signal. The
-   registration states the perturbation, the gain ratio and the resolution
-   they buy; a full step stays the block's step in every movement reading,
-   and a run cut short is not theta. Maintainer decision 2026-10-27, from
-   Rarog's amendment of 2026-10-20 (RAR-S104, RAR-S105; BAS-X36).
+   Quiet means no gradient above the stated floor, not convergence. A
+   tune is judged by its gate, not by its read, and movement is never read
+   by net travel or by a count of movers. The derivation and the evidence
+   are `analysis/b56_spsa_method_2026-11-12.md` (B.5.6, maintainer's
+   sign-off 2026-11-12). The rule replaces the blocks of Rarog rule 7c
+   (RAR-S75, RAR-S78, RAR-S82–S83; BAS-X31) and keeps Rarog's later
+   shape, twice the perturbation at half the ratio (RAR-S104, RAR-S105;
+   BAS-X36). No tune is registered until B.5.8 has built the read and the
+   wrapper.
 8. **State the measurement layer.** Theory truth, move quality, conversion,
    fixed-node tree shape, NPS and game strength are different units with no
    exchange rate. Counters, node counts, EBF, tactical suites and fit loss
@@ -341,7 +356,7 @@ reviews.
    reproduces the fingerprints and tests and checks the code against the
    handoff. Acceptance is recorded before diagnostics start.
 6. **Measure (`V`) and gate (maintainer).** Screens, the paired run, sweeps
-   and SPSA blocks are prepared and verified by the agent and run by the
+   and SPSA runs are prepared and verified by the agent and run by the
    maintainer; the registered gate decides.
 7. **Calibrate.** The result is appended to the frozen prediction, and the
    next cluster's research starts from what the last one got wrong.
@@ -402,7 +417,7 @@ reason.
 | Evaluation cluster | `EvalTrace` coverage and reconstruction; a whole-surface refit on a frozen corpus with an untouched test split; clean-PGO SPRT; endgame truth vetoes |
 | Endgame evaluator | Deterministic truth cohort, paired WDL/DTZ, conversion floors, promotion/material-shed closure, an occurrence-tiered game gate |
 | Time, root, SMP | 1T STC, 1T `10+0.1`, 4T `10+0.1`, zero forfeits, sibling-free placement, topology and hash recorded |
-| SPSA | Curvature sweep; registered surface, blocks and estimator; perturbation proof on every coordinate; fresh PGO bake; independent SPRT |
+| SPSA | Curvature sweep; registered surface, run shape, checkpoints and estimator; perturbation proof on every coordinate; fresh PGO bake; independent SPRT |
 | Release | Reproducible PGO assets, correctness matrix, prior-release STC, LTC and 4T games |
 
 ## Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
@@ -577,7 +592,7 @@ only a meter.
    explanation only.
 3. A 2,000-game paired run at seeds converted but unfitted, to detect a
    broken port early. Worse than −40 Elo means a defect, not a tuning need.
-4. The curvature sweep, then SPSA in blocks over the cluster's live
+4. The curvature sweep, then SPSA (rule 7c) over the cluster's live
    coordinates.
 5. The SPRT, `[0,10]` for the selectivity core and `[0,3]` for the smaller
    clusters, sized from the drift model at the expected value.
@@ -2821,6 +2836,30 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         registered conditions and the wrapper's placement guards, with
         a calibration that ties gates before the change to gates after
         it. Games are maintainer-run.
+    - [ ] **B.5.8** `[I1]` SPSA read tool and checkpoint wrapper
+      Added 2026-11-12 from B.5.6, on the maintainer's sign-off: the
+      tooling rule 7c's redesign needs, before any later tune (B.6.7,
+      C.10). The contract is `analysis/b56_spsa_method_2026-11-12.md`
+      §8. No engine change and no games.
+      - `tools/spsa_read.py`, replacing `tools/spsa_block_rule.py`: from
+        a run directory, also while the run is live, every coordinate's
+        gradient z per window, the familywise line, the live or quiet
+        verdict with its floor, rails, the tune's own read of its gain
+        and the frozen forecast. Its fixtures are the five blocks' reads
+        in `tools/results/b56-20261112/` and synthetic journals of both
+        verdicts.
+      - `tools/generate_spsa_surface.py`: the perturbation for a
+        registered ceiling, by rule 7c's shape.
+      - `tools/spsa_colosseum.ps1`: the ceiling, `r_end` and the
+        checkpoints as arguments in place of the fixed block of 2,000;
+        a loop that runs to each checkpoint with Colosseum's
+        `--stop-after-iteration`, applies the read, and resumes or
+        stops. Every guard is tested on synthetic results of both
+        verdicts before any unattended run.
+      - PROCESS *Harness* and its main-path commands follow the tools.
+      - Colosseum is unchanged. The test in its driver, a held gain with
+        a windowed average and a gain ratio per coordinate wait until
+        the read has held on one real tune (the packet's §9).
 - [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live;
   registered surface; PGO bake; SPRT `[0,3]`. It runs (maintainer
@@ -2996,14 +3035,18 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [ ] **B.6.7** `[V]` Joint search SPSA
       It was B.6.2 until 2026-11-11.
       The joint SPSA above, on the reconciled head.
-      Horizon (maintainer 2026-11-12): one night, a single 2,000-iteration
-      block (about 12.5 hours). Phase C's evaluation moves the cp scale
-      the margins act on, so one night takes most of what this fit can
-      keep, and C.10 is the classical stage's long fit. Rule 7c's count
-      does not start a second block. After the block, its analysis (the
-      movers, the drift against a random walk, rails, reversals) is
-      discussed with the maintainer, who decides whether one more block
-      runs; otherwise theta is the block's centres.
+      Horizon (maintainer 2026-11-12): one night, 2,000 iterations (about
+      12.5 hours), which is rule 7c's first checkpoint. Phase C's
+      evaluation moves the cp scale the margins act on, so one night
+      takes most of what this fit can keep, and C.10 is the classical
+      stage's long fit. A live read at that checkpoint does not start the
+      next 1,000 iterations by itself: the read (every coordinate's z,
+      the tune's own read of its gain, the forecast, rails) is discussed
+      with the maintainer, who decides whether the run continues;
+      otherwise theta is that checkpoint's centres. Reworded 2026-11-12
+      for rule 7c's redesign (B.5.6); the decision is unchanged.
+      `B3SingMargin` and `B3NmpPerPly` start known live: each still read a
+      gradient when its last tune ended (B.5.6's packet, §12).
       The surface is every live search coordinate that passes B-102's
       relevance read, never only those still moving after their
       cluster's fit.
@@ -3814,6 +3857,7 @@ leaf's tag. Later phases carry only a class until they open.
 |---|---|---|---|
 | B.5.6 | RESEARCH | R3 | Added 2026-11-12; the SPSA method investigation, after B.5.5 and before any later tune |
 | B.5.7 | RESEARCH | R2 | Added 2026-11-12; two games per physical core on SMT siblings, at `3+0.03` and at a control lengthened to today's nodes per move, read against B.5.5's games |
+| B.5.8 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-12 from B.5.6; the read tool, the generator's perturbation and the checkpoint wrapper, before any later tune |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
 | B.6.4 | RESEARCH | R3 | Added 2026-11-11; the whole engine read once after B.5 closes, before the fit |
 | B.6.5 | RESEARCH | I2 | Added 2026-11-11; on B.6.4's handoffs, which confirm, split or replace it |
@@ -4426,7 +4470,7 @@ has lost games in both engines (BAS-X02).
   optimum of the engine's parameters on the new evaluation and finishes
   the best HCE engine before C.12's throughput work and C.13's release.
   Several nights are acceptable, with large early moves and a slowly
-  decaying schedule. Rule 7c's block cap does not bind it; its own
+  decaying schedule. Rule 7c's ceiling does not bind it; its own
   registration sets the horizon and the stop.
     - [ ] **C.10.1** `[R2]` Joint-fit investigation and registration
       Registers the surface, the horizon, the schedule and the stop
@@ -4442,7 +4486,9 @@ has lost games in both engines (BAS-X02).
         engine before the surface is chosen.
       - the per-coordinate steps from curvature, and the starting steps;
       - one long decaying schedule against restarted blocks, and the
-        horizon's games against the drift model;
+        horizon's games against the drift model. B.5.6's packet read a
+        restart as a higher gain by another name, with no unlock (its
+        §4 and §7): an input here, not a ruling;
       - the gate's bracket and cap for a fit of this size.
     - [ ] **C.10.2** `[V]` The joint fit, PGO and gate
       Runs C.10.1's registration, then the fitted-constant analysis, the
