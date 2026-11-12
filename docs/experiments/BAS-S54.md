@@ -241,6 +241,30 @@ changes nothing registered above; what it bears on is the maintainer's to decide
       reads it against the arm's +39.4% singular tries by the median.
     - `B3NmpPerPly` lower makes the null move's entry stricter at depth: the allowance
       the static eval may fall below beta drops from 13·depth to 11·depth.
+    - **By thirds, in step units (2026-11-12, zero-game, from `colosseum-cli spsa
+      history`).** Every coordinate's move at an iteration has the same size in its own
+      step units (largest spread 5.4e-5), with a random sign, so a coordinate with no
+      gradient travels as noise with SD √Σ move² over a window: one line per window for
+      all coordinates, set by the gain schedule and the scores, not by the step. Reach
+      (the travel if every move had one sign) and noise SD: 4.99 and 0.250 steps in the
+      first third, 3.41 and 0.165 in the second, 2.76 and 0.135 in the last. Travel in
+      steps (z):
+
+      | Coordinate | 1st third | 2nd third | Last third | Block |
+      |---|---:|---:|---:|---:|
+      | `B5AspBase` | +0.50 (+1.98) | +0.59 (+3.59) | +0.03 (+0.24) | +1.12 (+3.41) |
+      | `B5AspMsqDiv` | −0.28 (−1.14) | +0.10 (+0.58) | +0.24 (+1.74) | +0.05 (+0.14) |
+      | `B5AspGrowth` | +0.11 (+0.44) | −0.26 (−1.55) | −0.07 (−0.53) | −0.22 (−0.66) |
+      | `CoreContHistPruneSlope` | +0.03 (+0.13) | +0.14 (+0.85) | −0.29 (−2.16) | −0.12 (−0.37) |
+      | `CoreCorrUpdateScale` | −0.02 (−0.09) | +0.31 (+1.90) | +0.22 (+1.64) | +0.52 (+1.57) |
+      | `B3NmpPerPly` | −0.26 (−1.04) | −0.37 (−2.26) | −0.19 (−1.40) | −0.82 (−2.50) |
+      | `B3SingMargin` | −0.44 (−1.76) | −0.62 (−3.75) | −0.27 (−2.03) | −1.33 (−4.06) |
+      | `B3IirMinDepth` | +0.07 (+0.30) | +0.33 (+2.00) | −0.04 (−0.26) | +0.37 (+1.12) |
+
+      Over the 24 third-windows about one |z| above 2 is expected by chance; three
+      pass |z| > 3. `B5AspBase` moved and then stopped; `B3SingMargin` moved in every
+      third; `CoreCorrUpdateScale` started in the second. No coordinate passes |z| > 2
+      in the first third, which held the most reach. B.5.6 reads this.
 - **Block 2 (registered 2026-11-12, before its first game):** seed 54002, `-SeedFrom`
   block 1; the binary, surface file, steps, shape and stop rule are block 1's.
   - **Validation:** `tools/results/b54-20261110/validate_block2.ps1` (49bfdeee…, output

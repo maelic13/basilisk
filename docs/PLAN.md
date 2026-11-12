@@ -2665,6 +2665,44 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         the bake's `bench 13` reproducing the Tune build's count with
         theta set; otherwise it runs as registered (maintainer
         2026-11-12, BAS-S56).
+    - [ ] **B.5.6** `[R3]` SPSA method investigation and redesign
+      Added 2026-11-12 (maintainer), after B.5.5 and before any later
+      tune (B.6.7, C.10): a proper investigation of how Basilisk runs
+      SPSA, ending in a registered redesign of rule 7c and PROCESS
+      *SPSA go/no-go*. Expectations are not inputs; the evidence decides.
+      - The questions:
+        - Blocks or one long decaying schedule? Blocks exist because
+          the gain decays, so a coordinate that starts moving late can
+          never travel as far as one that moved early. That rests on an
+          unverified premise: that moving some coordinates early unlocks
+          others. Test it before keeping or dropping blocks.
+        - The stop: movement counts against measured Elo. Candidates
+          include a long schedule paused at registered checkpoints, each
+          checkpoint's centres matched against the previous one, and the
+          tune stopped when the gain falls under a registered line.
+        - How movement is read: by windows, in step units, against the
+          sign-randomisation null (below), not by net travel.
+        - Steps, `r_end`, games per iteration and the estimator (final
+          centre or an average), each against the evidence.
+      - The noise line, read 2026-11-12 on BAS-S54's block 1 (zero
+        games): every coordinate's move at an iteration has the same size
+        in its own step units (spread under 1e-4), with a random sign.
+        For a coordinate with no gradient, a window's travel is noise
+        with SD √Σ move², one number per window for all coordinates. It
+        depends on the gain schedule and the scores, not on the
+        coordinate's step. The investigation sets the familywise line
+        (|z| over 3 at 24 tests read here) and makes the read a tool.
+      - Evidence in hand: B.2.3's two blocks (`b23-spsa-block1`, `-2`)
+        and their matches (BAS-S24 +57.0 for block 1, about +2 more for
+        block 2, BAS-S27); B.5.4's block 1 by thirds (BAS-S54) and
+        BAS-S56; Rarog rule 7c's sources (RAR-S75, RAR-S78, RAR-S82–S83).
+      - Cheap reads to consider: block 1's centres at iteration 1000
+        against its final ones; whether coordinates idle in B.2.3's
+        block 1 moved in its block 2, the unlock premise's direct test.
+      - How others run it, read as practice and not as authority:
+        Stockfish's fishtest SPSA, OpenBench's SPSA, Triumviratus
+        through its pinned snapshots, and other strong open engines'
+        tuning records.
 - [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live;
   registered surface; PGO bake; SPRT `[0,3]`. It runs (maintainer
@@ -3658,6 +3696,7 @@ leaf's tag. Later phases carry only a class until they open.
 |---|---|---|---|
 | B.5.4 | RESEARCH | V | Block 1 complete (three movers; its two host-caused forfeits accepted by the maintainer); block 2 withdrawn by the maintainer, so theta is block 1's centres. Next: the fitted-constant analysis, then the bake. BAS-S56 (theta against the seeds, 6,000 games) is prepared, maintainer-run |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55, whose (c) stop bracket is closed, H1 |
+| B.5.6 | RESEARCH | R3 | Added 2026-11-12; the SPSA method investigation, after B.5.5 and before any later tune |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
 | B.6.4 | RESEARCH | R3 | Added 2026-11-11; the whole engine read once after B.5 closes, before the fit |
 | B.6.5 | RESEARCH | I2 | Added 2026-11-11; on B.6.4's handoffs, which confirm, split or replace it |
