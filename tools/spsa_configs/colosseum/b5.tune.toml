@@ -4,21 +4,21 @@
 
 [[parameters]]
 name = "B5AspBase"
-initial = 1410
+initial = 2202
 min = 500
 max = 40000
-c_end = 324.7013
+c_end = 507.0867
 
 [[parameters]]
 name = "B5AspMsqDiv"
-initial = 2874
+initial = 2907
 min = 1000
 max = 12000
 c_end = 316.8716
 
 [[parameters]]
 name = "B5AspGrowth"
-initial = 47
+initial = 46
 min = 32
 max = 96
 c_end = 1.8423

@@ -114,10 +114,11 @@ class SurfaceTests(unittest.TestCase):
         generated = json.loads(surface.B5_CONFIG.read_text(encoding="utf-8"))
         self.assertEqual([item[0] for item in parameters], list(generated))
         self.assertEqual(list(generated), ["B5AspBase", "B5AspMsqDiv", "B5AspGrowth"])
-        # The base counts thousandths of a unit: the donor's 5 x 282, on a range
-        # whose every point the window's growth can leave.
+        # The base counts thousandths of a unit: seeded at the donor's 5 x 282 and
+        # fitted to 2202 (B.5.4), on a range whose every point the window's growth
+        # can leave.
         base = generated["B5AspBase"]
-        self.assertEqual((base["value"], base["min_value"], base["max_value"]), (1410, 500, 40000))
+        self.assertEqual((base["value"], base["min_value"], base["max_value"]), (2202, 500, 40000))
         # Its table stays off every other surface.
         for other in (surface.parse_parameters(text), surface.parse_parameters(text, core=True),
                       surface.parse_parameters(text, b3=True), surface.parse_parameters(text, b4=True)):
@@ -251,23 +252,37 @@ class SurfaceTests(unittest.TestCase):
     def test_b54_surface_is_the_b5_lines_and_the_joiners(self):
         # BAS-S54: Cluster 4's X lines, then the five coordinates section 5.8's
         # median rule admitted (analysis/b54_sweep_2026-11-10.md), each from the
-        # value the arm runs: Cluster 3's refit, then Cluster 2's, then the line.
+        # value the arm runs: Cluster 4's refit, then Cluster 3's, Cluster 2's and
+        # the line. Since the bake the arm runs B.5.4's theta.
         text = surface.HEADER.read_text(encoding="utf-8")
         b5 = [item[0] for item in surface.parse_parameters(text, b5=True)]
         generated = json.loads(surface.B54_CONFIG.read_text(encoding="utf-8"))
         self.assertEqual(list(generated), b5 + ["CoreContHistPruneSlope", "CoreCorrUpdateScale",
                                                 "B3NmpPerPly", "B3SingMargin", "B3IirMinDepth"])
         self.assertEqual({name: spec["value"] for name, spec in generated.items()},
-                         {"B5AspBase": 1410, "B5AspMsqDiv": 2874, "B5AspGrowth": 47,
-                          "CoreContHistPruneSlope": 3832, "CoreCorrUpdateScale": 17,
-                          "B3NmpPerPly": 13, "B3SingMargin": 232, "B3IirMinDepth": 6})
-        self.assertEqual(generated["B5AspBase"]["step"], 705)
+                         {"B5AspBase": 2202, "B5AspMsqDiv": 2907, "B5AspGrowth": 46,
+                          "CoreContHistPruneSlope": 3783, "CoreCorrUpdateScale": 18,
+                          "B3NmpPerPly": 11, "B3SingMargin": 201, "B3IirMinDepth": 7})
+        self.assertEqual(generated["B5AspBase"]["step"], 1101)
         core = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
         b3 = json.loads(surface.B3_CONFIG.read_text(encoding="utf-8"))
         for name in surface.B54_ADMITTED:
             source = core[name] if name in core else b3[name]
             self.assertEqual({k: generated[name][k] for k in ("min_value", "max_value", "step")},
                              {k: source[k] for k in ("min_value", "max_value", "step")})
+
+    def test_b5_core_defaults_are_the_fitted_joiners_without_the_switch(self):
+        # The B5 table holds the arm's stop (a switch, never on a surface) and
+        # Cluster 4's refit of the five joiners.
+        text = surface.HEADER.read_text(encoding="utf-8")
+        self.assertEqual(surface.b5_core_defaults(text),
+                         {"CoreContHistPruneSlope": 3783, "CoreCorrUpdateScale": 18,
+                          "B3NmpPerPly": 11, "B3SingMargin": 201, "B3IirMinDepth": 7})
+        head = text.split(surface.B5_CORE_DEFAULTS_TABLE)[0] + surface.B5_CORE_DEFAULTS_TABLE + "A) \\\n"
+        for body in ("    A(b3_nmp_per_ply, B3NmpPerPly, 99)\n",      # out of range
+                     "    A(z_field, CoreNoSuchCoordinate, 7)\n"):    # no line
+            with self.assertRaises(ValueError):
+                surface.b5_core_defaults(head + body)
 
     def test_b54_surface_rejects_a_name_with_no_x_line(self):
         text = surface.HEADER.read_text(encoding="utf-8")
@@ -284,7 +299,7 @@ class SurfaceTests(unittest.TestCase):
         # the smaller of the generator's and half the start value, so the low
         # perturbation does not clamp at the seed. The other two keep theirs.
         generated = json.loads(surface.B5_CONFIG.read_text(encoding="utf-8"))
-        self.assertEqual(generated["B5AspBase"]["step"], 705)
+        self.assertEqual(generated["B5AspBase"]["step"], 1101)
         self.assertEqual(generated["B5AspMsqDiv"]["step"], surface.perturbation(1000, 12000))
         self.assertEqual(generated["B5AspGrowth"]["step"], surface.perturbation(32, 96))
         for start, step in ((1410, 705), (2820, 1410), (4938, 2469), (19000, 2469), (1411, 706)):

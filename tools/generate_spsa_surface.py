@@ -106,8 +106,11 @@ B3_CORE_DEFAULTS_TABLE = "#define BASILISK_B3_CORE_DEFAULTS("
 # Cluster 3's refit of earlier clusters' lines, in the same form; a surface
 # tuned after Cluster 3 starts from these, over the B3 table's.
 B4_CORE_DEFAULTS_TABLE = "#define BASILISK_B4_CORE_DEFAULTS("
+# Cluster 4's refit of earlier clusters' lines, in the same form, applied over
+# the B4 table's on the B5_ROOT arm.
+B5_CORE_DEFAULTS_TABLE = "#define BASILISK_B5_CORE_DEFAULTS("
 TABLES = (CORE_TABLE, B3_TABLE, B4_TABLE, B5_TABLE, B3_CORE_DEFAULTS_TABLE,
-          B4_CORE_DEFAULTS_TABLE)
+          B4_CORE_DEFAULTS_TABLE, B5_CORE_DEFAULTS_TABLE)
 ARM_DEFAULT_RE = re.compile(
     r"^\s*A\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,\s*(-?\d+)\s*\)"
 )
@@ -203,12 +206,23 @@ def b4_core_defaults(text: str) -> dict[str, int]:
     """Cluster 3's refit of earlier clusters' X lines, each
     checked: inside its range, off its line's default, named once. A switch
     is never on a surface, so its line here is passed over."""
-    lines = {name: (default, minimum, maximum)
-             for name, default, minimum, maximum in
-             [*parse_parameters(text, core=True), *parse_parameters(text, b3=True)]}
+    return arm_core_defaults(text, B4_CORE_DEFAULTS_TABLE, "Cluster 3",
+                             [*parse_parameters(text, core=True), *parse_parameters(text, b3=True)])
+
+
+def b5_core_defaults(text: str) -> dict[str, int]:
+    """Cluster 4's refit of earlier clusters' X lines, checked as Cluster 3's."""
+    return arm_core_defaults(text, B5_CORE_DEFAULTS_TABLE, "Cluster 4",
+                             [*parse_parameters(text, core=True), *parse_parameters(text, b3=True),
+                              *parse_parameters(text, b4=True)])
+
+
+def arm_core_defaults(text: str, table: str, cluster: str,
+                      parameters: list[tuple[str, int, int, int]]) -> dict[str, int]:
+    lines = {name: (default, minimum, maximum) for name, default, minimum, maximum in parameters}
     switches = set(SWITCH_RE.findall(text))
     overrides: dict[str, int] = {}
-    for line in split_tables(text)[B4_CORE_DEFAULTS_TABLE]:
+    for line in split_tables(text)[table]:
         match = ARM_DEFAULT_RE.match(line)
         if not match:
             continue
@@ -216,10 +230,10 @@ def b4_core_defaults(text: str) -> dict[str, int]:
         if name in switches:
             continue
         if name not in lines:
-            raise ValueError(f"Cluster 3 default {name} names no X line")
+            raise ValueError(f"{cluster} default {name} names no X line")
         default, minimum, maximum = lines[name]
         if not minimum <= value <= maximum or value == default or name in overrides:
-            raise ValueError(f"Cluster 3 default {name} {value}: must lie in "
+            raise ValueError(f"{cluster} default {name} {value}: must lie in "
                              f"[{minimum}, {maximum}] off {default}, once")
         overrides[name] = value
     return overrides
@@ -292,9 +306,9 @@ def b46_parameters(text: str) -> list[tuple[str, int, int, int]]:
 def b54_parameters(text: str) -> list[tuple[str, int, int, int]]:
     """B.5.4's fit surface: the B5 X lines, then the coordinates B54_ADMITTED
     names from the core, B3 and B4 tables, in that order; every name is checked.
-    Each starts from the value the engine runs: Cluster 3's refit where it has
-    one, then Cluster 2's."""
-    overrides = {**b3_core_defaults(text), **b4_core_defaults(text)}
+    Each starts from the value the arm runs: Cluster 4's refit where it has
+    one, then Cluster 3's, then Cluster 2's."""
+    overrides = {**b3_core_defaults(text), **b4_core_defaults(text), **b5_core_defaults(text)}
     earlier = {name: (name, overrides.get(name, default), minimum, maximum)
                for name, default, minimum, maximum in
                [*parse_parameters(text, core=True), *parse_parameters(text, b3=True),
