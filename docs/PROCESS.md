@@ -332,7 +332,15 @@ the expected revision and bench fingerprint, advertised UCI options, natural
 termination, placement and the fully resolved policy before play. Match exits
 are interpreted as outcomes rather than shell success/failure, faults are read
 from durable state and the PGN is independently recounted. A tune requires
-zero engine, time and infrastructure faults, read at every checkpoint. A gauntlet reads faults per
+zero engine, time and infrastructure faults, read at every checkpoint: a fault
+lets the run reach its checkpoint, reads FAULT there and stops with no theta
+(the runner itself ends a run sooner past its own cap: more faults than the
+larger of 3 and 0.5% of the games played).
+The faults are then analysed with the maintainer, who may accept the recorded
+counts with their reason (`tools/spsa_read.py <dir> --accept-faults "<reason>"`);
+the tune's command then reads that checkpoint again for its real verdict and
+resumes or stops by it, and a fault beyond the accepted counts stops it again
+(maintainer, 2026-11-12). A gauntlet reads faults per
 engine from `colosseum-cli stats`: any fault or time loss by a Basilisk build
 (a participant with a build manifest) voids it, as does any infrastructure
 fault, while a foreign opponent's faults are read when they stay within 1% of
@@ -852,6 +860,9 @@ python tools/generate_spsa_surface.py --rule7c <surface> --ceiling 6000 `
   -Seed <seed> -Dir tools/results/<tune>
 # A live read between checkpoints decides nothing; it is safe while the tune runs.
 python tools/spsa_read.py tools/results/<tune>
+# After a FAULT read, once the faults are analysed and the maintainer accepts them;
+# then the run command above again.
+python tools/spsa_read.py tools/results/<tune> --accept-faults "<reason>"
 
 # BACKUP / SECOND OPINION. Pass the registered bounds: this wrapper's gainer
 # default upper bound is 5, not the registered 3.

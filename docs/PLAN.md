@@ -3028,11 +3028,22 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
             recorded.
           - At the ceiling the floor claimed "the forecast's 2 SD is
             0.0 Elo" for an empty segment. It now claims none.
-          - Left as built and reported to the maintainer: a fault
-            leaves no path to a theta after the maintainer accepts it
-            (B.5.4's two forfeits were accepted by exception), and
-            `--rule7c` writes whole tables only, where B.6.7's surface
-            is a chosen subset.
+          - A fault left no path to a theta after the maintainer
+            accepted it, as B.5.4's two forfeits were. The maintainer's
+            decision the same day: acceptance stays the maintainer's,
+            made after the checkpoint that read the fault. `spsa_read.py
+            --accept-faults "<reason>"` records the accepted counts and
+            the reason; the tune's command then reads that checkpoint
+            again for its real verdict, kept in the record after the
+            FAULT one, and resumes or stops by it. A fault beyond the
+            accepted counts stops the tune again. 29 reader tests; the
+            wrapper's 13 guard and route tests rerun and 8 routes of
+            the acceptance on a copy of the paused smoke run
+            (`tools/results/b58-review-20261112/`). PROCESS *Harness*
+            holds the rule.
+          - Left as built for B.6.7's preparation: `--rule7c` writes
+            whole tables only, where B.6.7's surface is a chosen
+            subset.
 - [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live;
   registered surface; PGO bake; SPRT `[0,3]`. It runs (maintainer
