@@ -31,7 +31,8 @@ last --window iterations are read:
 The verdict at a registered checkpoint (iteration --first, then every
 --every, and the ceiling) is CONTINUE, STOP_QUIET, STOP_CEILING or STOP_RAIL.
 Anywhere else the read is INTERIM and decides nothing. A run with any engine,
-time or infrastructure fault reads FAULT. A stop writes theta, the rounded
+time or infrastructure fault reads FAULT at its checkpoint and stops there for
+the maintainer; see --accept-faults. A stop writes theta, the rounded
 centres at K, as theta-<K>.txt (setoption lines) and theta-<K>.toml; so does
 --write-theta at a live checkpoint, when the maintainer stops the tune there.
 A rail stop writes none: the range is registered again.
@@ -54,13 +55,21 @@ delta, a clamped one within it, so a misread journal or seed fails loudly.
 --record appends the read to <run>/spsa-read.jsonl (once per checkpoint) and
 rewrites <run>/spsa-read.txt; a read between checkpoints is printed and not
 recorded. A forecast is scored against the gain read over its segment, within
-twice the two reads' combined SD. The exit status is 0 for any read, 2 for an
-error.
+twice the two reads' combined SD.
+
+--accept-faults "<reason>" is the maintainer's decision after a FAULT read has
+been analysed: it writes <run>/faults-accepted.json with the fault counts that
+read recorded and the reason. The next read at that checkpoint then gives its
+real verdict, recorded after the FAULT one, and the tune resumes or stops by
+it. A fault beyond the accepted counts reads FAULT again.
+
+The exit status is 0 for any read, 2 for an error.
 """
 
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import json
 import math
@@ -83,6 +92,8 @@ FORECAST_SPAN = 2000
 RAIL_CANDIDATE_Z = 2.0
 MOVE_TOLERANCE = 1e-6
 SCHEMA = "basilisk-spsa-read-v1"
+ACCEPT_FILE = "faults-accepted.json"
+ACCEPT_SCHEMA = "basilisk-spsa-faults-accepted-v1"
 
 
 class ReadError(Exception):
@@ -209,6 +220,7 @@ class Run:
     status: str
     faults: dict = field(default_factory=dict)
     sources: dict = field(default_factory=dict)
+    acceptance: dict = field(default_factory=dict)   # the maintainer's accepted faults, if any
 
     @property
     def completed(self) -> int:
@@ -304,9 +316,38 @@ def load_run(run_dir: Path, cli: Path | None = DEFAULT_CLI, history_json: Path |
               [float(k["max"]) for k in knobs], schedule, games_per_iteration, centres,
               perturbation_signs(master_seed, completed, len(names)),
               load_scores(run_dir, completed, games_per_iteration), str(report["run_status"]), faults,
-              {"history": "file" if history_json else str(cli)})
+              {"history": "file" if history_json else str(cli)}, load_acceptance(run_dir))
     check_moves(run)
     return run
+
+
+def load_acceptance(run_dir: Path) -> dict:
+    path = run_dir / ACCEPT_FILE
+    if not path.is_file():
+        return {}
+    acceptance = json.loads(path.read_text(encoding="utf-8"))
+    if acceptance.get("schema") != ACCEPT_SCHEMA or not isinstance(acceptance.get("faults"), dict):
+        raise ReadError(f"{path} is not a fault acceptance this reader knows")
+    return acceptance
+
+
+def accept_faults(run_dir: Path, reason: str) -> dict:
+    """The maintainer accepts the faults of the run's last read, a FAULT at a checkpoint."""
+    reason = " ".join(reason.split())
+    if len(reason) < 10:
+        raise ReadError("--accept-faults takes the reason in words: what the faults were and why they are accepted")
+    records = load_records(run_dir)
+    if not records or records[-1]["verdict"] != "FAULT":
+        raise ReadError("the run's last recorded read is not a FAULT; faults are accepted only after the "
+                        "checkpoint that read them")
+    last = records[-1]
+    acceptance = {
+        "schema": ACCEPT_SCHEMA, "at": last["at"], "faults": {key: int(value) for key, value in last["faults"].items()},
+        "reason": reason,
+        "accepted_utc": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ"),
+    }
+    (run_dir / ACCEPT_FILE).write_text(json.dumps(acceptance, indent=2) + "\n", encoding="utf-8")
+    return acceptance
 
 
 def check_moves(run: Run) -> None:
@@ -438,8 +479,10 @@ def read(run: Run, at: int, window_size: int = 1000, first: int = 2000, every: i
     gain = crossfit_gain(run, delta, actual_moves(run), span)
     gain_sd = null_gain_sd(run, span, reps=null_reps)
     faults = {key: int(value) for key, value in run.faults.items()}
+    accepted = run.acceptance.get("faults", {})
+    unaccepted = {key: value for key, value in faults.items() if value > int(accepted.get(key, 0))}
     checkpoint = at >= first and ((at - first) % every == 0 or at == ceiling) or at == ceiling
-    if any(faults.values()):
+    if unaccepted:
         verdict = "FAULT"
     elif not checkpoint:
         verdict = "INTERIM"
@@ -469,7 +512,9 @@ def read(run: Run, at: int, window_size: int = 1000, first: int = 2000, every: i
         "gain": {"elo": round(gain, 2), "null_sd": round(gain_sd, 2), "span": [0, at], "null_reps": null_reps},
         "forecast": {"segment": [segment.start, segment.stop], "elo": round(factor * excess, 2),
                      "sd": round(factor * math.sqrt(2.0 * n), 2)},
-        "rails": rails, "rail_candidates": candidates, "faults": faults, "verdict": verdict,
+        "rails": rails, "rail_candidates": candidates, "faults": faults, "faults_unaccepted": unaccepted,
+        "faults_accepted": dict(run.acceptance) if any(faults.values()) and not unaccepted else None,
+        "verdict": verdict,
         "coordinates": coordinates,
         "move_check_worst_error": run.sources.get("move_check_worst_error"),
         "clamped_over_one_percent": [c["name"] for c in coordinates if c["arm_clamped_share"] > 0.01],
@@ -543,7 +588,9 @@ def render(result: dict) -> str:
         f"{RAIL_CANDIDATE_Z:g} or more, under the line; they decide nothing): "
         f"{', '.join(result['rail_candidates']) or 'none'}",
         f"  faults: "
-        f"{', '.join(f'{k} {v}' for k, v in result['faults'].items() if v) or 'none'}",
+        f"{', '.join(f'{k} {v}' for k, v in result['faults'].items() if v) or 'none'}"
+        + (f" (accepted by the maintainer at iteration {result['faults_accepted']['at']}: "
+           f"{result['faults_accepted']['reason']})" if result.get("faults_accepted") else ""),
     ]
     for item in result.get("scored_forecasts", []):
         lines.append(f"  forecast made at {item['made_at']} for {item['segment'][0]}-{item['segment'][1]}: "
@@ -579,18 +626,24 @@ def load_records(run_dir: Path) -> list[dict]:
 
 
 def record(run_dir: Path, result: dict) -> str:
-    """Append once per checkpoint; an existing record for it must agree."""
+    """Append once per checkpoint; an existing record for it must agree.
+
+    The one read that may follow another at the same checkpoint is the real
+    verdict after the maintainer accepted the faults of a FAULT read there.
+    """
     records = load_records(run_dir)
     same = [r for r in records if r["at"] == result["at"]]
-    if same:
+    after_acceptance = bool(same and same[-1]["verdict"] == "FAULT" and result["verdict"] != "FAULT"
+                            and result.get("faults_accepted"))
+    if same and not after_acceptance:
         keep = ("verdict", "excess", "max_abs_z", "forecast")
-        if any(same[0][key] != result[key] for key in keep):
+        if any(same[-1][key] != result[key] for key in keep):
             raise ReadError(f"spsa-read.jsonl already holds a different read at {result['at']}")
         return "already recorded"
     with (run_dir / "spsa-read.jsonl").open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(result) + "\n")
     (run_dir / "spsa-read.txt").write_text("".join(render(r) + "\n" for r in [*records, result]), encoding="utf-8")
-    return "recorded"
+    return "recorded after the maintainer's fault acceptance" if after_acceptance else "recorded"
 
 
 def main() -> int:
@@ -607,12 +660,25 @@ def main() -> int:
     parser.add_argument("--null-reps", type=int, default=NULL_REPS)
     parser.add_argument("--write-theta", action="store_true",
                         help="with --record: the maintainer stops a live tune at this checkpoint; write its theta")
+    parser.add_argument("--accept-faults", metavar="REASON", default=None,
+                        help="the maintainer accepts the faults of the last read, a FAULT, for this reason; no read")
     args = parser.parse_args()
+    if args.accept_faults is not None:
+        try:
+            acceptance = accept_faults(args.run_dir, args.accept_faults)
+        except (ReadError, OSError, KeyError, ValueError, json.JSONDecodeError) as error:
+            print(f"spsa_read: {error}", file=sys.stderr)
+            return 2
+        counts = ", ".join(f"{key} {value}" for key, value in acceptance["faults"].items() if value)
+        print(f"accepted at iteration {acceptance['at']}: {counts}\n  reason: {acceptance['reason']}\n"
+              f"  wrote {args.run_dir / ACCEPT_FILE}; run the tune's command again to read the checkpoint and go on")
+        return 0
     try:
         run = load_run(args.run_dir, args.cli, args.history_json)
         at = args.at or run.completed
         result = read(run, at, args.window, args.first, args.every, args.null_reps)
-        earlier = [r for r in load_records(args.run_dir) if r["at"] < at]
+        # One forecast a checkpoint: a read after a fault acceptance repeats the FAULT read's.
+        earlier = list({r["at"]: r for r in load_records(args.run_dir) if r["at"] < at}.values())
         result["scored_forecasts"] = score_forecasts(run, earlier, at, args.null_reps)
         result["forecast_status"] = forecast_status(result["scored_forecasts"])
         if args.record and result["verdict"] == "INTERIM":

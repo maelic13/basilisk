@@ -350,6 +350,49 @@ class CommandLineTests(unittest.TestCase):
         self.assertEqual(self.read(live, "--write-theta")["record"], "already recorded")
         self.assertTrue((live / "theta-2000.txt").is_file())
 
+    def test_the_maintainer_accepts_a_fault_after_its_checkpoint(self):
+        import subprocess
+        reader = [sys.executable, str(ROOT / "tools" / "spsa_read.py")]
+        one_forfeit = {"engine_a": 1, "engine_b": 0, "time_losses_a": 1, "time_losses_b": 0, "infrastructure": 0}
+        run = simulate(self.root / "forfeit", **QUIET, faults=one_forfeit)
+
+        def accept(directory, reason):
+            return subprocess.run([*reader, str(directory), "--accept-faults", reason], capture_output=True, text=True)
+
+        # Nothing to accept before the checkpoint has read the fault.
+        self.assertEqual(accept(run, "one time forfeit during a host update").returncode, 2)
+        self.assertEqual(self.read(run)["verdict"], "FAULT")
+        self.assertFalse((run / "theta-2000.txt").exists())
+        self.assertEqual(self.read(run)["record"], "already recorded")
+        # The reason is required, in words.
+        self.assertEqual(accept(run, "ok").returncode, 2)
+        self.assertFalse((run / sr.ACCEPT_FILE).exists())
+        accepted = accept(run, "one time forfeit at iteration 19 during a host update; it moves no centre by 0.01 step")
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+        acceptance = json.loads((run / sr.ACCEPT_FILE).read_text(encoding="utf-8"))
+        self.assertEqual(acceptance["faults"], one_forfeit)
+        self.assertEqual(acceptance["at"], 2000)
+        # The same checkpoint now reads its real verdict, recorded after the FAULT.
+        after = self.read(run)
+        self.assertEqual(after["verdict"], "STOP_QUIET")
+        self.assertIn("fault acceptance", after["record"])
+        self.assertIn("host update", after["faults_accepted"]["reason"])
+        self.assertTrue((run / "theta-2000.txt").is_file())
+        self.assertEqual([r["verdict"] for r in sr.load_records(run)], ["FAULT", "STOP_QUIET"])
+        self.assertIn("accepted by the maintainer", (run / "spsa-read.txt").read_text(encoding="utf-8"))
+        self.assertEqual(self.read(run)["record"], "already recorded")
+        # A read that is not a FAULT leaves nothing to accept.
+        self.assertEqual(accept(run, "a second acceptance with nothing new to accept").returncode, 2)
+        # A fault beyond the accepted counts is a FAULT again.
+        checkpoint = json.loads((run / "checkpoint.json").read_text(encoding="utf-8"))
+        checkpoint["payload"]["faults"]["time_losses_a"] = 2
+        checkpoint["payload"]["faults"]["engine_a"] = 2
+        (run / "checkpoint.json").write_text(json.dumps(checkpoint), encoding="utf-8")
+        again = sr.read(sr.load_run(run, cli=None, history_json=run / "history.json"), 2000, null_reps=3)
+        self.assertEqual(again["verdict"], "FAULT")
+        self.assertEqual(again["faults_unaccepted"], {"engine_a": 2, "time_losses_a": 2})
+        self.assertIsNone(again["faults_accepted"])
+
     def test_a_read_between_checkpoints_is_not_recorded(self):
         # The wrapper takes the record's last line as the tune's state, and
         # the first three recorded forecasts decide whether it may be used.

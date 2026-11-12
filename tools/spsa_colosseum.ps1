@@ -19,6 +19,10 @@
       STOP_CEILING  the ceiling is reached; theta likewise;
       STOP_RAIL     the tune stops for a new registration of the range;
       FAULT         the tune stops for the maintainer.
+    After a FAULT the maintainer may accept the recorded faults, once they are
+    analysed, with `python tools/spsa_read.py <dir> --accept-faults "<reason>"`.
+    The same command then reads that checkpoint again for its real verdict and
+    resumes or stops by it; a later fault stops the tune again.
     A file named STOP in the run directory is the maintainer's stop: at the
     next checkpoint the tune stops there and that checkpoint's centres are
     theta. Running the same command again resumes an interrupted run from its
@@ -199,10 +203,18 @@ function Read-Checkpoint([int]$At, [switch]$WriteTheta) {
 }
 
 $readsPath = Join-Path $Dir 'spsa-read.jsonl'
+$acceptHint = "After the analysis the maintainer may accept the recorded faults: python tools/spsa_read.py `"$Dir`" --accept-faults `"<reason>`"; then run this command again."
 if (Test-Path -LiteralPath $readsPath) {
     $last = Get-Content -LiteralPath $readsPath | Where-Object { $_.Trim() } | Select-Object -Last 1 | ConvertFrom-Json
-    if ("$($last.verdict)" -ne 'CONTINUE' -or (Test-Path -LiteralPath (Join-Path $Dir "theta-$($last.at).txt"))) {
-        throw "STOPPED - $Dir ended at iteration $($last.at) with $($last.verdict); a stopped tune is never extended."
+    # A FAULT read stops the tune for the maintainer. Once its faults are accepted the
+    # reader gives that checkpoint its real verdict, so the run goes on from that read;
+    # whether the acceptance covers the run's faults is the reader's judgement.
+    $faultAccepted = "$($last.verdict)" -eq 'FAULT' -and (Test-Path -LiteralPath (Join-Path $Dir 'faults-accepted.json'))
+    if (-not $faultAccepted) {
+        if ("$($last.verdict)" -eq 'FAULT') { throw "STOPPED - $Dir read FAULT at iteration $($last.at). $acceptHint" }
+        if ("$($last.verdict)" -ne 'CONTINUE' -or (Test-Path -LiteralPath (Join-Path $Dir "theta-$($last.at).txt"))) {
+            throw "STOPPED - $Dir ended at iteration $($last.at) with $($last.verdict); a stopped tune is never extended."
+        }
     }
 }
 $lines.Add("started_utc:      $((Get-Date).ToUniversalTime().ToString('u'))")
@@ -257,6 +269,6 @@ switch ($verdict) {
         exit 0
     }
     'STOP_RAIL' { throw "RAIL - $($read.rails -join ', ') at a bound with z pointing outward past the familywise line at iteration $($read.at): register the range again; no theta." }
-    'FAULT' { throw "FAULT - the run recorded faults by iteration $($read.at): $(($read.faults.PSObject.Properties | Where-Object Value | ForEach-Object { "$($_.Name) $($_.Value)" }) -join ', '). The maintainer decides." }
+    'FAULT' { throw "FAULT - the run recorded faults by iteration $($read.at): $(($read.faults.PSObject.Properties | Where-Object Value | ForEach-Object { "$($_.Name) $($_.Value)" }) -join ', '). The maintainer decides. $acceptHint" }
     default { throw "Unexpected verdict '$verdict' at a registered checkpoint." }
 }
