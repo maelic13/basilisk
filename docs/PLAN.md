@@ -2823,7 +2823,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           to about ±23.
         - The tooling is B.5.8. Changes to Colosseum wait for one real
           tune under the new rule (the packet's §9).
-    - [ ] **B.5.7** `[R2]` Two games per core on SMT siblings
+    - [x] **B.5.7** `[R2]` Two games per core on SMT siblings
       Added 2026-11-12 (maintainer), after B.5.6: whether game gates
       can run two games per physical core, one on each SMT sibling by
       explicit affinity, and keep their meaning. Today fourteen
@@ -2906,6 +2906,23 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           disturbance read as foreign work, and adds the games' nElo
           ratio against the break-even (√(15/N)), reported. Then g28 and
           g30.
+      - Closed 2026-11-12, NO_CHANGE (BAS-S58, NOT_WORTH_PURSUING; the
+        maintainer's decision the same day): gates keep 15 games on 15
+        cores at `3+0.03`.
+        - g28 and g30 replayed B.5.5's capped pair over (a)'s openings:
+          +10.8 ± 6.1 and +10.5 ± 6.1 Elo against (a)'s +15.6 ± 5.9, in
+          26.7 and 25.0 minutes against 49.8. 30 fails its rule on two
+          time forfeits with one core left free. 28 passes its game
+          items, but its engines search 0.58 of the nodes and 1.6 plies
+          less, and the cluster's nElo fell to 0.67 of (a)'s against a
+          break-even of 0.73: an SPRT would decide about ×0.84 as fast.
+        - The resolving stage the rule would send 28 to is not
+          registered, a stated departure; the NNUE re-run is not played.
+          The Colosseum prototype stays unreleased on its branch and the
+          pin stays at 0.5.0; the tools stay for a retry.
+        - Retry: a host or engine where two siblings do 1.3 times a
+          core's work, or an nElo ratio at break-even on a resolving
+          sample.
     - [ ] **B.5.8** `[I1]` SPSA read tool and checkpoint wrapper
       Added 2026-11-12 from B.5.6, on the maintainer's sign-off: the
       tooling rule 7c's redesign needs, before any later tune (B.6.7,
@@ -3926,7 +3943,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.7 | RESEARCH | R2 | Added 2026-11-12; 28 or 30 games on SMT siblings at `3+0.03` against B.5.5's gate (a); speed read VOID (one NNUE window), Amendment 1's NNUE re-run, then g28 and g30, maintainer-run |
 | B.5.8 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-12 from B.5.6; the read tool, the generator's perturbation and the checkpoint wrapper, before any later tune |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
 | B.6.4 | RESEARCH | R3 | Added 2026-11-11; the whole engine read once after B.5 closes, before the fit |

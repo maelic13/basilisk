@@ -227,4 +227,89 @@
   first; the decision-speed ratio describes the second.
 - Order from here: `-Read nnue`, then `g28`, then `g30`, one at a time.
 
+#### RESULT — the game reads (maintainer, 2026-11-12, before the NNUE re-run)
+
+- **g28 and g30**, from the clean tree at `faee747`, each 5,006 games on (a)'s 2,503
+  openings (every one matched), PGN recounts agreeing with the runner's pentanomials.
+  `tools/results/b57-g28`, `b57-g30` (PGN SHA-256 b50fa01b…, b450c2a1…); the
+  comparison is `python tools/diag/replay_compare.py tools/results/b55-gate-a-cap1
+  tools/results/b57-<read>`.
+
+  | | (a), 15 on 15 cores | g28 | g30 |
+  |---|---:|---:|---:|
+  | wall time | 49.8 min | 26.7 min | 25.0 min |
+  | games an hour | 6,033 | 11,255 (×1.87) | 11,999 (×1.99) |
+  | Elo | +15.6 ± 5.9 | +10.8 ± 6.1 | +10.5 ± 6.1 |
+  | nElo | +25.4 ± 9.6 | +17.0 ± 9.6 | +16.6 ± 9.6 |
+  | pentanomial | [75, 516, 1117, 700, 95] | [85, 572, 1064, 666, 116] | [89, 548, 1097, 661, 108] |
+  | difference from (a), paired | — | −4.7 ± 8.4 | −5.1 ± 8.4 |
+  | nodes per move | 137–140k | ×0.578 | ×0.557 |
+  | non-mate depth | 16.21 / 16.40 | −1.6 ply | −1.7 ply |
+  | time losses, faults | 0, 0 | 0, 0 | **2**, 0 |
+  | harness overhead p99 (on / off) | 136 / 81 ms | 156 / 89 ms | 159 / 91 ms |
+  | nElo ratio (break-even) | — | 0.669 (0.732) | 0.655 (0.707) |
+  | an SPRT decides | ×1 | ×0.84 as fast | ×0.86 as fast |
+
+- g30's two time forfeits are on the capped arm, replies charged 204 and 146 ms that
+  the engine reported at 1 and 54 ms (harness overhead 203 and 132 ms), with one core
+  left to the runner and Windows.
+- The pair-score correlation between a replay and (a) is +0.03 (g28) and +0.01
+  (g30): replaying the openings bought no precision.
+- **Verdicts, by the frozen rule.** g30: item 3 fails (two time losses), so the 30
+  form is **not adopted**. g28: items 3 and 4 pass (no loss or fault; −4.7 ± 8.4
+  contains 0 and is under 8 Elo). Items 1 and 2 rest on the speed read, VOID with
+  its NNUE re-run not played; the classical phase alone reads no FAIL at L28. On
+  the rule, 28 would go to a resolving stage.
+- **Disposition: NOT_WORTH_PURSUING; B.5.7 closes NO_CHANGE** (maintainer,
+  2026-11-12), keeping 15 games on 15 cores at `3+0.03`. The resolving stage is not
+  registered, a stated departure from the frozen path. Its cost, about five hours
+  (the NNUE re-run, a 30,000-game null pair, a fixed-length 15-core replay, a second
+  pair), would confirm a speed-up whose point estimate is a slow-down: an engine on
+  a sibling keeps 0.56 of a core, searches 1.6 plies less, and Cluster 4's nElo fell
+  to 0.67 of (a)'s against a break-even of 0.73. The ratio is uncertain (about
+  0.2 to 1.1), but the depth loss is exact and its direction is the expected one:
+  the same pair read +10.8 at 28 (near `1.65+0.017`), +15.6 at `3+0.03` and +20.3 at
+  `10+0.1` (BAS-S55 (d)).
+- The NNUE re-run (`-Read nnue`) is not played; Amendment 1's instrument stays in
+  `smt_read.py`. The Colosseum prototype stays unreleased on its branch, and
+  Basilisk's pin stays at 0.5.0.
+
 #### PREDICTION CALIBRATION — preserve the original prediction above
+
+- **S1** (classical yield at L28 0.57, [0.52, 0.63]): **hit**, 0.557; L30 within 0.02
+  of L28: **hit**, 0.542. The smoke run's exposure is stated above.
+- **S2** (p25 PASS or UNRESOLVED at L28, 80%): **hit**, PASS (descriptive; the read is
+  void). **S3** (prefetch cost at L15 +1.5% [+0.5, +3.0]): **hit**, +2.33%; shift
+  positive at L28: **hit**, +0.52 pp; FAIL 40%: did not, UNRESOLVED.
+- **S4**, **S4b**: not scored; the NNUE phase was not read validly.
+- **S5** (spread at L28 at least twice L15's): **miss**. Classical spreads are 0.7–1.6%
+  on siblings against 0.9–1.3% on one core; sibling noise is small.
+- **G1** (no loss or fault in g28, 85%): **hit**; overhead p99 under 250 ms: **hit**.
+- **G2** (nodes per move ×0.57 [0.50, 0.66]): **hit**, ×0.578; depth 0.6 ply lower
+  [0.3, 0.9]: **miss**, 1.6. The model converted nodes to depth with `bench 13`'s
+  branching factor (2.55 a ply). In a timed game a ply that cannot finish is lost
+  whole, and at depths of 14–16 the iteration that the lost nodes would have
+  completed is the last one, so the time-limited depth falls about a ply per 30% of
+  nodes here.
+- **G3** (Elo +12 [+4, +20]): **hit**, +10.8; difference −3.5 [−10, +3]: **hit**,
+  −4.7; pair-score correlation +0.20 [+0.05, +0.35]: **miss**, +0.03. UHO's openings
+  carry almost none of a pair's result across runs at this sample size.
+- **G4** (g30 within 3 Elo of g28 and within 0.02 of its nodes ratio, 70%): within
+  3 Elo, **hit** (−0.3); nodes ratio 0.021 apart, **miss** by 0.001.
+- **The causal model.** Throughput was framed as games an hour; what decides is
+  games to a verdict, which grow as the effect shrinks. That was named only after
+  the speed read (Amendment 1), and the frozen rule did not judge it. A
+  depth-sensitive cluster lost a third of its nElo at 0.58 of the nodes, which ate
+  the throughput. A change insensitive to depth would come out ahead; a gate cannot
+  know which kind it is testing beforehand.
+- **Conditional lesson.** A gate's speed is nElo² × games an hour. On this host a
+  sibling buys a core-share of 0.54–0.56, about 4–8% more total search, so a
+  sibling gate is a shorter time control in all but name, and a shorter control
+  is a cheaper experiment on full cores if one is ever wanted.
+- **Retry trigger.** A host or engine where two siblings do at least 1.3 times a
+  core's work (yield 0.65 or more, read by `smt_read.py`), or an nElo ratio at or
+  above break-even read on a resolving-size sample. Otherwise `CLOSED`.
+- **Artifacts.** `tools/results/b57-speed`, `b57-g28`, `b57-g30` and their `-sampler`
+  directories, `b57-20261112/` (guard and verdict tests, dry runs); tools
+  `smt_read.py`, `diag/replay_compare.py`, `run_b57_reads.ps1`; commits `bdaaff4`,
+  `a8b991d`, `24e1556`, `faee747`; Colosseum `e27a201`.

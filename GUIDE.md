@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.5.7** `[R2]` Two games per core on SMT siblings — Claude Opus
+**Next step:** **B.5.8** `[I1]` SPSA read tool and checkpoint wrapper — Claude Sonnet
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -114,7 +114,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
     - [x] **B.5.5** `[V]` Cluster 4 gates
     - [x] **B.5.6** `[R3]` SPSA method investigation and redesign
-    - [ ] **B.5.7** `[R2]` Two games per core on SMT siblings
+    - [x] **B.5.7** `[R2]` Two games per core on SMT siblings
     - [ ] **B.5.8** `[I1]` SPSA read tool and checkpoint wrapper
 - [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
     - [ ] **B.6.3** `[I1]` Search-path perft and kernel pins
