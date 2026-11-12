@@ -552,6 +552,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S55](experiments/BAS-S55.md) — B.5.5: the Cluster 4 gates — (c)'s stop bracket played ahead of the fit: H1, 2× against 1× reads +9.3 ± 4.4 Elo over 8,260 games, the arm's stop moved to 2×; the other gates open at B.5.5
 
+- [BAS-S56](experiments/BAS-S56.md) — B.5.4 diagnostic: SPSA block 1's centres against the seeds — registered, 6,000 games, prepared, maintainer-run
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |

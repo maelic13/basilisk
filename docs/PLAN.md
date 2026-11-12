@@ -2627,6 +2627,10 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           accepted the block as an exception (2026-11-12).
         - Block 2 is prepared (seed 54002, `-SeedFrom` block 1) and its
           dry run accepted (`0C05CB5A…`). Maintainer-run.
+        - At the maintainer's request (2026-11-12), a diagnostic of
+          block 1's centres against the seeds, BAS-S56: 6,000 games on
+          the block's binary, seed 56001, `tools/run_b54_block1_match.ps1`,
+          dry run accepted. Not a gate; block 2 runs as registered.
     - [ ] **B.5.5** `[V]` Cluster 4 gates
       SPRT `[0,3]` for the cluster, and each categorical and
       attribution arm at the bounds the packet registers (BAS-S55);
