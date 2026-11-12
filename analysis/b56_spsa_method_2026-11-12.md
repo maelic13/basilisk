@@ -555,8 +555,10 @@ recorded centre of the five blocks is the runner's update of the one before it.
   disagree once (B.4.6), where what followed sided with the gradient test. Its
   successor `B3IirMinDepth` has the range [3, 10].
 - **B.2.3 block 2:** quiet as before (excess +0.19 SD for +0.1); `CoreIirMinDepth`,
-  at its bound throughout, reads z +0.91 outward, which the rail rule as signed reads
-  as a rail on the sign alone.
+  at its bound throughout, reads z +0.91 outward. The rail as first signed read the
+  sign alone and made a rail of it; since the maintainer's decision of 2026-11-12 a
+  rail passes the familywise line (PLAN rule 7c), so it is none, and the block reads
+  STOP_QUIET.
 - **Gains:** +33.4 and +2.9 for B.2.3's blocks (were +33.2 and +3.1).
 - **§4, re-read with the runner's signs:** unchanged in its counts (27 idle, 2 woke
   against 1.2 by chance, 7 of the 9 movers kept their sign); the correlation of z

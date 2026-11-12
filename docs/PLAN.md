@@ -225,7 +225,11 @@ roadmap.
      checkpoint's centres. A run stopped between checkpoints is not
      theta; it resumes.
    - *Rails.* A centre within one perturbation of a bound, its z pointing
-     outward, stops the tune for a new registration of the range.
+     outward past the familywise line, stops the tune for a new
+     registration of the range. A weaker outward push (z of 2 or more) is
+     reported as a candidate and stops nothing (maintainer, 2026-11-12:
+     the clause exists for a coordinate that cannot move keeping every
+     window live, which is an outward z past that line).
    - *The record.* Each read appends every coordinate's z, the tune's own
      read of its gain, the stop's floor in Elo and a frozen forecast for
      the next 2,000 iterations. The forecast decides nothing until three
@@ -2959,7 +2963,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           STOP_CEILING, STOP_RAIL, FAULT, and INTERIM off the grid;
           theta at a stop. 20 tests: the runner's vectors, the
           statistics and the forecast floor, synthetic runs of every
-          verdict, and the recorded blocks.
+          verdict, and the recorded blocks (24 after the rail decision
+          below).
         - The recorded reads: B.3.3, B.4.6 and B.5.4 reproduce B.5.6's
           to the digit. B.2.3's block 1 does not: its window 1,000 to
           2,000 is a rail (`CoreIirMinDepth` z +5.30 at its maximum,
@@ -2981,10 +2986,18 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           the production dry run is accepted. `spsa_block_rule.py` is
           removed; PROCESS *Harness*, its commands and the tool READMEs
           follow.
-        - For the maintainer: the rail rule reads z's sign alone, so a
-          coordinate parked at a bound with no gradient stops a tune half
-          the time (B.2.3's block 2 reads a rail at z +0.91).
-          `--rail-z` and `-RailZ` hold a threshold, 0 as signed.
+        - The rail first read z's sign alone, so a coordinate parked at
+          a bound with no gradient stopped a tune half the time (B.2.3's
+          block 2 read a rail at z +0.91). The maintainer's decision the
+          same day: a rail passes the familywise line, the live test's own;
+          an outward z of 2 or more under it is a candidate, listed and
+          deciding nothing. No user-facing threshold remains. 24 reader
+          tests on the final state; the guard and route suite reruns
+          13 of 13. The five blocks at 2,000: B.2.3 block 1 STOP_RAIL
+          (`CoreIirMinDepth` z +5.30), unchanged; block 2 STOP_RAIL to
+          STOP_QUIET, the one change; B.3.3 STOP_QUIET, B.4.6
+          STOP_CEILING and B.5.4 FAULT (its two recorded time forfeits)
+          unchanged.
 - [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live;
   registered surface; PGO bake; SPRT `[0,3]`. It runs (maintainer
