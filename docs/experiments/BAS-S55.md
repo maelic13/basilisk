@@ -129,3 +129,93 @@ BAS-S54's audit read, Rarog's leads (PLAN B.5).
   engine, and was weighted as another engine's rule.
 - **For the next prior:** a clock rule that fires in a quarter of searches is not a
   coin flip on sign when a sibling engine has measured the same rule at the same rate.
+
+#### GATES (a), (d) AND (e) (registered 2026-11-12, at B.5.5's opening, before any of their games)
+
+Assembled from packet §11 and §A2.5 (`analysis/b5_cluster4_research_2026-11-08.md`) on
+the fitted binaries. (b) is retired, answered by BAS-S56 (+10.8 ± 5.3 Elo for the fit
+over the seeds) under the rule BAS-S56 records; (c) is closed.
+
+- **Binaries.** Final-PGO PEXT Release builds of one clean revision, `2c248bb` (engine
+  source `891edc0`'s), built by `tools/build_test.ps1`:
+  - the fitted arm, `basilisk-b55-on-pext-pgo.exe`, SHA-256 148104E9…, `bench 13`
+    4,585,613, `B5_ROOT` on;
+  - the OFF arm, `basilisk-b55-off-pext-pgo.exe`, SHA-256 77221608…, `bench 13`
+    4,144,790, the current development fingerprint.
+- **(a) the fitted arm against the OFF arm.** SPRT `[0,3]` nElo (`sprt-default.toml`,
+  α = β = 0.05) at `3+0.03`, 1T, Hash 64, paired reversed UHO, no adjudication,
+  tablebases off, seed 55001, **cap 4,500 pairs**, as the packet registers. At σ ≈ 245
+  nElo a pair, the expected stop is about 2,500 pairs at +25 nElo (about +15 Elo, the
+  prediction below) and about 5,200 at +13 nElo (P2's +8 Elo), past the cap; the cap
+  is kept as registered. Results in `tools/results/b55-gate-a`.
+  - **H1:** the cluster is accepted, and the flip waits only on (d)'s condition.
+  - **H0 or the cap:** the flip does not happen; the estimate and the evidence go to
+    the maintainer.
+- **(d) the direction read.** 2,000 games of (a)'s pair at `10+0.1`
+  (`match-fixed-ltc.toml`), seed 55004, direction only: its interval is recorded and
+  decides nothing by itself. Results in `tools/results/b55-direction-ltc`.
+  - **L1, the flip's long-clock condition** (§A2.5), read on (d)'s PGN by
+    `tools/diag/pgn_time_census.py`, both sides: it **fails** when the fitted arm's games
+    decided at 300 and not won exceed the OFF arm's by more than the larger of 6 and
+    3·√(the OFF arm's count). At 800 and 1,500, four or more on the arm are reported, each
+    game read before the flip.
+  - **A failed condition** holds the flip: first the failing run again with
+    `B5NegExtMax` 1 (§9 item 1's paired run did not reject it), then the hole's repair
+    from D.1 as a research card, with the maintainer's agreement.
+- **(e) the long-clock run, only on a trigger.** 400 games of (a)'s pair at `60+0.6`
+  (`match-fixed-long.toml`), seed 55005, read by the same census and bound, its Elo
+  recorded as direction. Triggers (§A2.5):
+  1. the battery on the fitted binaries reads the arm over 0.5× the maximum more often
+     than the OFF arm by more than the tolerance, 2, in stratum W at `60000+600`. **Read
+     2026-11-12, zero-game, on the fitted Tune builds** (`basilisk-b55-on-tune-pext-tune-pgo.exe`
+     F2AF4E1E…, `basilisk-b55-off-tune-pext-tune-pgo.exe` 08CB307C…, both clean at
+     `2c248bb`, `TM_Debug` being a tune option as in BAS-S53's screen; BAS-S53's
+     positions; `tools/results/b55-20261112/battery.ps1` cbcbac0e…): **the arm 1 over
+     half, 0 at the maximum, 207.3 s; the OFF arm 1, 0, 200.2 s. Not fired.**
+  2. (d)'s census reads the fitted arm's won-band share of moves at half the clock or
+     more at 1.5 times the OFF arm's or above. Read after (d).
+  - If neither fires, (e) is not played and the condition rests on L1. If one fires,
+    the maintainer agrees or refuses the run; the launcher refuses (e) until a commit
+    records the trigger and the agreement.
+- **Order:** (a), then (d) with L1, then (e) if triggered, then the flip. Nothing
+  changes the candidate after a game is seen.
+- **Hard gates.** The wrapper's: no engine fault, the time-loss ceiling, the recounted
+  PGN. The games census runs on every PGN, both sides, judging nothing beyond L1 and
+  trigger 2.
+- **Launch:** `pwsh -NoProfile -File tools/run_b55_gates.ps1 -Gate a`, then `-Gate d`.
+  The same command resumes an interrupted run; a finished one is refused.
+- **Validation (2026-11-12):** the launcher's dry runs on the real pins, from the clean
+  committed tree at `45fa9be`, are accepted:
+  - (a) `colosseum_sprt_b55-gate-a_20261112_102922.manifest.txt`, dry run D66C7499…:
+    `--max-pairs 4500`, seed 55001, `3000+30`, 15 slots, no adjudication;
+  - (d) `colosseum_match_b55-direction-ltc_20261112_102927.manifest.txt`, dry run
+    34352B20…: `--games 2000`, seed 55004, `10000+100`;
+  - (e) `colosseum_match_b55-long-clock_20261112_102943.manifest.txt`, dry run
+    7F8374F3…: 400 games, seed 55005, `60000+600`.
+  - Its guards read both ways (`tools/results/b55-20261112/guard_test.ps1` 4ab1b448…,
+    output e316f2d6…): a wrong binary under a pinned name, a missing binary, a finished
+    gate or read in its directory, and (e) without its agreement each end it with exit
+    1, each for its stated reason; the real pins pass.
+
+#### PRE-REGISTERED PREDICTION for (a), (d) and (e) — freeze before exposure
+
+Frozen 2026-11-12. Seen before freezing: BAS-S53's unfitted paired run (+3.3 ± 9.3, the
+stop at 1×), (c)'s H1 (+9.3 ± 4.4, a first-crossing estimate), BAS-S56 (+10.8 ± 5.3 for
+the fit), the battery above.
+
+| # | Prediction | Confidence | Falsifier |
+|---|---|---|---|
+| G3 | (a) ends H1 (80%), at the cap (17%), H0 (3%); its estimate at the stop **+15 Elo**, 80% interval [+6, +24] | moderate | H0, or an estimate under +6: the three pieces do not add, and the fit or the stop was read high |
+| G4 | (d) reads **+12 Elo** at `10+0.1`, 80% interval [−3, +27]; positive with 85% | low-moderate | an interval wholly below 0: the gain is a short-clock effect, and the flip waits for the maintainer |
+| G5 | L1 passes (85%); (e)'s second trigger fires (15%) | moderate | L1 failing says the hole costs points at `10+0.1`, which R1 read as waste only |
+
+- **The reasoning.** The pieces measured on the way add to about +20: the unfitted arm
+  +3.3, the stop's 2× something under its first-crossing +9.3, the fit +10.8. They were
+  read on different trees and do not simply add, and the unfitted read's interval is
+  ±9.3, so the centre is set lower, +15. The longer clock usually compresses a search
+  gain, hence +12 for (d). The census read the hole as waste in decided positions, not
+  lost points, so L1 is expected to pass.
+
+#### RESULT for (a), (d) and (e) — append after exposure
+
+- *Not run.*

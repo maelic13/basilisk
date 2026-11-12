@@ -2676,6 +2676,20 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         theta set; otherwise it runs as registered (maintainer
         2026-11-12, BAS-S56). Both held (2026-11-12: +10.8 ± 5.3, ON
         `bench 13` 4,585,613), so gate (b) is retired.
+      - Opened 2026-11-12 on the baked arm (BAS-S55 *GATES (a), (d) AND
+        (e)*): final-PGO builds of both arms at `2c248bb` (ON 148104E9…,
+        `bench 13` 4,585,613; OFF 77221608…, 4,144,790), pinned in
+        `tools/run_b55_gates.ps1` (`45fa9be`).
+        - (a) SPRT `[0,3]`, cap 4,500 pairs, seed 55001; (d) 2,000 games
+          at `10+0.1`, seed 55004, with L1 read by the games census; (e)
+          400 games at `60+0.6`, seed 55005, only on a trigger. Their
+          dry runs are accepted from the clean tree and the launcher's
+          guards read both ways. Predictions G3 to G5 frozen.
+        - (e)'s battery trigger read zero-game on fitted Tune builds:
+          stratum W at `60000+600`, the arm 1 search over half the
+          maximum against the OFF arm's 1, so it does not fire; the
+          census trigger is read after (d).
+        - Maintainer-run: (a), then (d).
     - [ ] **B.5.6** `[R3]` SPSA method investigation and redesign
       Added 2026-11-12 (maintainer), after B.5.5 and before any later
       tune (B.6.7, C.10): a proper investigation of how Basilisk runs
@@ -3705,7 +3719,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.5 | RESEARCH | V | Next. BAS-S55: (c)'s stop bracket closed (H1) and (b) retired by BAS-S56; (a) and (d) to register on the baked arm's rebuilt binaries |
+| B.5.5 | RESEARCH | V | The next action is the maintainer's: gate (a), the fitted arm against the OFF arm (SPRT `[0,3]`, cap 4,500 pairs), then (d) at `10+0.1` (BAS-S55); (b) retired, (c) closed, (e) only on a trigger |
 | B.5.6 | RESEARCH | R3 | Added 2026-11-12; the SPSA method investigation, after B.5.5 and before any later tune |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
 | B.6.4 | RESEARCH | R3 | Added 2026-11-11; the whole engine read once after B.5 closes, before the fit |

@@ -550,7 +550,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S54](experiments/BAS-S54.md) — B.5.4: the Cluster 4 curvature sweep, then SPSA in blocks — closed: one block (block 2 withdrawn by the maintainer), theta baked on the arm, ON `bench 13` 4,585,613
 
-- [BAS-S55](experiments/BAS-S55.md) — B.5.5: the Cluster 4 gates — (c)'s stop bracket played ahead of the fit: H1, 2× against 1× reads +9.3 ± 4.4 Elo over 8,260 games, the arm's stop moved to 2×; the other gates open at B.5.5
+- [BAS-S55](experiments/BAS-S55.md) — B.5.5: the Cluster 4 gates — (c)'s stop bracket played ahead of the fit: H1, 2× against 1× reads +9.3 ± 4.4 Elo over 8,260 games, the arm's stop moved to 2×; (b) retired by BAS-S56; (a), (d) and (e) registered on the baked arm, (a) and (d) prepared
 
 - [BAS-S56](experiments/BAS-S56.md) — B.5.4 diagnostic: SPSA block 1's centres (theta) against the seeds — +10.8 ± 5.3 Elo over 6,000 games; gate (b) retired by its rule
 
