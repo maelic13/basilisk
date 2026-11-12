@@ -5118,10 +5118,14 @@ already repairing or a form it must choose anyway, and says so.
   - Linux acceptance: a Linux build reproduces the bench fingerprint, the
     byte-hash fixtures pass in a Linux checkout, and Colosseum's Linux
     release is pinned beside the Windows one with its own SHA-256.
+  - Ports are tested in WSL2 for function: parity, dry runs, process
+    handling. WSL2 is not a measurement host, because its virtual CPUs
+    float over the host's cores, so placement checks and speed reads
+    need native Linux.
   - Windows-only opponents (Rybka and the other old gauntlet `.exe`
-    engines) run under Wine: check that Colosseum accepts a wrapped
-    engine command, and read those opponents' fault rate and time losses
-    at `3+0.03` before a Linux gauntlet is trusted.
+    engines) under Wine are Colosseum's to support, not Basilisk's.
+    H.5 only reads those opponents' fault rate and time losses at
+    `3+0.03` before a Linux gauntlet is trusted.
   - Speed reads and NPS baselines become specific to host and OS: both
     arms of a read or a gate run on one host under one OS, and the build
     manifest records the OS.
