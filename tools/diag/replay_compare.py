@@ -83,8 +83,15 @@ def summary(values: list[float]) -> dict:
     score = mean / 2.0
     half = Z95 * math.sqrt(variance / n) / 2.0 * elo_slope(score)
     pentanomial = [sum(1 for v in values if v == k / 2.0) for k in range(5)]
+    # Normalized Elo from the pair scores (per game: half a pair), as Colosseum
+    # reports it: (mean - 1/2) / (sd * sqrt 2) * 800 / ln 10.
+    sd_game = math.sqrt(variance) / 2.0
+    nelo_scale = 800.0 / (math.log(10.0) * math.sqrt(2.0))
+    nelo = (score - 0.5) / sd_game * nelo_scale if sd_game > 0 else 0.0
     return {"pairs": n, "pentanomial": pentanomial, "score": round(score, 5),
-            "elo": round(elo(score), 2), "elo_ci95": round(half, 2), "_variance": variance}
+            "elo": round(elo(score), 2), "elo_ci95": round(half, 2),
+            "nelo": round(nelo, 2), "nelo_ci95": round(Z95 * nelo_scale / math.sqrt(n), 2),
+            "_variance": variance}
 
 
 def telemetry(run: Path) -> dict:
@@ -141,7 +148,20 @@ def compare(reference: Path, replay: Path) -> dict:
                 "nodes_per_second": round(values["nodes_per_second"] / base["nodes_per_second"], 4),
                 "non_mate_depth_delta": round(values["non_mate_depth"] - base["non_mate_depth"], 3),
             }
+    # Hours to an SPRT's decision scale as 1 / (nElo^2 x games an hour), and at
+    # one clock the games an hour scale with the concurrency. The replay's form
+    # decides faster when nElo_replay / nElo_reference exceeds the square root
+    # of reference concurrency over replay concurrency (BAS-S58 Amendment 1).
+    concurrency_ratio = rep_t["concurrency"] / ref_t["concurrency"]
+    nelo_ratio = rep_s["nelo"] / ref_s["nelo"] if ref_s["nelo"] else float("nan")
+    speed = {
+        "games_per_hour_ratio": round(concurrency_ratio, 4),
+        "nelo_ratio": round(nelo_ratio, 4),
+        "break_even_nelo_ratio": round(math.sqrt(1.0 / concurrency_ratio), 4),
+        "decision_speed_ratio": round(nelo_ratio ** 2 * concurrency_ratio, 4),
+    }
     return {
+        "decision_speed": speed,
         "reference": {"run": str(reference), "all": ref_all, "matched": ref_s, "telemetry": ref_t},
         "replay": {"run": str(replay), "all": rep_all, "matched": rep_s, "telemetry": rep_t},
         "matched_openings": n,
@@ -170,7 +190,7 @@ def main() -> int:
         print(f"  concurrency {t['concurrency']} ({t['allocation']}); time losses {t['time_losses']}; "
               f"faults {t['faults']}; infrastructure {t['infrastructure_faults']}")
         print(f"  all pairs {r['all']['pairs']}: {r['all']['elo']:+.1f} +/- {r['all']['elo_ci95']:.1f} Elo, "
-              f"pentanomial {r['all']['pentanomial']}")
+              f"{r['all']['nelo']:+.1f} +/- {r['all']['nelo_ci95']:.1f} nElo, pentanomial {r['all']['pentanomial']}")
         for name, e in t["engines"].items():
             print(f"  {name}: {e['nodes_per_move']} nodes/move, depth {e['non_mate_depth']}, "
                   f"{e['nodes_per_second'] / 1e6:.3f}M nps, {e['ms_per_move']} ms/move, overhead p99 {e['overhead_p99_ms']} ms")
@@ -180,6 +200,10 @@ def main() -> int:
     for name, ratio in result["telemetry_ratio_replay_over_reference"].items():
         print(f"  {name}: nodes/move x{ratio['nodes_per_move']}, nps x{ratio['nodes_per_second']}, "
               f"depth {ratio['non_mate_depth_delta']:+.3f}")
+    speed = result["decision_speed"]
+    print(f"decision speed (reported, not judged): games an hour x{speed['games_per_hour_ratio']}, "
+          f"nElo ratio {speed['nelo_ratio']:.3f} on matched openings against a break-even of "
+          f"{speed['break_even_nelo_ratio']:.3f}; an SPRT decides x{speed['decision_speed_ratio']:.2f} as fast")
     return 0
 
 

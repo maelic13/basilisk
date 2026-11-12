@@ -31,15 +31,22 @@ Method:
   - A binary may carry its own bench depth, so builds of an older, larger
     tree run a workload of about the same size; both arms of a contrast
     always share one depth.
-  - A process is pinned by SetProcessAffinityMask before it is given work
-    (Basilisk reads its commands from stdin; Stockfish's argv bench starts
-    at once and is pinned within milliseconds).
+  - A process is created suspended, pinned by SetProcessAffinityMask and only
+    then resumed, so none of its instructions runs off its CPU and an engine
+    that reads its CPU set at startup (Stockfish binds its threads) sees the
+    pinned one (BAS-S58 Amendment 1; the first read pinned after the start).
+  - A phase marked persistent (one Stockfish) keeps one process per CPU for
+    the whole window and types its benches into the UCI loop: no launches.
   - A process counts only if it started after the window's warm-up and ended
     before the window closed, so every counted process ran with every listed
     CPU busy. The rest are kept in runs.jsonl, flagged.
-  - GetSystemTimes brackets each window. A window whose busy share exceeds
-    the layout's own CPUs by more than 1.6 logical CPUs is marked disturbed,
-    and the report refuses to read a disturbed read.
+  - GetSystemTimes brackets each window, and every engine process's own CPU
+    time (GetProcessTimes) is summed. A window whose foreign work, the busy
+    share less the engines' own CPU, exceeds 1.6 logical CPUs is marked
+    disturbed, and the report refuses to read a disturbed read. (The first
+    read compared the busy share with the layout's CPU count; Amendment 1.)
+  - `report --phase-from NAME=DIR` reads phase NAME from another read's
+    directory in place of this one's (Amendment 1: the NNUE phase re-run).
 
 The rules applied by `report` are read.json's "rules", frozen in BAS-S58.
 """
@@ -97,6 +104,34 @@ def pin(process: subprocess.Popen, cpu: int) -> None:
         raise OSError(f"SetProcessAffinityMask failed for CPU {cpu}")
 
 
+CREATE_SUSPENDED = 0x00000004
+
+
+def process_cpu_seconds(process: subprocess.Popen) -> float:
+    """User plus kernel CPU time of a process, running or exited."""
+    created, exited, kernel, user = _FileTime(), _FileTime(), _FileTime(), _FileTime()
+    handle = wintypes.HANDLE(int(process._handle))  # noqa: SLF001 - the Windows handle
+    if not ctypes.windll.kernel32.GetProcessTimes(
+            handle, ctypes.byref(created), ctypes.byref(exited), ctypes.byref(kernel), ctypes.byref(user)):
+        raise OSError("GetProcessTimes failed")
+    return (kernel.value() + user.value()) / 1e7
+
+
+def start_pinned(arguments: list[str], cpu: int, **popen) -> subprocess.Popen:
+    """Create the process suspended, pin it, then let it run."""
+    process = subprocess.Popen(arguments, creationflags=CREATE_SUSPENDED, **popen)
+    try:
+        pin(process, cpu)
+        handle = wintypes.HANDLE(int(process._handle))  # noqa: SLF001 - the Windows handle
+        status = ctypes.windll.ntdll.NtResumeProcess(handle)
+        if status != 0:
+            raise OSError(f"NtResumeProcess failed with status {status:#x}")
+    except BaseException:
+        process.kill()
+        raise
+    return process
+
+
 def sha256(path: str) -> str:
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -116,38 +151,38 @@ STOCKFISH_TIME = re.compile(r"^Total time \(ms\)\s*:\s*(\d+)", re.M)
 def bench_once(kind: str, binary: dict, cpu: int, workload: dict) -> dict:
     """Run one pinned bench process and return its node count and time."""
     if kind == "basilisk":
-        process = subprocess.Popen(
-            [binary["path"]], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        process = start_pinned(
+            [binary["path"]], cpu, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT, text=True)
-        pin(process, cpu)
         commands = (f"setoption name Hash value {workload['hash']}\n"
                     f"bench {binary.get('depth', workload['depth'])} {workload['repeats']} 1\nquit\n")
         out, _ = process.communicate(commands, timeout=600)
+        cpu_s = process_cpu_seconds(process)
         runs = [(int(n), int(t)) for n, t, _ in BASILISK_RUN.findall(out)]
         if workload["repeats"] == 1:
             # A single run prints the detailed summary, not a "run 1/1" line.
             node_match, time_match = STOCKFISH_NODES.search(out), STOCKFISH_TIME.search(out)
             runs = [(int(node_match.group(1)), int(time_match.group(1)))] if node_match and time_match else []
         if process.returncode != 0 or len(runs) != workload["repeats"]:
-            return {"ok": False, "exit": process.returncode, "tail": out[-400:]}
+            return {"ok": False, "exit": process.returncode, "tail": out[-400:], "cpu_s": cpu_s}
         nodes = sum(n for n, _ in runs)
         ms = sum(t for _, t in runs)
     elif kind == "stockfish":
-        process = subprocess.Popen(
+        process = start_pinned(
             [binary["path"], "bench", str(workload["hash"]), "1", str(workload["depth"]),
-             "default", "depth"],
+             "default", "depth"], cpu,
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        pin(process, cpu)
         out, _ = process.communicate(timeout=600)
+        cpu_s = process_cpu_seconds(process)
         node_match, time_match = STOCKFISH_NODES.search(out), STOCKFISH_TIME.search(out)
         if process.returncode != 0 or not node_match or not time_match:
-            return {"ok": False, "exit": process.returncode, "tail": out[-400:]}
+            return {"ok": False, "exit": process.returncode, "tail": out[-400:], "cpu_s": cpu_s}
         nodes, ms = int(node_match.group(1)), int(time_match.group(1))
     else:
         raise ValueError(f"unknown engine kind {kind!r}")
     if ms <= 0:
-        return {"ok": False, "exit": process.returncode, "tail": "zero time"}
-    return {"ok": True, "nodes": nodes, "ms": ms, "nps": nodes * 1000.0 / ms}
+        return {"ok": False, "exit": process.returncode, "tail": "zero time", "cpu_s": cpu_s}
+    return {"ok": True, "nodes": nodes, "ms": ms, "nps": nodes * 1000.0 / ms, "cpu_s": cpu_s}
 
 
 # --------------------------------------------------------------------------
@@ -160,9 +195,64 @@ def run_window(phase: dict, layout_name: str, cpus: list[int], round_index: int,
     random.Random(f"{phase['name']}:{layout_name}:{round_index}").shuffle(order)
     lock = threading.Lock()
     faults: list[str] = []
+    own_cpu = [0.0]  # CPU seconds of this window's own engine processes
     busy0, total0 = system_times()
     start = time.monotonic()
     close = start + seconds
+
+    def emit(cpu: int, binary: dict, began: float, ended: float, result: dict) -> None:
+        record = {
+            "phase": phase["name"], "layout": layout_name, "round": round_index,
+            "cpu": cpu, "binary": binary["name"], "arm": binary["arm"],
+            "start_s": round(began - start, 3), "end_s": round(ended - start, 3),
+            "counted": bool(result["ok"]) and began >= start + warmup and ended <= close,
+            **result,
+        }
+        with lock:
+            sink(record)
+            own_cpu[0] += result.get("cpu_s", 0.0)
+            if not result["ok"]:
+                faults.append(f"{binary['name']} on CPU {cpu}: exit {result.get('exit')}")
+
+    def persistent_worker(slot: int, cpu: int) -> None:
+        # One Stockfish per CPU for the whole window, its benches typed into
+        # its UCI loop: no launch, so no per-launch system work (BAS-S58
+        # Amendment 1).
+        binary = binaries[0]
+        workload = phase["workload"]
+        process = start_pinned([binary["path"]], cpu, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT, text=True, bufsize=1)
+        try:
+            while time.monotonic() < close:
+                began = time.monotonic()
+                process.stdin.write(f"bench {workload['hash']} 1 {workload['depth']} default depth\n")
+                process.stdin.flush()
+                nodes = ms = None
+                tail: list[str] = []
+                for line in process.stdout:
+                    tail = (tail + [line])[-5:]
+                    node_match, time_match = STOCKFISH_NODES.match(line), STOCKFISH_TIME.match(line)
+                    if node_match:
+                        nodes = int(node_match.group(1))
+                    if time_match:
+                        ms = int(time_match.group(1))
+                    if line.startswith("Nodes/second"):
+                        break
+                ended = time.monotonic()
+                if nodes is None or not ms:
+                    emit(cpu, binary, began, ended, {"ok": False, "exit": process.poll(), "tail": "".join(tail)})
+                    return
+                emit(cpu, binary, began, ended, {"ok": True, "nodes": nodes, "ms": ms, "nps": nodes * 1000.0 / ms})
+        finally:
+            try:
+                process.stdin.write("quit\n")
+                process.stdin.flush()
+                process.wait(timeout=60)
+            except (OSError, subprocess.TimeoutExpired):
+                process.kill()
+                process.wait()
+            with lock:
+                own_cpu[0] += process_cpu_seconds(process)
 
     def worker(slot: int, cpu: int) -> None:
         index = slot
@@ -172,34 +262,33 @@ def run_window(phase: dict, layout_name: str, cpus: list[int], round_index: int,
             began = time.monotonic()
             result = bench_once(phase["kind"], binary, cpu, phase["workload"])
             ended = time.monotonic()
-            record = {
-                "phase": phase["name"], "layout": layout_name, "round": round_index,
-                "cpu": cpu, "binary": binary["name"], "arm": binary["arm"],
-                "start_s": round(began - start, 3), "end_s": round(ended - start, 3),
-                "counted": bool(result["ok"]) and began >= start + warmup and ended <= close,
-                **result,
-            }
-            with lock:
-                sink(record)
-                if not result["ok"]:
-                    faults.append(f"{binary['name']} on CPU {cpu}: exit {result.get('exit')}")
+            emit(cpu, binary, began, ended, result)
 
-    threads = [threading.Thread(target=worker, args=(slot, cpu)) for slot, cpu in enumerate(cpus)]
+    persistent = bool(phase.get("persistent"))
+    if persistent and (phase["kind"] != "stockfish" or len(binaries) != 1):
+        raise ValueError("a persistent phase is one Stockfish binary")
+    target = persistent_worker if persistent else worker
+    threads = [threading.Thread(target=target, args=(slot, cpu)) for slot, cpu in enumerate(cpus)]
     for thread in threads:
         thread.start()
     for thread in threads:
         thread.join()
     busy1, total1 = system_times()
+    elapsed = time.monotonic() - start
     cpus_total = logical_cpu_count()
     busy_cpus = (busy1 - busy0) / max(1, total1 - total0) * cpus_total
+    own_cpus = own_cpu[0] / elapsed
+    foreign_cpus = busy_cpus - own_cpus
     return {
         "phase": phase["name"], "layout": layout_name, "round": round_index,
         "cpus": len(cpus), "busy_cpus": round(busy_cpus, 2),
-        # The window's tail, after the last launch, runs with fewer busy CPUs,
-        # so the busy share is read against the layout's own count.
-        "disturbed": busy_cpus > len(cpus) + DISTURBED_EXTRA_CPUS,
+        "own_cpus": round(own_cpus, 2), "foreign_cpus": round(foreign_cpus, 2),
+        # Disturbed means work that is not the read's own engines: the busy
+        # share less the engine processes' own CPU time (Amendment 1; the
+        # first read compared the busy share with the layout's CPU count).
+        "disturbed": foreign_cpus > DISTURBED_EXTRA_CPUS,
         "faults": faults,
-        "elapsed_s": round(time.monotonic() - start, 1),
+        "elapsed_s": round(elapsed, 1),
     }
 
 
@@ -244,7 +333,8 @@ def command_run(args: argparse.Namespace) -> int:
                                  phase["seconds"], phase["warmup_seconds"], sink)
             windows.write(json.dumps(summary) + "\n")
             windows.flush()
-            print(f"  busy {summary['busy_cpus']} CPUs; disturbed {summary['disturbed']}; "
+            print(f"  busy {summary['busy_cpus']} CPUs, engines' own {summary['own_cpus']}, foreign "
+                  f"{summary['foreign_cpus']}; disturbed {summary['disturbed']}; "
                   f"faults {len(summary['faults'])}", flush=True)
             fault = fault or bool(summary["faults"])
             time.sleep(config.get("gap_seconds", 5))
@@ -261,6 +351,20 @@ def load(directory: Path) -> tuple[dict, list[dict], list[dict]]:
     config = json.loads((directory / "read.json").read_text(encoding="utf-8-sig"))
     runs = [json.loads(line) for line in (directory / "runs.jsonl").read_text(encoding="utf-8").splitlines() if line]
     windows = [json.loads(line) for line in (directory / "windows.jsonl").read_text(encoding="utf-8").splitlines() if line]
+    return config, runs, windows
+
+
+def load_combined(directory: Path, phase_from: dict[str, Path]) -> tuple[dict, list[dict], list[dict]]:
+    """The read in directory, with each named phase taken from another read."""
+    config, runs, windows = load(directory)
+    for name, other in phase_from.items():
+        other_config, other_runs, other_windows = load(other)
+        replacement = [p for p in other_config["phases"] if p["name"] == name]
+        if len(replacement) != 1 or not any(p["name"] == name for p in config["phases"]):
+            raise SystemExit(f"phase {name!r} is not in both {directory} and {other}")
+        config["phases"] = [replacement[0] if p["name"] == name else p for p in config["phases"]]
+        runs = [r for r in runs if r["phase"] != name] + [r for r in other_runs if r["phase"] == name]
+        windows = [w for w in windows if w["phase"] != name] + [w for w in other_windows if w["phase"] == name]
     return config, runs, windows
 
 
@@ -291,8 +395,8 @@ def judge_interval(low: float, high: float, tolerance: float) -> str:
     return "UNRESOLVED"
 
 
-def build_report(directory: Path) -> dict:
-    config, runs, windows = load(directory)
+def build_report(directory: Path, phase_from: dict[str, Path] | None = None) -> dict:
+    config, runs, windows = load_combined(directory, phase_from or {})
     rules = config["rules"]
     reference = rules["reference_layout"]
     report: dict = {"directory": str(directory), "windows": windows, "phases": {}, "verdicts": {}}
@@ -404,13 +508,26 @@ def print_report(report: dict) -> None:
                           f"+/-{value['tolerance_pp']:.2f}  {value['verdict']}")
                 else:
                     print(f"    {layout}: cost {value['cost_percent']:+.2f}% [{value['ci'][0]:+.2f}, {value['ci'][1]:+.2f}]")
+    for name, path in report.get("phase_from", {}).items():
+        print(f"\nphase {name} read from {path}")
+    for window in report["disturbed"]:
+        extra = (f"foreign {window['foreign_cpus']} CPUs" if "foreign_cpus" in window
+                 else f"busy {window['busy_cpus']} on {window['cpus']} CPUs")
+        print(f"disturbed window: {window['phase']} {window['layout']} round {window['round'] + 1}, {extra}")
     print("\nverdicts:")
     for key, value in report["verdicts"].items():
         print(f"  {key}: {value}")
 
 
 def command_report(args: argparse.Namespace) -> int:
-    report = build_report(Path(args.directory))
+    phase_from = {}
+    for item in args.phase_from:
+        name, _, other = item.partition("=")
+        if not name or not other:
+            raise SystemExit(f"--phase-from takes NAME=DIR, not {item!r}")
+        phase_from[name] = Path(other)
+    report = build_report(Path(args.directory), phase_from)
+    report["phase_from"] = {name: str(path) for name, path in phase_from.items()}
     if args.json:
         print(json.dumps(report, indent=2))
     else:
@@ -428,6 +545,8 @@ def main() -> int:
     report = sub.add_parser("report")
     report.add_argument("directory")
     report.add_argument("--json", action="store_true")
+    report.add_argument("--phase-from", action="append", default=[], metavar="NAME=DIR",
+                        help="read phase NAME from another read's directory")
     report.set_defaults(func=command_report)
     args = parser.parse_args()
     return args.func(args)

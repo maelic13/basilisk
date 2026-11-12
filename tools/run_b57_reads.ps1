@@ -9,8 +9,13 @@
                 tree, a memory-latency cost) and BAS-P25's pools (an identical
                 tree, a compute cost). NNUE phase: Stockfish with its embedded
                 network, the stand-in for a network engine. B.5.5's pair is read
-                from the games' own telemetry instead.
-   -Read g28    B.5.5's capped pair, 5,006 games at 3+0.03, 28 at once on cores
+                from the games' own telemetry instead. Read once (2026-11-12),
+                VOID: one NNUE window over the line (BAS-S58 Amendment 1).
+   -Read nnue   Amendment 1: the NNUE phase alone, again, about 13 minutes of an
+                idle PC, with one Stockfish per CPU for each window, every process
+                pinned before it runs and the disturbance read as foreign work;
+                reported with the first read's classical phase.
+   -Read g28   B.5.5's capped pair, 5,006 games at 3+0.03, 28 at once on cores
                 1-14's siblings, the prototype runner (--slot-per-logical-cpu);
                 master seed 55006, so it replays gate (a)'s 2,503 openings in
                 order and reads against it opening by opening.
@@ -20,7 +25,7 @@
    A game read runs tools/host_sampler.ps1 beside it. -DryRun plays nothing and
    checks the run. A finished read is never extended or replaced. #>
 param(
-    [Parameter(Mandatory)][ValidateSet('speed', 'g28', 'g30')][string]$Read,
+    [Parameter(Mandatory)][ValidateSet('speed', 'nnue', 'g28', 'g30')][string]$Read,
     [switch]$DryRun,
     [string]$ResultsRoot = '',
     [string]$EnginesDir = ''
@@ -46,10 +51,14 @@ $capRevision = '833659fb346af4b9ecab0956f81dc3ec1849a6bf'
 $capOn = @{ Name = 'basilisk-b55-cap1-on-pext-pgo.exe'; Sha = '122BE50F37E318955F43B01493F85F69A9CE8FCC5900BD970A3C49DE8D51C5AF'; Bench = 3783135 }
 $capOff = @{ Name = 'basilisk-b55-cap1-off-pext-pgo.exe'; Sha = '17978E36DD29F7FB1FB85CFAAD835EE86F7209222DE9D4A0FDB0234416DC5E85'; Bench = 4144790 }
 
-if ($Read -eq 'speed') {
-    $dir = Join-Path $results 'b57-speed'
+if ($Read -in 'speed', 'nnue') {
+    $first = Join-Path $results 'b57-speed'
+    $dir = if ($Read -eq 'nnue') { Join-Path $results 'b57-speed-nnue' } else { $first }
     if (Test-Path -LiteralPath (Join-Path $dir 'runs.jsonl')) {
         throw "STALE RESULT - $dir holds a speed read; it is not extended or replaced."
+    }
+    if ($Read -eq 'nnue' -and -not (Test-Path -LiteralPath (Join-Path $first 'runs.jsonl'))) {
+        throw "ORDER - the NNUE re-run is reported with the first read's classical phase, and $first holds none (BAS-S58)."
     }
     $classical = @(
         (Get-Pinned 'basilisk-b57-pfon1-pext-pgo.exe' '2DA8401D034E234F0131710F89D7EBB659CB69F5E54471B2EB6BCDCBEB609CEC' 'pf-on'),
@@ -104,12 +113,19 @@ if ($Read -eq 'speed') {
             min_processes_per_cell = 30
         }
     }
+    if ($Read -eq 'nnue') {
+        # Amendment 1: the NNUE phase alone, one persistent Stockfish per CPU.
+        $config.read = 'nnue (Amendment 1)'
+        $nnuePhase = $config.phases[1]
+        $nnuePhase.persistent = $true
+        $config.phases = @($nnuePhase)
+    }
     New-Item -ItemType Directory -Force -Path $results | Out-Null
-    $configPath = Join-Path $results 'b57-speed.read.json'
+    $configPath = Join-Path $results "b57-$(if ($Read -eq 'nnue') { 'speed-nnue' } else { 'speed' }).read.json"
     $config | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $configPath -Encoding utf8
     Write-Host "Speed read configured: $configPath"
     foreach ($name in $layouts.Keys) { Write-Host "  $name : $($layouts[$name] -join ',')" }
-    Write-Host "  classical: $($classical.Count) binaries; nnue: $($nnue.Count); about 40 minutes."
+    Write-Host "  phases: $(($config.phases | ForEach-Object { "$($_.name) ($(@($_.binaries).Count) binaries)" }) -join ', '); about $(if ($Read -eq 'nnue') { 13 } else { 40 }) minutes."
     if ($DryRun) {
         $state = Get-HarnessHostBusyPercent
         Write-Host "Dry run accepted; host busy $([Math]::Round($state, 1))% now (the read itself requires an idle host)."
@@ -118,7 +134,11 @@ if ($Read -eq 'speed') {
     Assert-HarnessHostIdle -MaxBusyPercent 10 | Out-Null
     & python (Join-Path $PSScriptRoot 'smt_read.py') run --config $configPath --out $dir
     $status = $LASTEXITCODE
-    & python (Join-Path $PSScriptRoot 'smt_read.py') report $dir
+    if ($Read -eq 'nnue') {
+        & python (Join-Path $PSScriptRoot 'smt_read.py') report $first --phase-from "nnue=$dir"
+    } else {
+        & python (Join-Path $PSScriptRoot 'smt_read.py') report $dir
+    }
     if ($status) { exit $status }
     exit $LASTEXITCODE
 }
