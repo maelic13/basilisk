@@ -537,3 +537,29 @@ themselves:
   constant step size", arXiv 1710.06382: abstract, and later abstracts on the Pflug
   statistic's variance.
 - Kesten's rule and Polyak–Juditsky averaging are cited from memory, not re-read.
+
+## 14. Erratum (B.5.8, 2026-11-12)
+
+The reads above recovered a coordinate's sign at an iteration from its centre's
+move, so an iteration whose centre sat clamped at a bound gave no sign and left that
+coordinate's z. B.5.8's `tools/spsa_read.py` regenerates the runner's own signs from
+the master seed instead; the port reproduces Colosseum's golden vectors, and every
+recorded centre of the five blocks is the runner's update of the one before it.
+
+- **Unchanged:** B.3.3, B.4.6 and B.5.4, to every digit of `stop.txt` and `gain.txt`.
+- **B.2.3 block 1, iterations 1,000 to 2,000:** `CoreIirMinDepth` reads z +5.30, +7.0
+  Elo across one perturbation, its arms clamped at its maximum of 8 on 67% of the
+  block's iterations. The window is **live**, and under rule 7c it is a **rail**:
+  the coordinate wanted a wider range. §7's table row ("gradient test: quiet: stop")
+  is wrong. The gradient test agrees with the old rule's CONTINUE there, so the two
+  disagree once (B.4.6), where what followed sided with the gradient test. Its
+  successor `B3IirMinDepth` has the range [3, 10].
+- **B.2.3 block 2:** quiet as before (excess +0.19 SD for +0.1); `CoreIirMinDepth`,
+  at its bound throughout, reads z +0.91 outward, which the rail rule as signed reads
+  as a rail on the sign alone.
+- **Gains:** +33.4 and +2.9 for B.2.3's blocks (were +33.2 and +3.1).
+- **§4, re-read with the runner's signs:** unchanged in its counts (27 idle, 2 woke
+  against 1.2 by chance, 7 of the 9 movers kept their sign); the correlation of z
+  between the blocks is +0.41 (was +0.34). The unlock premise stays unsupported.
+- The fixtures and the comparison are `tools/diag/test_spsa_read.py`, which also
+  shows that the move-recovered signs reproduce `stop.txt`'s 2.58 and +1.6 SD.

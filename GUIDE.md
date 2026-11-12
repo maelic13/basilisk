@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.5.8** `[I1]` SPSA read tool and checkpoint wrapper — Claude Sonnet
+**Next step:** **B.6.3** `[I1]` Search-path perft and kernel pins — Claude Sonnet
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -107,7 +107,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.4.5** `[V]` Diagnostics and the unfitted paired run
     - [x] **B.4.6** `[V]` Curvature sweep, then SPSA in blocks
     - [x] **B.4.7** `[V]` Cluster 3 gates
-- [ ] **B.5** Cluster 4 — root and aspiration
+- [x] **B.5** Cluster 4 — root and aspiration
     - [x] **B.5.1** `[R3]` Research and handoff on the entry head
     - [x] **B.5.2** `[I2]` Implement behind the umbrella switch
     - [x] **B.5.3** `[V]` Diagnostics, M1 and the unfitted paired run
@@ -115,7 +115,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.5.5** `[V]` Cluster 4 gates
     - [x] **B.5.6** `[R3]` SPSA method investigation and redesign
     - [x] **B.5.7** `[R2]` Two games per core on SMT siblings
-    - [ ] **B.5.8** `[I1]` SPSA read tool and checkpoint wrapper
+    - [x] **B.5.8** `[I1]` SPSA read tool and checkpoint wrapper
 - [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
     - [ ] **B.6.3** `[I1]` Search-path perft and kernel pins
     - [ ] **B.6.4** `[R3]` Engine audit on the four-cluster head

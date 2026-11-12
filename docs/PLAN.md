@@ -2182,7 +2182,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         the arm's quiescence that no test binds (packet *Review — B.4.4
         accepted with named follow-ups*, §5) get tests in their own
         commit, each shown to fail on its mutant.
-- [ ] **B.5** Cluster 4 — root and aspiration
+- [x] **B.5** Cluster 4 — root and aspiration
   Cluster 4 — root, aspiration and iterative deepening: aspiration centred on
   the root move's average score with width from its mean squared score,
   optimism, root-move effort, the `pvIdx` root structure with a `MultiPV`
@@ -2923,7 +2923,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - Retry: a host or engine where two siblings do 1.3 times a
           core's work, or an nElo ratio at break-even on a resolving
           sample.
-    - [ ] **B.5.8** `[I1]` SPSA read tool and checkpoint wrapper
+    - [x] **B.5.8** `[I1]` SPSA read tool and checkpoint wrapper
       Added 2026-11-12 from B.5.6, on the maintainer's sign-off: the
       tooling rule 7c's redesign needs, before any later tune (B.6.7,
       C.10). The contract is `analysis/b56_spsa_method_2026-11-12.md`
@@ -2948,6 +2948,43 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - Colosseum is unchanged. The test in its driver, a held gain with
         a windowed average and a gain ratio per coordinate wait until
         the read has held on one real tune (the packet's §9).
+      - Closed 2026-11-12 (no engine change, no games; smoke runs of 2
+        games an iteration on 2 slots only):
+        - `tools/spsa_read.py` reads a run at a checkpoint or live, from
+          the pinned runner's `spsa history` and games.jsonl. Its signs
+          are the runner's own, regenerated from the master seed
+          (ChaCha12; Colosseum's golden vectors reproduced), and every
+          recorded centre of the five blocks is checked as the runner's
+          update of the one before. Verdicts: CONTINUE, STOP_QUIET,
+          STOP_CEILING, STOP_RAIL, FAULT, and INTERIM off the grid;
+          theta at a stop. 20 tests: the runner's vectors, the
+          statistics and the forecast floor, synthetic runs of every
+          verdict, and the recorded blocks.
+        - The recorded reads: B.3.3, B.4.6 and B.5.4 reproduce B.5.6's
+          to the digit. B.2.3's block 1 does not: its window 1,000 to
+          2,000 is a rail (`CoreIirMinDepth` z +5.30 at its maximum,
+          clamped on 67% of iterations), not quiet. B.5.6 recovered
+          signs from the moves and lost the clamped iterations; the
+          packet's erratum (§14) records it, and §4's unlock read is
+          unchanged.
+        - `tools/generate_spsa_surface.py --rule7c` writes a run's tune
+          file at its ceiling, the perturbation graded by room, `c_end`
+          rounded down so no first arm leaves its room; the head reads
+          10 of 74 coordinates short of two steps, 3 of them of one, as
+          BAS-S57 counted. The checked-in surfaces are unchanged.
+        - `tools/spsa_colosseum.ps1` plays the run a checkpoint at a time
+          with `--stop-after-iteration` (exit 6 is the pause), refuses
+          faults, applies the read and resumes or stops; a `STOP` file is
+          the maintainer's stop. 13 guard and route tests on a real run
+          paused at its first checkpoint, every verdict forced through a
+          shim around the real reader (`tools/results/b58-20261112/`);
+          the production dry run is accepted. `spsa_block_rule.py` is
+          removed; PROCESS *Harness*, its commands and the tool READMEs
+          follow.
+        - For the maintainer: the rail rule reads z's sign alone, so a
+          coordinate parked at a bound with no gradient stops a tune half
+          the time (B.2.3's block 2 reads a rail at z +0.91).
+          `--rail-z` and `-RailZ` hold a threshold, 0 as signed.
 - [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live;
   registered surface; PGO bake; SPRT `[0,3]`. It runs (maintainer
@@ -3943,7 +3980,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.8 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-12 from B.5.6; the read tool, the generator's perturbation and the checkpoint wrapper, before any later tune |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
 | B.6.4 | RESEARCH | R3 | Added 2026-11-11; the whole engine read once after B.5 closes, before the fit |
 | B.6.5 | RESEARCH | I2 | Added 2026-11-11; on B.6.4's handoffs, which confirm, split or replace it |
