@@ -2896,6 +2896,16 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           accepted; predictions and the direction rule frozen.
         - A promising form goes to a separately registered resolving
           stage; nothing is adopted on direction reads alone.
+        - 2026-11-12: the speed read is VOID by its rule, one Stockfish
+          window over the disturbance line. Its classical phase is clean:
+          an engine keeps 0.56 of a core at 28 and 0.54 at 30, and both
+          speed pairs move under 0.6 pp. Stockfish keeps to its pin; the
+          extra load was foreign work on the one-per-core layout's idle
+          siblings, which the data cannot remove. Amendment 1 reads the
+          NNUE phase again alone (`-Read nnue`, about 13 minutes),
+          disturbance read as foreign work, and adds the games' nElo
+          ratio against the break-even (√(15/N)), reported. Then g28 and
+          g30.
     - [ ] **B.5.8** `[I1]` SPSA read tool and checkpoint wrapper
       Added 2026-11-12 from B.5.6, on the maintainer's sign-off: the
       tooling rule 7c's redesign needs, before any later tune (B.6.7,
@@ -3916,7 +3926,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.7 | RESEARCH | R2 | Added 2026-11-12; 28 or 30 games on SMT siblings at `3+0.03` against B.5.5's gate (a); BAS-S58's speed read and two direction replays prepared, maintainer-run |
+| B.5.7 | RESEARCH | R2 | Added 2026-11-12; 28 or 30 games on SMT siblings at `3+0.03` against B.5.5's gate (a); speed read VOID (one NNUE window), Amendment 1's NNUE re-run, then g28 and g30, maintainer-run |
 | B.5.8 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-12 from B.5.6; the read tool, the generator's perturbation and the checkpoint wrapper, before any later tune |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
 | B.6.4 | RESEARCH | R3 | Added 2026-11-11; the whole engine read once after B.5 closes, before the fit |

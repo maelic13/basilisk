@@ -154,4 +154,77 @@
 
 #### RESULT — append after exposure
 
+- **Speed read, first run (maintainer, 2026-11-12, zero games): VOID by its rule.**
+  One window over the line: NNUE, L15, round 3, busy 16.66 CPUs on 15 against 16.6.
+  No process fault. `tools/results/b57-speed` (`read.json`, `runs.jsonl`,
+  `windows.jsonl`); `python tools/smt_read.py report tools/results/b57-speed`.
+  - *Classical phase, every window clean* (busy 15.00–15.07 at L15, 27.72–27.92 at
+    L28, 29.33–29.63 at L30). Read as description; its verdicts are void with the
+    read.
+
+    | | L15 | L28 | L30 |
+    |---|---:|---:|---:|
+    | `pf-on` rate per engine | 2.045M | 1.138M | 1.109M |
+    | yield, `pf-on` | 1 | 0.557 [0.555, 0.558] | 0.542 [0.541, 0.543] |
+    | yield, BAS-P25 arms | 1 | 0.542–0.543 | 0.529–0.530 |
+    | prefetch cost (memory) | +2.33% | +2.85%, shift +0.52 pp [+0.19, +0.85] | +2.62%, shift +0.30 pp [−0.02, +0.63] |
+    | p25 cost (compute) | +2.73% | +2.95%, shift +0.21 pp [+0.03, +0.39] | +2.63%, shift −0.11 pp [−0.29, +0.07] |
+    | spread within an arm | 0.9–1.3% | 0.7–1.6% | 0.8–1.6% |
+
+    The three rounds agree on each yield to ±0.004. Against the tolerance of
+    ±0.75 pp, prefetch reads UNRESOLVED at L28 and PASS at L30, p25 PASS at both.
+    Total search against today's 15 engines: ×1.04 at 28 and ×1.08 at 30 for
+    `pf-on`; an effective control near `1.67+0.017` at 28 and `1.63+0.016` at 30.
+  - *NNUE phase.* Stockfish's L15 windows ran 15.28–16.66 busy, against the
+    classical 15.0, and its rate's spread was 4.3–7.8% a round at L15 against
+    2.9–3.5% at L28, with a low tail (minimum 0.871M, median 1.192M). Yields as read:
+    0.542 at L28, 0.503 at L30; a depressed L15 reference biases both upward.
+  - *Diagnosis (agent, 2026-11-12, on four CPUs, the session running).* Stockfish
+    keeps to its pin: its own CPU time was 3.98 CPUs on 4 pinned CPUs. The extra
+    load is foreign work. Neither creating the process suspended and pinning it
+    before it runs, nor keeping one process alive for the window, removed it
+    (busy 4.77–4.86 against 0.57 with nothing running). L15 leaves fifteen idle
+    siblings, where foreign work lands beside the measured engines; L28 and L30
+    leave two to four. The first rule counted all busy work against the layout's
+    CPUs, so it could not tell the engines' own work from foreign. Which process did
+    the work is not identified: protected processes (Defender among them) are not
+    readable without administrator rights.
+  - *Not corrected from the data.* The slowdown per process is unknown. The
+    plausible corrections, L15's upper quartile (1.259M) or its maximum (1.297M) as
+    the undisturbed rate, move the NNUE gap at L30 from 0.04 to 0.07–0.08, across the
+    PASS line (0.05), so the data cannot decide item 2.
+
+#### AMENDMENT 1 — 2026-11-12, before the re-run (substantive: the instrument)
+
+- **The NNUE phase is read again, alone** (`run_b57_reads.ps1 -Read nnue`,
+  `tools/results/b57-speed-nnue`, about 13 minutes of an idle PC): the same binary,
+  layouts, workload, three rounds of 80 s, with three changes to `smt_read.py`:
+  1. every process is created suspended, pinned, then resumed;
+  2. one Stockfish per CPU for each window, its benches typed into its UCI loop
+     (`persistent`), so nothing is launched inside a window;
+  3. disturbance is foreign work: the busy share less the engines' own CPU time
+     (`GetProcessTimes`); a window is disturbed above 1.6 CPUs of it.
+- **The classical phase stands from the first run.** Its windows were clean under
+  either rule and its rounds agree to ±0.004. The read that the direction rule's
+  item 1 judges is `smt_read.py report tools/results/b57-speed --phase-from
+  nnue=tools/results/b57-speed-nnue`: the first run's classical phase with the
+  re-run's NNUE phase, VALID if every window it uses is clean. Item 2 reads the
+  re-run's NNUE yields.
+- **Predictions.** S4 stands as frozen before either run. Added now, informed by the
+  first run: **S4b**, the re-run's L15 Stockfish rate above the first's 1.188M and
+  its spread under 4%, 70%; the gap to the classical yield 0.03 [0.00, 0.07] at
+  L28 and 0.06 [0.02, 0.10] at L30.
+- **The game reads' report** (`replay_compare.py`) adds, reported and not judged:
+  each run's nElo; the nElo ratio of the replay over (a) on matched openings; the
+  break-even ratio √(15/N), 0.732 at 28 and 0.707 at 30, above which an SPRT at the
+  form decides sooner than today (games to a decision scale as 1/nElo², and games
+  an hour as N/15); and the decision-speed ratio, nElo ratio² × N/15. (a)'s nElo is
+  +25.4 ± 9.6, so a ratio of two such reads is known to about ±0.5; the resolving
+  stage reads it, not these runs. The direction rule's item 4 is unchanged.
+- **The maintainer's acceptability question (2026-11-12).** A sibling game is a
+  game on a core at about 0.55 of the speed: a gate of more, slower cores. It is
+  acceptable if its decisions match today's and come sooner. Items 1–4 judge the
+  first; the decision-speed ratio describes the second.
+- Order from here: `-Read nnue`, then `g28`, then `g30`, one at a time.
+
 #### PREDICTION CALIBRATION — preserve the original prediction above
