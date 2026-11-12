@@ -36,23 +36,6 @@ ChildLog& child_log() {
 #define TRACE_DECISION(...) ((void)0)
 #endif
 
-// Node checks: invariants of the per-ply record verified at every node entry.
-// Live in the Diag flavour and in builds without NDEBUG (the sanitizer
-// suite runs them); compiled out of release. A failure aborts with the
-// condition, so a field a search forgets to reset cannot go unnoticed.
-#if defined(BASILISK_DIAGNOSTIC) || !defined(NDEBUG)
-#define CORE_NODE_CHECK(cond)                                                   \
-    do {                                                                        \
-        if (!(cond)) {                                                          \
-            std::fprintf(stderr, "node check failed: %s (%s:%d)\n", #cond,      \
-                         __FILE__, __LINE__);                                   \
-            std::abort();                                                       \
-        }                                                                       \
-    } while (0)
-#else
-#define CORE_NODE_CHECK(cond) ((void)0)
-#endif
-
 #ifdef BASILISK_ABLATION
 #define ABLATED(bit) (((config_.limits.ablation_mask >> (bit)) & 1) != 0)
 #else
@@ -1686,10 +1669,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                               -kp.b3_sing_mc_tmh_base
                                               - kp.b3_sing_mc_tmh_slope * depth);
                     if (!in_check && s_val > static_eval) {
-                        const int bonus = std::clamp(
-                            (s_val - static_eval) * 1000 / 282 * s_depth * kp.b3_sing_mc_corr / 1024,
-                            -256, 256);
-                        update_correction_history(ss, bonus);
+                        update_correction_history(
+                            ss, b3::multicut_correction_bonus(s_val, static_eval, s_depth,
+                                                              kp.b3_sing_mc_corr));
                     }
                     DIAG_COUNT(++state_.diag.sing_multicut);
                     TRACE_DECISION(TraceEvent::SingularMulticut, ply, depth, m,
@@ -1726,9 +1708,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 state_.board->turn()));
         } else {
             const int moved_piece = hist_piece(state_.board->turn(), moved_pt);
-            stat_score = (2252 * main_hist[from_sq(m)][move_to]
-                          + 1126 * (ss - 1)->cont_hist->entry[moved_piece][move_to]
-                          + 1093 * (ss - 2)->cont_hist->entry[moved_piece][move_to]) / 1024;
+            stat_score = QuietStatScore::of(main_hist[from_sq(m)][move_to],
+                                            (ss - 1)->cont_hist->entry[moved_piece][move_to],
+                                            (ss - 2)->cont_hist->entry[moved_piece][move_to]);
 #ifdef BASILISK_DIAGNOSTIC
             for (int back : {1, 2})
                 hist_.shadow->read(ShadowTable::Continuation,

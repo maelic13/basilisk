@@ -5,6 +5,7 @@
 
 #include "move.h"
 #include <algorithm>
+#include <cstdint>
 
 namespace b3 {
 
@@ -59,6 +60,19 @@ namespace b3 {
     if (value_decisive)
         return false;
     return bound_rule == 0 ? value >= beta : s_beta >= beta;
+}
+
+// The multi-cut's correction bonus: the gap by which the exclusion search
+// cleared the static eval, in the donor's units (`* 1000 / 282`), times the
+// singular depth and `mult`, in 1/1024, clamped to the correction's +-256.
+// The products are 64-bit: the conversion widens them 3.55 times, and in
+// `int` they pass 2^31 from a singular depth of 54 and train the correction
+// by the full clamp the wrong way. The operations and their order are the
+// 32-bit form's, so the two agree wherever that one is defined.
+[[nodiscard]] inline int multicut_correction_bonus(int value, int static_eval, int s_depth,
+                                                   int mult) {
+    const int64_t product = int64_t(value - static_eval) * 1000 / 282 * s_depth * mult / 1024;
+    return int(std::clamp<int64_t>(product, -256, 256));
 }
 
 // The negative extension, when the move is neither singular nor a multi-cut:

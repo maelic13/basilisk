@@ -106,6 +106,18 @@ struct TTMoveHistory : HistoryBound<8192> {
     int16_t value;
 };
 
+// A quiet move's history score at the node that searches it: its main and
+// its two nearest continuation entries, in 1/1024. A capture-stage move's is
+// its captured value plus its capture history instead.
+struct QuietStatScore {
+    static constexpr int MAIN = 2252;
+    static constexpr int CONT1 = 1126;
+    static constexpr int CONT2 = 1093;
+    static constexpr int of(int main, int cont1, int cont2) {
+        return (MAIN * main + CONT1 * cont1 + CONT2 * cont2) / 1024;
+    }
+};
+
 // Correction histories: the error of the static evaluation against the
 // search, by structure and by move pair, in evaluation units.
 using CorrectionBound = HistoryBound<1024>;

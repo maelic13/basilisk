@@ -39,6 +39,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <vector>
@@ -56,6 +57,25 @@ enum class NodeType { Root, PV, NonPV };
 #define PRICE_PROBING() (state_.price.probing())
 #else
 #define PRICE_PROBING() false
+#endif
+
+// Node checks: invariants of the per-ply record verified at every node
+// entry, and the width bounds of the history updates. Live in the Diag
+// flavour and in builds without NDEBUG (the sanitizer suite runs them);
+// compiled out of release. A failure aborts with the condition, so a field
+// a search forgets to reset, or a bonus that would wrap, cannot go
+// unnoticed.
+#if defined(BASILISK_DIAGNOSTIC) || !defined(NDEBUG)
+#define CORE_NODE_CHECK(cond)                                                   \
+    do {                                                                        \
+        if (!(cond)) {                                                          \
+            std::fprintf(stderr, "node check failed: %s (%s:%d)\n", #cond,      \
+                         __FILE__, __LINE__);                                   \
+            std::abort();                                                       \
+        }                                                                       \
+    } while (0)
+#else
+#define CORE_NODE_CHECK(cond) ((void)0)
 #endif
 
 struct SearchConfig {

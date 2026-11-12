@@ -12,20 +12,76 @@
 
 #include "search_worker.h"
 #include <algorithm>
+#include <climits>
 #include <cstdlib>
 
 static bool move_made(Move m) { return m != MOVE_NONE && m != MOVE_NULL; }
 
+namespace {
+
+// The continuation update's per-ply weights, and its multiplier indexed by
+// the number of rows that already rate the move positively.
+struct Back { int plies; int weight; };
+constexpr Back CONT_BACKS[] = {{1, 520}, {2, 390}, {3, 145}, {4, 251}, {5, 66}, {6, 209}};
+constexpr int CONT_CONSISTENCY[] = {94, 103, 110, 106, 119, 126, 121};
+
+constexpr int max_cont_weight() {
+    int m = 0;
+    for (const Back& b : CONT_BACKS) m = std::max(m, b.weight);
+    return m;
+}
+constexpr int max_cont_consistency() {
+    int m = 0;
+    for (int c : CONT_CONSISTENCY) m = std::max(m, c);
+    return m;
+}
+
+// The largest incoming bonus whose product with any weight and multiplier
+// fits an int: the update's arithmetic is 32-bit and must stay so.
+constexpr int CONT_BONUS_BOUND = INT_MAX / (max_cont_weight() * max_cont_consistency());
+
+// The fail-low parent's scale terms and its continuation share.
+constexpr int FL_BASE = -241;
+constexpr int FL_STAT_DIVISOR = 98;
+constexpr int FL_DEPTH_SLOPE = 59;
+constexpr int FL_DEPTH_CAP = 420;
+constexpr int FL_LATE_MOVE = 186;
+constexpr int FL_BELOW_OWN_EVAL = 142;
+constexpr int FL_BELOW_PARENT_EVAL = 159;
+constexpr int FL_SIZE_SLOPE = 150;
+constexpr int FL_SIZE_OFFSET = 85;
+constexpr int FL_SIZE_CAP = 1337;
+constexpr int FL_CONT_NUM = 263;
+constexpr int FL_CONT_DEN = 16384;
+
+// The width proof for the widest caller: at the history limits the fail-low
+// parent's continuation bonus stays within the bound. The parent's stat
+// score is at least the quiet score of three entries at their negative
+// limits, or a capture-stage move's at least -CaptureHistory::LIMIT (its
+// captured value is never negative); every other scale term is at its cap;
+// a main-search node's depth is at least 1, so the size term is positive
+// and at most its cap. The scale's floor is 0, so the bonus is never
+// negative.
+constexpr int FL_STAT_SCORE_FLOOR =
+    std::min(QuietStatScore::of(-MainHistory::LIMIT, -PieceToHistory::LIMIT,
+                                -PieceToHistory::LIMIT),
+             -CaptureHistory::LIMIT);
+constexpr int FL_SCALE_MAX = FL_BASE - FL_STAT_SCORE_FLOOR / FL_STAT_DIVISOR + FL_DEPTH_CAP
+                           + FL_LATE_MOVE + FL_BELOW_OWN_EVAL + FL_BELOW_PARENT_EVAL;
+static_assert(FL_SIZE_SLOPE * 1 - FL_SIZE_OFFSET > 0, "the size term is positive from depth 1");
+constexpr int FL_CONT_BONUS_MAX = FL_SIZE_CAP * FL_SCALE_MAX * FL_CONT_NUM / FL_CONT_DEN;
+static_assert(FL_CONT_BONUS_MAX <= CONT_BONUS_BOUND,
+              "the fail-low parent's continuation bonus can wrap the continuation update");
+
+}  // namespace
+
 void Searcher::update_continuation_histories(SearchStack* ss, Piece piece, Square to,
                                              int bonus) {
+    CORE_NODE_CHECK(bonus >= -CONT_BONUS_BOUND && bonus <= CONT_BONUS_BOUND);
     if (PRICE_PROBING()) return;
-    struct Back { int plies; int weight; };
-    static constexpr Back backs[] = {{1, 520}, {2, 390}, {3, 145}, {4, 251}, {5, 66}, {6, 209}};
-    // Indexed by the number of rows that already rate the move positively.
-    static constexpr int consistency[] = {94, 103, 110, 106, 119, 126, 121};
 
     int positive = 0;
-    for (const Back& b : backs) {
+    for (const Back& b : CONT_BACKS) {
         // A move made in check trains only the two nearest continuations.
         if (ss->in_check && b.plies > 2)
             break;
@@ -35,7 +91,7 @@ void Searcher::update_continuation_histories(SearchStack* ss, Piece piece, Squar
         int16_t& e = prev->cont_hist->entry[hist_piece(piece)][to];
         if (e > 0)
             ++positive;
-        PieceToHistory::update(e, bonus * b.weight * consistency[positive] / 65536
+        PieceToHistory::update(e, bonus * b.weight * CONT_CONSISTENCY[positive] / 65536
                                   + 73 * (b.plies < 2));
         HIST_SHADOW(hist_.shadow->write(ShadowTable::Continuation,
                                         hist_.continuation_cell(prev->cont_hist, hist_piece(piece), to),
@@ -148,17 +204,18 @@ void Searcher::update_fail_low_parent(SearchStack* ss, int depth, int best_score
             ~b.turn()));
         return;
     }
-    int scale = -241;
-    scale -= (ss - 1)->stat_score / 98;
-    scale += std::min(59 * depth, 420);
-    scale += 186 * ((ss - 1)->move_count > 9);
-    scale += 142 * (!ss->in_check && best_score <= ss->eval - 30);
-    scale += 159 * (!(ss - 1)->in_check && best_score <= -(ss - 1)->eval - 19);
+    int scale = FL_BASE;
+    scale -= (ss - 1)->stat_score / FL_STAT_DIVISOR;
+    scale += std::min(FL_DEPTH_SLOPE * depth, FL_DEPTH_CAP);
+    scale += FL_LATE_MOVE * ((ss - 1)->move_count > 9);
+    scale += FL_BELOW_OWN_EVAL * (!ss->in_check && best_score <= ss->eval - 30);
+    scale += FL_BELOW_PARENT_EVAL * (!(ss - 1)->in_check && best_score <= -(ss - 1)->eval - 19);
     scale = std::max(scale, 0);
-    const int scaled = std::min(150 * depth - 85, 1337) * scale;
+    const int scaled = std::min(FL_SIZE_SLOPE * depth - FL_SIZE_OFFSET, FL_SIZE_CAP) * scale;
 
     const PieceType pt = type_of(b.piece_on(prev_to));
-    update_continuation_histories(ss - 1, b.piece_on(prev_to), prev_to, scaled * 263 / 16384);
+    update_continuation_histories(ss - 1, b.piece_on(prev_to), prev_to,
+                                  scaled * FL_CONT_NUM / FL_CONT_DEN);
     MainHistory::update(hist_.main.entry[~b.turn()][from_sq(prev)][prev_to], scaled * 215 / 32768);
     if (pt != PAWN && move_type(prev) != PROMOTION) {
         const int piece = hist_piece(b.piece_on(prev_to));
