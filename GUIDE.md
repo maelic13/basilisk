@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.6.5** `[I1]` Audit repairs before the fit — Claude Sonnet
+**Next step:** **B.6.6** `[R2]` Donor-form reconciliation — Claude Opus
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -119,7 +119,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
 - [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
     - [x] **B.6.3** `[I1]` Search-path perft and kernel pins
     - [x] **B.6.4** `[R3]` Engine audit on the four-cluster head
-    - [ ] **B.6.5** `[I1]` Audit repairs before the fit
+    - [x] **B.6.5** `[I1]` Audit repairs before the fit
     - [ ] **B.6.6** `[R2]` Donor-form reconciliation
     - [ ] **B.6.7** `[V]` Joint search SPSA
 - [ ] **B.7** Board review and rebuild

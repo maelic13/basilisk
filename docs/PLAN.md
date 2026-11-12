@@ -408,7 +408,7 @@ reason.
 |---|---|
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3). The ply cap's static evaluation in check (NODE-8) was repaired in B.5.2 |
-| B.6 | F4 the multi-cut correction bonus's product can pass 32 bits and then trains the wrong way (confirmed by B.6.4, `analysis/b64_engine_audit_2026-11-12.md` §3.1; B.6.5 repairs it). The audit confirmed no other defect in the search |
+| B.6 | F4 the multi-cut correction bonus's product could pass 32 bits and then trained the wrong way (confirmed by B.6.4, `analysis/b64_engine_audit_2026-11-12.md` §3.1; repaired in B.6.5). The audit confirmed no other defect in the search |
 | B.9 | `go depth N` answered by a deeper helper (DRIVER-12); Fathom's `exit` on a table that fails to map (PROTO-11); A-50 a stop inside the first iteration; A-57 cold table reads on the clock; A-58 the tablebase root ranking ignores the game's repetitions; F1 `stop` and `quit` unseen during `bench` and `wac`; the clock's game ply at `ponderhit` read from the node the search is at (B.6.4, `analysis/b64_engine_audit_2026-11-12.md` §3.2); F6 bishops on one colour against a bare king scored as a win; each hard verdict B.9.3's read finds wrong |
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
 | C.3, C.5, C.6 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
@@ -3234,7 +3234,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           reflection nor contracts.
         - Routing: the packet's §10; each receiving leaf carries its
           items below.
-    - [ ] **B.6.5** `[I1]` Audit repairs before the fit
+    - [x] **B.6.5** `[I1]` Audit repairs before the fit
       The expected shape; B.6.4's handoff confirms, splits or replaces
       it. Each confirmed defect is repaired in its own commit, with the
       test that failed before it: release and sanitizer CTest, the exact
@@ -3270,6 +3270,28 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         B.6.7's surface; it is never reverted to the wrong form (PLAN
         §2, *Known defects*).
       - With no tree-changing repair the leaf closes on its tests.
+      - Closed 2026-11-12 on its tests (`bench 13` 3,783,135 unchanged;
+        CTest 30 of 30 in the release build, 28 of 28 in the ASan/UBSan
+        build; the packet's *Implementation record*):
+        - `b3::multicut_correction_bonus` (`search_b3.h`) is the kernel's
+          expression with the gap widened to 64 bits first; the
+          multi-cut site calls it under its present condition.
+        - The continuation update's weights and multipliers and the
+          fail-low parent's scale terms are named in
+          `search_history_core.cpp`, the quiet stat score's weights in
+          `history_core.h` (`QuietStatScore`, which the kernel now
+          calls). A `static_assert` derives the parent's largest bonus,
+          31,978, from them and the history limits, against the bound
+          `INT_MAX` / (largest weight · largest multiplier) = 32,776.
+          `CORE_NODE_CHECK` moved to `search_worker.h` and checks the
+          bound on every call; it is compiled out of release.
+        - `tests/test_b3_proof.cpp`: 256 at the three overflowing points
+          and −256 at the mirrored one; agreement with the 32-bit form
+          at 8,085,737 grid points, 0 differ.
+        - Planted faults, each caught and reverted: the arithmetic in
+          `int` (four failures, −256 for +256), the order of operations
+          changed (1,889 points differ), the weight 520 raised to 540
+          (the `static_assert` stops the build).
     - [ ] **B.6.6** `[R2]` Donor-form reconciliation
       It was B.6.1 until 2026-11-11.
       After B.4 and B.5 close, every place the search still keeps
@@ -4209,7 +4231,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.6.5 | READY_FOR_IMPLEMENTATION | I1 | B.6.4's handoff (2026-11-12): F4 in 64 bits and a width guard, no tree-changing repair; closes on its tests |
 | B.6.6 | RESEARCH | R2 | Was B.6.1; added 2026-10-31; after B.6.5, on the repaired head |
 | B.6.7 | RESEARCH | V | Was B.6.2; runs (maintainer 2026-11-05); the curvature evidence chooses its surface, after the zero-game screen of the kernel's literals (added 2026-11-10) |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |

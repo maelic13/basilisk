@@ -680,3 +680,54 @@ The build was Clang 23.1.5, the `release` preset's pext tier, no PGO
 The validity rule: the patched build reads `bench 13` 3,783,135, which it
 did; the counters are one thread's and the self-play read is one process
 through four games with `ucinewgame` between them.
+
+## Implementation record (B.6.5, 2026-11-12)
+
+- Commits: `52d6e43` (engine and tests, on `b6-perft-pins` above
+  `5ced6f1`); the PLAN and GUIDE record in the next commit.
+- Fingerprint: `bench 13` **3,783,135** at both commits (Clang 23.1.5,
+  `release` preset, pext tier, no PGO).
+- Changes, to §12's semantics:
+  - `b3::multicut_correction_bonus(value, static_eval, s_depth, mult)` in
+    `src/search_b3.h`: `int64_t(value - static_eval) * 1000 / 282 *
+    s_depth * mult / 1024`, clamped to ±256. The kernel's multi-cut site
+    calls it under `!in_check && s_val > static_eval`.
+  - `src/search_history_core.cpp`: the continuation weights and
+    multipliers move to file scope (`CONT_BACKS`, `CONT_CONSISTENCY`),
+    and `CONT_BONUS_BOUND = INT_MAX / (max weight · max multiplier)` =
+    32,776 is derived from them. The fail-low parent's scale terms are
+    named (`FL_*`) and its arithmetic is unchanged. A `static_assert`
+    computes the parent's largest bonus from those names and the history
+    limits: stat-score floor −80,806 (the quiet score at three negative
+    limits; a capture-stage move's is at least −10,692), scale 1,490,
+    bonus 1,337 · 1,490 · 263 / 16,384 = 31,978, and requires it to be
+    within the bound. A second `static_assert` requires the size term to
+    be positive from depth 1.
+  - The quiet stat score's weights are `QuietStatScore` in
+    `src/history_core.h`, which the kernel calls, so the proof reads the
+    kernel's own literals rather than copies.
+  - `CORE_NODE_CHECK` moved unchanged from the kernel to
+    `src/search_worker.h`; `update_continuation_histories` checks
+    `|bonus| <= CONT_BONUS_BOUND` on every call. Live in the ASan/UBSan
+    (Debug) build, which has no `NDEBUG`; release compiles with `NDEBUG`,
+    so it adds no instruction there.
+- Tests (`tests/test_b3_proof.cpp`, two sections): the four points of
+  §12 and the non-overflowing `s_depth` 53; the grid of `f4_equiv.cpp`
+  (8,085,737 points where the 32-bit form is defined, 0 differ; the count
+  is pinned).
+- Planted faults, each reverted and the diff checked byte-identical
+  afterwards: the arithmetic in `int` (the four points fail, −256 for
+  +256 and the mirror); the order changed to `gap * s_depth * mult * 1000
+  / 282 / 1024` (1,889 grid points differ); the weight 520 raised to 540
+  (`static_assert` fails, the build stops). A temporary `static_assert`
+  confirmed the derived values −80,806, 1,490, 31,978 and 32,776.
+- Qualification: release CTest 30 of 30; ASan/UBSan CTest (`debug`
+  preset, Clang, `-LE strength`) 28 of 28, no runtime error and no node
+  check failed. No NPS read and no game gate (§12).
+- Deviations from the handoff: the stat-score weights and the fail-low
+  constants were named so that the proof binds the code's literals, and
+  the node-check macro moved to a shared header. Neither changes an
+  operation.
+- What a reviewer checks: the 64-bit expression's order against the
+  kernel's old line; that the `FL_*` names replace the literals
+  one-for-one; the fingerprint.
