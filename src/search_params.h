@@ -442,7 +442,7 @@
     X(b5_asp_msq_div,        B5AspMsqDiv,         2907, 1000, 12000)     \
     X(b5_asp_growth,         B5AspGrowth,           46,   32,    96)     \
     S(b5_fail_high_reduce,   B5FailHighReduce,       0,    0,     1)     \
-    S(b5_neg_ext_max,        B5NegExtMax,            0,    0,     2)     \
+    S(b5_neg_ext_max,        B5NegExtMax,            1,    0,     2)     \
     S(b5_window,             B5Window,               1,    0,     1)     \
     S(b5_root_lmr,           B5RootLmr,              1,    0,     1)     \
     S(b5_lmr_window_units,   B5LmrWindowUnits,       1,    0,     1)     \
