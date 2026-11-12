@@ -70,7 +70,8 @@ from pathlib import Path
 from statistics import NormalDist
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CLI = ROOT / "tools" / "bin" / "colosseum-cli.exe"
+# The pinned runner, staged by tools/setup_tools.ps1; its name carries .exe on Windows only.
+DEFAULT_CLI = ROOT / "tools" / "bin" / ("colosseum-cli.exe" if sys.platform == "win32" else "colosseum-cli")
 GAIN_SEGMENT = 500
 NULL_REPS = 40
 NULL_SEED = 1
