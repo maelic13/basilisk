@@ -3363,6 +3363,24 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       20,032) and null threshold after sibling null fail-highs (+0.46 ±
       2.66 over 17,308) (TS-16), and four edge cases other engines handle,
       each flat over about 7,000 games (TS-17).
+      - Prepared 2026-11-12, `GAME_GATE`
+        (`analysis/b66_reconciliation_2026-11-12.md`, BAS-S59):
+        - All 39 rows sorted (§3). The fail-low store is the donor's form
+          since B.4. Four rows run, the maintainer's choice: the TT-cutoff
+          cap (`3+0.03` and `10+0.1`), razoring in the donor's form (a
+          B.2 departure no table had: any depth, `482·d²`, no guards), the
+          rule-50 key with F11, and kings in the non-pawn key. The rest
+          stay with their owners: H.2, D.1, D.2, F, B.9.1, B.6.7's surface,
+          or nothing.
+        - Four switches, off by default (`1b7256a`, `bench 13` 3,783,135):
+          `CoreTtCutoffBonusCap`, `CoreRazorDonor`, `CoreTtKey50`,
+          `CoreCorrNonPawnKings`. Tune build `9AE3C8C9…`; every switch
+          moves the tree.
+        - Vetoes before any game: every arm passes the 25-budget grid and
+          the correctness suite, and reads WAC at 100,000 nodes within 5
+          of the head's 259 (268, 259, 257, 261).
+        - Five dry runs accepted. The maintainer runs the chain of §7.3;
+          `tools/run_b66_games.py` applies the vetoes again before each.
     - [ ] **B.6.7** `[V]` Joint search SPSA
       It was B.6.2 until 2026-11-11.
       The joint SPSA above, on the reconciled head.
@@ -4231,7 +4249,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.6.6 | RESEARCH | R2 | Was B.6.1; added 2026-10-31; after B.6.5, on the repaired head |
+| B.6.6 | GAME_GATE | R2 | Was B.6.1; prepared 2026-11-12: BAS-S59's five paired runs, maintainer-run; then the adoptions' SPRT `[0,3]` |
 | B.6.7 | RESEARCH | V | Was B.6.2; runs (maintainer 2026-11-05); the curvature evidence chooses its surface, after the zero-game screen of the kernel's literals (added 2026-11-10) |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
 | B.7.2 | RESEARCH | R2 | Was B.15.2; after B.7.1 |
