@@ -2728,6 +2728,53 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         Stockfish's fishtest SPSA, OpenBench's SPSA, Triumviratus
         through its pinned snapshots, and other strong open engines'
         tuning records.
+    - [ ] **B.5.7** `[R2]` Two games per core on SMT siblings
+      Added 2026-11-12 (maintainer), after B.5.6: whether game gates
+      can run two games per physical core, one on each SMT sibling by
+      explicit affinity, and keep their meaning. Today fourteen
+      single-thread games run on fourteen physical cores, each slot
+      holding both siblings; with pondering off one engine per game
+      thinks, so each core's second sibling sits mostly idle (PROCESS
+      *Harness*). Fair conditions for both arms are necessary but not
+      enough: the gate must also measure what today's gate measures.
+      - Two forms, each against today's conditions:
+        - 28 games at `3+0.03`: about twice the games per hour, each
+          engine at about 0.63 of a core (Rarog RAR-P54), so an
+          effective control near `1.9+0.019`.
+        - 28 games at a control lengthened to today's nodes per move,
+          about `4.8+0.048` if 0.63 holds: about 1.26 times today's
+          games per hour at the same effective depth. The factor is
+          read on this host (per-sibling NPS under the 28-game load
+          against the 14-game slot), not taken from Rarog.
+      - Comparison data: B.5.5's (a) at `3+0.03` and (d) at `10+0.1`,
+        on the same frozen builds. A new form replays the same pair on
+        the same book; the questions are whether it reads the same Elo
+        within error, and how many hours each form needs to the same
+        decision. An SPRT's estimate is biased by where it stopped, so
+        the comparison is planned on fixed-length runs, or reads (a)'s
+        games as a sample with that bias stated.
+      - Whether B.5.5's pair is a good test case is investigated before
+        it is relied on. A change's Elo can move with effective depth
+        (pruning, reductions, extensions, time use) and with memory
+        traffic, which a busy sibling partly hides, so a sibling-paired
+        run may price a memory-heavy change cheaper than a full core
+        would. Cluster 4 (root and aspiration) is one kind of change;
+        (a) against (d) shows how much its Elo moves with depth. Name
+        the bad cases (a depth-sensitive change, an NPS-costly change,
+        a TT- or memory-heavy change), check whether frozen pairs in
+        the ledger cover them, and build a deliberate one, such as an
+        arm that only costs NPS, where none does.
+      - Hazards to read: time losses inside the 20 ms margin with 28
+        engines and Colosseum sharing the two free cores; sibling noise
+        as the spread of per-game NPS; placement by explicit
+        `--placement` lists, one logical CPU per game, checked with
+        `host_sampler.ps1`; SPSA's fifteen two-arm slots.
+      - The decision: keep today's conditions, or adopt a form for
+        SPRTs (SPSA, NPS reads and multi-thread runs unchanged unless
+        read separately). Adopting one changes PROCESS *Harness*'s
+        registered conditions and the wrapper's placement guards, with
+        a calibration that ties gates before the change to gates after
+        it. Games are maintainer-run.
 - [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live;
   registered surface; PGO bake; SPRT `[0,3]`. It runs (maintainer
@@ -3721,6 +3768,7 @@ leaf's tag. Later phases carry only a class until they open.
 |---|---|---|---|
 | B.5.5 | RESEARCH | V | The next action is the maintainer's: gate (a), the fitted arm against the OFF arm (SPRT `[0,3]`, cap 4,500 pairs), then (d) at `10+0.1` (BAS-S55); (b) retired, (c) closed, (e) only on a trigger |
 | B.5.6 | RESEARCH | R3 | Added 2026-11-12; the SPSA method investigation, after B.5.5 and before any later tune |
+| B.5.7 | RESEARCH | R2 | Added 2026-11-12; two games per physical core on SMT siblings, at `3+0.03` and at a control lengthened to today's nodes per move, read against B.5.5's games |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
 | B.6.4 | RESEARCH | R3 | Added 2026-11-11; the whole engine read once after B.5 closes, before the fit |
 | B.6.5 | RESEARCH | I2 | Added 2026-11-11; on B.6.4's handoffs, which confirm, split or replace it |
