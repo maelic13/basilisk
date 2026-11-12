@@ -205,8 +205,11 @@ roadmap.
      6,000 iterations (180,000 games) unless the registration argues
      another. The perturbation is twice the generator's step schedule and
      `r_end` is 0.00155, half the earlier 0.0031: the move per result is
-     unchanged and each gradient's signal doubles. A coordinate whose seed
-     plus or minus two steps leaves its range keeps the single step.
+     unchanged and each gradient's signal doubles. A coordinate without
+     two steps of room at its seed takes the largest perturbation from one
+     to two steps that stays inside its range; one with under a step of
+     room is named at registration (BAS-S57: 10 of the head's 74
+     coordinates, 3 of them under a step).
    - *Checkpoints.* Iteration 2,000, then every 1,000. At each,
      `tools/spsa_read.py` reads the last 1,000 iterations.
    - *The test.* For each coordinate, `z = Σ δ·D / √(Σ D²)`: δ is its
@@ -2751,7 +2754,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           precondition the cap's default had changed (Diag only).
         - The packet's ceiling row (§14) records the cap as a departure
           from `sf_19`, with the ply bound after 19 for Phase H.
-    - [ ] **B.5.6** `[R3]` SPSA method investigation and redesign
+    - [x] **B.5.6** `[R3]` SPSA method investigation and redesign
       Added 2026-11-12 (maintainer), after B.5.5 and before any later
       tune (B.6.7, C.10): a proper investigation of how Basilisk runs
       SPSA, ending in a registered redesign of rule 7c and PROCESS
@@ -2789,6 +2792,37 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         Stockfish's fishtest SPSA, OpenBench's SPSA, Triumviratus
         through its pinned snapshots, and other strong open engines'
         tuning records.
+      - Closed 2026-11-12 (`analysis/b56_spsa_method_2026-11-12.md`,
+        BAS-S57; zero games; the maintainer's sign-off the same day):
+        - The reads, on the five blocks on disk. A tune's own games give
+          every coordinate a gradient z with an exact null, the
+          equivalent of a match resolving one perturbation to about ±0.9
+          Elo per 60,000 games. The unlock premise is not supported: two
+          of 27 idle coordinates woke in B.2.3's block 2 where chance
+          gives 1.2. A restart is a higher gain by another name. One
+          block covers about a third of the distance at a curvature of
+          1 Elo per step², which is why coordinates drift one way across
+          fits.
+        - Outside practice (fishtest, OpenBench, Triumviratus) is plain
+          SPSA on a fixed budget with no stop rule; no other method has
+          evidence at these surface sizes.
+        - Rule 7c and PROCESS *SPSA go/no-go* items 5 and 6 are
+          rewritten: one run to a ceiling, twice the perturbation at half
+          the ratio, read at checkpoints by the gradient test and
+          stopped when quiet; the gate is a fixed 6,000 games when the
+          tune's own read is +10 Elo or more, the SPRT otherwise.
+        - BAS-S57. Sizing steps by tree effect is not adopted: the
+          pooled rank correlation is +0.24 against a line of +0.40, and
+          `bench 13` answers a one-step move chaotically. Two-step
+          perturbations run without a fault and stay within a factor of
+          2 in nodes at 96 of 97 points. 10 of the head's 74 coordinates
+          lack two steps of room, so the perturbation is graded by room.
+        - The Elo forecast is recorded and scored and decides nothing
+          yet. It has no usable test: B.2.3's block 2 has no match of its
+          own, and the "+2" above is the difference of two reads, known
+          to about ±23.
+        - The tooling is B.5.8. Changes to Colosseum wait for one real
+          tune under the new rule (the packet's §9).
     - [ ] **B.5.7** `[R2]` Two games per core on SMT siblings
       Added 2026-11-12 (maintainer), after B.5.6: whether game gates
       can run two games per physical core, one on each SMT sibling by
@@ -2849,7 +2883,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         in `tools/results/b56-20261112/` and synthetic journals of both
         verdicts.
       - `tools/generate_spsa_surface.py`: the perturbation for a
-        registered ceiling, by rule 7c's shape.
+        registered ceiling, graded by each coordinate's room as rule 7c
+        states, with the coordinates under two steps listed.
       - `tools/spsa_colosseum.ps1`: the ceiling, `r_end` and the
         checkpoints as arguments in place of the fixed block of 2,000;
         a loop that runs to each checkpoint with Colosseum's
@@ -3855,7 +3890,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.6 | RESEARCH | R3 | Added 2026-11-12; the SPSA method investigation, after B.5.5 and before any later tune |
 | B.5.7 | RESEARCH | R2 | Added 2026-11-12; two games per physical core on SMT siblings, at `3+0.03` and at a control lengthened to today's nodes per move, read against B.5.5's games |
 | B.5.8 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-12 from B.5.6; the read tool, the generator's perturbation and the checkpoint wrapper, before any later tune |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |

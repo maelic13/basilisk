@@ -1,9 +1,9 @@
 # B.5.6 — how Basilisk runs SPSA: the investigation and the proposed redesign
 
-**Status:** research packet, written 2026-11-12. Zero games. It proposes a redesign of
-PLAN rule 7c and PROCESS *SPSA go/no-go*; neither is edited yet. The rule text in §8 is
-a draft for the maintainer's sign-off, and B.5.6 stays open until it is signed off and
-recorded.
+**Status:** B.5.6's research packet, written 2026-11-12 and closed the same day. Zero
+games. The maintainer signed off its redesign; PLAN rule 7c and PROCESS *SPSA go/no-go*
+hold the rule, and BAS-S57 holds the two reads of §11 and what they changed. The tooling
+is PLAN B.5.8.
 
 **Recommendation.** Run a tune as one registered run with twice today's perturbation and
 half its gain ratio, read every 1,000 iterations by a per-coordinate gradient test on the
@@ -53,10 +53,13 @@ Two facts follow, and both were checked on the journals.
   largest spread within an iteration is 2.8e-15 on the two blocks without a clamp (B.4.6
   and B.5.4). The
   step is the generator's (`range / 16`), and it is the perturbation at iteration 0.
-- **The gain ratio is flat and the perturbation decays.** `r_k` runs from 0.00277 to
-  0.0031 over a block. The perturbation falls from 1.00 step to 0.62 at iteration 100,
-  0.53 at 500 and 0.46 at 2,000. So the move per unit of `D` falls from 0.0028 to 0.0014
-  steps, and nearly all of that fall is the perturbation's.
+- **Both the perturbation and the gain ratio change over a run** (`schedule.txt`, the
+  schedule in closed form, checked against the journals' moves). The perturbation falls
+  from 1.00 step to 0.62 at iteration 100, 0.53 at 500 and 0.46 at 2,000. The ratio
+  `r_k` is 0.89 of `r_end` at iteration 0, peaks at 1.80 near iteration 100 and falls
+  back to 1.00 at the end. So the move per unit of `D` starts at 0.0028 steps, peaks at
+  0.0036 near iteration 50 and ends at 0.0014. The peak's place and height are set by
+  the horizon: the stability constant is a tenth of it.
 
 ## 3. The gradient test: a tune is a match per coordinate
 
@@ -123,14 +126,18 @@ chance.
 standing *x* steps from its optimum costs `h·x²/2` and its gradient is `h·x`. The expected
 move per iteration is proportional to the gradient, so the distance decays as
 `exp(−h·Λ)`, where Λ sums `2 · (move per unit D) · (perturbation in steps) / 11.58` over
-the run. On the journals **Λ is 0.34 per block**, the same in all five (`forecast.txt`).
+the run. In closed form **Λ is 0.385 for a block** (`schedule.txt`); the journals give
+0.34 over the iterations whose `D` is not zero, 88% of them, which is the same number.
 
-| Curvature (one step off costs) | Distance left after 2,000 / 4,000 / 6,000 iterations | With twice the perturbation and half the ratio |
+| Curvature (one step off costs) | Distance left after one / two / three blocks | The recorded shape at 2,000 / 4,000 / 6,000 |
 |---|---|---|
-| 0.5 Elo/step² (0.25 Elo) | 84% / 71% / 60% | 71% / 51% / 36% |
-| 1 (0.5 Elo) | 71% / 51% / 36% | 51% / 26% / 13% |
-| 2 (1 Elo) | 51% / 26% / 13% | 26% / 7% / 2% |
-| 3 (1.5 Elo) | 36% / 13% / 5% | 13% / 2% / 0% |
+| 0.5 Elo/step² (0.25 Elo) | 82% / 68% / 56% | 63% / 49% / 40% |
+| 1 (0.5 Elo) | 68% / 46% / 31% | 40% / 24% / 16% |
+| 2 (1 Elo) | 46% / 21% / 10% | 16% / 6% / 2% |
+| 3 (1.5 Elo) | 31% / 10% / 3% | 6% / 1% / 0% |
+
+The recorded shape is rule 7c's: a ceiling of 6,000, twice the perturbation, `r_end`
+0.00155 (§8). Its Λ is 0.92 at iteration 2,000, 1.45 at 4,000 and 1.85 at 6,000.
 
 Two curvatures can be read from the journals. `CoreIirMinDepth` in B.2.3 block 1: its
 gradient fell from 8.0 to 3.5 Elo per step between the first and last third while its
@@ -138,8 +145,8 @@ centre moved 1.3 steps, so *h* is about 3.3. That is the strongest coordinate in
 record. `B3NmpPerPly`: 3.9 Elo per step over B.4.6 and 2.5 over B.5.4, 1.4 steps apart,
 so *h* is about 1.
 
-**Reading.** At a curvature near 1, one block covers about 30% of the distance and three
-blocks 64%. This is the plain explanation for the coordinates that keep moving one way
+**Reading.** At a curvature near 1, one block covers about a third of the distance and
+three blocks 69%. This is the plain explanation for the coordinates that keep moving one way
 fit after fit (`B3NmpPerPly` in three fits, `B3SingMargin` in two, `CoreCorrUpdateScale`
 in five, `B3IirMinDepth` in three; `analysis/b54_constants_2026-11-12.md` findings 3 to
 5): each tune stopped short. It also explains Rarog's RAR-S78, where a restart gained
@@ -167,18 +174,18 @@ not. It is a free cross-check on the gate, never the gate.
 
 **The forecast.** The expected gain of the next segment is proportional to the sum of
 squared gradients, and `Σ z² − n` over a window estimates that sum without bias, with
-SD `√(2n)`. Holding the last 1,000 iterations' gradients constant over a further 2,000
-gives an upper reading (`forecast.txt`):
+SD `√(2n)`. Holding the last 1,000 iterations' gradients constant over a restarted
+block of 2,000 gives an upper reading (`forecast.txt`):
 
 | Block | Excess, iterations 1,000 to 2,000 | Next 2,000 iterations, at most |
 |---|---:|---:|
-| B.2.3 block 1 | +15.5 ± 9.9 | +10.5 ± 6.7 |
-| B.2.3 block 2 | +1.3 ± 9.9 | +0.9 ± 6.6 |
-| B.3.3 | −5.7 ± 7.6 | −3.3 ± 4.4 |
-| B.4.6 | +17.2 ± 5.5 | +10.0 ± 3.2 |
-| B.5.4 | +26.3 ± 4.0 | +15.1 ± 2.3 |
+| B.2.3 block 1 | +15.5 ± 9.9 | +11.7 ± 7.4 |
+| B.2.3 block 2 | +1.3 ± 9.9 | +1.0 ± 7.5 |
+| B.3.3 | −5.7 ± 7.6 | −3.8 ± 5.0 |
+| B.4.6 | +17.2 ± 5.5 | +11.3 ± 3.6 |
+| B.5.4 | +26.3 ± 4.0 | +17.2 ± 2.6 |
 
-It has no usable test yet. B.2.3 block 1 forecast +10.5 ± 6.7 at most, and block 2's
+It has no usable test yet. B.2.3 block 1 forecast +11.7 ± 7.4 at most, and block 2's
 gain is known only from the tune's own read, +3.1 ± 8.6: consistent with the forecast and
 with zero. By its own error it can separate "about ten left" from "nothing left" on a
 small surface. It cannot separate 3 from 6, and at 49 coordinates it separates little.
@@ -239,10 +246,12 @@ enough.
 ## 7. Answers to the leaf's questions
 
 1. **Blocks or one schedule.** One schedule. The unlock premise is not supported (§4).
-   A restart changes almost nothing but the first hundred iterations' perturbation: three
-   blocks and one run of 6,000 have nearly the same gain, because the ratio is flat and
-   the perturbation is nearly flat after iteration 500 (§2). A restart also rounds every
-   centre, which jolts a coordinate with a step of 2 by up to a quarter of a step.
+   A restart is a higher gain by another name: three blocks carry a Λ of 1.16 against
+   0.92 for one run of 6,000 at the same `r_end`, 25% more, and their random walk's
+   variance is 25% more too (0.58 steps of SD against 0.52). The Λ bought per unit of
+   walk variance is the same, 3.44. Whatever a restart buys, a higher `r_end` buys at the
+   same price, without rounding every centre at each restart, which jolts a coordinate
+   with a step of 2 by up to a quarter of a step.
 2. **The stop.** The gradient test on the last 1,000 iterations (§8). Applied to the five
    blocks at iteration 2,000 (`stop.txt`):
 
@@ -264,13 +273,17 @@ enough.
    its exact null, with a familywise line. Net travel and "moved a full step" are
    dropped: travel is gain times noise, and a count of movers ignores how many
    coordinates there are.
-4. **Steps and perturbation.** Twice today's perturbation (§8). Every z doubles for the
-   same games, so coordinates now at z 1.5 to 2 become readable. Whether steps should be
-   sized by effect instead of `range / 16` is not settled here (§11).
-5. **Gain ratio.** Halved with the doubled perturbation, 0.0016. The move per unit of
-   `D` in raw units is then today's, so the random walk is unchanged, and Λ doubles (§5).
-   Keeping 0.0031 would quadruple Λ and double the walk; at a curvature of 1 the walk
-   would then cost about 0.2 Elo a coordinate, which is 6 Elo on a surface of 30.
+4. **Steps and perturbation.** Twice today's perturbation (§8), graded down to one
+   step where a coordinate lacks the room (§11). Every z doubles for the same games, so
+   coordinates now at z 1.5 to 2 become readable. The step stays `range / 16`: sizing it
+   by tree effect was read and not adopted (§11).
+5. **Gain ratio.** Halved with the doubled perturbation, 0.00155. The move per unit of
+   `D` in raw units is then today's at the same horizon, so the random walk is unchanged
+   while every gradient's pull doubles. At the recorded ceiling of 6,000 the walk is
+   0.39 steps of SD at iteration 2,000 against a block's 0.335, because the longer
+   horizon holds the ratio higher for longer, and 0.52 at 6,000. Keeping 0.0031 would
+   double Λ again and double the walk; at a curvature of 1 the walk would then cost
+   about 0.3 Elo a coordinate, 9 Elo on a surface of 30.
 6. **Games per iteration.** 30 stays: one pair a slot on 15 slots. The other coordinates'
    true gradients add 9.6% to an iteration's variance in the worst window (B.2.3 block
    1's first third), 5.3% in B.5.4's second third and nothing measurable elsewhere, so
@@ -280,7 +293,13 @@ enough.
    stationary state where averaging pays. This changes if Colosseum gains a held gain
    (§9).
 
-## 8. The proposed rule (draft, for sign-off)
+## 8. The rule
+
+Signed off by the maintainer on 2026-11-12 and recorded in PLAN rule 7c and PROCESS
+*SPSA go/no-go*, which now hold the text. One clause changed after §11's reads: the
+range exception below is all-or-nothing, and the recorded rule grades it (a coordinate
+takes the largest perturbation from one to two steps that its room allows). As first
+drafted here:
 
 **PLAN rule 7c, replacing the block text and the 2026-10-27 paragraph:**
 
@@ -288,7 +307,7 @@ enough.
 > gone.**
 > - *Shape.* 30 games an iteration on 15 slots. A registered ceiling, 6,000 iterations
 >   (180,000 games) unless the registration argues another. The perturbation is twice
->   the generator's step schedule and `r_end` is 0.0016. A coordinate whose seed plus or
+>   the generator's step schedule and `r_end` is 0.00155. A coordinate whose seed plus or
 >   minus two steps leaves its range keeps the single step.
 > - *Checkpoints.* Iteration 2,000 and every 1,000 after it. At each, `tools/spsa_read.py`
 >   reads the last 1,000 iterations.
@@ -322,17 +341,17 @@ things, both reported with the stop:
   (the familywise line times the 1.3 Elo of a 1,000-iteration window);
 - the forecast's upper reading for the next 2,000 iterations is under twice its SD:
 
-  | Coordinates | Today's perturbation | Twice the perturbation, half the ratio |
+  | Coordinates | A block, then a restarted block | The recorded shape, read at 2,000 |
   |---:|---:|---:|
-  | 8 | 4.6 Elo | 2.3 Elo |
-  | 15 | 6.4 | 3.2 |
-  | 29 | 8.8 | 4.4 |
-  | 49 | 13.4 | 6.7 |
+  | 8 | 5.2 Elo | 1.8 Elo |
+  | 15 | 7.2 | 2.5 |
+  | 29 | 10.0 | 3.5 |
+  | 49 | 14.9 | 4.5 |
 
-  At 49 coordinates today's perturbation cannot tell a tune with 13 Elo left from a
-  finished one. B.2.3's block 2 shows it: no 1,000-iteration window reads live, yet over
-  its whole 2,000 iterations `Σ z² − n` is +3.1 SD. The doubled perturbation halves the
-  floor, and a smaller surface lowers it further.
+  At 49 coordinates a block cannot tell a tune with 15 Elo left from a finished one.
+  B.2.3's block 2 shows it: no 1,000-iteration window reads live, yet over its whole
+  2,000 iterations `Σ z² − n` is +3.1 SD. The recorded shape brings the floor under 5
+  Elo at every surface size in the record (`forecast.txt`).
 
 **PROCESS *SPSA go/no-go*, items 5 and 6:**
 
@@ -442,24 +461,47 @@ change in that repository and a re-pin, on the maintainer's decision.
   ends that drift. A quiet read followed by the same drift in the next tune contradicts
   it.
 
-## 11. Not run, and what is owed
+## 11. The two reads, run as BAS-S57
 
-- **Steps sized by effect.** Whether the change in `bench 13` at seed plus or minus one
-  step predicts which coordinates carry gradient, tested against the 150 z values in
-  hand. Zero games, minutes on the tune binaries. If it holds, the generator can size a
-  step by tree effect; if not, `range / 16` stays. Its prediction is frozen before it
-  runs.
-- **The doubled perturbation's bounds.** For B.6.7's surface: which coordinates leave
-  their range at two steps, and `bench 13` and WAC at both ends. Zero games; it belongs
-  to that tune's registration.
-- **A games test of old method against new** is not proposed. It costs two tunes and
+Registered with frozen predictions before any point, then run: `bench 13` over UCI at
+each coordinate's seed −2, −1, +1 and +2 steps, on the three tune binaries still on disk
+(B.3.3, B.4.6, B.5.4; 52 coordinates, 211 points, no fault). B.2.3's binary is gone.
+
+- **Steps sized by effect: not adopted.** The question was whether a coordinate's tree
+  effect at one step predicts whether its tune found a gradient. The pooled rank
+  correlation is **+0.24** (B.3.3 +0.02, B.4.6 +0.50, B.5.4 +0.52), against a registered
+  line of +0.40, and only 1 of the 5 live coordinates lies in its block's top third by
+  tree effect. `range / 16` stays.
+- **Why the proxy is weak.** `bench 13` answers a one-step move of a pruning constant
+  with a node change of 2% to 34% whose size and sign barely depend on the step: the
+  two-step response is 1.5 to 3 times the one-step response for only 8 of 52
+  coordinates. At this scale the node count is tree chaos, not a response curve. This
+  also means the read says nothing about whether the Elo response is linear at two
+  steps; that stays with §10's falsifier.
+- **The doubled perturbation runs clean.** No fault at 208 perturbed points. At two
+  steps 96 of 97 unclamped points stay within a factor of 2 in nodes; the exception is
+  `B3NmpRedEvalDiv` at 44 (seed 72), a divisor, at 2.37 times.
+- **Room.** 10 of the head's 74 coordinates lack two steps of room at their defaults:
+  four have 1.5 steps, three have 1, and three have under 1 (`CoreCaptFutHistDiv`,
+  `CoreResearchShallower`, `B3SingTripleQuiet`), where today's first perturbation
+  already clamps.
+- **What changed.** The rule's range exception is graded by room. A coordinate held to
+  one step runs at half the gain ratio, so its Λ at iteration 2,000 is 0.23 against a
+  block's 0.385: it converges more slowly than today. That is the price of one shared
+  `r_end`, and the reason a gain ratio per coordinate is on §9's list for Colosseum.
+
+**Not run.**
+
+- For B.6.7's surface, `bench 13` and WAC at both ends of each coordinate's
+  perturbation. Zero games; it belongs to that tune's registration.
+- A games test of old method against new is not proposed. It costs two tunes and
   resolves only a difference of about 8 Elo. The next tune's scored reads are the test.
 
 ## 12. Separate findings
 
 - **B.5.4 and B.4.6 both ended with live gradient.** `B3SingMargin` read z −3.63 over
   B.5.4's last 1,000 iterations and `B3NmpPerPly` −3.20 over B.4.6's. The forecast puts
-  B.5.4's withdrawn block 2 at +15.1 ± 2.3 at most; halved, about +7. The decision to
+  B.5.4's withdrawn block 2 at +17.2 ± 2.6 at most; halved, about +9. The decision to
   withdraw it stands. **Owner:** B.6.7's surface, which starts with both known live.
 - **Rule 7c stopped B.4.6 one block early** by this read. No action: B.5.4 carried
   `B3NmpPerPly` further.
@@ -475,8 +517,10 @@ change in that repository and a re-pin, on the maintainer's decision.
 | `noise.py` | 1422ad14… | `noise.txt` | e3b5bae1… | §2, §3 |
 | `unlock.py` | 9a63110c… | `unlock.txt` | 027b0ad3… | §4 |
 | `gain.py` | e3236c09… | `gain.txt` | deb9f45d… | §5, the tune's own read |
-| `forecast.py` | c9f7bcb1… | `forecast.txt` | 3b00c78b… | §5, capacity and forecast |
+| `schedule.py` | d6eb71dd… | `schedule.txt` | 18d96acf… | §2, §5, §7, the schedule in closed form |
+| `forecast.py` | d6b54849… | `forecast.txt` | b94ca2e0… | §5, §8, forecast, floor and capacity table |
 | `stop.py` | 296af29a… | `stop.txt` | fecf3b59… | §7, §8, the null's check |
+| `steps.py` | 76ce0219… | `steps.jsonl`, `steps.txt` | 0efa7cbb…, ba1a273e… | §11, BAS-S57 |
 
 Outside sources, read 2026-11-12 through summaries of the pages, not the pages
 themselves:

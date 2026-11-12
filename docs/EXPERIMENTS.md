@@ -554,7 +554,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S56](experiments/BAS-S56.md) — B.5.4 diagnostic: SPSA block 1's centres (theta) against the seeds — +10.8 ± 5.3 Elo over 6,000 games; gate (b) retired by its rule
 
-- [BAS-S57](experiments/BAS-S57.md) — B.5.6: two zero-game reads for the SPSA method (steps by effect; the doubled perturbation) — registered 2026-11-12, zero games; not yet run
+- [BAS-S57](experiments/BAS-S57.md) — B.5.6: two zero-game reads for the SPSA method (steps by effect; the doubled perturbation) — CLOSED 2026-11-12: steps by tree effect not adopted (pooled rank correlation +0.24 against +0.40); two-step perturbations run clean; rule 7c's range exception graded by room
 
 | ID | Title | Disposition |
 |---|---|---|
