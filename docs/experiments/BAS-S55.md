@@ -329,4 +329,46 @@ thinks, against 7.63% and 1.94% uncapped; −3.6 ± 9.1 Elo); the bench count.
 
 #### RESULT for the remedy — append after exposure
 
-- *Not run.*
+- **The run** (2026-11-12, maintainer-run, `tools/results/b55-direction-ltc-cap1/`;
+  manifest `colosseum_match_b55-direction-ltc-cap1_20261112_125604`, both pins and
+  `bench 13` counts confirmed, (d)'s run file, exit 0): **+20.3 ± 8.9 Elo** (nElo +34.8
+  ± 15.2) at `10+0.1`, 589 wins, 939 draws, 472 losses, pentanomial [13, 216, 446, 291,
+  34]; the PGN recount agrees. No fault, no time loss.
+- **The games census** (`census/census.json` 516f80aa…), beside (d)'s:
+
+  | | the capped arm | OFF | (d) the arm | (d) OFF |
+  |---|---:|---:|---:|---:|
+  | Decided at 300; unconverted | 620; **32** (5.16%) | 489; **18** (3.68%) | 605; 48 (7.93%) | 465; 28 (6.02%) |
+  | Decided at 800; unconverted | 588; 0 | 470; 0 | 559; 3 | 435; 1 |
+  | Won band: mean ms; at half the clock or more | 179.6; **2.00%** | 179.0; **1.39%** | 184.3; 6.82% | 184.2; 1.30% |
+  | Even band | 278.7; 0.35% | 268.6; 0.20% | 279.3; 0.35% | 268.8; 0.19% |
+
+- **L1 fails again.** 32 − 18 = 14, past max(6, 3·√18) = 12.7. Nothing at 800 or 1,500 to
+  read.
+- **(e)'s second trigger no longer fires:** 2.00% against 1.39%, 1.44 times, under 1.5.
+- **What the reads say, judging nothing:**
+  - The cap removes the long thinks: the arm's won-band share falls from 6.82% to 2.00%
+    while the OFF arm's, which the cap does not reach, holds at 1.30% and 1.39%.
+  - It does not close the conversion gap. Both arms' unconverted counts fell by about a
+    third (48 to 32, and the untouched OFF arm 28 to 18), so the fall is the run's and
+    not the cap's; the ratio holds at about 1.4 per decided game. Per decided game the
+    excess is z ≈ 1.2 in each of (a), (d) and this run, and z ≈ 2.0 pooled over the three:
+    a small, consistent gap in turning +300 into wins.
+  - Its size: about 1.5 points per hundred decided games, of which each draw costs half a
+    point, about 4 points in 2,000 games, or roughly 1 Elo. The bound penalises the arm's
+    strength as well: at the OFF arm's rate the arm's 620 decided games would hold 23.
+  - The cap costs nothing visible here: +20.3 against (d)'s +20.9 on the same openings.
+- **Disposition by the registration:** the condition fails with the first remedy, so the
+  hole's repair is pulled from D.1 as a research card, with the maintainer's agreement
+  (§A2.5). The flip waits on the maintainer.
+
+#### PREDICTION CALIBRATION for the remedy — preserve the prediction above
+
+- **G6: miss.** L1 fails (passing was called 75%), though the rate, 5.16%, is inside
+  [4.5%, 7.5%]: the OFF arm's rate fell too, which the prediction held fixed.
+- **G7: hit.** +20.3 against +17, inside [+4, +30].
+- **G8: half.** The share fell to 2.00%, at the edge of [2%, 5%]; the trigger did not fire
+  (firing was called 70%).
+- **For the next prior:** a count across two runs of the same opponent moved 28 to 18 on
+  the same openings. A bound of 3·√OFF on one run's count difference sits near 1.8
+  standard deviations of that difference, before the stronger arm's extra decided games.

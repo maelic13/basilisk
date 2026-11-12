@@ -2702,6 +2702,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           3,783,135; OFF 4,144,790 unchanged), pinned as `-Gate dcap` in
           `tools/run_b55_gates.ps1`; (d)'s run file and seed; dry run
           accepted, guards 13 of 13; G6 to G8 frozen. Maintainer-run.
+        - 2026-11-12: the remedy reads +20.3 ± 8.9 at `10+0.1`; **L1 fails
+          again** (32 against 18, bound 12.7), and (e)'s census trigger no
+          longer fires (2.00% against 1.39%). The cap removes the long
+          thinks; the conversion gap, about 1 Elo, stays. By §A2.5 the
+          hole's repair is pulled from D.1 with the maintainer's
+          agreement; the flip waits on the maintainer.
     - [ ] **B.5.6** `[R3]` SPSA method investigation and redesign
       Added 2026-11-12 (maintainer), after B.5.5 and before any later
       tune (B.6.7, C.10): a proper investigation of how Basilisk runs
@@ -3778,7 +3784,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.5 | RESEARCH | V | (a) H1 (+16.8 ± 6.1); (d) +20.9 ± 8.5 but L1 fails (48 against 28, bound 15.9) and (e)'s census trigger fires; the flip waits on the registered remedy, (d) again with `B5NegExtMax` 1 (`-Gate dcap`, prepared, the maintainer's to run), and the maintainer's call on (e) (BAS-S55) |
+| B.5.5 | RESEARCH | V | (a) H1 (+16.8 ± 6.1); (d) +20.9 ± 8.5; L1 fails, and fails again with `B5NegExtMax` 1 (+20.3 ± 8.9; 32 against 18, bound 12.7), whose census no longer triggers (e). The next decision is the maintainer's: pull D.1's hole repair as §A2.5 says, or another disposition (BAS-S55) |
 | B.5.6 | RESEARCH | R3 | Added 2026-11-12; the SPSA method investigation, after B.5.5 and before any later tune |
 | B.5.7 | RESEARCH | R2 | Added 2026-11-12; two games per physical core on SMT siblings, at `3+0.03` and at a control lengthened to today's nodes per move, read against B.5.5's games |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
