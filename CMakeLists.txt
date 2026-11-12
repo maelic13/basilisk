@@ -196,7 +196,7 @@ set(BASILISK_SEARCH_KERNEL_SOURCES
 )
 
 # Engine library — evaluation and search (depends on board)
-add_library(basilisk_engine STATIC
+set(BASILISK_ENGINE_SOURCES
     src/eval.cpp
     src/search_thread_pool.cpp
     src/search_worker.cpp
@@ -207,7 +207,15 @@ add_library(basilisk_engine STATIC
     src/physical_memory.cpp
     ${BASILISK_SEARCH_KERNEL_SOURCES}
 )
+add_library(basilisk_engine STATIC ${BASILISK_ENGINE_SOURCES})
 target_link_libraries(basilisk_engine PUBLIC basilisk_board PRIVATE fathom)
+
+# The same library with each recursive call of the kernel logged
+# (src/search_child_log.h), for the test that pins the node type every call
+# passes. Test-only: nothing that ships links it.
+add_library(basilisk_engine_child_log STATIC ${BASILISK_ENGINE_SOURCES})
+target_link_libraries(basilisk_engine_child_log PUBLIC basilisk_board PRIVATE fathom)
+target_compile_definitions(basilisk_engine_child_log PUBLIC BASILISK_CHILD_LOG)
 
 # The name a build reports. Development builds read Stockfish's form,
 # `Basilisk dev-<commit date>-<hash>`, from a header regenerated at every build,
@@ -329,6 +337,13 @@ target_link_libraries(test_b4_qsearch PRIVATE basilisk_engine)
 add_executable(test_b5_root tests/test_b5_root.cpp
                src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_b5_root PRIVATE basilisk_engine)
+# Perft through the search's own pickers, make and unmake.
+add_executable(test_search_path tests/test_search_path.cpp)
+target_link_libraries(test_search_path PRIVATE basilisk_engine)
+# The kernel's present choices, pinned so that a change is a decision.
+add_executable(test_kernel_pins tests/test_kernel_pins.cpp
+               src/parameters.cpp src/bench.cpp src/wac.cpp)
+target_link_libraries(test_kernel_pins PRIVATE basilisk_engine_child_log)
 
 add_executable(test_cpu_features tests/test_cpu_features.cpp)
 target_include_directories(test_cpu_features PRIVATE
@@ -402,6 +417,8 @@ add_test(NAME test_stack_unwind     COMMAND test_stack_unwind)
 add_test(NAME test_b3_proof         COMMAND test_b3_proof)
 add_test(NAME test_b4_qsearch       COMMAND test_b4_qsearch)
 add_test(NAME test_b5_root          COMMAND test_b5_root ${CMAKE_SOURCE_DIR}/tools/diag/suite_v2.epd)
+add_test(NAME test_search_path      COMMAND test_search_path)
+add_test(NAME test_kernel_pins      COMMAND test_kernel_pins)
 add_test(NAME test_cpu_features COMMAND test_cpu_features)
 add_test(NAME test_move         COMMAND test_move)
 add_test(NAME test_magics       COMMAND test_magics)
@@ -586,6 +603,7 @@ set(_ALL_TARGETS
     test_board test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics test_threats
     test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch test_b5_root
+    basilisk_engine_child_log test_search_path test_kernel_pins
 )
 
 # Fathom is part of the shipped executable and must obey its ISA contract, but
