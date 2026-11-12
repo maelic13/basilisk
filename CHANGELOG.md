@@ -16,6 +16,26 @@ and next step).
 
 ### Changed
 
+- **Rebuilt the search at the root.** The engine's first move of each line
+  and its aspiration windows now follow modern Stockfish:
+  - it keeps a record of every move at the root: its last score, its average
+    and how much its scores vary;
+  - each search starts with a narrow window around the move's average,
+    widened by how much its scores have varied, so level positions search
+    narrowly and unclear ones widely; with several lines (`MultiPV`) each line
+    gets its own window;
+  - moves after the first at the root are searched at reduced depth, as
+    everywhere else in the tree, and searched again in full if they surprise;
+  - a line may take only one of the extensions a promising move earns past
+    full depth, so lines no longer grow without bound;
+  - when the best move keeps failing high, the search stops at twice its
+    planned time instead of at it.
+
+  Its constants, and five from earlier rebuilds, were then fitted by tuning.
+  Measured against the previous search at `3+0.03`, it gained **+16 ± 6
+  Elo** (5,006 games, a sequential test stopped when it was sure), of which
+  the tuning gave **+11 ± 5 Elo** (6,000 games). At `10+0.1` it gained **+20
+  ± 9 Elo** (2,000 games). `bench 13` is now 3,783,135.
 - **Rebuilt the search of captures at the end of each line.** Where the main
   search stops, the engine plays out captures until the position is quiet.
   That step now follows modern Stockfish:

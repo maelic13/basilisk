@@ -508,7 +508,7 @@ option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production build
 # B5_ROOT is Cluster 4, the donor's root-move record, aspiration loop and root
 # reduction, built as `if constexpr` branches in the driver and the node kernel
 # so both arms compile on every build.
-option(B5_ROOT "Compile Cluster 4's root and aspiration into the search (sets BASILISK_B5_ROOT)" OFF)
+option(B5_ROOT "Compile Cluster 4's root and aspiration into the search (sets BASILISK_B5_ROOT)" ON)
 option(PROFILE_SYMBOLS "Emit line tables with inline records in Release builds for the sampling profiler; code generation is unchanged" OFF)
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
