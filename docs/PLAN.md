@@ -3694,7 +3694,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.4 | RESEARCH | V | Block 1 complete (three movers; its two host-caused forfeits accepted by the maintainer); block 2 withdrawn by the maintainer, so theta is block 1's centres. Next: the fitted-constant analysis, then the bake. BAS-S56 (theta against the seeds, 6,000 games) is prepared, maintainer-run |
+| B.5.4 | RESEARCH | V | Block 1 complete (three movers; its two host-caused forfeits accepted by the maintainer); block 2 withdrawn by the maintainer, so theta is block 1's centres. Next: the fitted-constant analysis, then the bake. BAS-S56 read theta +10.8 ± 5.3 over the seeds, which retires gate (b) once the bake's bench check holds |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55, whose (c) stop bracket is closed, H1 |
 | B.5.6 | RESEARCH | R3 | Added 2026-11-12; the SPSA method investigation, after B.5.5 and before any later tune |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |

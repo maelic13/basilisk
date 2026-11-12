@@ -83,4 +83,25 @@
 
 #### RESULT — append after exposure
 
-- *Not run.*
+- **Result (maintainer-run 2026-11-12, 08:01 to 09:07 UTC, two sessions):** **block 1's
+  centres +10.8 ± 5.3 Elo over the seeds** (nElo +17.9 ± 8.8).
+  - W/D/L 1,645 / 2,897 / 1,458 for `Block1`, pentanomial [77, 675, 1332, 816, 100],
+    6,000 games over 3,000 pairs; no fault, natural termination, the independent PGN
+    recount agrees.
+  - Manifests `colosseum_match_b54-block1-match_20261112_090119` (first session) and
+    `…_094045` (the resume, completed); run record 82A14701…, PGN 2DCA5E49….
+- **Gate (b) rule applied:** the 95% interval [+5.5, +16.1] excludes 0 on the positive
+  side, so **gate (b) is answered by this read and retired unrun**, once the bake's
+  `bench 13` reproduces this Tune build's count with theta set.
+- **The SPRT reading, for the record only:** read as gate (b)'s `[0,3]` nElo SPRT, these
+  games end at LLR +2.45 against +2.94, and replayed pair by pair in completion order
+  they cross neither bound (highest +2.50, at pair 2,991). At this rate the SPRT would
+  have needed about 7,200 games. It is not the verdict; the rule above is.
+- **Against the prediction:** +10.8 lies above the 80% interval [−4, +10], a miss on
+  magnitude by 0.8; the probability-positive clause (70%) holds. Neither falsifier fires:
+  the interval is not below 0, and the reading is under +20. The model's error: three
+  one-step movers were priced at a few Elo, and the seeds were a worse operating point
+  than the width run's level read suggested. The fitted-constant analysis asks which
+  mover carries it.
+- Disposition: run, +10.8 ± 5.3; gate (b) retired by the registered rule, pending the
+  bake's bench check.
