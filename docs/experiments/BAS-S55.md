@@ -372,3 +372,51 @@ thinks, against 7.63% and 1.94% uncapped; −3.6 ± 9.1 Elo); the bench count.
 - **For the next prior:** a count across two runs of the same opponent moved 28 to 18 on
   the same openings. A bound of 3·√OFF on one run's count difference sits near 1.8
   standard deviations of that difference, before the stronger arm's extra decided games.
+
+#### THE MAINTAINER'S DISPOSITION OF L1, AND GATE (a) ON THE CAPPED ARM (registered 2026-11-12, before any of its games)
+
+- **L1 is waived** (maintainer, 2026-11-12), an exception recorded with the analysis
+  above: the conversion gap is about 1 Elo against the arm's +20, consistent across three
+  runs (z ≈ 2.0 pooled) and not the cap's, and the bound tightens with the arm's
+  strength. The gap goes to D.1's hole card with these four censuses. The rule is not
+  rewritten: a later flip condition is registered afresh.
+- **The cap is adopted:** the candidate is the arm at `B5NegExtMax` 1 (`833659f`). It
+  removed the won-band long thinks at `10+0.1` and read +20.3 ± 8.9 against (d)'s +20.9
+  on the same openings. The packet's donor-form row for the ceiling (§14) changes at the
+  flip, with Triumviratus's count cap (TS-1) as the source.
+- **(e) is not owed on the candidate.** Trigger 2, the remedy's census: 2.00% against
+  1.39%, 1.44 times, under 1.5. Trigger 1, read 2026-11-12, zero-game, on a quiet host:
+  the fitted Tune build `F2AF4E1E…` at `B5NegExtMax=1` (its `bench 13` replay equals the
+  capped arm's 3,783,135), stratum W at `60000+600`, BAS-S53's positions
+  (`b55-20261112/battery_cap1.ps1` afe94e71…, `battery/60000+600/arm-cap1.json`
+  4d7365d8…): **0 over half the maximum, 0 at it, 202.2 s, against the OFF column's 1,
+  0, 200.2 s. Not fired.**
+- **(a) again, on the candidate**, since the cap changes what (a) passed. (a)'s design
+  exactly, on the remedy's pinned pair (`833659f`; the arm 122BE50F…, 3,783,135; OFF
+  17978E36…, 4,144,790): SPRT `[0,3]` nElo at `3+0.03`, 1T, Hash 64, paired reversed
+  UHO, no adjudication, tablebases off, **cap 4,500 pairs**, a fresh seed, 55006. Results
+  in `tools/results/b55-gate-a-cap1`.
+  - **H1:** the candidate is accepted and the flip follows.
+  - **H0 or the cap:** the flip does not happen; the evidence goes to the maintainer.
+- **Launch:** `pwsh -NoProfile -File tools/run_b55_gates.ps1 -Gate acap`. Its dry run from
+  the clean tree at `6f7fafd` is accepted (`colosseum_sprt_b55-gate-a-cap1_20261112_140954`,
+  9DC37DAC…: `--max-pairs 4500`, seed 55006, `3000+30`). The guard test (bdd74bdb…, output
+  `guard_test_acap.txt` c4a815e9…) passes 17 of 17, among them a wrong binary, a missing
+  binary and a finished gate for this run.
+
+#### PRE-REGISTERED PREDICTION for (a) on the capped arm — freeze before exposure
+
+Frozen 2026-11-12. Seen before freezing: (a), (d), the remedy and their censuses, §9 item
+1's paired run (the cap −3.6 ± 9.1 at `3+0.03`, on the seeds' tree), the battery above.
+
+| # | Prediction | Confidence | Falsifier |
+|---|---|---|---|
+| G9 | H1 (80%), the cap (17%), H0 (3%); the estimate at the stop **+15 Elo**, 80% interval [+6, +24] | moderate | H0, or an estimate under +6: the cap costs at the short clock what it did not cost at `10+0.1` |
+
+- **The reasoning.** (a) read +16.8 at a first crossing, which reads high. At `10+0.1`
+  the cap cost 0.6 Elo; item 1 read it at −3.6 ± 9.1 at `3+0.03` on another tree. Netting
+  a small short-clock cost against the crossing's bias leaves about +15, with G3's odds.
+
+#### RESULT for (a) on the capped arm — append after exposure
+
+- *Not run.*

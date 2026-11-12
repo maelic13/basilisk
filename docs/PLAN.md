@@ -2708,6 +2708,13 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           thinks; the conversion gap, about 1 Elo, stays. By §A2.5 the
           hole's repair is pulled from D.1 with the maintainer's
           agreement; the flip waits on the maintainer.
+        - The maintainer waives L1 and adopts the cap (2026-11-12); the gap
+          goes to D.1's hole card. (e) is not owed on the candidate: its
+          census trigger reads 1.44 times and its battery 0 over half
+          against 1. Gate (a) is played again on the capped pair: SPRT
+          `[0,3]`, cap 4,500 pairs, seed 55006, `-Gate acap`; dry run
+          accepted, guards 17 of 17; G9 frozen. Maintainer-run; on H1 the
+          flip follows, and the packet's ceiling row moves with it.
     - [ ] **B.5.6** `[R3]` SPSA method investigation and redesign
       Added 2026-11-12 (maintainer), after B.5.5 and before any later
       tune (B.6.7, C.10): a proper investigation of how Basilisk runs
@@ -3784,7 +3791,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.5 | RESEARCH | V | (a) H1 (+16.8 ± 6.1); (d) +20.9 ± 8.5; L1 fails, and fails again with `B5NegExtMax` 1 (+20.3 ± 8.9; 32 against 18, bound 12.7), whose census no longer triggers (e). The next decision is the maintainer's: pull D.1's hole repair as §A2.5 says, or another disposition (BAS-S55) |
+| B.5.5 | RESEARCH | V | L1 waived and the cap adopted (maintainer); (e) not owed. The next action is the maintainer's: gate (a) on the capped arm (`-Gate acap`, SPRT `[0,3]`, cap 4,500 pairs), then the flip (BAS-S55) |
 | B.5.6 | RESEARCH | R3 | Added 2026-11-12; the SPSA method investigation, after B.5.5 and before any later tune |
 | B.5.7 | RESEARCH | R2 | Added 2026-11-12; two games per physical core on SMT siblings, at `3+0.03` and at a control lengthened to today's nodes per move, read against B.5.5's games |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
