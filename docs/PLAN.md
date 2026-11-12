@@ -2836,10 +2836,13 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       It was B.6.2 until 2026-11-11.
       The joint SPSA above, on the reconciled head.
       Horizon (maintainer 2026-11-12): one night, a single 2,000-iteration
-      block (about 12.5 hours), and no second block whatever rule 7c's
-      count reads; theta is that block's centres. Phase C's evaluation
-      moves the cp scale the margins act on, so one night takes most of
-      what this fit can keep, and C.10 is the classical stage's long fit.
+      block (about 12.5 hours). Phase C's evaluation moves the cp scale
+      the margins act on, so one night takes most of what this fit can
+      keep, and C.10 is the classical stage's long fit. Rule 7c's count
+      does not start a second block. After the block, its analysis (the
+      movers, the drift against a random walk, rails, reversals) is
+      discussed with the maintainer, who decides whether one more block
+      runs; otherwise theta is the block's centres.
       The surface is every live search coordinate that passes B-102's
       relevance read, never only those still moving after their
       cluster's fit.
@@ -4266,12 +4269,16 @@ has lost games in both engines (BAS-X02).
   registration sets the horizon and the stop.
     - [ ] **C.10.1** `[R2]` Joint-fit investigation and registration
       Registers the surface, the horizon, the schedule and the stop
-      before any game. Its questions:
+      before any game. Decided from this leaf's own analysis, not from
+      expectations set earlier (maintainer 2026-11-12). Its questions:
       - which coordinates join: every live search coordinate that passes
-        B-102's relevance read on the new evaluation, and whether the
-        "engine's parameters" reach evaluation coordinates, which B-107
-        (search and evaluation never share a tune, a Rarog lesson)
-        forbids. Departing from B-107 needs its evidence read first.
+        B-102's relevance read on the new evaluation, and evaluation
+        coordinates if the analysis says they belong, omitted if it says
+        they do not.
+      - B-107 (search and evaluation never share a tune) is Rarog's old
+        lesson, not a settled rule here: this leaf verifies it, reading
+        the Rarog evidence behind it and testing it on Basilisk's own
+        engine before the surface is chosen.
       - the per-coordinate steps from curvature, and the starting steps;
       - one long decaying schedule against restarted blocks, and the
         horizon's games against the drift model;
