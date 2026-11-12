@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.6.3** `[I1]` Search-path perft and kernel pins — Claude Sonnet
+**Next step:** **B.6.4** `[R3]` Engine audit on the four-cluster head — Claude Fable
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -117,7 +117,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.5.7** `[R2]` Two games per core on SMT siblings
     - [x] **B.5.8** `[I1]` SPSA read tool and checkpoint wrapper
 - [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
-    - [ ] **B.6.3** `[I1]` Search-path perft and kernel pins
+    - [x] **B.6.3** `[I1]` Search-path perft and kernel pins
     - [ ] **B.6.4** `[R3]` Engine audit on the four-cluster head
     - [ ] **B.6.5** `[I2]` Audit repairs before the fit
     - [ ] **B.6.6** `[R2]` Donor-form reconciliation

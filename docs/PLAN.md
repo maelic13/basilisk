@@ -3068,7 +3068,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   - Judging: an SPSA journal z-read of net travel against a null (B-101);
     movement is not Elo (B-100); Rarog's joint tune after fitted clusters
     bought +4.5 for 120k games (B-106).
-    - [ ] **B.6.3** `[I1]` Search-path perft and kernel pins
+    - [x] **B.6.3** `[I1]` Search-path perft and kernel pins
       Instruments the audit and the fit stand on; no engine change and
       the exact fingerprint. Each test is shown to fail on a planted
       fault, which is then reverted.
@@ -3097,6 +3097,43 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - IIR's condition, and the main search's refusal of a table
           cutoff from a rule-50 count of 96.
       - B.7.1 uses the perft as its safety net and builds no second one.
+      - Closed 2026-11-12 (`bench 13` 3,783,135 unchanged; CTest 30 of
+        30 in the release build):
+        - `tests/test_search_path.cpp` walks `CoreMovePicker` (main and
+          evasions) over randomised histories with make and unmake, and
+          reproduces every count: startpos 5, Kiwipete 4, position 3 at 6,
+          position 4 at 5, positions 5 and 6 at 4 (35 s; a build with
+          assertions walks shallower). At every node `Board::assert_ok`
+          recomputes keys, occupancy, piece table and checkers, unmake
+          restores the position, and the parent's moves are rerun through
+          the table move's test, as are the grandparent's (same side to
+          move) at interior nodes: 1.45e9 rechecks. Every delivered move
+          passes that test. At interior nodes quiescence's captures, its
+          quiet checks (each move played), its in-check cut and ProbCut's
+          SEE-cleared candidates each match their rule. Each node's table
+          move comes from its key: none, legal or the grandparent's. All
+          four picker sources deliver.
+        - `tests/test_kernel_pins.cpp` links a test-only engine library
+          built with `BASILISK_CHILD_LOG` (`src/search_child_log.h`; its
+          hooks are empty in every other build). It pins the node type
+          that each of the eleven call sites passes over 24 searches:
+          every negamax call is named, every site is reached, and a
+          site that reads the caller's type is seen from both. It also
+          pins `is_capture_stage` against `captures_piece` over 1.18M
+          legal moves, castling quiet in both, plus `b3::iir_applies` and
+          `b3::tt_cutoff_rule50_allows`. The kernel's tests moved
+          unchanged into these named predicates and `table_move_usable`
+          (`move_picker_core.h`, `search_b3.h`).
+        - `tests/test_tt.cpp`: a store without a move keeps the entry's
+          move and takes none from another position's.
+        - Thirteen planted faults, each caught, then reverted: a dropped
+          bad capture, a repeated table move, a stale minor key, castling
+          through an attacked square accepted by the table move's test, a
+          missed discovered check, an underpromotion in ProbCut, the null
+          child typed cut, an unnamed call site, promotions counted as
+          captures by correction training, castling counted in the capture
+          stage, IIR's stale bound off by one, a table cutoff at 96, and
+          a store without a move dropping the entry's.
     - [ ] **B.6.4** `[R3]` Engine audit on the four-cluster head
       One read of the engine as Clusters 1 to 4 left it, by a session
       that implemented none of it, before anything is fitted on it: the
@@ -4039,7 +4076,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
 | B.6.4 | RESEARCH | R3 | Added 2026-11-11; the whole engine read once after B.5 closes, before the fit |
 | B.6.5 | RESEARCH | I2 | Added 2026-11-11; on B.6.4's handoffs, which confirm, split or replace it |
 | B.6.6 | RESEARCH | R2 | Was B.6.1; added 2026-10-31; after B.6.5, on the repaired head |
