@@ -63,6 +63,10 @@
   194A0508…). Arm A carries the eight options above; arm B carries Hash and Threads
   only.
 
+- **Note, 2026-11-12, before any game:** the maintainer withdrew BAS-S54's block 2, so
+  block 1's centres are theta and this match reads the whole fit against its seeds. The
+  arms, conditions and prediction above are unchanged.
+
 #### RESULT — append after exposure
 
 - *Not run.*

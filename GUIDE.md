@@ -169,7 +169,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [ ] **C.7.7** `[V]` Endgame gate and closure
 - [ ] **C.8** `[V]` Refit cycles
 - [ ] **C.9** `[V]` Nonlinear HCE SPSA or a written skip
-- [ ] **C.10** `[V]` Search re-fit after the new evaluation
+- [ ] **C.10** Joint re-fit on the new evaluation
+    - [ ] **C.10.1** `[R2]` Joint-fit investigation and registration
+    - [ ] **C.10.2** `[V]` The joint fit, PGO and gate
 - [ ] **C.11** `[V]` Freeze the classical evaluation
 - [ ] **C.12** `[I2]` Evaluation throughput, bit-exact
 - [ ] **C.13** `[M]` Interim release after the evaluation programme

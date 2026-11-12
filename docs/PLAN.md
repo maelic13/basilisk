@@ -2630,7 +2630,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - At the maintainer's request (2026-11-12), a diagnostic of
           block 1's centres against the seeds, BAS-S56: 6,000 games on
           the block's binary, seed 56001, `tools/run_b54_block1_match.ps1`,
-          dry run accepted. Not a gate; block 2 runs as registered.
+          dry run accepted. Not a gate.
+      - Block 2 withdrawn unrun 2026-11-12 (maintainer), before BAS-S56's
+        first game: a second block buys a few Elo at most, and gains that
+        size wait for Phase H. Rule 7c's CONTINUE is overridden for this
+        tune, not changed. Theta is block 1's rounded centres
+        (`tuned-options.txt` 09b3a055…), so BAS-S56 reads the whole fit.
+        Next: the fitted-constant analysis, then the bake into
+        `BASILISK_B5_CORE_DEFAULTS` with the arm's new fingerprint.
     - [ ] **B.5.5** `[V]` Cluster 4 gates
       SPRT `[0,3]` for the cluster, and each categorical and
       attribution arm at the bounds the packet registers (BAS-S55);
@@ -2828,6 +2835,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [ ] **B.6.7** `[V]` Joint search SPSA
       It was B.6.2 until 2026-11-11.
       The joint SPSA above, on the reconciled head.
+      Horizon (maintainer 2026-11-12): one night, a single 2,000-iteration
+      block (about 12.5 hours), and no second block whatever rule 7c's
+      count reads; theta is that block's centres. Phase C's evaluation
+      moves the cp scale the margins act on, so one night takes most of
+      what this fit can keep, and C.10 is the classical stage's long fit.
+      The surface is every live search coordinate that passes B-102's
+      relevance read, never only those still moving after their
+      cluster's fit.
       A prior from the Rarog sweep (`analysis/rarog_sweep_2026-11-04.md`):
       a blind, uniform 15% shift of Rarog's whole selectivity surface
       toward less pruning read +4.06 ± 3.71 over 14,196 games (RAR-S54),
@@ -3633,7 +3648,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.5.4 | RESEARCH | V | Block 1 read CONTINUE (three movers; its two host-caused forfeits accepted by the maintainer). The next action is the maintainer's: SPSA block 2 (BAS-S54, seed 54002, `-SeedFrom` block 1, 60,000 games); then `spsa_block_rule.py` decides block 3 or theta |
+| B.5.4 | RESEARCH | V | Block 1 complete (three movers; its two host-caused forfeits accepted by the maintainer); block 2 withdrawn by the maintainer, so theta is block 1's centres. Next: the fitted-constant analysis, then the bake. BAS-S56 (theta against the seeds, 6,000 games) is prepared, maintainer-run |
 | B.5.5 | RESEARCH | V | After B.5.4; BAS-S55, whose (c) stop bracket is closed, H1 |
 | B.6.3 | READY_FOR_IMPLEMENTATION | I1 | Added 2026-11-11; the search-path perft (from B.7.1) and the kernel's pins, no engine change |
 | B.6.4 | RESEARCH | R3 | Added 2026-11-11; the whole engine read once after B.5 closes, before the fit |
@@ -4239,9 +4254,31 @@ has lost games in both engines (BAS-X02).
   are its items):
   - The nonlinear sweep (C-122); initiative and mop-up are untraced (C-47,
     C-36); the king-danger clamp (C-113).
-- [ ] **C.10** `[V]` Search re-fit after the new evaluation
+- [ ] **C.10** Joint re-fit on the new evaluation
   One joint SPSA over the registered cp-valued search coordinates, including
   B.4's value surface if it exists, then PGO and SPRT `[0,3]`.
+  Scope (maintainer 2026-11-12): this is the classical stage's big fit,
+  properly investigated and as long as it needs: it finds the joint
+  optimum of the engine's parameters on the new evaluation and finishes
+  the best HCE engine before C.12's throughput work and C.13's release.
+  Several nights are acceptable, with large early moves and a slowly
+  decaying schedule. Rule 7c's block cap does not bind it; its own
+  registration sets the horizon and the stop.
+    - [ ] **C.10.1** `[R2]` Joint-fit investigation and registration
+      Registers the surface, the horizon, the schedule and the stop
+      before any game. Its questions:
+      - which coordinates join: every live search coordinate that passes
+        B-102's relevance read on the new evaluation, and whether the
+        "engine's parameters" reach evaluation coordinates, which B-107
+        (search and evaluation never share a tune, a Rarog lesson)
+        forbids. Departing from B-107 needs its evidence read first.
+      - the per-coordinate steps from curvature, and the starting steps;
+      - one long decaying schedule against restarted blocks, and the
+        horizon's games against the drift model;
+      - the gate's bracket and cap for a fit of this size.
+    - [ ] **C.10.2** `[V]` The joint fit, PGO and gate
+      Runs C.10.1's registration, then the fitted-constant analysis, the
+      bake, PGO and the SPRT.
   Cluster 1's margins (RFP, futility, razoring) were fitted on the eval
   before B.10's flip, which moves it by 31.7 cp mean; B.6.7's joint fit
   re-reads them on the B head, and this leaf refits them on the new

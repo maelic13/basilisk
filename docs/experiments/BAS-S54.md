@@ -251,6 +251,13 @@ changes nothing registered above; what it bears on is the maintainer's to decide
   - **Launch:** `pwsh -NoProfile -File tools/spsa_colosseum.ps1 -Engine tools/test_engines/basilisk-b54-on-tune-pext-tune-pgo.exe -ExpectBench 3920652 -ExpectRevision a4637b6b4c91fefa0e7909a9120d64afef895cf5 -Tune tools/spsa_configs/colosseum/b54.tune.toml -Seed 54002 -SeedFrom tools/results/b54-spsa-block1 -Dir tools/results/b54-spsa-block2`.
 - Disposition: block 1 complete (CONTINUE; its two forfeits accepted by the maintainer);
   block 2 prepared, maintainer-run, not started.
+- **Block 2 withdrawn unrun (maintainer, 2026-11-12),** before its first game and before
+  any game of BAS-S56: a second block buys a few Elo at most, and gains that size wait
+  for Phase H. Rule 7c's CONTINUE is overridden for this tune, not changed. **Theta is
+  block 1's rounded centres**, the eight lines of `tuned-options.txt` (09b3a055…). Its
+  registration and dry run stay above as the record.
+- Disposition: one block; theta is block 1's centres. The fitted-constant analysis and
+  the bake follow.
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 
