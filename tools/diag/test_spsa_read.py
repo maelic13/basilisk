@@ -65,6 +65,40 @@ class StatisticTests(unittest.TestCase):
             for n, floor in zip((8, 15, 29, 49), floors):
                 self.assertAlmostEqual(2 * factor * math.sqrt(2 * n), floor, places=1)
 
+    def test_the_gradient_counts_every_iteration(self):
+        # Constant perturbation 8; D = delta on 50 iterations and 0 on 50. The
+        # least-squares slope of D on the signed perturbation is
+        # elo * (50 * 8) / (2 * 100 * 64); leaving the zeros out doubles it.
+        delta = [[1 if k % 3 else -1] for k in range(100)]
+        d = [delta[k][0] if k % 2 == 0 else 0 for k in range(100)]
+        run = sr.Run(pathlib.Path("crafted"), ["K0"], [8.0], [0.0], [100.0],
+                     sr.Schedule(100, 0.0, 0.0, 10.0, 0.00155), 6, [[50.0]] * 101, delta, d, "stopped", {})
+        self.assertAlmostEqual(sr.gradient(run, delta, list(range(100)), 0), sr.elo_per_d(6) / 32.0, places=12)
+
+    def test_a_forecast_is_scored_against_the_combined_sd(self):
+        # A gain read 3 Elo from its forecast: outside twice the forecast's own
+        # SD of 1, inside twice the combined SD once the gain read's noise counts.
+        delta = sr.perturbation_signs(77, 400, 2)
+        rng = random.Random(5)
+        d = [rng.choice((-3, -1, 0, 1, 3)) for _ in range(400)]
+        schedule = sr.Schedule(400, 0.601, 0.102, 40.0, 0.00155)
+        centres = [[50.0, 50.0]]
+        for k in range(400):
+            centres.append([centres[-1][i] + 8.0 * schedule.perturbation_factor(k) * schedule.ratio(k) * d[k] * delta[k][i]
+                            for i in range(2)])
+        run = sr.Run(pathlib.Path("crafted"), ["K0", "K1"], [8.0] * 2, [0.0] * 2, [100.0] * 2, schedule, 6,
+                     centres, delta, d, "completed", {})
+        actual = sr.crossfit_gain(run, delta, sr.actual_moves(run), range(200, 400))
+        noise = sr.null_gain_sd(run, range(200, 400), reps=20)
+        self.assertGreater(noise, 0.0)
+        near = {"at": 200, "forecast": {"segment": [200, 400], "elo": actual + 1.5 * noise, "sd": 0.1 * noise}}
+        far = {"at": 200, "forecast": {"segment": [200, 400], "elo": actual + 2.5 * noise, "sd": 0.1 * noise}}
+        scored = sr.score_forecasts(run, [near, far], 400, null_reps=20)
+        self.assertAlmostEqual(scored[0]["gain_read_sd"], noise, places=2)
+        self.assertGreater(scored[0]["combined_sd"], scored[0]["sd"])
+        self.assertTrue(scored[0]["within_two_sd"])       # outside twice its own SD, inside the combined
+        self.assertFalse(scored[1]["within_two_sd"])
+
     def test_rounding_is_the_runners(self):
         for value, expected in ((2.5, 3), (-2.5, -3), (2.4999, 2), (-0.5, -1), (7.945, 8)):
             self.assertEqual(sr.round_half_away(value), expected)
@@ -193,7 +227,12 @@ class SyntheticRunTests(unittest.TestCase):
         self.assertGreater(at_first["gain"]["elo"], 2 * at_first["gain"]["null_sd"])
         self.assertEqual(at_first["forecast"]["segment"], [2000, 3000])
         self.assertGreater(at_first["forecast"]["elo"], 0)
-        self.assertEqual(sr.read(run, 3000, null_reps=5)["verdict"], "STOP_CEILING")
+        at_ceiling = sr.read(run, 3000, null_reps=5)
+        self.assertEqual(at_ceiling["verdict"], "STOP_CEILING")
+        # No segment follows the ceiling, so no forecast floor is claimed there.
+        self.assertIsNone(at_ceiling["floor"]["forecast_two_sd_elo"])
+        self.assertIn("the ceiling is reached", sr.render(at_ceiling))
+        self.assertIsNotNone(at_first["floor"]["forecast_two_sd_elo"])
         self.assertEqual(sr.read(run, 2500, null_reps=5)["verdict"], "INTERIM")
 
     def test_a_centre_at_its_bound_pushed_outward_is_a_rail(self):
@@ -311,6 +350,22 @@ class CommandLineTests(unittest.TestCase):
         self.assertEqual(self.read(live, "--write-theta")["record"], "already recorded")
         self.assertTrue((live / "theta-2000.txt").is_file())
 
+    def test_a_read_between_checkpoints_is_not_recorded(self):
+        # The wrapper takes the record's last line as the tune's state, and
+        # the first three recorded forecasts decide whether it may be used.
+        import subprocess
+        live = simulate(self.root / "peek", **LIVE, completed=2500)
+        process = subprocess.run([sys.executable, str(ROOT / "tools" / "spsa_read.py"), str(live),
+                                  "--history-json", str(live / "history.json"), "--null-reps", "3",
+                                  "--record", "--json"], capture_output=True, text=True)
+        self.assertEqual(process.returncode, 0, process.stderr)
+        result = json.loads(process.stdout)
+        self.assertEqual(result["at"], 2500)
+        self.assertEqual(result["verdict"], "INTERIM")
+        self.assertIn("not recorded", result["record"])
+        self.assertFalse((live / "spsa-read.jsonl").exists())
+        self.assertFalse((live / "theta-2500.txt").exists())
+
     def test_an_error_exits_2(self):
         import subprocess
         directory = simulate(self.root / "bad", **QUIET, corrupt_at=10)
@@ -326,11 +381,35 @@ class CommandLineTests(unittest.TestCase):
 
 BLOCKS = {
     # max |z| and excess SD over iterations 1,000-2,000 (stop.txt), the
-    # coordinates over the line, the cross-fitted gain and its null SD (gain.txt)
-    "b33-spsa-block1": (1.97, -0.8, [], 13.3, 6.91),
-    "b46-spsa-block1": (3.20, 3.1, ["B3NmpPerPly"], 8.0, 5.23),
-    "b54-spsa-block1": (3.63, 6.6, ["B3SingMargin"], 11.3, 3.76),
+    # coordinates over the line, then the cross-fitted gain and its null SD
+    # with the gradient's denominator over every iteration.
+    "b33-spsa-block1": (1.97, -0.8, [], 11.61, 6.06),
+    "b46-spsa-block1": (3.20, 3.1, ["B3NmpPerPly"], 6.99, 4.63),
+    "b54-spsa-block1": (3.63, 6.6, ["B3SingMargin"], 9.95, 3.29),
 }
+# B.5.6's gain.txt counted only iterations with D not zero in the gradient's
+# denominator, which reads the gain high by their share (10% to 12% here).
+# Its recorded figures are kept reproducible beside the corrected ones.
+B56_GAIN = {"b33-spsa-block1": 13.3, "b46-spsa-block1": 8.0, "b54-spsa-block1": 11.3,
+            "b23-spsa-block1": 33.2, "b23-spsa-block2": 3.1}
+
+
+def b56_gain(run, span: range) -> float:
+    """B.5.6's gain read: sr.crossfit_gain with the denominator over D != 0 only."""
+    elo = sr.elo_per_d(run.games_per_iteration)
+    moves = sr.actual_moves(run)
+    total = 0.0
+    for lo in range(span.start, span.stop, sr.GAIN_SEGMENT):
+        hi = min(lo + sr.GAIN_SEGMENT, span.stop)
+        halves = [[k for k in range(lo, hi) if k % 2 == parity] for parity in (0, 1)]
+        for i in range(run.n):
+            grads = []
+            for ks in halves:
+                num = sum(run.delta[k][i] * run.d[k] * run.perturbation(k, i) for k in ks)
+                den = sum(run.perturbation(k, i) ** 2 for k in ks if run.d[k] != 0)
+                grads.append(elo * num / (2.0 * den) if den else 0.0)
+            total += grads[0] * sum(moves[k][i] for k in halves[1]) + grads[1] * sum(moves[k][i] for k in halves[0])
+    return total
 
 
 def history_from_result(directory: pathlib.Path, out: pathlib.Path) -> pathlib.Path:
@@ -351,7 +430,7 @@ def history_from_result(directory: pathlib.Path, out: pathlib.Path) -> pathlib.P
 # B.2.3's blocks, read by B.5.6 with signs recovered from the moves: max |z|
 # and excess SD over iterations 1,000-2,000, and the gain. Their clamped
 # coordinates make the runner's signs read differently.
-LEGACY = {"b23-spsa-block1": (2.58, 1.6, 33.2), "b23-spsa-block2": (2.39, 0.1, 3.1)}
+LEGACY = {"b23-spsa-block1": (2.58, 1.6, 29.82), "b23-spsa-block2": (2.39, 0.1, 2.44)}
 
 
 def legacy_window(run, lo: int, hi: int) -> tuple[float, float]:
@@ -393,7 +472,7 @@ class RecordedBlockTests(unittest.TestCase):
                 self.assertAlmostEqual(result["max_abs_z"], max_z, places=2)
                 self.assertAlmostEqual(result["excess_sd"], excess, places=1)
                 self.assertEqual(result["over_line"], over)
-                self.assertAlmostEqual(result["gain"]["elo"], gain, delta=0.25)
+                self.assertAlmostEqual(result["gain"]["elo"], gain, delta=0.05)
                 self.assertAlmostEqual(result["gain"]["null_sd"], null_sd, places=2)
 
     def test_every_recorded_move_is_the_runners_update(self):
@@ -429,7 +508,14 @@ class RecordedBlockTests(unittest.TestCase):
                 legacy_max, legacy_excess = legacy_window(run, 1000, 2000)
                 self.assertAlmostEqual(legacy_max, max_z, places=2)
                 self.assertAlmostEqual(legacy_excess, excess, places=1)
-                self.assertAlmostEqual(result["gain"]["elo"], gain, delta=0.25)
+                self.assertAlmostEqual(result["gain"]["elo"], gain, delta=0.05)
+
+    def test_b56s_gain_figures_come_from_its_denominator(self):
+        for block, recorded in B56_GAIN.items():
+            run, result = self.reads[block]
+            with self.subTest(block=block):
+                self.assertAlmostEqual(b56_gain(run, range(0, 2000)), recorded, delta=0.25)
+                self.assertLess(abs(result["gain"]["elo"]), abs(recorded))
 
 
 if __name__ == "__main__":

@@ -50,10 +50,11 @@ little-endian u64 a draw, -1 when even; iteration-major, knob order), so a
 centre held at a bound keeps its true sign. Before reading, every move is
 checked against them and the schedule in closed form, move = r_k * c_k * D *
 delta, a clamped one within it, so a misread journal or seed fails loudly.
-The gain read's gradient counts only iterations with D not zero.
 
 --record appends the read to <run>/spsa-read.jsonl (once per checkpoint) and
-rewrites <run>/spsa-read.txt. The exit status is 0 for any read, 2 for an
+rewrites <run>/spsa-read.txt; a read between checkpoints is printed and not
+recorded. A forecast is scored against the gain read over its segment, within
+twice the two reads' combined SD. The exit status is 0 for any read, 2 for an
 error.
 """
 
@@ -341,9 +342,22 @@ def gradient_z(run: Run, delta: list[list[int]], window: range) -> list[float]:
     return out
 
 
+def gradient(run: Run, delta: list[list[int]], ks: list[int], i: int) -> float:
+    """Coordinate i's gradient over iterations ks, in Elo per unit of the coordinate.
+
+    E[D_k] = (2 c_k / elo) * delta_k * g for every iteration, so g is the
+    least-squares slope of D on the signed perturbation. An iteration whose D
+    came out 0 is an observation like any other and stays in the denominator:
+    leaving it out selects on the outcome and reads g high by the share of
+    such iterations, about a tenth at thirty games.
+    """
+    num = sum(delta[k][i] * run.d[k] * run.perturbation(k, i) for k in ks)
+    den = sum(run.perturbation(k, i) ** 2 for k in ks)
+    return elo_per_d(run.games_per_iteration) * num / (2.0 * den) if den else 0.0
+
+
 def crossfit_gain(run: Run, delta: list[list[int]], moves: list[list[float]], span: range) -> float:
     """Sum over coordinates of gradient times move, cross-fitted within segments."""
-    elo = elo_per_d(run.games_per_iteration)
     total = 0.0
     starts = list(range(span.start, span.stop, GAIN_SEGMENT))
     if len(starts) > 1 and span.stop - starts[-1] < GAIN_SEGMENT:
@@ -353,11 +367,8 @@ def crossfit_gain(run: Run, delta: list[list[int]], moves: list[list[float]], sp
         even = [k for k in range(lo, hi) if k % 2 == 0]
         odd = [k for k in range(lo, hi) if k % 2 == 1]
         for i in range(run.n):
-            def grad(ks: list[int]) -> float:
-                num = sum(delta[k][i] * run.d[k] * run.perturbation(k, i) for k in ks)
-                den = sum(run.perturbation(k, i) ** 2 for k in ks if run.d[k] != 0)
-                return elo * num / (2.0 * den) if den else 0.0
-            total += grad(even) * sum(moves[k][i] for k in odd) + grad(odd) * sum(moves[k][i] for k in even)
+            total += (gradient(run, delta, even, i) * sum(moves[k][i] for k in odd)
+                      + gradient(run, delta, odd, i) * sum(moves[k][i] for k in even))
     return total
 
 
@@ -366,14 +377,15 @@ def actual_moves(run: Run) -> list[list[float]]:
 
 
 def null_gain_sd(run: Run, span: range, reps: int = NULL_REPS, seed: int = NULL_SEED) -> float:
-    """SD of the gain read with every coordinate's signs re-drawn at random."""
+    """SD of the gain read over span with every coordinate's signs re-drawn at random."""
     rng = random.Random(seed)
     values = []
     for _ in range(reps):
-        delta = [[rng.choice((-1, 1)) if run.d[k] != 0 else 0 for _ in range(run.n)] for k in range(run.completed)]
-        moves = [[delta[k][i] * run.schedule.ratio(k) * run.perturbation(k, i) * abs(run.d[k]) *
-                  (1 if run.d[k] > 0 else -1)
-                  for i in range(run.n)] for k in range(run.completed)]
+        # Rows outside the span are never read; they stay empty.
+        delta = [[rng.choice((-1, 1)) if run.d[k] != 0 else 0 for _ in range(run.n)] if k in span else []
+                 for k in range(run.completed)]
+        moves = [[delta[k][i] * run.schedule.ratio(k) * run.perturbation(k, i) * run.d[k]
+                  for i in range(run.n)] if k in span else [] for k in range(run.completed)]
         values.append(crossfit_gain(run, delta, moves, span))
     return statistics.pstdev(values)
 
@@ -451,7 +463,8 @@ def read(run: Run, at: int, window_size: int = 1000, first: int = 2000, every: i
         "floor": {
             "coordinate_elo": round(line * se_elo, 2),
             "coordinate_se_elo": round(se_elo, 3),
-            "forecast_two_sd_elo": round(2.0 * factor * math.sqrt(2.0 * n), 2),
+            # At the ceiling no segment follows, so the forecast rules nothing out.
+            "forecast_two_sd_elo": round(2.0 * factor * math.sqrt(2.0 * n), 2) if segment else None,
         },
         "gain": {"elo": round(gain, 2), "null_sd": round(gain_sd, 2), "span": [0, at], "null_reps": null_reps},
         "forecast": {"segment": [segment.start, segment.stop], "elo": round(factor * excess, 2),
@@ -468,8 +481,13 @@ def round_half_away(value: float) -> int:
     return int(math.ceil(value - 0.5)) if value < 0 else int(math.floor(value + 0.5))
 
 
-def score_forecasts(run: Run, records: list[dict], at: int) -> list[dict]:
-    """Each earlier forecast whose segment has been played, against the gain read over it."""
+def score_forecasts(run: Run, records: list[dict], at: int, null_reps: int = NULL_REPS) -> list[dict]:
+    """Each earlier forecast whose segment has been played, against the gain read over it.
+
+    The gain read it is scored against is itself noisy, usually more than the
+    forecast, so the two SDs combine: a forecast is within 2 SD when it is
+    within twice sqrt(forecast SD^2 + gain read's null SD^2) of the gain read.
+    """
     delta = signs(run)
     moves = actual_moves(run)
     scored = []
@@ -478,9 +496,13 @@ def score_forecasts(run: Run, records: list[dict], at: int) -> list[dict]:
         if hi <= lo or hi > at:
             continue
         actual = crossfit_gain(run, delta, moves, range(lo, hi))
+        actual_sd = null_gain_sd(run, range(lo, hi), reps=null_reps)
         forecast, sd = record["forecast"]["elo"], record["forecast"]["sd"]
+        combined = math.sqrt(sd ** 2 + actual_sd ** 2)
         scored.append({"made_at": record["at"], "segment": [lo, hi], "forecast": forecast, "sd": sd,
-                       "gain_read": round(actual, 2), "within_two_sd": abs(actual - forecast) <= 2.0 * sd})
+                       "gain_read": round(actual, 2), "gain_read_sd": round(actual_sd, 2),
+                       "combined_sd": round(combined, 2),
+                       "within_two_sd": abs(actual - forecast) <= 2.0 * combined})
     return scored
 
 
@@ -489,8 +511,8 @@ def forecast_status(scored: list[dict]) -> str:
     if len(first_three) < 3:
         return f"decides nothing: {len(scored)} of 3 forecasts scored"
     if all(s["within_two_sd"] for s in first_three):
-        return "the first three forecasts each fell within 2 SD: the forecast may be used"
-    return "decides nothing: a forecast among the first three fell outside 2 SD"
+        return "the first three forecasts each fell within 2 combined SD: the forecast may be used"
+    return "decides nothing: a forecast among the first three fell outside 2 combined SD"
 
 
 # --------------------------------------------------------------------------
@@ -507,12 +529,15 @@ def render(result: dict) -> str:
         f"  sum z^2 - n = {result['excess']:+.1f} ({result['excess_sd']:+.1f} SD; line "
         f"{result['excess_line']:.1f}); {'LIVE' if result['live'] else 'quiet'}",
         f"  floor: no coordinate above {result['floor']['coordinate_elo']:.1f} Elo across a perturbation "
-        f"(SE {result['floor']['coordinate_se_elo']:.2f}); the forecast's 2 SD is "
-        f"{result['floor']['forecast_two_sd_elo']:.1f} Elo",
+        f"(SE {result['floor']['coordinate_se_elo']:.2f}); "
+        + (f"the forecast's 2 SD is {result['floor']['forecast_two_sd_elo']:.1f} Elo"
+           if result['floor']['forecast_two_sd_elo'] is not None else "no forecast floor at the ceiling"),
         f"  the tune's own read of its gain since iteration 0: {result['gain']['elo']:+.1f} Elo "
         f"(null SD {result['gain']['null_sd']:.1f})",
-        f"  forecast for iterations {result['forecast']['segment'][0]}-{result['forecast']['segment'][1]}: "
-        f"at most {result['forecast']['elo']:+.1f} +/- {result['forecast']['sd']:.1f} Elo",
+        (f"  forecast for iterations {result['forecast']['segment'][0]}-{result['forecast']['segment'][1]}: "
+         f"at most {result['forecast']['elo']:+.1f} +/- {result['forecast']['sd']:.1f} Elo"
+         if result['forecast']['segment'][0] < result['forecast']['segment'][1]
+         else "  forecast: none, the ceiling is reached"),
         f"  arms clamped on over 1% of iterations: {', '.join(result['clamped_over_one_percent']) or 'none'}",
         f"  rails: {', '.join(result['rails']) or 'none'}; rail candidates (outward z of "
         f"{RAIL_CANDIDATE_Z:g} or more, under the line; they decide nothing): "
@@ -522,8 +547,9 @@ def render(result: dict) -> str:
     ]
     for item in result.get("scored_forecasts", []):
         lines.append(f"  forecast made at {item['made_at']} for {item['segment'][0]}-{item['segment'][1]}: "
-                     f"{item['forecast']:+.1f} +/- {item['sd']:.1f}; gain read {item['gain_read']:+.1f}; "
-                     f"{'within' if item['within_two_sd'] else 'outside'} 2 SD")
+                     f"{item['forecast']:+.1f} +/- {item['sd']:.1f}; gain read {item['gain_read']:+.1f} "
+                     f"+/- {item['gain_read_sd']:.1f}; "
+                     f"{'within' if item['within_two_sd'] else 'outside'} 2 combined SD ({item['combined_sd']:.1f})")
     if "forecast_status" in result:
         lines.append(f"  forecast: {result['forecast_status']}")
     lines.append("  coordinates (z, Elo across one perturbation, centre, theta):")
@@ -587,9 +613,13 @@ def main() -> int:
         at = args.at or run.completed
         result = read(run, at, args.window, args.first, args.every, args.null_reps)
         earlier = [r for r in load_records(args.run_dir) if r["at"] < at]
-        result["scored_forecasts"] = score_forecasts(run, earlier, at)
+        result["scored_forecasts"] = score_forecasts(run, earlier, at, args.null_reps)
         result["forecast_status"] = forecast_status(result["scored_forecasts"])
-        if args.record:
+        if args.record and result["verdict"] == "INTERIM":
+            # Only a registered checkpoint enters the record: a read between
+            # checkpoints decides nothing, and its forecast is never scored.
+            result["record"] = "not recorded: not a registered checkpoint"
+        elif args.record:
             result["record"] = record(args.run_dir, result)
             stop = result["verdict"] in ("STOP_QUIET", "STOP_CEILING")
             chosen = args.write_theta and result["verdict"] == "CONTINUE"
