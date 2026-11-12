@@ -297,6 +297,14 @@ private:
                   int static_eval, bool pv);
     // Every TT read in the kernel likewise (a pricing probe reads its own
     // table beside the engine's).
+    // The key the table reads and writes for `b`: the position's, or with
+    // CoreTtKey50 the position's mixed with the rule-50 count's eight-ply
+    // bucket from a count of 14 (the donor's form). Repetition reads the raw
+    // key.
+    Key tt_key(const Board& b) const {
+        return config_.limits.params.tt_key50 ? tt_key50(b.position_key(), b.rule50_count())
+                                              : b.position_key();
+    }
     bool tt_probe(Key key, TTEntry& out) const {
 #ifdef BASILISK_PRICING
         if (state_.price.probing())

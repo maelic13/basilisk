@@ -222,7 +222,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     DIAG_COUNT(state_.diag.qs_pv_nodes += is_pv);
 
     // TT probe
-    Key hash = state_.board->position_key();
+    Key hash = tt_key(*state_.board);
     TTEntry tte{};
     bool tt_found = tt_probe(hash, tte);
     DIAG_COUNT(state_.diag.tt_probes++);
@@ -783,7 +783,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 #endif
 
     // ---- Transposition table lookup ----------------------------------------
-    Key hash     = state_.board->position_key();
+    Key hash     = tt_key(*state_.board);
     TTEntry tte{};
     bool tt_found = tt_probe(hash, tte);
     DIAG_COUNT(state_.diag.tt_probes++);
@@ -947,7 +947,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // parent's early quiet move it refutes is penalised.
         if (tt_score >= beta && tt_move_playable(tt_move)) {
             if (!tt_capture) {
-                update_quiet_histories(ss, tt_move, kp.tt_cutoff_bonus_slope * depth);
+                const int bonus = kp.tt_cutoff_bonus_slope * depth;
+                update_quiet_histories(ss, tt_move,
+                                       kp.tt_cutoff_bonus_cap
+                                           ? std::min(bonus, kp.tt_cutoff_bonus_max)
+                                           : bonus);
                 DIAG_COUNT(++state_.diag.tt_cutoff_quiet_bonus);
             }
             const Move prev = (ss - 1)->move;
@@ -965,7 +969,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (cut && depth >= 7 && !is_decisive(tt_score) && tt_move_playable(tt_move)) {
             do_move(ss, tt_move);
             TTEntry next{};
-            const bool next_found = tt_probe(state_.board->position_key(), next);
+            const bool next_found = tt_probe(tt_key(*state_.board), next);
             undo_move(ss, tt_move);
             if (next_found && next.score != VALUE_NONE
                 && (tt_score >= beta) != (-int(next.score) >= beta)) {
@@ -1017,7 +1021,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     || (tb.bound == TT_BETA ? tb.value >= beta : tb.value <= alpha)) {
                     DIAG_COUNT(state_.diag.tb_store_stale_pv
                                += ss->tt_pv != (is_pv || (tt_found && tte.is_pv())));
-                    tt_store(state_.board->position_key(), std::min(MAX_PLY - 1, depth + 6),
+                    tt_store(tt_key(*state_.board), std::min(MAX_PLY - 1, depth + 6),
                              tb.value, tb.bound, MOVE_NONE, ply, INF_SCORE,
                              ss->tt_pv);
                     return tb.value;
@@ -1050,10 +1054,16 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         // Razoring: an estimate this far below alpha at a shallow node is
         // left to quiescence, whose value is returned. Not when the table
-        // suggests a quiet move, or proves the node fails high.
-        if (!bare && !ABLATED(0) && depth <= kp.razor_depth_cap
-            && eval < alpha - kp.razor_margin * depth
-            && (tt_move == MOVE_NONE || tt_capture) && tt_flag != TT_BETA) {
+        // suggests a quiet move, or proves the node fails high. The donor's
+        // form (CoreRazorDonor) reads a margin quadratic in depth at every
+        // depth, with neither guard.
+        const int razor_bar = kp.razor_donor ? kp.razor_quad_margin * depth * depth
+                                             : kp.razor_margin * depth;
+        const bool razor_admits =
+            kp.razor_donor ? true
+                           : depth <= kp.razor_depth_cap
+                                 && (tt_move == MOVE_NONE || tt_capture) && tt_flag != TT_BETA;
+        if (!bare && !ABLATED(0) && razor_admits && eval < alpha - razor_bar) {
             // Priced before the quiescence search, whose stores at this
             // position the probe would otherwise read.
 #ifdef BASILISK_PRICING
@@ -1069,7 +1079,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                        : state_.diag.razor_cuts_d8p));
             TRACE_DECISION(TraceEvent::RazorPrune, ply, depth, MOVE_NONE,
                            alpha, beta, eval, improving, correction, VALUE_NONE,
-                           0, 0, kp.razor_margin * depth, q,
+                           0, 0, razor_bar, q,
                            -1, VALUE_NONE, -1, TraceFamily::Razor);
             return q;
         }
@@ -1141,7 +1151,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                               : depth <= 7 ? state_.diag.null_tries_d4_7
                                            : state_.diag.null_tries_d8p));
                 do_null_move(ss);
-                shared_.tt.prefetch(state_.board->position_key());
+                shared_.tt.prefetch(tt_key(*state_.board));
                 (ss + 1)->ext_plies = ss->ext_plies;
                 set_negext(ss, 0);
                 CHILD_SITE(NullMove, is_pv, cut_node);
@@ -1239,7 +1249,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             DIAG_COUNT(state_.diag.probcut_tries++);
             if (is_pv) DIAG_COUNT(++state_.diag.probcut_pv_tries);
             do_move(ss, m);
-            shared_.tt.prefetch(state_.board->position_key());
+            shared_.tt.prefetch(tt_key(*state_.board));
             (ss + 1)->ext_plies = ss->ext_plies;
             set_negext(ss, 0);
             CHILD_SITE(ProbCutQs, is_pv, cut_node);
@@ -1722,7 +1732,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         const int64_t nodes_before_move = state_.nodes;
         do_move(ss, m);
-        shared_.tt.prefetch(state_.board->position_key());
+        shared_.tt.prefetch(tt_key(*state_.board));
         state_.sel_depth = std::max(state_.sel_depth, ply + 1);
         ss->ext_taken = std::max(extension, 0);
         (ss + 1)->ext_plies = ss->ext_plies + ss->ext_taken;

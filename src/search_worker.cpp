@@ -314,7 +314,7 @@ Move Searcher::ponder_from_tt(const Board& root, Move bestmove) const {
     child.make_move(bestmove);
 
     TTEntry entry{};
-    if (!shared_.tt.probe_copy(child.position_key(), entry))
+    if (!shared_.tt.probe_copy(tt_key(child), entry))
         return MOVE_NONE;
 
     const Move ponder = move_from_tt(entry.move16);
@@ -324,7 +324,7 @@ Move Searcher::ponder_from_tt(const Board& root, Move bestmove) const {
 
 void Searcher::diag_root_tt([[maybe_unused]] int last_window, [[maybe_unused]] Move best) {
     TTEntry entry{};
-    if (!shared_.tt.probe_copy(state_.board->position_key(), entry))
+    if (!shared_.tt.probe_copy(tt_key(*state_.board), entry))
         return;
     [[maybe_unused]] const bool mismatch = move_from_tt(entry.move16) != best;
     if (last_window == 0) {

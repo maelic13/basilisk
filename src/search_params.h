@@ -112,6 +112,7 @@
     BASILISK_LEGACY_LMR_SINGULAR(X)                                      \
     /* Node margins */                                                   \
     X(razor_margin,          CoreRazorMargin,       269,  128,   527)    \
+    F(razor_quad_margin,     CoreRazorQuadMargin,   136,   60,   300)    \
     X(rfp_per_ply,           CoreRfpPerPly,         101,   40,   227)    \
     X(rfp_improving,         CoreRfpImproving,       98,   35,   160)    \
     X(rfp_worsening,         CoreRfpWorsening,       13,    0,    60)    \
@@ -162,6 +163,7 @@
     X(main_hist_decay,       CoreMainHistDecay,     749,  400,  1024)    \
     /* TT cutoff training */                                             \
     X(tt_cutoff_bonus_slope, CoreTtCutoffBonusSlope, 151,    0,   300)   \
+    F(tt_cutoff_bonus_max,   CoreTtCutoffBonusMax,  695,  200,  3000)   \
     /* Correction */                                                     \
     X(corr_update_scale,     CoreCorrUpdateScale,    16,    4,    30)     \
     X(corr_cont_weight,      CoreCorrContWeight,   9649, 2000, 16000)
@@ -183,6 +185,19 @@
 //   the default and the donor's form, delivers no quiet after it.
 // lmr_negative_allowed: 1 lets a negative reduction extend a reduced search
 //   up to two plies beyond the full depth; 0 caps it at the full depth.
+// The donor's forms where Basilisk keeps its own, each read by a paired run
+// against the default (0, Basilisk's form):
+// tt_cutoff_bonus_cap: 1 caps the TT-cutoff quiet bonus at
+//   CoreTtCutoffBonusMax (the donor's 695); 0 slope * depth uncapped.
+// razor_donor: 1 razors at any depth when the estimate is below alpha -
+//   CoreRazorQuadMargin * depth^2 (the donor's 482 in its units), with no
+//   table-move or bound guard; 0 the form above.
+// tt_key50: 1 the table's key carries the rule-50 count's eight-ply bucket
+//   from a count of 14, so a bound is not shared between positions with
+//   very different fifty-move horizons (repetition reads the raw key); 0
+//   the raw key.
+// corr_nonpawn_kings: 1 the non-pawn correction keys include each side's
+//   king; 0 leaves it out, so every bare king shares one entry.
 // corr_admission: 1 trains the correction where the error's sign agrees with
 //   the bound (above the static eval exactly when a move raised alpha); 0
 //   where the node failed high or raised alpha.
@@ -192,7 +207,11 @@
     S(corr_admission,        CoreCorrAdmission,      1,    0,     1)     \
     S(razor_depth_cap,       CoreRazorDepthCap,      1,    1,     3)     \
     S(lmp_exempt_checks,     CoreLmpExemptChecks,    0,    0,     1)     \
-    S(lmr_negative_allowed,  CoreLmrNegativeAllowed, 1,    0,     1)
+    S(lmr_negative_allowed,  CoreLmrNegativeAllowed, 1,    0,     1)     \
+    S(tt_cutoff_bonus_cap,   CoreTtCutoffBonusCap,   0,    0,     1)     \
+    S(razor_donor,           CoreRazorDonor,         0,    0,     1)     \
+    S(tt_key50,              CoreTtKey50,            0,    0,     1)     \
+    S(corr_nonpawn_kings,    CoreCorrNonPawnKings,   0,    0,     1)
 
 // ---- Cluster 2, the proof searches and extensions ---------------------------
 //

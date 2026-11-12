@@ -32,6 +32,16 @@ inline constexpr uint8_t TT_AGE_STEP   = 0x08;
 inline constexpr int TT_DEPTH_OFFSET = 2;
 inline constexpr int TT_DEPTH_UNSEARCHED = -1;
 
+// The donor's rule-50 key (`adjust_key50`): from a count of 14 the key is
+// mixed with the count's eight-ply bucket, so a bound is not shared between
+// positions with very different fifty-move horizons. Below 14 it is the key.
+[[nodiscard]] constexpr Key tt_key50(Key key, int rule50) {
+    if (rule50 < 14)
+        return key;
+    const Key bucket = Key((rule50 - 14) / 8);
+    return key ^ (bucket * 6364136223846793005ULL + 1442695040888963407ULL);
+}
+
 // Decoded TT entry. The table stores entries in a compact atomic format; this
 // type is the stable interface used by search and tests.
 struct TTEntry {

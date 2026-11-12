@@ -11,11 +11,19 @@
 // cluster's weighted form.
 
 #include "search_worker.h"
+#include "zobrist.h"
 #include <algorithm>
 #include <climits>
 #include <cstdlib>
 
 static bool move_made(Move m) { return m != MOVE_NONE && m != MOVE_NULL; }
+
+// A side's non-pawn correction key; with `kings` it includes the side's king,
+// the donor's form, so a bare king no longer shares one entry.
+static Key nonpawn_corr_key(const Board& b, Color c, bool kings) {
+    const Key k = b.nonpawn_key_value(c);
+    return kings ? k ^ Zobrist::PieceKeys[c][KING][b.king_square(c)] : k;
+}
 
 namespace {
 
@@ -247,11 +255,12 @@ void Searcher::update_parent_by_eval_difference(SearchStack* ss, int eval_diff, 
 int Searcher::correction_value(const SearchStack* ss) const {
     constexpr Key mask = CoreHistoryTables::CORR_SIZE - 1;
     const Board& b = *state_.board;
+    const bool kings = config_.limits.params.corr_nonpawn_kings;
     const Color us = b.turn();
     const int pawn  = hist_.pawn_corr[us][b.pawn_key_value() & mask];
     const int minor = hist_.minor_corr[us][b.minor_key_value() & mask];
-    const int white = hist_.nonpawn_corr[us][WHITE][b.nonpawn_key_value(WHITE) & mask];
-    const int black = hist_.nonpawn_corr[us][BLACK][b.nonpawn_key_value(BLACK) & mask];
+    const int white = hist_.nonpawn_corr[us][WHITE][nonpawn_corr_key(b, WHITE, kings) & mask];
+    const int black = hist_.nonpawn_corr[us][BLACK][nonpawn_corr_key(b, BLACK, kings) & mask];
     const Move m = (ss - 1)->move;
     int cont = 64049;
     if (move_made(m)) {
@@ -272,12 +281,13 @@ void Searcher::update_correction_history(SearchStack* ss, int bonus) {
     if (PRICE_PROBING()) return;
     constexpr Key mask = CoreHistoryTables::CORR_SIZE - 1;
     const Board& b = *state_.board;
+    const bool kings = config_.limits.params.corr_nonpawn_kings;
     const Color us = b.turn();
     CorrectionBound::update(hist_.pawn_corr[us][b.pawn_key_value() & mask], bonus);
     CorrectionBound::update(hist_.minor_corr[us][b.minor_key_value() & mask], bonus * 150 / 128);
-    CorrectionBound::update(hist_.nonpawn_corr[us][WHITE][b.nonpawn_key_value(WHITE) & mask],
+    CorrectionBound::update(hist_.nonpawn_corr[us][WHITE][nonpawn_corr_key(b, WHITE, kings) & mask],
                             bonus * 186 / 128);
-    CorrectionBound::update(hist_.nonpawn_corr[us][BLACK][b.nonpawn_key_value(BLACK) & mask],
+    CorrectionBound::update(hist_.nonpawn_corr[us][BLACK][nonpawn_corr_key(b, BLACK, kings) & mask],
                             bonus * 186 / 128);
     const Move m = (ss - 1)->move;
     if (move_made(m)) {

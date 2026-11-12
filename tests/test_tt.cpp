@@ -475,6 +475,22 @@ static void test_age_cycle() {
 // Cluster 2's bound-mismatch penalty: the entry loses one ply of depth and
 // nothing else; an entry at depth 0, an evaluation-only entry and a missing
 // key are left as they were.
+static void test_key50_buckets() {
+    const Key key = 0x5A5A5A5A12345678ULL;
+    begin_section("rule-50 key: raw below 14, one key per eight-ply bucket from 14");
+    EXPECT_EQ(tt_key50(key, 0), key);
+    EXPECT_EQ(tt_key50(key, 13), key);
+    EXPECT(tt_key50(key, 14) != key);
+    EXPECT_EQ(tt_key50(key, 21), tt_key50(key, 14));
+    EXPECT(tt_key50(key, 22) != tt_key50(key, 21));
+    EXPECT_EQ(tt_key50(key, 29), tt_key50(key, 22));
+    EXPECT(tt_key50(key, 96) != tt_key50(key, 22));
+    EXPECT_EQ(tt_key50(key, 99), tt_key50(key, 94));
+    // Distinct positions stay distinct within a bucket.
+    EXPECT(tt_key50(key, 30) != tt_key50(key ^ 1, 30));
+    end_section();
+}
+
 static void test_penalize() {
     TranspositionTable tt(1);
     const Key key = 0x5A5A5A5A12345678ULL;
@@ -632,6 +648,9 @@ int main() {
 
     std::printf("\nPrefetch\n");
     test_prefetch_is_safe();
+
+    std::printf("\nRule-50 key\n");
+    test_key50_buckets();
 
     std::printf("\nReplacement policy\n");
     test_deeper_entry_preferred();
