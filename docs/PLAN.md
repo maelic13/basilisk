@@ -408,8 +408,8 @@ reason.
 |---|---|
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3). The ply cap's static evaluation in check (NODE-8) was repaired in B.5.2 |
-| B.6 | F4 the multi-cut correction bonus's product can pass 32 bits; each defect B.6.4's audit confirms |
-| B.9 | `go depth N` answered by a deeper helper (DRIVER-12); Fathom's `exit` on a table that fails to map (PROTO-11); A-50 a stop inside the first iteration; A-57 cold table reads on the clock; A-58 the tablebase root ranking ignores the game's repetitions; F1 `stop` and `quit` unseen during `bench` and `wac`; F6 bishops on one colour against a bare king scored as a win; each hard verdict B.9.3's read finds wrong |
+| B.6 | F4 the multi-cut correction bonus's product can pass 32 bits and then trains the wrong way (confirmed by B.6.4, `analysis/b64_engine_audit_2026-11-12.md` §3.1; B.6.5 repairs it). The audit confirmed no other defect in the search |
+| B.9 | `go depth N` answered by a deeper helper (DRIVER-12); Fathom's `exit` on a table that fails to map (PROTO-11); A-50 a stop inside the first iteration; A-57 cold table reads on the clock; A-58 the tablebase root ranking ignores the game's repetitions; F1 `stop` and `quit` unseen during `bench` and `wac`; the clock's game ply at `ponderhit` read from the node the search is at (B.6.4, `analysis/b64_engine_audit_2026-11-12.md` §3.2); F6 bishops on one colour against a bare king scored as a win; each hard verdict B.9.3's read finds wrong |
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
 | C.3, C.5, C.6 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
 | D.1 | A-46 reserve arithmetic |
@@ -3134,7 +3134,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           captures by correction training, castling counted in the capture
           stage, IIR's stale bound off by one, a table cutoff at 96, and
           a store without a move dropping the entry's.
-    - [ ] **B.6.4** `[R3]` Engine audit on the four-cluster head
+    - [x] **B.6.4** `[R3]` Engine audit on the four-cluster head
       One read of the engine as Clusters 1 to 4 left it, by a session
       that implemented none of it, before anything is fitted on it: the
       2026-10-27 audit's method (`analysis/code_audit_2026-10-27.md` §1)
@@ -3190,12 +3190,75 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - a behaviour-neutral change is B.8.2's.
       - It ends with frozen handoffs for B.6.5, which confirm, split or
         replace that leaf, or with `NO_CHANGE`.
-    - [ ] **B.6.5** `[I2]` Audit repairs before the fit
+      - Closed 2026-11-12, `READY_FOR_IMPLEMENTATION` for B.6.5
+        (`analysis/b64_engine_audit_2026-11-12.md`; no engine source
+        changed, `bench 13` 3,783,135):
+        - Read in full: the kernel, the picker, the histories and the
+          correction, the table, the driver and the pool, against the
+          donor's `search`, `qsearch`, updates, table and picker at
+          `sf_19`. Counters come from a patched build that reproduces
+          the fingerprint, read on `bench 13`, `bench 17` and 610
+          self-play searches (`tools/results/b64-audit-20261112/`).
+        - **No defect moves the tree.** F4 is confirmed: the product
+          wraps from a singular depth of 54 and trains the correction by
+          the full clamp in the wrong direction (−256 for +256); the
+          cause is the unit conversion before the products. The reads
+          came within a factor of nine of it. The widest other update,
+          the fail-low parent's continuation bonus, tops out at 97.6% of
+          `INT_MAX` on literals (87.0% seen).
+        - A second defect, in the clock's inputs: `ponderhit` recomputes
+          the budget with the game ply of the node the search is at
+          (soft limit +4.9% to +11.3%). B.9.1's.
+        - F5 is a departure, not a defect: under-promotions add at most
+          0.19% of nodes in quiescence. In the main search the queen's
+          push comes first unless the table move or the exclusion says
+          otherwise; quiescence's selection is not stable, and 2 to 4%
+          of its under-promotions are searched before the queen's push.
+        - NODE-4 narrows: only LMR's alpha term reads the refined
+          estimate in an exclusion search (0.04% of reductions change).
+          The larger departure is the other way: the exclusion search
+          skips razoring and reverse futility, which the donor runs
+          (0.41 to 0.47% of exclusion searches).
+        - The frame: the null verification restores `move_count` and
+          `stat_score` (the donor does not); the exclusion search
+          restores nothing, as the donor. Its own fail high, counted as
+          a child's, moves 1.3 to 3.1% of all reduction decisions.
+        - The import's "no path here" for the fail-low store beside IIR
+          is refuted: 13 to 18% of IIR's reductions are at revisited
+          fail-low nodes whose entry has no move. It is the donor's
+          pair and B.4's gate ran with it.
+        - Unrecorded departures: the TT-cutoff quiet bonus has no cap
+          (the donor's is `min(112·depth, 695)`; 15 to 31% of bonuses
+          exceed it), the tie rule's store, four of the table's rules.
+        - G.2's C++26 decision stands: the pinned Clang 23 has neither
+          reflection nor contracts.
+        - Routing: the packet's §10; each receiving leaf carries its
+          items below.
+    - [ ] **B.6.5** `[I1]` Audit repairs before the fit
       The expected shape; B.6.4's handoff confirms, splits or replaces
       it. Each confirmed defect is repaired in its own commit, with the
       test that failed before it: release and sanitizer CTest, the exact
       fingerprint where the tree does not move and a recorded move where
       it does.
+      B.6.4's handoff (2026-11-12,
+      `analysis/b64_engine_audit_2026-11-12.md` §12) confirms the leaf
+      and narrows it. No repair moves the tree, so the screen, the
+      floors and the repair SPRT below do not run and the leaf closes
+      on its tests. The class is `I1` since then: the change is
+      specified to the operation and is about thirty lines (it was `I2`
+      against a repair that moved the tree).
+      - The multi-cut correction bonus becomes a named function in
+        `search_b3.h`, the same operations in the same order in 64
+        bits. Tests: 256 at the three overflowing points and −256 at
+        the mirrored one, and agreement with the 32-bit form on a grid
+        where that is defined.
+      - The continuation update's incoming bonus is bounded by 32,776:
+        a compile-time proof for the fail-low parent's chain and a node
+        check on every call, absent from release builds.
+      - `bench 13` 3,783,135 exactly; each test shown to fail on its
+        planted fault. No NPS read is owed and there is no game gate.
+      - Not this leaf's: the TT-cutoff bonus's cap (B.6.6), the frame
+        (H.2), `ponderhit` (B.9.1).
       - Before any game, each tree-changing repair passes the
         deep-iteration cost screen
         (`tools/diag/deep_iteration_screen.py`) and the conversion and
@@ -3242,9 +3305,34 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         `nonpawn_key`); Stockfish's includes them. A bare king's key is 0:
         one entry for every position where a side has a bare king, which
         carried part of the KBP-K correction drift (B.3.0's packet §1.4).
-      Rows B.6.4's audit adds join these (2026-11-11), among them the
-      quiet under-promotions' class if the audit reads it as a departure
-      and not a defect (F5).
+      Rows B.6.4's audit adds (2026-11-12,
+      `analysis/b64_engine_audit_2026-11-12.md` §6, with each row's
+      counter):
+      - The TT-cutoff quiet bonus: `CoreTtCutoffBonusSlope · depth`
+        with no cap, where the donor's is `min(112·depth, 695)`. It
+        exceeds the cap in 15 to 31% of bonuses and reached 11,929 in
+        self-play; from depth 48 one cutoff sets a main-history entry
+        to its limit. **This row runs**, before B.6.7 registers its
+        surface, because the slope is a coordinate and the form decides
+        what it fits: a categorical on a tune build (the cap at 695,
+        off by default), with a `10+0.1` leg beside `3+0.03`, since
+        the form scales with depth.
+      - The exclusion search: no razoring and no reverse futility
+        (the donor runs both), and the estimate refined by the table
+        (the donor's is the static eval). No run: 0.41 to 0.47% of
+        exclusion searches, 0.04% of reductions.
+      - The tie rule's store: an upper bound and no move where the
+        donor stores the tied move, exact at a PV node. No run: 0.04 to
+        0.09% of interior nodes, and a score equal to alpha is a bound.
+      - The null verification restores `move_count` and `stat_score`;
+        the donor does not. With H.2's frame item.
+      - No clamp on a node's depth at entry (the donor's
+        `MAX_PLY − 1`). Nothing.
+      - The quiet under-promotions' class (F5) is read as a departure,
+        not a defect; B.4's row stands and its re-read waits in H.2.
+      The table's four departures (replacement ageing, the move of a
+      declined store, the PV bonus and secondary aging, no store at a
+      node without moves) are D.2's.
       Triumviratus review inputs (2026-11-03,
       `analysis/triumviratus_review_2026-11-03.md`; IDs are its items):
       a reconciliation that reaches past `sf_19`, or a later donor re-pin,
@@ -3277,6 +3365,18 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       evidence that block-wise self-play left it too aggressive, and led
       to its broad refit, +15.33 ± 7.34 nElo. The registration reads it
       beside the curvature sweep.
+      Engine audit inputs (2026-11-12,
+      `analysis/b64_engine_audit_2026-11-12.md` §6):
+      - `CoreCorrUpdateScale`'s rail of 30 is below the donor's value in
+        this engine's units (42.6, and 63.8 without a best move), and
+        every fit has moved the coordinate up (16, 17, 18). B-103's
+        widening reaches 64.
+      - The correction's structural weights (15,341, 10,569, 12,906)
+        and update shares (150, 186, 130, 70 over 128) are the donor's
+        literals applied in this engine's units; they go on the literal
+        screen's list.
+      - The TT-cutoff bonus's form (B.6.6's row) is decided before the
+        surface is registered.
       Added 2026-11-10 (maintainer): the kernel's own literals are
       screened before the surface is registered. A few dozen numbers the
       search reads are written into the code and are no option, so no
@@ -3454,6 +3554,23 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       B.6.4's idiom list, each alone with the exact fingerprint and read
       with the same NPS read; an item that costs NPS is dropped, not
       traded.
+      The list (2026-11-12, `analysis/b64_engine_audit_2026-11-12.md`
+      §9):
+      - Idioms: one named function for the `* 1000 / 282` unit
+        conversion (three sites); `static_assert` width proofs at the
+        widest products; `if constexpr` flavour constants for the
+        counter, trace and pricing arms; a fixed-capacity list for the
+        searched moves; a scoped `TTFlag`; libc++'s debug hardening in
+        the sanitizer and debug cells.
+      - Dead: `SearchStack::moved_piece` (written, never read); at the
+        default arm `allow_null`, `best_scored` in both quiescence
+        loops, `singular_quiet_lmr`, `did_check_ext`, the older
+        aspiration loop, the delta rule, the quiet checks and the small
+        ProbCut, which leave with their switches.
+      - Misleading comments: `search_kernel_core.cpp` on reverse
+        futility returning `eval` directly and the "LMR table" heading
+        above the child log; `search_worker.h` "on either kernel";
+        `constants.h` "in search.cpp"; `search_types.h` "reads zeros".
     - [ ] **B.8.3** `[I1]` Allocation guard
       Before the speed pass (B.7.1 until 2026-11-05): a test with a
       counting global `operator new` searches fixed positions at two depths at
@@ -3474,6 +3591,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       at 4T). Split from the speed pass on 2026-11-05 and placed before it,
       because large pages change the profile it reads. Each platform falls
       back silently, and `bench` reports on, off, partial or not available.
+      Engine audit input (2026-11-12,
+      `analysis/b64_engine_audit_2026-11-12.md` §9): the cluster's
+      constructor (six sequentially consistent stores) gives way to
+      value-initialised atomics and a per-thread fill;
+      `std::start_lifetime_as_array` is missing from the pinned libc++
+      23, so mapped pages still need constructed clusters.
       - Windows x64 and ARM64: `VirtualAlloc(MEM_LARGE_PAGES)` under
         `SeLockMemoryPrivilege` (D-8, pulled forward from G.1: +2.48% bench
         and +2.76% in games in Rarog).
@@ -3698,6 +3821,16 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       (`search_worker.cpp`); the game ply taken from a FEN's move number
       (Triumviratus's first move after a book got 30% less time); `go
       movetime` scaled by time factors.
+      Engine audit inputs (2026-11-12,
+      `analysis/b64_engine_audit_2026-11-12.md` §3.2, §4):
+      - A defect: on `ponderhit`, `check_stop` recomputes the budget
+        with the game ply of the board at the node the search is at,
+        not the root's (`search_worker.cpp`). The soft limit read 3,465
+        to 3,675 ms against 3,302 for a plain `go` on the same clock,
+        different every time. The root's ply is kept from the search's
+        start; the test compares TM_Debug's `soft_ms` both ways.
+      - TR-5's arithmetic half is answered: the packet's width table,
+        and B.6.5's repair and guard. Its stack-size half stays here.
       Thread contracts (TP-5): `go nodes` counts every thread; the main
       thread's PV is reset before the helpers start; a proven mate beats
       depth in the result choice.
@@ -4076,8 +4209,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.6.4 | RESEARCH | R3 | Added 2026-11-11; the whole engine read once after B.5 closes, before the fit |
-| B.6.5 | RESEARCH | I2 | Added 2026-11-11; on B.6.4's handoffs, which confirm, split or replace it |
+| B.6.5 | READY_FOR_IMPLEMENTATION | I1 | B.6.4's handoff (2026-11-12): F4 in 64 bits and a width guard, no tree-changing repair; closes on its tests |
 | B.6.6 | RESEARCH | R2 | Was B.6.1; added 2026-10-31; after B.6.5, on the repaired head |
 | B.6.7 | RESEARCH | V | Was B.6.2; runs (maintainer 2026-11-05); the curvature evidence chooses its surface, after the zero-game screen of the kernel's literals (added 2026-11-10) |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
@@ -4902,6 +5034,20 @@ has lost games in both engines (BAS-X02).
   BAS-C05's TT publication incoherence is a known defect owned here: a
   coherent layout that costs no measured NPS replaces it (both earlier
   repairs cost 3.91% and 1.22%).
+  Engine audit inputs (2026-11-12,
+  `analysis/b64_engine_audit_2026-11-12.md` §6): the table's rules
+  where they differ from the donor's and no record says why, read at
+  the hash and control this leaf measures at:
+  - Replacement ages an entry by 2 a search (plus 2 for an exact
+    bound); the donor by 64. A current entry was evicted beside a
+    stale one in 0.02% of live evictions at Hash 64 over 610 self-play
+    searches and in 1.9% at Hash 16 in `bench 17`: nothing at the
+    gate's conditions, something when the search outgrows the table.
+  - A declined same-key store drops its move (the donor writes the
+    move first): 0.28 to 0.36% of same-key stores.
+  - No PV bonus in the overwrite test and no secondary aging of a
+    decisive inexact entry; nothing stored at a node without moves
+    (the donor stores at `depth + 6`).
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Self-relative 1/2/4/8T scaling and hash adequacy (D-44, D-45); the first
@@ -5422,6 +5568,29 @@ already repairing or a form it must choose anyway, and says so.
       split by whether the capturing side's king is under attack.
     - The figure belongs to this evaluation: re-read after C.3 rebuilds
       king safety, and again on the network.
+  B.6.4 inputs (2026-11-12, `analysis/b64_engine_audit_2026-11-12.md`
+  §5; each is the donor's behaviour, copied faithfully, with its
+  counter on the four-cluster head):
+  - The frame a re-entry rewrites. An exclusion search's own fail high
+    counts in `cutoff_cnt` as a child's and moves 1.3 to 3.1% of all
+    reduction decisions; 22 to 25% of exclusion searches leave the
+    grandchildren's count above 1 for the table move's child; the
+    leaked `move_count` misdates about 1% of fail-low bonuses
+    (Triumviratus read the move count alone at about ±0.5). One switch
+    that saves and restores the three fields around the exclusion
+    search and the verification, each arm refitted on the three
+    cutoff-count coordinates.
+  - IIR at a revisited fail-low node: 13 to 18% of IIR's reductions
+    fall on a searched fail-low entry that has no move because the
+    store keeps none. A switch exempting those; Rarog's −14.7 ± 13.8
+    is the prior. First reading: B.16.2's pricing with a cell for it,
+    which says whether the item deserves a game.
+  - The null verification that is a quiescence search: 19 to 38% of
+    verifications, because the reduction's eval term has no cap. A
+    floor on the verification's depth.
+  - The capture stage's under-promotions (F5): at most 0.19% of nodes
+    in quiescence for a handful of fail highs; the donor's class is
+    the re-read.
 - [ ] **H.3** `[I2]` Time-management refinements at their own control
   Each measured at the time control it acts at, never only at `3+0.03`,
   and tuned against an external engine at release speed (TT-3); every

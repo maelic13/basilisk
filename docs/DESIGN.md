@@ -98,9 +98,10 @@ line names where it lives.
   defect to repair since 2026-10-26, owned by PLAN D.2).
   Under SMP a reader can match its key against one store and consume the
   score/depth/bound of another position's store. Nothing downstream catches it:
-  `negamax` (`src/search.cpp`) returns `tt_score` as the node value on a
-  depth-and-bound match with no verification, and its singular multi-cut
-  (`s_beta >= beta`) returns a score derived from it. Worst case is a foreign
+  `negamax` (`src/search_kernel_core.cpp`) returns `tt_score` as the node
+  value on a depth-and-bound match with no verification, and its singular
+  multi-cut returns the value of a search whose bound is derived from it.
+  Worst case is a foreign
   mate score reaching the root. Do not repeat the pre-2026-09-07 claim that a
   mismatched pair is "harmless" because bounds are validated — they are not.
 - **Why it is accepted.** Both repairs cost more than the defect, measured at
@@ -111,9 +112,11 @@ line names where it lives.
   and the word holds 64 — and Stockfish ships this same tolerance in this same
   structure. Reopen only on the BAS-C05 retry trigger.
 - `move16` likewise has no publication guarantee, and **every consumer must
-  validate it** — `MovePicker`'s TT stage checks piece/colour/`is_legal`,
-  `ponder_from_tt` checks legality, qsearch only compares it against generated
-  legal moves (all in `src/search.cpp`). All `Move` accessors mask
+  validate it** — both pickers' TT stage and the kernel's own uses check
+  piece/colour/`is_legal` (`table_move_usable`, `src/move_picker_core.h`),
+  `ponder_from_tt` checks legality (`src/search_worker.cpp`), and
+  quiescence outside check only compares it against generated legal
+  captures (`src/search_kernel_core.cpp`). All `Move` accessors mask
   (`src/move.h`), so any 16-bit value decodes in-bounds.
 - Detection strength against a genuinely different position is the plain 16-bit
   partial-key collision, 1/65536.
