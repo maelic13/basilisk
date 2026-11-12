@@ -17,12 +17,15 @@
    -Gate dcap  L1's registered first remedy, (d) run again (2,000 games at 10+0.1,
                seed 55004, the same openings) with the arm at B5NegExtMax 1, built in;
                both arms rebuilt at one revision, the OFF arm's bench unchanged.
+   -Gate acap  (a) on the adopted candidate, the arm at B5NegExtMax 1 (L1 waived by the
+               maintainer, 2026-11-12): SPRT [0,3] nElo at 3+0.03, cap 4,500 pairs, seed
+               55006, dcap's pinned pair.
 
    (b) is retired, answered by BAS-S56. -DryRun plays nothing and checks the run. A
    game run refuses a directory that already holds a finished one: a stopped SPRT is
    never extended. #>
 param(
-    [Parameter(Mandatory)][ValidateSet('stop', 'a', 'd', 'e', 'dcap')][string]$Gate,
+    [Parameter(Mandatory)][ValidateSet('stop', 'a', 'd', 'e', 'dcap', 'acap')][string]$Gate,
     [switch]$DryRun,
     [string]$ResultsRoot = '',
     [string]$EnginesDir = ''
@@ -41,13 +44,13 @@ if ($Gate -eq 'stop') {
     $pair = @($tune, $tune)
     $dir = Join-Path $results 'b55-gate-c-stop'
     $finished = 'result.json'
-} elseif ($Gate -eq 'dcap') {
+} elseif ($Gate -in 'dcap', 'acap') {
     $revision = '833659fb346af4b9ecab0956f81dc3ec1849a6bf'
     $fitted = @{ Path = Join-Path $engines 'basilisk-b55-cap1-on-pext-pgo.exe';  Sha = '122BE50F37E318955F43B01493F85F69A9CE8FCC5900BD970A3C49DE8D51C5AF'; Bench = 3783135 }
     $off    = @{ Path = Join-Path $engines 'basilisk-b55-cap1-off-pext-pgo.exe'; Sha = '17978E36DD29F7FB1FB85CFAAD835EE86F7209222DE9D4A0FDB0234416DC5E85'; Bench = 4144790 }
     $pair = @($fitted, $off)
-    $dir = Join-Path $results 'b55-direction-ltc-cap1'
-    $finished = 'results.txt'
+    $dir = Join-Path $results @{ dcap = 'b55-direction-ltc-cap1'; acap = 'b55-gate-a-cap1' }[$Gate]
+    $finished = if ($Gate -eq 'acap') { 'result.json' } else { 'results.txt' }
 } else {
     $revision = '2c248bbca73f590909cb0964d1c4843236f95d76'
     $fitted = @{ Path = Join-Path $engines 'basilisk-b55-on-pext-pgo.exe';  Sha = '148104E9BFEF5656A13040699CB2E2EB401D37E1B8346526BA120FC083A43D1A'; Bench = 4585613 }
@@ -104,6 +107,13 @@ switch ($Gate) {
             NameA = 'B5Fitted'; NameB = 'B5Off'; Seed = 55004
             BaseMs = 10000; IncrementMs = 100
             RunFile = Join-Path $PSScriptRoot 'colosseum\match-fixed-ltc.toml'
+        }
+    }
+    'acap' {
+        $arguments += @{
+            Mode = 'sprt'; MaxPairs = 4500
+            NameA = 'B5FittedCap1'; NameB = 'B5Off'; Seed = 55006
+            BaseMs = 3000; IncrementMs = 30
         }
     }
     'dcap' {
