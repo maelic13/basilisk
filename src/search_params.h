@@ -413,7 +413,7 @@
     A(b3_nmp_per_ply,        B3NmpPerPly,            13)                \
     A(b3_iir_min_depth,      B3IirMinDepth,           6)
 
-// ---- Cluster 4: the root and the aspiration window (the B5_ROOT arm) ---------
+// ---- Cluster 4: the root and the aspiration window ---------------------------
 //
 // The width of a root line's window counts thousandths of a unit:
 // `b5_asp_base + (thread % 8) * 282 + |mean square of the line's scores| * 1000 /
@@ -427,16 +427,15 @@
 //     shallower, at least one deep; 0 full depth.
 //   b5_neg_ext_max: extensions from a negative reduction a line may hold before
 //     the ceiling stops granting them; 0 unbounded.
-// Attribution switches, whose defaults are the arm's form:
+// Attribution switches, whose defaults are the cluster's form:
 //   b5_window: 1 the loop above; 0 the driver's older loop on the record.
 //   b5_root_lmr: 1 root moves after the first are reduced at depth 2 or more.
 //   b5_lmr_window_units: 1 the LMR window term reads a non-PV node's window in
 //     the donor's units (577 * 0.282 = 163); 0 reads 577 at every node.
-// b5_fail_high_stop, on both arms: the percent of the optimum past which a fail
-//   high on the previous best ends the search; 0 never. The arm's window fails
-//   high more often than the older loop's, and there the stop at the optimum
-//   itself lost to the stop at twice it, so the arm's default is
-//   BASILISK_B5_CORE_DEFAULTS's.
+// b5_fail_high_stop: the percent of the optimum past which a fail high on the
+//   previous best ends the search; 0 never. The cluster's window fails high
+//   more often than the older loop's, and there the stop at the optimum itself
+//   lost to the stop at twice it, so its default is BASILISK_B5_CORE_DEFAULTS's.
 #define BASILISK_B5_PARAMS(X, F, S)                                      \
     X(b5_asp_base,           B5AspBase,           2202,  500, 40000)     \
     X(b5_asp_msq_div,        B5AspMsqDiv,         2907, 1000, 12000)     \
@@ -448,10 +447,9 @@
     S(b5_lmr_window_units,   B5LmrWindowUnits,       1,    0,     1)     \
     S(b5_fail_high_stop,     B5FailHighStop,       100,    0,   400)
 
-// The arm's own defaults where they differ from a line's, in the form of
-// BASILISK_B4_CORE_DEFAULTS and applied after it on the B5_ROOT arm alone; the
-// build without the arm keeps every line's. The earlier clusters' coordinates
-// here were fitted on this arm's tree beside the window's.
+// Cluster 4's own defaults where they differ from a line's, in the form of
+// BASILISK_B4_CORE_DEFAULTS and applied after it. The earlier clusters'
+// coordinates here were fitted on Cluster 4's tree beside the window's.
 #define BASILISK_B5_CORE_DEFAULTS(A)                                     \
     A(b5_fail_high_stop,     B5FailHighStop,        200)                \
     A(cont_hist_prune_slope, CoreContHistPruneSlope, 3783)              \
@@ -482,9 +480,7 @@ struct SearchParams {
 #define BASILISK_ARM_DEFAULT(field, uci, value) field = value;
         BASILISK_B3_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
         BASILISK_B4_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
-#if defined(BASILISK_B5_ROOT)
         BASILISK_B5_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
-#endif
 #undef BASILISK_ARM_DEFAULT
     }
 };

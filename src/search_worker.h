@@ -118,10 +118,6 @@ struct SearchState {
     bool tb_probe_in_search = true;
     // The root's move-ordering inputs, set at the start of each search.
     RootOrdering root_ordering;
-    // MultiPV: root moves already reported at this depth, which the search of
-    // the next line skips. Empty at every other time, so a single-PV search
-    // never consults it.
-    std::vector<Move> root_excluded;
     int multipv_lines = 1;
     int64_t root_depth_nodes = 0;
     int64_t root_best_nodes = 0;
@@ -130,8 +126,7 @@ struct SearchState {
     // while TM_Debug is on: a stop tests the clock only as a window returns.
     double  longest_window = 0.0;
     double  longest_window_start = 0.0;
-    // Cluster 4's record of the root moves (the B5_ROOT arm; empty otherwise):
-    // the line being searched, as an index into it, and the iterations
+    // Cluster 4's record of the root moves: the line being searched, as an index into it, and the iterations
     // completed, of which the record's lines are the last.
     std::vector<RootMove> root_moves;
     int root_line = 0;

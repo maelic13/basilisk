@@ -295,10 +295,7 @@ static void test_the_root_move_comes_from_the_record() {
     const char* const fen = "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3";
     const int64_t plain = nodes_with_a_foreign_root_move(fen, 10, false);
     const int64_t foreign = nodes_with_a_foreign_root_move(fen, 10, true);
-    if (kB5Root)
-        EXPECT_EQ(foreign, plain);
-    else
-        EXPECT(foreign != plain);
+    EXPECT_EQ(foreign, plain);
     end_section();
 }
 
@@ -504,7 +501,7 @@ static void test_every_child_starts_clean(const char* suite) {
 // With a limit, no line goes past it.
 static void test_the_limit_holds_on_the_line(const char* suite) {
     begin_section("a line holds no more than its limit");
-    if (kCounters && kB5Root) {
+    if (kCounters) {
         int64_t unlimited = 0, at_one = 0, chained_at_one = 0, at_two = 0, chained_at_two = 0;
         for (const std::string& fen : suite_positions(suite, 20)) {
             SearchLimits lim;
@@ -571,22 +568,20 @@ static void test_the_lines_of_a_multipv_search() {
     EXPECT(result.bestmove != MOVE_NONE);
     EXPECT_STR(pv_of(1, 10), move_to_uci(result.bestmove));
     EXPECT(!pv_of(3, 10).empty());
-    if (kCounters && kB5Root)
+    if (kCounters)
         EXPECT_EQ(diag["asp_windows"], 3 * (10 - 3));
-    if (kB5Root) {
-        TranspositionTable queen_tt(16);
-        auto queen_searcher = std::make_unique<Searcher>(queen_tt, stop);
-        Board queen_board;
-        queen_board.set_fen(queen);
-        SearchLimits queen_lim;
-        queen_lim.depth = 8;
-        queen_lim.multipv = 3;
-        const SearchResult taken = queen_searcher->search(queen_board, queen_lim);
-        EXPECT_STR(move_to_uci(taken.bestmove), "e4d5");
-        TTEntry entry{};
-        EXPECT(queen_tt.probe_copy(queen_board.position_key(), entry));
-        EXPECT_STR(move_to_uci(move_from_tt(entry.move16)), "e4d5");
-    }
+    TranspositionTable queen_tt(16);
+    auto queen_searcher = std::make_unique<Searcher>(queen_tt, stop);
+    Board queen_board;
+    queen_board.set_fen(queen);
+    SearchLimits queen_lim;
+    queen_lim.depth = 8;
+    queen_lim.multipv = 3;
+    const SearchResult taken = queen_searcher->search(queen_board, queen_lim);
+    EXPECT_STR(move_to_uci(taken.bestmove), "e4d5");
+    TTEntry entry{};
+    EXPECT(queen_tt.probe_copy(queen_board.position_key(), entry));
+    EXPECT_STR(move_to_uci(move_from_tt(entry.move16)), "e4d5");
     end_section();
 }
 
@@ -602,23 +597,21 @@ static void test_a_proven_mate_stands() {
     EXPECT(b5::forgotten_mate(mate_in_8, 2607));
     EXPECT(b5::forgotten_mate(mate_in_8, MATE_SCORE - 19));   // a longer one
     EXPECT(b5::forgotten_mate(-mate_in_8, -2607));      // being mated, likewise
-    // At depth 15 the arm proves this mate, and at depth 16 it reads 2607.
-    if (kB5Root) {
-        SearchLimits lim;
-        lim.depth = 16;
-        const Run run = search_limits("r1bq1r2/pp4k1/4p2p/3pPp1Q/3N1R1P/2PB4/6P1/6K1 w - - 0 1", lim);
-        EXPECT_EQ(run.result.score, mate_in_8);
-        EXPECT_STR(move_to_uci(run.result.bestmove), "f4g4");
-        // Every line from the proof on says so.
-        int after_the_proof = 0;
-        for (const std::string& line : run.lines) {
-            if (line.rfind("info depth 16 ", 0) == 0 && line.find("bound") == std::string::npos) {
-                ++after_the_proof;
-                EXPECT(line.find(" score mate 8 ") != std::string::npos);
-            }
+    // At depth 15 the search proves this mate, and at depth 16 it reads 2607.
+    SearchLimits lim;
+    lim.depth = 16;
+    const Run run = search_limits("r1bq1r2/pp4k1/4p2p/3pPp1Q/3N1R1P/2PB4/6P1/6K1 w - - 0 1", lim);
+    EXPECT_EQ(run.result.score, mate_in_8);
+    EXPECT_STR(move_to_uci(run.result.bestmove), "f4g4");
+    // Every line from the proof on says so.
+    int after_the_proof = 0;
+    for (const std::string& line : run.lines) {
+        if (line.rfind("info depth 16 ", 0) == 0 && line.find("bound") == std::string::npos) {
+            ++after_the_proof;
+            EXPECT(line.find(" score mate 8 ") != std::string::npos);
         }
-        EXPECT_EQ(after_the_proof, 1);
     }
+    EXPECT_EQ(after_the_proof, 1);
     end_section();
 }
 
@@ -676,12 +669,8 @@ static void test_no_give_up_on_the_arm() {
     const Run run = search_limits("8/8/8/8/3k4/8/3KBN2/8 w - - 0 1", lim);
     EXPECT(run.result.bestmove != MOVE_NONE);
     if (kCounters) {
-        if (kB5Root) {
-            EXPECT_EQ(counter(run, "asp_giveup"), 0);
-            EXPECT_EQ(counter(run, "asp_nodes_giveup"), 0);
-        } else {
-            EXPECT(counter(run, "asp_giveup") > 0);
-        }
+        EXPECT_EQ(counter(run, "asp_giveup"), 0);
+        EXPECT_EQ(counter(run, "asp_nodes_giveup"), 0);
     }
     end_section();
 }
@@ -736,7 +725,7 @@ static std::string trace_text(const std::string& line, const std::string& name) 
 // then with the full window. The trace reads each root move's searches in order.
 static void test_a_reduced_root_move_that_fails_high() {
     begin_section("a reduced root move that fails high");
-    if (kCounters && kB5Root) {
+    if (kCounters) {
         // The whole root: a second move is hardly ever reduced, since it has the
         // smallest move count and the ply a PV node adds back.
         int chains = 0;
@@ -766,21 +755,16 @@ static void test_a_reduced_root_move_that_fails_high() {
     end_section();
 }
 
-// Reduced root moves are counted, are searched again no more often than they are
-// reduced, and exist only on the arm.
+// Reduced root moves are counted and are searched again no more often than they
+// are reduced.
 static void test_root_reduction_counters() {
-    begin_section("root reduction fires on the arm alone");
+    begin_section("root reduction fires");
     if (kCounters) {
         SearchLimits lim;
         lim.depth = 12;
         const Run run = search_limits("r1bq1rk1/pp2bppp/2n1pn2/2pp4/3P1B2/2PBPN2/PP1N1PPP/R2QK2R w KQ - 0 9", lim);
-        if (kB5Root) {
-            EXPECT(counter(run, "root_lmr_reduced") > 0);
-            EXPECT(counter(run, "root_lmr_researched") <= counter(run, "root_lmr_reduced"));
-        } else {
-            EXPECT_EQ(counter(run, "root_lmr_reduced"), 0);
-            EXPECT_EQ(counter(run, "root_lmr_researched"), 0);
-        }
+        EXPECT(counter(run, "root_lmr_reduced") > 0);
+        EXPECT(counter(run, "root_lmr_researched") <= counter(run, "root_lmr_reduced"));
     }
     end_section();
 }

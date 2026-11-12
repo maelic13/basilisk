@@ -47,11 +47,12 @@ static const int TEST_DEPTH = 6;
 // 13 of headroom. Cluster 3's arm is likewise its own budget: its final tree
 // solves 149 at depth 6 (bench 4,003,560), above the stale bound of the floor
 // before it, and its floor is that count less 13.
-// Cluster 4's arm is its own budget too: root reduction lets a later root move
-// search past the first move's depth, with the PV ply and a negative reduction, so
-// its depth 6 searches further. It solves 199 (bench 3,920,652), and its floor is
-// that count less 13.
-static const int FLOOR = kB5Root ? 186 : 136;
+// Cluster 4 is its own budget too: root reduction lets a later root move search
+// past the first move's depth, with the PV ply and a negative reduction, so its
+// depth 6 searches further. Its unfitted tree solved 199 (bench 3,920,652), and
+// the floor is that count less 13; the fitted tree with one negative-reduction
+// extension a line solves 189 (bench 3,783,135).
+static const int FLOOR = 186;
 static const int STALE_HEADROOM = 20;
 
 static void test_request_parser() {

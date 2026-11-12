@@ -451,8 +451,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     state_.prev_root_score = 0;
     init_root_tablebase_scores(board);
     state_.root_ordering = RootOrdering{&state_.root_tb_moves, shared_.pool.root_table};
-    if constexpr (kB5Root)
-        root_record_init(board);
+    root_record_init(board);
 
     SearchResult result;
     int prev_score      = 0;
@@ -481,7 +480,6 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     // MultiPV: the main thread reports up to `multipv` lines, never more than
     // the root moves the search may play; helpers search one.
     state_.multipv_lines = 1;
-    state_.root_excluded.clear();
     if (limits.multipv > 1 && config_.thread_id == 0) {
         MoveList root_legal;
         board.gen_legal(root_legal);
@@ -539,8 +537,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         state_.root_depth_nodes = 0;
         state_.root_best_nodes = 0;
         state_.root_best_effort = 0;
-        if constexpr (kB5Root)
-            root_record_begin_iteration();
+        root_record_begin_iteration();
         int score;
         [[maybe_unused]] bool windowed = false;
 
@@ -643,7 +640,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             score = search_window(depth, limits.root_alpha, limits.root_beta);
         } else if (depth <= 3 || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
             score = search_window(depth, -INF_SCORE, INF_SCORE);
-        } else if (kB5Root && limits.params.b5_window && !state_.root_moves.empty()) {
+        } else if (limits.params.b5_window && !state_.root_moves.empty()) {
             windowed = true;
             score = search_line_window();
         } else {
@@ -718,34 +715,29 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
 
         // A proven mate stands against an iteration that lost it: the previous
         // line and score are kept.
-        if constexpr (kB5Root) {
-            if (!state_.root_moves.empty() && state_.root_moves.front().score != kRootScoreNone) {
-                const auto kept = std::find_if(state_.root_moves.begin(), state_.root_moves.end(), [&](const RootMove& rm) {
-                    return !last_best_pv.empty() && rm.move == last_best_pv.front();
-                });
-                if (b5::forgotten_mate(last_best_score, state_.root_moves.front().score)
-                    && kept != state_.root_moves.end()) {
-                    std::rotate(state_.root_moves.begin(), kept, kept + 1);
-                    state_.root_moves.front().score = last_best_score;
-                    state_.root_moves.front().pv = last_best_pv;
-                    score = last_best_score;
-                } else {
-                    last_best_score = state_.root_moves.front().score;
-                    last_best_pv = state_.root_moves.front().pv;
-                }
+        if (!state_.root_moves.empty() && state_.root_moves.front().score != kRootScoreNone) {
+            const auto kept = std::find_if(state_.root_moves.begin(), state_.root_moves.end(), [&](const RootMove& rm) {
+                return !last_best_pv.empty() && rm.move == last_best_pv.front();
+            });
+            if (b5::forgotten_mate(last_best_score, state_.root_moves.front().score)
+                && kept != state_.root_moves.end()) {
+                std::rotate(state_.root_moves.begin(), kept, kept + 1);
+                state_.root_moves.front().score = last_best_score;
+                state_.root_moves.front().pv = last_best_pv;
+                score = last_best_score;
+            } else {
+                last_best_score = state_.root_moves.front().score;
+                last_best_pv = state_.root_moves.front().pv;
             }
         }
 
-        // The iteration's first line: the record's on the arm, whose first
-        // entry a stop at depth 1 may have left without a score.
+        // The iteration's first line: the record's, whose first entry a stop at
+        // depth 1 may have left without a score.
         const Move* best_line = state_.pv_table[0];
-        int best_line_len = std::clamp(state_.pv_len[0], 0, MAX_PLY);
-        if constexpr (kB5Root) {
-            best_line_len = 0;
-            if (!state_.root_moves.empty() && state_.root_moves.front().score != kRootScoreNone) {
-                best_line = state_.root_moves.front().pv.data();
-                best_line_len = static_cast<int>(state_.root_moves.front().pv.size());
-            }
+        int best_line_len = 0;
+        if (!state_.root_moves.empty() && state_.root_moves.front().score != kRootScoreNone) {
+            best_line = state_.root_moves.front().pv.data();
+            best_line_len = static_cast<int>(state_.root_moves.front().pv.size());
         }
 
         // Track best-move stability for adaptive soft time limit
@@ -783,10 +775,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         }
         result.score = reported_score;
         result.depth = depth;
-        if constexpr (kB5Root) {
-            if (best_line_len > 0)
-                state_.sel_depth = state_.root_moves.front().sel_depth;
-        }
+        if (best_line_len > 0)
+            state_.sel_depth = state_.root_moves.front().sel_depth;
         result.seldepth = state_.sel_depth;
 
         // The table is given the raw `score`, not the tablebase-corrected
@@ -804,61 +794,45 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         // is not reported; its previous depth stands.
         struct ExtraLine { int score; std::vector<Move> pv; };
         std::vector<ExtraLine> extra_lines;
-        if constexpr (kB5Root) {
-            // On the record, each line is the first not yet searched this
-            // iteration, under its own window and following its own last line.
-            // The record keeps the finished lines in order at its front.
-            int finished = 1;
-            for (int k = 2; k <= state_.multipv_lines && cur_best != MOVE_NONE && !state_.stopped; ++k) {
-                state_.root_line = k - 1;
-                const RootMove& line = state_.root_moves[static_cast<size_t>(state_.root_line)];
-                state_.prev_pv_len = 0;
-                if (state_.root_iterations > 0) {
-                    state_.prev_pv_len = std::min<int>(static_cast<int>(line.previous_pv.size()), MAX_PLY);
-                    std::copy_n(line.previous_pv.begin(), state_.prev_pv_len, state_.prev_pv);
-                }
-                state_.pv_len[0] = 0;
-                state_.sel_depth = 0;
-                // A move that was no line's last iteration has no previous score.
-                const bool was_mate = line.previous_score != kRootScoreNone
-                                   && std::abs(line.previous_score) >= MATE_SCORE - MAX_PLY;
-                if (depth <= 3 || !limits.params.b5_window || was_mate)
-                    search_window(depth, -INF_SCORE, INF_SCORE);
-                else
-                    search_line_window();
-                if (state_.stopped || state_.pv_len[0] == 0)
-                    break;
-                ++finished;
-                std::stable_sort(state_.root_moves.begin(), state_.root_moves.begin() + finished,
-                                 b5::root_move_before);
-            }
-            state_.root_line = 0;
-            if (finished > 1) {
-                // Line 1 is now the best of the lines, and what the next
-                // iteration reads of this one.
-                const RootMove& best = state_.root_moves.front();
-                prev_score = best.score;
-                state_.sel_depth = best.sel_depth;
-                result.seldepth = best.sel_depth;
-                for (int k = 0; k < finished; ++k) {
-                    const RootMove& rm = state_.root_moves[static_cast<size_t>(k)];
-                    extra_lines.push_back({rm.score, rm.pv});
-                }
-            }
-        } else if (state_.multipv_lines > 1 && cur_best != MOVE_NONE && !state_.stopped) {
-            // A later line follows no previous PV.
+        // On the record, each line is the first not yet searched this
+        // iteration, under its own window and following its own last line.
+        // The record keeps the finished lines in order at its front.
+        int finished = 1;
+        for (int k = 2; k <= state_.multipv_lines && cur_best != MOVE_NONE && !state_.stopped; ++k) {
+            state_.root_line = k - 1;
+            const RootMove& line = state_.root_moves[static_cast<size_t>(state_.root_line)];
             state_.prev_pv_len = 0;
-            state_.root_excluded.assign(1, cur_best);
-            for (int k = 2; k <= state_.multipv_lines; ++k) {
-                state_.pv_len[0] = 0;
-                const int line_score = search_window(depth, -INF_SCORE, INF_SCORE);
-                if (state_.stopped || state_.pv_len[0] == 0)
-                    break;
-                extra_lines.push_back({line_score, std::vector<Move>(
-                    state_.pv_table[0], state_.pv_table[0] + std::clamp(state_.pv_len[0], 0, MAX_PLY))});
-                state_.root_excluded.push_back(state_.pv_table[0][0]);
+            if (state_.root_iterations > 0) {
+                state_.prev_pv_len = std::min<int>(static_cast<int>(line.previous_pv.size()), MAX_PLY);
+                std::copy_n(line.previous_pv.begin(), state_.prev_pv_len, state_.prev_pv);
             }
-            state_.root_excluded.clear();
+            state_.pv_len[0] = 0;
+            state_.sel_depth = 0;
+            // A move that was no line's last iteration has no previous score.
+            const bool was_mate = line.previous_score != kRootScoreNone
+                               && std::abs(line.previous_score) >= MATE_SCORE - MAX_PLY;
+            if (depth <= 3 || !limits.params.b5_window || was_mate)
+                search_window(depth, -INF_SCORE, INF_SCORE);
+            else
+                search_line_window();
+            if (state_.stopped || state_.pv_len[0] == 0)
+                break;
+            ++finished;
+            std::stable_sort(state_.root_moves.begin(), state_.root_moves.begin() + finished,
+                             b5::root_move_before);
+        }
+        state_.root_line = 0;
+        if (finished > 1) {
+            // Line 1 is now the best of the lines, and what the next
+            // iteration reads of this one.
+            const RootMove& best = state_.root_moves.front();
+            prev_score = best.score;
+            state_.sel_depth = best.sel_depth;
+            result.seldepth = best.sel_depth;
+            for (int k = 0; k < finished; ++k) {
+                const RootMove& rm = state_.root_moves[static_cast<size_t>(k)];
+                extra_lines.push_back({rm.score, rm.pv});
+            }
         }
 
         // What the next iteration reads of this one: the first line's PV and
@@ -871,20 +845,13 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         if (extra_lines.empty()) {
             send_info(depth, 1, reported_score, first_line, current_nodes(), elapsed);
         } else {
-            // Report the lines best first, as Stockfish sorts its root moves, so
-            // `bestmove` is always line 1: a later line searched without the
-            // first can score above it.
+            // The record's lines, best first, so `bestmove` is always line 1.
             std::vector<ExtraLine> lines;
-            if constexpr (!kB5Root)
-                lines.push_back({reported_score, first_line});
             for (ExtraLine& line : extra_lines) {
                 const int tb_display = root_tablebase_display(line.pv.front());
                 lines.push_back({tb_display != VALUE_NONE ? tb_display : line.score,
                                  std::move(line.pv)});
             }
-            if constexpr (!kB5Root)
-                std::stable_sort(lines.begin(), lines.end(),
-                                 [](const ExtraLine& a, const ExtraLine& b) { return a.score > b.score; });
             if (lines.front().pv.front() != result.bestmove) {
                 result.bestmove   = lines.front().pv.front();
                 result.pv         = lines.front().pv;

@@ -78,10 +78,8 @@ int Searcher::lmr_reduction(bool improving, int depth, int move_count, int delta
     const auto& p = config_.limits.params;
     const int scale = reductions_[std::min(depth, 255)] * reductions_[std::min(move_count, 255)];
     int window_term = delta * 577 / root_delta_;
-    if constexpr (kB5Root) {
-        if (p.b5_lmr_window_units)
-            window_term = b5::lmr_window_term(pv, delta, root_delta_);
-    }
+    if (p.b5_lmr_window_units)
+        window_term = b5::lmr_window_term(pv, delta, root_delta_);
     return scale - window_term
          + (improving ? 0 : scale * p.lmr_not_improving / 512) + p.lmr_offset;
 }
@@ -165,15 +163,10 @@ static constexpr int LMR_HISTORY_DIVISOR[16] = {
     2772, 3106, 3107, 3060, 3112, 2991, 3090, 3542};
 
 // A line's extensions from a negative reduction: what the move about to be
-// searched from `ss` takes, and so what its child's line holds. The OFF arm reads
-// them only to count them.
-inline constexpr bool kNegextWritten = kDiagCountersCompiled || kB5Root;
-
-static inline void set_negext([[maybe_unused]] SearchStack* ss, [[maybe_unused]] int taken) {
-    if constexpr (kNegextWritten) {
-        ss->negext_taken = taken;
-        (ss + 1)->negext_path = ss->negext_path + taken;
-    }
+// searched from `ss` takes, and so what its child's line holds.
+static inline void set_negext(SearchStack* ss, int taken) {
+    ss->negext_taken = taken;
+    (ss + 1)->negext_path = ss->negext_path + taken;
 }
 
 // ---- Quiescence search -----------------------------------------------------
@@ -831,7 +824,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     }
     // The root's first move comes from its own line once an iteration completed:
     // the table's may be a fail low's older entry or a helper's.
-    if constexpr (kB5Root && is_root) {
+    if constexpr (is_root) {
         if (state_.root_iterations > 0 && state_.root_line < int(state_.root_moves.size()))
             tt_move = state_.root_moves[static_cast<size_t>(state_.root_line)].move;
     }
@@ -1328,7 +1321,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     int quiets_count = 0;
     int captures_count = 0;
 
-    int root_ordinal = 0;
     bool immediate_return = false;
     int immediate_score = 0;
 
@@ -1418,25 +1410,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     auto search_one = [&](Move m, CoreMovePicker::Src picker_src) {
         [[maybe_unused]] RootMove* root_record = nullptr;
-        if constexpr (kB5Root && is_root) {
+        if constexpr (is_root) {
             // The record holds what the limits allow, once per `go`.
             root_record = root_record_find(m);
             if (root_record == nullptr)
                 return false;
-        } else {
-            if (is_root && !move_in_root_moves(m, config_.limits.root_moves))
-                return false;
-            if (is_root && config_.root_filter_index >= 0) {
-                const int ordinal = root_ordinal++;
-                if ((ordinal % config_.root_filter_count) != config_.root_filter_index)
-                    return false;
-            }
-            if (is_root && !root_tablebase_allows(m))
-                return false;
         }
-        if (is_root && !state_.root_excluded.empty()
-            && std::find(state_.root_excluded.begin(), state_.root_excluded.end(), m) != state_.root_excluded.end())
-            return false;
         ss->move_count = ++move_count;
         int r = lmr_reduction(improving, depth, ss->move_count, beta - alpha, is_pv);
         if (ss->tt_pv)
@@ -1824,8 +1803,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                       !is_pv && !cut_node);
         } else {
             // Nothing is reduced in check unless B3CheckPrune, nor at the root
-            // but on the arm, as at any PV node.
-            const bool root_reduces = kB5Root && is_root && kp.b5_root_lmr;
+            // unless B5RootLmr, which reduces it as any PV node.
+            const bool root_reduces = is_root && kp.b5_root_lmr;
             const bool reducible = !ABLATED(7) && (!is_root || root_reduces) && (!in_check || check_prune);
             if (!ABLATED(7) && (!is_root || root_reduces)) {
                 DIAG_COUNT(++state_.diag.lmr_eligible);
@@ -1837,9 +1816,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // full depth (a negative reduction) unless that is switched
                 // off, plus one at PV nodes.
                 const int reduced = new_depth - r / 1024;
-                const int ceiling = kB5Root
-                    ? b5::negext_ceiling(kp.lmr_negative_allowed, new_depth, ss->negext_path, kp.b5_neg_ext_max)
-                    : (kp.lmr_negative_allowed ? new_depth + 2 : new_depth);
+                const int ceiling =
+                    b5::negext_ceiling(kp.lmr_negative_allowed, new_depth, ss->negext_path, kp.b5_neg_ext_max);
                 const int d = std::max(1, std::min(reduced, ceiling)) + is_pv;
                 // A search past the full depth, the PV ply aside.
                 const bool negext = d - int(is_pv) > new_depth;
@@ -1966,7 +1944,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             }
         }
 
-        if constexpr (kB5Root && is_root)
+        if constexpr (is_root)
             root_record_searched(*root_record, score, std::max<int64_t>(0, move_nodes),
                                  searched == 1, alpha, beta);
 
@@ -2157,7 +2135,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     const Move stored_move = (kp.b3_fail_low_store && flag == TT_ALPHA)
                            ? MOVE_NONE : best_move;
     if (ss->excluded == MOVE_NONE
-        && !(is_root && (!state_.root_excluded.empty() || (kB5Root && state_.root_line > 0))))
+        && !(is_root && state_.root_line > 0))
         tt_store(hash, depth, best_score, flag, stored_move, ply, tt_static_eval,
                   ss->tt_pv);
 
@@ -2226,14 +2204,12 @@ int Searcher::root_search(int depth, int alpha, int beta, int searched_depth) {
     root_score_ = state_.prev_root_score;
     const int score = negamax<NodeType::Root>(searched_depth, alpha, beta, 0, state_.stack + STACK_SENTINELS,
                                               true, false);
-    if constexpr (kB5Root) {
-        const auto first = state_.root_moves.begin() + state_.root_line;
-        std::stable_sort(first, state_.root_moves.end(), b5::root_move_before);
-        // Inside its window the search's result is the record's first line.
-        CORE_NODE_CHECK(state_.stopped || score <= alpha || score >= beta
-                        || (first->move == state_.pv_table[0][0] && first->score == score
-                            && int(first->pv.size()) == std::clamp(state_.pv_len[0], 0, MAX_PLY)
-                            && std::equal(first->pv.begin(), first->pv.end(), state_.pv_table[0])));
-    }
+    const auto first = state_.root_moves.begin() + state_.root_line;
+    std::stable_sort(first, state_.root_moves.end(), b5::root_move_before);
+    // Inside its window the search's result is the record's first line.
+    CORE_NODE_CHECK(state_.stopped || score <= alpha || score >= beta
+                    || (first->move == state_.pv_table[0][0] && first->score == score
+                        && int(first->pv.size()) == std::clamp(state_.pv_len[0], 0, MAX_PLY)
+                        && std::equal(first->pv.begin(), first->pv.end(), state_.pv_table[0])));
     return score;
 }
