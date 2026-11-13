@@ -1,39 +1,54 @@
-# B.6.7's surface (BAS-S61): the head's X lines and the kernel literals that
-# passed the relevance read (analysis/b67_surface_2026-11-13.md section 3),
-# less the two the curvature sweep read flat on WAC (B3IirMinDepth,
-# LitLmrStep2Depth). A literal line may name a narrower range: a
-# guard's safe side, or a history bound a 16-bit entry holds.
+# B.6.7's surface (BAS-S61), amendment 2 (analysis/b67_surface_2026-11-13.md):
+# every wired search coordinate and kernel literal that is a magnitude a tune
+# can resolve. The relevance read's verdicts no longer choose it: 81 of its 102
+# passes rest on one row whose spread over all 381 points is 6.6%.
+# Left off, each with its reason, at the end of this file. A line may name a
+# narrower range inside its option's.
 
 # X lines
 CoreRazorMargin
 CoreRfpPerPly
 CoreRfpImproving
 CoreRfpWorsening
+CoreRfpCorrMult
+CoreRfpDepthCap
+CoreRfpBetaWeight
 CoreLmpBase
 CoreLmpSquareScale
 CoreQuietFutBase
 CoreQuietFutSlope
 CoreQuietFutAlphaTerm
 CoreQuietFutDepthCap
+CoreCaptFutBase
+CoreCaptFutSlope
+CoreCaptFutHistDiv 8 22
+CoreCaptFutDepthCap
 CoreContHistPruneSlope
 CoreCaptSeeCoeff
+CoreCaptSeeHistDiv
 CoreLmrTableScale
 CoreLmrOffset
+CoreLmrNotImproving
 CoreLmrTtPv
+CoreLmrTtPvBase
 CoreLmrTtPvPvNode
+CoreLmrTtPvAboveAlpha
 CoreLmrTtPvDepthOk
 CoreLmrCutNode
+CoreLmrCutNodeNoTt
 CoreLmrTtCapture
+CoreLmrCutoffCnt
 CoreLmrCutoffCnt2
 CoreLmrCutoffCntAll
 CoreLmrStatScale
-CoreLmrAlphaEvalScale
 CoreLmrAllNodeScale
 CoreResearchDeeper
-CoreResearchShallower
+CoreQuietBonusCap
+CoreQuietBonusSlope
 CoreMalusCap
 CoreMalusSlope
 CoreMalusDecay
+CoreMainHistDecay
 CoreTtCutoffBonusSlope
 CoreCorrUpdateScale
 CoreCorrContWeight
@@ -41,69 +56,145 @@ B3NmpPerPly
 B3NmpImproving
 B3NmpBase
 B3NmpRedBase
+B3NmpRedEvalDiv
+B3IirMinDepth
 B3ProbCutBase
+B3ProbCutImproving
 B3SingMargin
+B3SingMarginTtPv
+B3SingDoubleBase
+B3SingDoublePv
+B3SingDoubleQuiet
+B3SingTripleBase
+B3SingTriplePv
+B3SingTripleTtPv
+B3SingTripleDeep
+B4QsFutBase
 B4QsStandPatBlend
 B4QsFailHighBlend
+B5AspBase 500 6000
 B5AspMsqDiv
+B5AspGrowth
 
 # Kernel literals
-LitBoundCapture
-LitBoundCont 15000 32767
-LitBoundCorr
-LitBoundLowPly
-LitBoundMain
-LitCaptBonusShare
-LitContConsistencyScale
-LitContMalusShare
-LitContShare
-LitContW2
-LitContW4
-LitContW6
-LitCorrCont4Share
-LitCorrMinorShare
-LitCorrMinorW
-LitCorrNoMoveScale
-LitCorrNonPawnShare
-LitCorrNonPawnW
-LitCorrPawnW
-LitCorrShare
-LitEvalDiffLo
-LitEvalDiffMain
-LitEvalDiffOffset
-LitFhRedMax
-LitFlBase
-LitFlBelowOwn
-LitFlBelowParent
-LitFlCapture
-LitFlDepthCap
-LitFlLateMove
-LitFlParentMargin
-LitFlSizeSlope
-LitFlStatDiv
-LitHindDownDepth 2 6
-LitHindDownEval
-LitHindDownReduction
-LitHindUpReduction
-LitLmrAllOffset
-LitLmrAllSlope
-LitLmrAlphaHi
-LitLmrAlphaLo
-LitLmrBase
+LitLmrWindowPv
+LitLmrWindowNull
 LitLmrHistDivScale
-LitLmrMinDepth
+LitPruneMainHist
+LitLmrTtPvCut
+LitLmrBase
+LitLmrMoveCount
+LitLmrCorrDiv
+LitLmrCorrCap
+LitLmrBias
+LitStatCapture
+LitStatMain
+LitStatCont1
+LitStatCont2
+LitLmrAlphaLo
+LitLmrAlphaHi
+LitLmrAllOffset
+LitLmrNoTtStep
 LitLmrStep1
 LitLmrStep2
-LitLowPlyRefill
-LitMalusShare
-LitPawnShareDown
-LitPruneMainHist
-LitQuietBonusShare
-LitQuietBonusTt
 LitResearchContBonus
-LitSingBetaDen
-LitSingTtDepth
-LitStatCont2
-LitStatMain
+LitHindDownEval
 LitTtPrevMalus
-LitTtPrevMoveCount
+LitEvalDiffLo
+LitEvalDiffHi
+LitEvalDiffOffset
+LitEvalDiffMain
+LitEvalDiffPawn
+LitSingTmhDen
+LitFhRedMax
+LitTtMoveBonus
+LitTtMoveMalus
+LitCorrNoMoveScale
+LitCorrPawnW
+LitCorrMinorW
+LitCorrNonPawnW
+LitCorrContNone
+LitCorrMinorShare
+LitCorrNonPawnShare
+LitCorrCont2Share
+LitCorrCont4Share
+LitContW1
+LitContW2
+LitContW3
+LitContW4
+LitContW5
+LitContW6
+LitContNearBonus
+LitLowPlyShare
+LitContShare
+LitPawnShareUp
+LitPawnShareDown
+LitQuietBonusOffset
+LitQuietBonusTt
+LitQuietBonusStatDen
+LitMalusOffset
+LitBonusCountDen
+LitQuietBonusShare
+LitMalusShare
+LitCaptBonusShare
+LitContMalusShare
+LitCaptMalusShare
+LitFlCapture
+LitFlBase
+LitFlStatDiv
+LitFlDepthSlope
+LitFlDepthCap
+LitFlLateMove
+LitFlLateCount
+LitFlBelowOwn
+LitFlOwnMargin
+LitFlBelowParent
+LitFlParentMargin
+LitFlSizeSlope
+LitFlSizeOffset
+LitFlSizeCap
+LitFlContNum
+LitFlMainShare
+LitFlPawnShare
+LitBoundMain
+LitBoundLowPly
+LitBoundCapture
+LitBoundCont 15000 32767
+LitBoundPawn
+LitBoundTtMove
+LitBoundCorr
+LitBoundContCorr
+LitLowPlyRefill
+LitPickMainScale
+LitPickPawnScale
+LitPickContFarScale
+LitPickCheckBonus
+LitPickThreatScale
+LitPickLowPlyScale
+LitPickGoodQuiet
+LitPickSortLimit
+LitPickCaptureScale
+LitPickGoodCaptureDiv
+LitEmaMin
+LitEmaMax
+LitEmaMsqMax
+
+# Left off the surface
+#   B3ProbCutTtMargin: dead wire: its switch B3ProbCutTt is 0
+#   B3SingDoubleDeep: dead wire: moves no bench node a step either way
+#   CoreResearchShallower: seeded on its floor (0 switches the re-search off): one-sided, and rule 7c's rail clause could only stop the tune
+#   B3SingTripleQuiet: seed -2 a third of a step under its ceiling of 0, which its fits climbed to: the rail
+#     clause again; its range is widened in the header before it is tuned
+#   CoreLmrAlphaEvalScale: seed 2 a half step above its floor: a three-value staircase under the same rail clause
+#   guards: the other side reaches depth 0:
+#     LitHindDownDepth, LitFhRedMin, LitFhRedBy
+#   safety and rule constants, not strength magnitudes:
+#     LitTtRule50, LitShuffleRule50, LitShuffleNullPlies, LitShufflePly
+#     LitRootUnderpromo, LitTtGraphDepth
+#   staircases: a small integer whose every unit is another rule (the F lines' reason):
+#     LitLmrStep2Depth, LitLmrMinDepth, LitPvTtMoveDepth, LitTiePromoPlies
+#     LitHindUpReduction, LitHindDownReduction, LitTtNodeTypedDepth, LitTtPrevMoveCount
+#     LitTtPenaltyDepth, LitNmpMinPlyNum, LitSingTtDepth, LitPawnShareThreshold
+#     LitEmaChi, LitAspMinDepth
+#   exactly redundant with coordinates on the surface:
+#     LitSingBetaDen, LitContConsistencyScale, LitLmrAllSlope, LitCorrShare

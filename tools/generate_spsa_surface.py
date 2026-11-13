@@ -403,9 +403,9 @@ RULE7C_SURFACES = ("head", "core", "b3", "b4", "b5", "b67")
 # kernel's literals (src/kernel_literals.h), one name a line in
 # tools/spsa_configs/b67_surface.txt, as the relevance read and the curvature
 # sweep chose it (analysis/b67_surface_2026-11-13.md). An X line keeps the
-# header's range; a literal's is its screen option's, half to twice its value,
-# unless its line names a narrower one inside that (a guard's safe side, or a
-# history bound a 16-bit entry holds).
+# header's range and a literal its screen option's, half to twice its value,
+# unless its line names a narrower one inside that (a guard's safe side, a
+# history bound a 16-bit entry holds, a range whose step suits the seed).
 LITERALS = ROOT / "src" / "kernel_literals.h"
 B67_SURFACE = ROOT / "tools" / "spsa_configs" / "b67_surface.txt"
 LITERAL_RE = re.compile(r"^\s*L\(\s*[a-z][a-z0-9_]*\s*,\s*(Lit[A-Za-z0-9]+)\s*,\s*(-?\d+)\s*\)", re.M)
@@ -437,9 +437,16 @@ def b67_parameters(header_text: str, literal_text: str, surface_text: str) -> li
             continue
         name = fields[0]
         if name in head:
-            if len(fields) != 1:
-                raise ValueError(f"{name}: an X line's range is the header's")
-            chosen.append(head[name])
+            _, seed, low, high = head[name]
+            if len(fields) == 3:
+                narrow_low, narrow_high = int(fields[1]), int(fields[2])
+                if not low <= narrow_low <= seed <= narrow_high <= high:
+                    raise ValueError(f"{name}: [{narrow_low}, {narrow_high}] is not a range inside "
+                                     f"the header's [{low}, {high}] around {seed}")
+                low, high = narrow_low, narrow_high
+            elif len(fields) != 1:
+                raise ValueError(f"{name}: an X line is a name, or a name and a range")
+            chosen.append((name, seed, low, high))
         elif name in literals:
             value = literals[name]
             low, high = literal_min(value), literal_max(value)

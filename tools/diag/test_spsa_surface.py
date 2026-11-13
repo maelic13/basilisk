@@ -348,11 +348,13 @@ class SurfaceTests(unittest.TestCase):
         header = surface.HEADER.read_text(encoding="utf-8")
         literals = surface.LITERALS.read_text(encoding="utf-8")
         chosen = surface.b67_parameters(
-            header, literals, "B3SingMargin\n# a comment\n\nLitLmrBase  # inline\nLitBoundCont 24000 32767\n")
+            header, literals, "B3SingMargin\n# a comment\n\nLitLmrBase  # inline\nLitBoundCont 24000 32767\n"
+                              "B5AspBase 500 6000\n")
         head = {p[0]: p for p in surface.head_parameters(header)}
         self.assertEqual(chosen, [head["B3SingMargin"], ("LitLmrBase", 697, 348, 1396),
-                                  ("LitBoundCont", 30000, 24000, 32767)])
-        self.assertEqual(len(surface.kernel_literals(literals)), 118)
+                                  ("LitBoundCont", 30000, 24000, 32767),
+                                  ("B5AspBase", head["B5AspBase"][1], 500, 6000)])
+        self.assertEqual(len(surface.kernel_literals(literals)), 128)
 
     def test_b67_literal_ranges_are_the_screen_options(self):
         # src/kernel_literals.h's kernel_literal_min and kernel_literal_max, as
@@ -365,7 +367,8 @@ class SurfaceTests(unittest.TestCase):
     def test_b67_surface_rejects_what_it_cannot_place(self):
         header = surface.HEADER.read_text(encoding="utf-8")
         literals = surface.LITERALS.read_text(encoding="utf-8")
-        for text in ("NoSuchName\n", "B3SingMargin 13 378\n", "LitLmrBase 100 700\n",
+        for text in ("NoSuchName\n", "B3SingMargin 12 378\n", "B3SingMargin 250 378\n",
+                     "B3SingMargin 13\n", "LitLmrBase 100 700\n",
                      "LitLmrBase 700 800\n", "LitLmrBase 1\n", "LitLmrBase\nLitLmrBase\n"):
             with self.assertRaises(ValueError, msg=text):
                 surface.b67_parameters(header, literals, text)
