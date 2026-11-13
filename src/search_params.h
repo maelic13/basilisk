@@ -477,6 +477,17 @@
     A(b3_sing_margin,        B3SingMargin,          201)                \
     A(b3_iir_min_depth,      B3IirMinDepth,           7)
 
+// B.6.6's adoptions, the B6_DONOR_FORMS arm, in the same form and applied
+// last: the donor's razoring and the kings in the non-pawn correction keys,
+// each adopted by its paired run and gated together. Empty on the OFF arm.
+#ifdef BASILISK_B6_DONOR_FORMS
+#define BASILISK_B6_CORE_DEFAULTS(A)                                     \
+    A(razor_donor,           CoreRazorDonor,          1)                \
+    A(corr_nonpawn_kings,    CoreCorrNonPawnKings,    1)
+#else
+#define BASILISK_B6_CORE_DEFAULTS(A)
+#endif
+
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
 
@@ -500,6 +511,7 @@ struct SearchParams {
         BASILISK_B3_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
         BASILISK_B4_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
         BASILISK_B5_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
+        BASILISK_B6_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
 #undef BASILISK_ARM_DEFAULT
     }
 };

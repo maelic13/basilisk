@@ -205,6 +205,7 @@ static void test_arm_defaults() {
         BASILISK_B3_CORE_DEFAULTS(ARM_DEFAULT_ROW)
         BASILISK_B4_CORE_DEFAULTS(ARM_DEFAULT_ROW)
         BASILISK_B5_CORE_DEFAULTS(ARM_DEFAULT_ROW)
+        BASILISK_B6_CORE_DEFAULTS(ARM_DEFAULT_ROW)
 #undef ARM_DEFAULT_ROW
     };
     const auto find = [](std::string_view field) -> const ArmDefault* {

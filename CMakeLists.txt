@@ -522,6 +522,9 @@ option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production build
 # gate, then ON; OFF then reproduces the previous fingerprint and stays
 # compilable, unmaintained, until it is deleted. Clusters 2, 3 and 4 and the
 # coloured histories passed their gates, and their OFF arms are gone.
+# B6_DONOR_FORMS is B.6.6's adoptions: the donor's razoring and the kings in
+# the non-pawn correction keys, set as defaults by BASILISK_B6_CORE_DEFAULTS.
+option(B6_DONOR_FORMS "Make B.6.6's adopted donor forms the defaults (sets BASILISK_B6_DONOR_FORMS)" OFF)
 option(PROFILE_SYMBOLS "Emit line tables with inline records in Release builds for the sampling profiler; code generation is unchanged" OFF)
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
@@ -634,6 +637,13 @@ endif()
 
 if(RELEASE_DIAG_COUNTERS)
     target_compile_definitions(basilisk_engine PRIVATE BASILISK_RELEASE_DIAG_COUNTERS)
+endif()
+
+if(B6_DONOR_FORMS)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_B6_DONOR_FORMS)
+    endforeach()
+    message(STATUS "B6_DONOR_FORMS arm: B.6.6's adopted donor forms are the defaults (BASILISK_B6_DONOR_FORMS defined)")
 endif()
 
 if(TUNE)
