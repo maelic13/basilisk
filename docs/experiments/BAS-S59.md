@@ -147,6 +147,9 @@ Frozen 2026-11-12, before the floors were read:
   - Razoring: the donor's form is **adopted**.
   - Rule-50 key: Basilisk's form stays; under +5, so H.2.
   - Kings in the non-pawn key: the donor's form is **adopted**.
+  - BAS-S60 (2026-11-13) did not confirm them: +2.2 ± 4.2 Elo together
+    over 10,000 games, the cap undecided; neither is adopted, and both go
+    to H.6.
   - The two adoptions go together behind one switch to the SPRT `[0,3]`
     against the head, before B.6.7 (the registered next step). If every row were null, each run would clear
     the rule by noise about 2.4% of the time (an estimate above 9.3 at

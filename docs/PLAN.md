@@ -3292,7 +3292,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           `int` (four failures, −256 for +256), the order of operations
           changed (1,889 points differ), the weight 520 raised to 540
           (the `static_assert` stops the build).
-    - [ ] **B.6.6** `[R2]` Donor-form reconciliation
+    - [x] **B.6.6** `[R2]` Donor-form reconciliation
       It was B.6.1 until 2026-11-11.
       After B.4 and B.5 close, every place the search still keeps
       Basilisk's form where the donor's differs is re-read against the
@@ -3404,6 +3404,18 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - Final-PGO arms `A2BF3537…` (ON) and `07BB73F3…` (OFF); cap
           5,000 pairs; dry run accepted. The maintainer runs
           `python tools/run_b66_sprt.py`.
+      - Closed 2026-11-13, `NO_CHANGE` (BAS-S60 *RESULT*, packet §10;
+        `bench 13` 3,783,135 unchanged):
+        - The SPRT reached its cap of 5,000 pairs undecided: +2.2 ± 4.2
+          Elo, LLR +0.52, one time forfeit by the head, the recount
+          agreeing. An unresolved stop is not an adoption.
+        - No row adopts the donor's form. Razoring and the kings key
+          (+10.6 and +11.6 alone, +2.2 together), the TT cap and the
+          rule-50 key go to H.6 with their readings. B.6.7 fits the
+          head's forms; `B6_DONOR_FORMS` and the four switches stay,
+          off, for H.6.
+        - The census reads no conversion cost from the fixed-depth mate
+          delay: ON left 145 games unconverted at +300, the head 199.
     - [ ] **B.6.7** `[V]` Joint search SPSA
       It was B.6.2 until 2026-11-11.
       The joint SPSA above, on the reconciled head.
@@ -4272,7 +4284,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.6.6 | GAME_GATE | R2 | Was B.6.1; BAS-S59's runs read 2026-11-13: razoring and the kings key adopted; their SPRT (BAS-S60) prepared, maintainer-run |
 | B.6.7 | RESEARCH | V | Was B.6.2; runs (maintainer 2026-11-05); the curvature evidence chooses its surface, after the zero-game screen of the kernel's literals (added 2026-11-10) |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
 | B.7.2 | RESEARCH | R2 | Was B.15.2; after B.7.1 |
@@ -5747,8 +5758,10 @@ already repairing or a form it must choose anyway, and says so.
     `B3ExtBudget`; the stand-pat store; the evasion order; the SEE vector;
     the capture stage's promotions (F5); razoring and reverse futility in
     the exclusion search and its estimate (R2a, R2b); the verification's
-    frame (R7, with H.2's frame item); and razoring and the kings key if
-    BAS-S60 does not accept them.
+    frame (R7, with H.2's frame item); razoring in the donor's form and
+    the kings in the non-pawn key (+10.6 ± 9.4 and +11.6 ± 9.3 alone,
+    +2.2 ± 4.2 together over 10,000 games, BAS-S60). Their switches
+    and `B6_DONOR_FORMS` are in the source, off.
 
 ## 4. Measurement protocols
 

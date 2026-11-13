@@ -332,3 +332,14 @@ What follows from it:
   `A2BF3537…` and OFF `07BB73F3…` from `65448d0`, seed 66010, dry run
   accepted (`tools/results/colosseum_sprt_b66-sprt_20261113_091911.*`).
   Command: `python tools/run_b66_sprt.py`.
+
+## 10. The gate's result and the leaf's close (2026-11-13)
+
+BAS-S60 reached its cap undecided: **+2.2 ± 4.2 Elo** over 10,000 games,
+LLR +0.52, the recount agreeing. Neither donor form is adopted. With the
+TT cap and the rule-50 key, all four rows that ran stay Basilisk's and
+are H.6's, each with its readings. B.6.7 fits the head as it stands, and
+the fingerprint stays 3,783,135. The single runs' +10.6 and +11.6 did not
+survive together; one 2,000-game paired run past +5 is a weak basis for
+adoption when several rows run on one rule, and the joint SPRT did its
+job as the guard.

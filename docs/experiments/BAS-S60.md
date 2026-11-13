@@ -78,3 +78,31 @@
   adoptions were selection, or that the two do not add.
 
 #### RESULT — append after exposure
+- **The games** (maintainer-run 2026-11-13, `python tools/run_b66_sprt.py`,
+  1 h 39 min): the cap of 5,000 pairs reached without a boundary, **LLR
+  +0.52** in [−2.94, +2.94]. **+2.2 ± 4.2 Elo**, +3.6 ± 6.8 nElo; W/D/L
+  2600/4864/2536; pentanomial [163, 1214, 2182, 1278, 163]. One time
+  forfeit in 10,000 games, by the OFF arm (1 of 50 allowed). The PGN
+  recount agrees. Run record `tools/results/b66-sprt/`; PGN SHA-256
+  `3404B1F7EBE5851BD04D9061EA93CD0FAEB889E80164C18112A76503328D6A66`.
+- **Disposition: neither form is adopted.** An unresolved stop is not an
+  adoption (CONDITIONS). Razoring in the donor's form and the kings in the
+  non-pawn key stay Basilisk's and go to H.6 with BAS-S59's readings and
+  this one. B.6.7 fits the head's forms. `B6_DONOR_FORMS` and the four
+  switches stay, off, for H.6's re-reads.
+- **What it says.** The two together read +2.2, interval [−2.0, +6.4],
+  against +10.6 and +11.6 one at a time. Either most of each single
+  reading was selection (the one-in-nine chance the registration named),
+  or the two do not add: the kings key changes the corrected eval
+  razoring reads. This run cannot tell which. It is a small lean, not a
+  loss, and a gain this size is Phase H's by the maintainer's rule.
+- **Diagnostics (not the verdict).** Mean depth without mate scores ON
+  16.60 against OFF 16.24. The census (`pgn_time_census.py`, registered
+  for H1 only) reads games decided at +300 and not won: ON 145 of 2,740,
+  OFF 199 of 2,729; at +800, 7 and 6; at +1,500, 0 and 2. The fixed-depth
+  mate delay costs no conversions in play.
+- **Calibration.** G1 (H1, 60%) missed; G2 (the cap, 25%) hit; G3 did not
+  occur; G4 (+10, 80% interval [+3, +18]) missed, at +2.2, a fixed-sample
+  estimate at the cap; G5 not applicable, though the census would have
+  passed. The selection shrinkage at registration (+17 and +19 nElo down
+  to +16 combined) was far too small.
