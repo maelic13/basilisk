@@ -84,7 +84,7 @@ c_end = 7.3691
 name = "B3IirMinDepth"
 initial = 6
 min = 3
-max = 10
+max = 11
 c_end = 0.9211
 
 [[parameters]]

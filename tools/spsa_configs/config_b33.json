@@ -19,7 +19,7 @@
     },
     "B3NmpRedBase": {
         "value": 4,
-        "min_value": 2,
+        "min_value": 1,
         "max_value": 10,
         "step": 2
     },
@@ -32,7 +32,7 @@
     "B3IirMinDepth": {
         "value": 5,
         "min_value": 3,
-        "max_value": 10,
+        "max_value": 11,
         "step": 2
     },
     "B3ProbCutBase": {
@@ -115,7 +115,7 @@
     },
     "CoreLmpBase": {
         "value": 4,
-        "min_value": 1,
+        "min_value": 0,
         "max_value": 8,
         "step": 2
     },
@@ -152,8 +152,8 @@
     "CoreCorrUpdateScale": {
         "value": 17,
         "min_value": 4,
-        "max_value": 30,
-        "step": 2
+        "max_value": 64,
+        "step": 4
     },
     "CoreRfpPerPly": {
         "value": 99,

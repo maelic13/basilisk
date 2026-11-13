@@ -27,7 +27,7 @@ c_end = 7.3691
 [[parameters]]
 name = "B3NmpRedBase"
 initial = 4
-min = 2
+min = 1
 max = 10
 c_end = 0.9211
 
@@ -42,7 +42,7 @@ c_end = 6.4480
 name = "B3IirMinDepth"
 initial = 5
 min = 3
-max = 10
+max = 11
 c_end = 0.9211
 
 [[parameters]]
@@ -139,7 +139,7 @@ c_end = 0.9211
 [[parameters]]
 name = "CoreLmpBase"
 initial = 4
-min = 1
+min = 0
 max = 8
 c_end = 0.9211
 
@@ -182,8 +182,8 @@ c_end = 58.9529
 name = "CoreCorrUpdateScale"
 initial = 17
 min = 4
-max = 30
-c_end = 0.9211
+max = 64
+c_end = 1.8423
 
 [[parameters]]
 name = "CoreRfpPerPly"

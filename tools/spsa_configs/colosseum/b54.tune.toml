@@ -35,8 +35,8 @@ c_end = 186.9911
 name = "CoreCorrUpdateScale"
 initial = 18
 min = 4
-max = 30
-c_end = 0.9211
+max = 64
+c_end = 1.8423
 
 [[parameters]]
 name = "B3NmpPerPly"
@@ -56,5 +56,5 @@ c_end = 10.5931
 name = "B3IirMinDepth"
 initial = 7
 min = 3
-max = 10
+max = 11
 c_end = 0.9211

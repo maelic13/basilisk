@@ -397,7 +397,67 @@ option = ["Hash=64", "Threads=1"]
     return outputs
 
 
-RULE7C_SURFACES = ("head", "core", "b3", "b4", "b5")
+RULE7C_SURFACES = ("head", "core", "b3", "b4", "b5", "b67")
+
+# B.6.7's surface (BAS-S61): a chosen subset of the head's X lines and of the
+# kernel's literals (src/kernel_literals.h), one name a line in
+# tools/spsa_configs/b67_surface.txt, as the relevance read and the curvature
+# sweep chose it (analysis/b67_surface_2026-11-13.md). An X line keeps the
+# header's range; a literal's is its screen option's, half to twice its value,
+# unless its line names a narrower one inside that (a guard's safe side, or a
+# history bound a 16-bit entry holds).
+LITERALS = ROOT / "src" / "kernel_literals.h"
+B67_SURFACE = ROOT / "tools" / "spsa_configs" / "b67_surface.txt"
+LITERAL_RE = re.compile(r"^\s*L\(\s*[a-z][a-z0-9_]*\s*,\s*(Lit[A-Za-z0-9]+)\s*,\s*(-?\d+)\s*\)", re.M)
+
+
+def literal_min(value: int) -> int:
+    """kernel_literal_min: about half the value; a divisor never reaches 0."""
+    return value // 2 if value > 0 else value * 2 - 2
+
+
+def literal_max(value: int) -> int:
+    """kernel_literal_max: about twice the value (C++ division truncates toward 0)."""
+    return value * 2 + 2 if value > 0 else -((1 - value) // 2)
+
+
+def kernel_literals(text: str) -> dict[str, int]:
+    return {name: int(value) for name, value in LITERAL_RE.findall(text)}
+
+
+def b67_parameters(header_text: str, literal_text: str, surface_text: str) -> list[tuple[str, int, int, int]]:
+    """B.6.7's surface: each listed name, an X line at the head's seed and range, or
+    a kernel literal at its value and its option's range or a narrower one."""
+    head = {p[0]: p for p in head_parameters(header_text)}
+    literals = kernel_literals(literal_text)
+    chosen: list[tuple[str, int, int, int]] = []
+    for raw in surface_text.splitlines():
+        fields = raw.split("#", 1)[0].split()
+        if not fields:
+            continue
+        name = fields[0]
+        if name in head:
+            if len(fields) != 1:
+                raise ValueError(f"{name}: an X line's range is the header's")
+            chosen.append(head[name])
+        elif name in literals:
+            value = literals[name]
+            low, high = literal_min(value), literal_max(value)
+            if len(fields) == 3:
+                narrow_low, narrow_high = int(fields[1]), int(fields[2])
+                if not low <= narrow_low <= value <= narrow_high <= high:
+                    raise ValueError(f"{name}: [{narrow_low}, {narrow_high}] is not a range inside "
+                                     f"[{low}, {high}] around {value}")
+                low, high = narrow_low, narrow_high
+            elif len(fields) != 1:
+                raise ValueError(f"{name}: a literal line is a name, or a name and a range")
+            chosen.append((name, value, low, high))
+        else:
+            raise ValueError(f"{name}: neither a head X line nor a kernel literal")
+    names = [p[0] for p in chosen]
+    if len(set(names)) != len(names):
+        raise ValueError("a name is listed twice")
+    return chosen
 
 
 def head_parameters(text: str, surface: str = "head") -> list[tuple[str, int, int, int]]:
@@ -496,7 +556,12 @@ def main() -> int:
         if args.check or args.ceiling < 1:
             parser.error("--rule7c needs a positive --ceiling and is not a --check")
         try:
-            parameters = head_parameters(HEADER.read_text(encoding="utf-8"), args.rule7c)
+            if args.rule7c == "b67":
+                parameters = b67_parameters(HEADER.read_text(encoding="utf-8"),
+                                            LITERALS.read_text(encoding="utf-8"),
+                                            B67_SURFACE.read_text(encoding="utf-8"))
+            else:
+                parameters = head_parameters(HEADER.read_text(encoding="utf-8"), args.rule7c)
         except ValueError as error:
             print(error, file=sys.stderr)
             return 2

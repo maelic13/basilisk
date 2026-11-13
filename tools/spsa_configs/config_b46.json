@@ -68,7 +68,7 @@
     "B3IirMinDepth": {
         "value": 6,
         "min_value": 3,
-        "max_value": 10,
+        "max_value": 11,
         "step": 2
     },
     "CoreLmrCutNodeNoTt": {

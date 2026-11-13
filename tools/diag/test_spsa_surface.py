@@ -344,17 +344,46 @@ class SurfaceTests(unittest.TestCase):
         self.assertEqual(len(report), 2)
         self.assertIn("under one step of room", report[1])
 
+    def test_b67_surface_reads_x_lines_and_literals(self):
+        header = surface.HEADER.read_text(encoding="utf-8")
+        literals = surface.LITERALS.read_text(encoding="utf-8")
+        chosen = surface.b67_parameters(
+            header, literals, "B3SingMargin\n# a comment\n\nLitLmrBase  # inline\nLitBoundCont 24000 32767\n")
+        head = {p[0]: p for p in surface.head_parameters(header)}
+        self.assertEqual(chosen, [head["B3SingMargin"], ("LitLmrBase", 697, 348, 1396),
+                                  ("LitBoundCont", 30000, 24000, 32767)])
+        self.assertEqual(len(surface.kernel_literals(literals)), 118)
+
+    def test_b67_literal_ranges_are_the_screen_options(self):
+        # src/kernel_literals.h's kernel_literal_min and kernel_literal_max, as
+        # the screen build advertises them (C++ division truncates toward 0).
+        cases = {697: (348, 1396), 1: (0, 4), 2: (1, 6), 3: (1, 8), -64: (-130, -32),
+                 -4: (-10, -2), -2210: (-4422, -1105), -81: (-164, -41)}
+        for value, (low, high) in cases.items():
+            self.assertEqual((surface.literal_min(value), surface.literal_max(value)), (low, high), value)
+
+    def test_b67_surface_rejects_what_it_cannot_place(self):
+        header = surface.HEADER.read_text(encoding="utf-8")
+        literals = surface.LITERALS.read_text(encoding="utf-8")
+        for text in ("NoSuchName\n", "B3SingMargin 13 378\n", "LitLmrBase 100 700\n",
+                     "LitLmrBase 700 800\n", "LitLmrBase 1\n", "LitLmrBase\nLitLmrBase\n"):
+            with self.assertRaises(ValueError, msg=text):
+                surface.b67_parameters(header, literals, text)
+
     def test_rule7c_head_room_matches_the_recorded_count(self):
-        # BAS-S57: of the head's 74 coordinates, 10 lack two steps of room at
-        # their seeds and 3 of those lack one.
+        # BAS-S57 counted 10 of the head's 74 coordinates short of two steps of
+        # room at their seeds, 3 of them of one. B.6.7's rails (BAS-S61 section 5)
+        # widened four ranges and floored two at their switch boundaries: 7
+        # short, 4 of them of one.
         text = surface.HEADER.read_text(encoding="utf-8")
         parameters = surface.head_parameters(text)
         _, report = surface.render_rule7c(parameters, 6000, "head")
         self.assertEqual(len(parameters), 74)
-        self.assertEqual(len(report), 10)
-        self.assertEqual(sum("under one step" in line for line in report), 3)
+        self.assertEqual(len(report), 7)
+        self.assertEqual(sum("under one step" in line for line in report), 4)
         names = {line.split(":")[0] for line in report if "under one step" in line}
-        self.assertEqual(names, {"CoreCaptFutHistDiv", "CoreResearchShallower", "B3SingTripleQuiet"})
+        self.assertEqual(names, {"CoreCaptFutHistDiv", "CoreLmrAlphaEvalScale", "CoreResearchShallower",
+                                 "B3SingTripleQuiet"})
 
     def test_rule7c_seeds_are_the_values_the_head_runs(self):
         text = surface.HEADER.read_text(encoding="utf-8")

@@ -26,8 +26,8 @@
     "CoreCorrUpdateScale": {
         "value": 18,
         "min_value": 4,
-        "max_value": 30,
-        "step": 2
+        "max_value": 64,
+        "step": 4
     },
     "B3NmpPerPly": {
         "value": 11,
@@ -44,7 +44,7 @@
     "B3IirMinDepth": {
         "value": 7,
         "min_value": 3,
-        "max_value": 10,
+        "max_value": 11,
         "step": 2
     }
 }
