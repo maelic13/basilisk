@@ -351,7 +351,9 @@ recorded seed. A tune is one run (PLAN rule 7c): `tools/spsa_colosseum.ps1`
 plays it to its registered ceiling a checkpoint at a time with Colosseum's
 `--stop-after-iteration`, reads each checkpoint with `tools/spsa_read.py`, and
 resumes or stops; a `STOP` file in the run directory stops it at the next
-checkpoint. Its tune file is `tools/generate_spsa_surface.py --rule7c` for that
+checkpoint, and `-PauseAt <checkpoint>` holds a live tune there for the
+maintainer (the same command without it continues; with a `STOP` file it stops
+there with that checkpoint's centres). Its tune file is `tools/generate_spsa_surface.py --rule7c` for that
 ceiling.
 
 **fastchess and weather-factory stay installed, working and documented** as

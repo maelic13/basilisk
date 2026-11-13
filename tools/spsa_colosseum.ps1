@@ -27,6 +27,11 @@
     next checkpoint the tune stops there and that checkpoint's centres are
     theta. Running the same command again resumes an interrupted run from its
     directory at its recorded seed; a stopped tune is never extended.
+    -PauseAt <checkpoint> holds a live tune for the maintainer: when the read
+    there is CONTINUE, it is recorded and the wrapper exits without playing on.
+    The same command without -PauseAt then continues the run; with a STOP file
+    in the run directory it stops at that checkpoint with its centres as
+    theta. Any other verdict at that checkpoint routes as it always does.
 
     -AllowShortRun exists only for instrument smoke on a separately generated
     temporary surface: it lifts the production shape (ceiling, checkpoints,
@@ -43,6 +48,7 @@ param(
     [int]$FirstCheckpoint = 2000,
     [int]$CheckpointEvery = 1000,
     [int]$Window = 1000,
+    [int]$PauseAt = 0,
     [int]$GamesPerIteration = 30,
     [int]$Concurrency = 15,
     [switch]$AllowShortRun,
@@ -87,6 +93,9 @@ if ($LASTEXITCODE -ne 0) { throw 'Generated SPSA files are stale; regenerate the
 $checkpoints = [System.Collections.Generic.List[int]]::new()
 for ($k = $FirstCheckpoint; $k -lt $Ceiling; $k += $CheckpointEvery) { $checkpoints.Add($k) }
 $checkpoints.Add($Ceiling)
+if ($PauseAt -ne 0 -and ($PauseAt -notin $checkpoints -or $PauseAt -eq $Ceiling)) {
+    throw "-PauseAt $PauseAt is not a checkpoint before the ceiling ($($checkpoints -join ', '))."
+}
 
 $hostState = Assert-HarnessHostIdle -MaxBusyPercent $MaxHostBusyPercent -Allow:($AllowBusyHost -or $DryRun)
 $cli = Assert-ColosseumCli -Path $CliPath -PinPath $PinPath
@@ -163,6 +172,7 @@ $lines = [Collections.Generic.List[string]]::new()
     "ceiling:          $Ceiling iterations"
     "r_end:            $REnd"
     "checkpoints:      $($checkpoints -join ', ') (window $Window)"
+    "pause_at:         $(if ($PauseAt) { "$PauseAt, for the maintainer" } else { 'none' })"
     "games_per_iter:   $GamesPerIteration"
     "concurrency:      $Concurrency"
     "seed:             $Seed"
@@ -256,6 +266,10 @@ foreach ($checkpoint in $checkpoints) {
     Add-Content -LiteralPath $manifestPath -Encoding utf8 -Value ("checkpoint {0,5}: {1}; max |z| {2} (line {3}); excess {4} SD; gain {5} (null SD {6}); forecast {7} +/- {8}" -f
         $checkpoint, $verdict, $read.max_abs_z, $read.familywise_line, $read.excess_sd, $read.gain.elo, $read.gain.null_sd, $read.forecast.elo, $read.forecast.sd)
     Write-Host "Checkpoint ${checkpoint}: $verdict (max |z| $($read.max_abs_z) against $($read.familywise_line); excess $($read.excess_sd) SD)"
+    if ($verdict -eq 'CONTINUE' -and $checkpoint -eq $PauseAt) {
+        $verdict = 'PAUSED'
+        break
+    }
     if ($verdict -ne 'CONTINUE') { break }
 }
 
@@ -266,6 +280,10 @@ Add-Content -LiteralPath $manifestPath -Encoding utf8 -Value @(
 switch ($verdict) {
     { $_ -in 'STOP_QUIET', 'STOP_CEILING', 'STOP_MAINTAINER' } {
         Write-Host "Tune stopped ($verdict) at iteration $($read.at). Theta: $(Join-Path $Dir "theta-$($read.at).txt"); the read: $(Join-Path $Dir 'spsa-read.txt')"
+        exit 0
+    }
+    'PAUSED' {
+        Write-Host "PAUSED at iteration $($read.at) for the maintainer; the read: $(Join-Path $Dir 'spsa-read.txt'). The same command without -PauseAt continues the run; with a STOP file in $Dir it stops here with this checkpoint's centres as theta."
         exit 0
     }
     'STOP_RAIL' { throw "RAIL - $($read.rails -join ', ') at a bound with z pointing outward past the familywise line at iteration $($read.at): register the range again; no theta." }
