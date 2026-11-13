@@ -1,6 +1,7 @@
 # B.6.7's surface (BAS-S61): the head's X lines and the kernel literals that
 # passed the relevance read (analysis/b67_surface_2026-11-13.md section 3),
-# before the curvature sweep. A literal line may name a narrower range: a
+# less the two the curvature sweep read flat on WAC (B3IirMinDepth,
+# LitLmrStep2Depth). A literal line may name a narrower range: a
 # guard's safe side, or a history bound a 16-bit entry holds.
 
 # X lines
@@ -40,7 +41,6 @@ B3NmpPerPly
 B3NmpImproving
 B3NmpBase
 B3NmpRedBase
-B3IirMinDepth
 B3ProbCutBase
 B3SingMargin
 B4QsStandPatBlend
@@ -94,7 +94,6 @@ LitLmrHistDivScale
 LitLmrMinDepth
 LitLmrStep1
 LitLmrStep2
-LitLmrStep2Depth
 LitLowPlyRefill
 LitMalusShare
 LitPawnShareDown
