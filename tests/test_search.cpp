@@ -228,6 +228,7 @@ static void test_arm_defaults() {
             EXPECT(a.value != def);                                      \
         }
     BASILISK_SEARCH_PARAMS(ARM_DEFAULT_RANGE)
+    BASILISK_KERNEL_SWITCHES(ARM_DEFAULT_RANGE)
     BASILISK_B3_PARAMS(ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE)
     BASILISK_B5_PARAMS(ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE)
     EXPECT_EQ(matched, int(std::size(arm)));
