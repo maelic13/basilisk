@@ -89,7 +89,8 @@ public:
     Move first_denied_quiet(ScoredMove* scratch);
 #endif
 
-    static constexpr int GOOD_QUIET_THRESHOLD = -14000;
+    // The compiled threshold; the picker reads the kernel literal behind it.
+    static constexpr int GOOD_QUIET_THRESHOLD = kKernelLiteralDefaults.pick_good_quiet;
 
 private:
     enum class Stage { TT, CaptureInit, GoodCapture, QuietInit, GoodQuiet, BadCapture, BadQuiet, Done };

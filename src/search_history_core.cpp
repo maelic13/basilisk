@@ -108,9 +108,18 @@ void Searcher::update_continuation_histories(SearchStack* ss, Piece piece, Squar
         int16_t& e = prev->cont_hist->entry[hist_piece(piece)][to];
         if (e > 0)
             ++positive;
+#ifdef BASILISK_LITERAL_SCREEN
+        // The screen's weights are run-time values the width proof above does
+        // not cover, so the product is taken in 64 bits; the update clamps it.
+        PieceToHistory::update(e, static_cast<int>(std::clamp<long long>(
+            KLIT_WIDE(bonus) * b.weight
+                * KLIT_SCALED(CONT_CONSISTENCY[positive], cont_consistency_scale) / 65536
+            + KLIT(cont_near_bonus) * (b.plies < 2), -1'000'000, 1'000'000)));
+#else
         PieceToHistory::update(e, bonus * b.weight
                                       * KLIT_SCALED(CONT_CONSISTENCY[positive], cont_consistency_scale) / 65536
                                   + KLIT(cont_near_bonus) * (b.plies < 2));
+#endif
         HIST_SHADOW(hist_.shadow->write(ShadowTable::Continuation,
                                         hist_.continuation_cell(prev->cont_hist, hist_piece(piece), to),
                                         shadow_mover(ss)));
@@ -235,11 +244,13 @@ void Searcher::update_fail_low_parent(SearchStack* ss, int depth, int best_score
 
     const PieceType pt = type_of(b.piece_on(prev_to));
     update_continuation_histories(ss - 1, b.piece_on(prev_to), prev_to,
-                                  scaled * KLIT(fl_cont_num) / FL_CONT_DEN);
-    MainHistory::update(hist_.main.entry[~b.turn()][from_sq(prev)][prev_to], scaled * KLIT(fl_main_share) / 32768);
+                                  static_cast<int>(KLIT_WIDE(scaled) * KLIT(fl_cont_num) / FL_CONT_DEN));
+    MainHistory::update(hist_.main.entry[~b.turn()][from_sq(prev)][prev_to],
+                        static_cast<int>(KLIT_WIDE(scaled) * KLIT(fl_main_share) / 32768));
     if (pt != PAWN && move_type(prev) != PROMOTION) {
         const int piece = hist_piece(b.piece_on(prev_to));
-        PawnHistoryBucket::update(pawn_bucket().entry[piece][prev_to], scaled * KLIT(fl_pawn_share) / 8192);
+        PawnHistoryBucket::update(pawn_bucket().entry[piece][prev_to],
+                                  static_cast<int>(KLIT_WIDE(scaled) * KLIT(fl_pawn_share) / 8192));
         HIST_SHADOW(hist_.shadow->write(ShadowTable::Pawn,
                                         hist_.pawn_cell(&pawn_bucket(), piece, prev_to), ~b.turn()));
     }

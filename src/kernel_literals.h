@@ -138,6 +138,17 @@
     L(bound_corr,             LitBoundCorr,             1024)               \
     L(bound_cont_corr,        LitBoundContCorr,         1024)               \
     L(low_ply_refill,         LitLowPlyRefill,           102)               \
+    /* The move picker's ordering (move_picker_core.cpp) */                  \
+    L(pick_main_scale,        LitPickMainScale,         1024)               \
+    L(pick_pawn_scale,        LitPickPawnScale,         1024)               \
+    L(pick_cont_far_scale,    LitPickContFarScale,      1024)               \
+    L(pick_check_bonus,       LitPickCheckBonus,       16384)               \
+    L(pick_threat_scale,      LitPickThreatScale,       1024)               \
+    L(pick_low_ply_scale,     LitPickLowPlyScale,       1024)               \
+    L(pick_good_quiet,        LitPickGoodQuiet,       -14000)               \
+    L(pick_sort_limit,        LitPickSortLimit,        -3560)               \
+    L(pick_capture_scale,     LitPickCaptureScale,      1024)               \
+    L(pick_good_capture_div,  LitPickGoodCaptureDiv,      47)               \
     /* The root record and the full-window iterations */                    \
     L(ema_min,                LitEmaMin,                  12)               \
     L(ema_max,                LitEmaMax,                  24)               \
@@ -160,6 +171,9 @@ extern KernelLiterals g_kernel_literals;
 #define KLIT(field) (::g_kernel_literals.field)
 // A whole table or ratio scaled by a literal in its compiled value's units.
 #define KLIT_SCALED(x, field) ((x) * KLIT(field) / ::kKernelLiteralDefaults.field)
+// A product of screened values is taken in 64 bits: the release build proves
+// its 32-bit widths at the compiled values, which a moved option leaves.
+#define KLIT_WIDE(x) (static_cast<long long>(x))
 #else
 // Each literal is a namespace-scope constant read as a prvalue, so the compiler
 // sees exactly the number it replaced (a `const int&` parameter, as
@@ -169,6 +183,7 @@ BASILISK_KERNEL_LITERALS(BASILISK_KERNEL_LITERAL_CONST)
 #undef BASILISK_KERNEL_LITERAL_CONST
 #define KLIT(field) (int(::klit_##field))
 #define KLIT_SCALED(x, field) (x)
+#define KLIT_WIDE(x) (x)
 #endif
 
 // A screen option's range: about half to twice the value (every divisor here
