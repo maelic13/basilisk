@@ -35,7 +35,11 @@ This file is also the constants census B.11.3's disclosure reads.
   fail-high cut takes 3 plies only above depth 3. These three are guards in
   that direction and are read only in the other.
 
-## Screened (118)
+## Screened (128)
+
+The last ten rows, the move picker's ordering, joined on 2026-11-13 by the
+registration's amendment 2 (`425adcc`): the picker was outside PLAN's wording and
+on neither table. Donor lines for them are `src/movepick.cpp`.
 
 | Option | Value | Basilisk | Donor | Role |
 |---|---:|---|---|---|
@@ -152,6 +156,16 @@ This file is also the constants census B.11.3's disclosure reads.
 | `LitEmaMsqMax` | 16 | same | 1456 | mean square's greatest |
 | `LitEmaChi` | 3 | same | 1448 | chi numerator (over 2) |
 | `LitAspMinDepth` | 3 | `search_worker.cpp`, both loops | *ours* | iterations searched with a full window |
+| `LitPickMainScale` | 1024 | `move_picker_core.cpp` `score_quiets` | 231 (the 2) | quiet order: the main history's weight, scaled as one |
+| `LitPickPawnScale` | 1024 | same | 232 (the 2) | quiet order: the pawn history's weight |
+| `LitPickContFarScale` | 1024 | same | 235 to 237 | quiet order: the continuations three, four and six plies back, against the two nearest |
+| `LitPickCheckBonus` | 16384 | same | 240 | quiet order: a safe direct check |
+| `LitPickThreatScale` | 1024 | same | 244 (the 20) | quiet order: leaving or entering a lesser piece's attack |
+| `LitPickLowPlyScale` | 1024 | same | 249 (the 8) | quiet order: the low-ply history's weight |
+| `LitPickGoodQuiet` | -14000 | `move_picker_core.cpp` `next` | 280 | the score above which a quiet is delivered before the bad captures |
+| `LitPickSortLimit` | -3560 | same | 324 | the per-ply score down to which quiets are sorted |
+| `LitPickCaptureScale` | 1024 | `capture_order_score` | 226 (the 7) | capture order: the captured value against the capture history |
+| `LitPickGoodCaptureDiv` | 47 | `move_picker_core.cpp` `next` | 307 (18 x 0.38) | the SEE a capture must clear, as its score over this |
 
 ## Listed, not screened
 
@@ -179,6 +193,13 @@ This file is also the constants census B.11.3's disclosure reads.
 | time manager's constants | `search_worker.cpp` | `timeman.cpp` | D.1's: time constants never join a search surface |
 
 ## Reads
+
+**Superseded as the surface's rule by amendment 2** (`analysis/b67_surface_2026-11-13.md`):
+the read's rows were too chaotic to choose (81 of its 102 passes rest on one row),
+so a literal is on the surface when it is wired, a magnitude, resolvable by a tune
+and not redundant; `tools/spsa_configs/b67_surface.txt` holds the 101 that are and
+names the 27 that are not. The read below is kept as it ran. The ten picker
+literals were not read; each moves the bench-13 replay at both ends of its range.
 
 BAS-S61's relevance read (2026-11-13; `analysis/b67_surface_2026-11-13.md` §3 and its
 results): `suite_v2` at depth 14 at each point against the defaults, the largest

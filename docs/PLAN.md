@@ -3496,6 +3496,32 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           its first checkpoint by `spsa_colosseum.ps1 -PauseAt 2000`
           (`c155612`, amendment 1; route tests 6/6, B.5.8's guards 13/13).
           Dry run accepted on the screen build `A15704C2…` at `6084ae0`.
+        - Reviewed and amended the same evening by a second session, at
+          the maintainer's request (amendment 2 in the packet, before
+          any game):
+          - The relevance read could not choose a surface: 81 of its 102
+            passes rest on one row (continuation pruning) whose spread
+            over all 381 points is 6.6%, so a pass or a fail said little
+            about the subject. The surface is now every wired subject
+            that is a magnitude, resolvable by a tune and not redundant:
+            **170 coordinates, 69 X lines and 101 literals**. 88 of the
+            100 stay; 71 the read had failed join, with `B3IirMinDepth`,
+            `B5AspBase`, `B5AspGrowth` and the singular margins among
+            them; 12 leave (two on or beside their floors, a guard, five
+            staircases, four exact redundancies).
+          - The screen gains the move picker's ten ordering literals,
+            which PLAN's wording had left out (`425adcc`; `bench 13`
+            3,783,135, release CTest 30/30). The screen build takes the
+            continuation update's product in 64 bits, since its weights
+            are run-time values the width proof does not cover.
+          - Crash safety over the box: every surface coordinate at its
+            tune minimum and maximum (340 points), no crash and no tree
+            beyond three times the defaults'; with all 170 off their
+            seeds at once, the packet's *Results of amendment 2*.
+          - The tune's binary is the screen build at `425adcc`
+            (`basilisk-b67-screen2-pext-tune-pgo.exe`, `2DFA7B95…`); the
+            dry run was accepted on it. Conditions, schedule and seed
+            are unchanged.
         - The maintainer runs the night; the read at 2,000 is discussed
           before the run continues or stops there.
 - [ ] **B.7** Board review and rebuild

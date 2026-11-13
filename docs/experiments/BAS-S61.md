@@ -31,6 +31,17 @@
   (packet §7, before any game; it follows from the wrapper and no read): the production schedule for a ceiling of 6,000,
   held at 2,000 by `spsa_colosseum.ps1 -PauseAt 2000`.
 - No subject, point, row, threshold or ceiling changes after a read is seen.
+- **Amendment 2** (packet, 2026-11-13, before any game, by a reviewing session at
+  the maintainer's request): the relevance read's verdicts no longer choose the
+  surface, because its rows are too chaotic to separate live from inert (81 of its
+  102 passes rest on one row whose spread over all 381 points is 6.6%, and 73 on
+  that row and one other alone). The surface is every wired subject that is a
+  magnitude, resolvable by a tune and not redundant: **170 coordinates, 69 X lines
+  and 101 literals**, among them ten picker literals the screen had not listed
+  (`425adcc`). The tune's binary is the screen build at `425adcc`
+  (`basilisk-b67-screen2-pext-tune-pgo.exe`, SHA-256 `2DFA7B95…`); the game
+  conditions, the schedule and the seed are unchanged. Its predictions A1 to A4
+  are in the packet.
 
 #### PRE-REGISTERED PREDICTION — freeze before exposure
 
