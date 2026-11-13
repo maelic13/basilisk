@@ -30,7 +30,9 @@ namespace {
 // The continuation update's per-ply weights, and its multiplier indexed by
 // the number of rows that already rate the move positively.
 struct Back { int plies; int weight; };
-constexpr Back CONT_BACKS[] = {{1, 520}, {2, 390}, {3, 145}, {4, 251}, {5, 66}, {6, 209}};
+constexpr const KernelLiterals& KL = kKernelLiteralDefaults;
+constexpr Back CONT_BACKS[] = {{1, KL.cont_w1}, {2, KL.cont_w2}, {3, KL.cont_w3},
+                               {4, KL.cont_w4}, {5, KL.cont_w5}, {6, KL.cont_w6}};
 constexpr int CONT_CONSISTENCY[] = {94, 103, 110, 106, 119, 126, 121};
 
 constexpr int max_cont_weight() {
@@ -49,17 +51,18 @@ constexpr int max_cont_consistency() {
 constexpr int CONT_BONUS_BOUND = INT_MAX / (max_cont_weight() * max_cont_consistency());
 
 // The fail-low parent's scale terms and its continuation share.
-constexpr int FL_BASE = -241;
-constexpr int FL_STAT_DIVISOR = 98;
-constexpr int FL_DEPTH_SLOPE = 59;
-constexpr int FL_DEPTH_CAP = 420;
-constexpr int FL_LATE_MOVE = 186;
-constexpr int FL_BELOW_OWN_EVAL = 142;
-constexpr int FL_BELOW_PARENT_EVAL = 159;
-constexpr int FL_SIZE_SLOPE = 150;
-constexpr int FL_SIZE_OFFSET = 85;
-constexpr int FL_SIZE_CAP = 1337;
-constexpr int FL_CONT_NUM = 263;
+// The compiled values (src/kernel_literals.h): the proof below reads them, the
+// update reads KLIT, which is these outside the literal-screen build.
+constexpr int FL_BASE = KL.fl_base;
+constexpr int FL_STAT_DIVISOR = KL.fl_stat_div;
+constexpr int FL_DEPTH_CAP = KL.fl_depth_cap;
+constexpr int FL_LATE_MOVE = KL.fl_late_move;
+constexpr int FL_BELOW_OWN_EVAL = KL.fl_below_own;
+constexpr int FL_BELOW_PARENT_EVAL = KL.fl_below_parent;
+constexpr int FL_SIZE_SLOPE = KL.fl_size_slope;
+constexpr int FL_SIZE_OFFSET = KL.fl_size_offset;
+constexpr int FL_SIZE_CAP = KL.fl_size_cap;
+constexpr int FL_CONT_NUM = KL.fl_cont_num;
 constexpr int FL_CONT_DEN = 16384;
 
 // The width proof for the widest caller: at the history limits the fail-low
@@ -89,7 +92,13 @@ void Searcher::update_continuation_histories(SearchStack* ss, Piece piece, Squar
     if (PRICE_PROBING()) return;
 
     int positive = 0;
-    for (const Back& b : CONT_BACKS) {
+#ifdef BASILISK_LITERAL_SCREEN
+    const Back backs[] = {{1, KLIT(cont_w1)}, {2, KLIT(cont_w2)}, {3, KLIT(cont_w3)},
+                          {4, KLIT(cont_w4)}, {5, KLIT(cont_w5)}, {6, KLIT(cont_w6)}};
+#else
+    constexpr const auto& backs = CONT_BACKS;
+#endif
+    for (const Back& b : backs) {
         // A move made in check trains only the two nearest continuations.
         if (ss->in_check && b.plies > 2)
             break;
@@ -99,8 +108,9 @@ void Searcher::update_continuation_histories(SearchStack* ss, Piece piece, Squar
         int16_t& e = prev->cont_hist->entry[hist_piece(piece)][to];
         if (e > 0)
             ++positive;
-        PieceToHistory::update(e, bonus * b.weight * CONT_CONSISTENCY[positive] / 65536
-                                  + 73 * (b.plies < 2));
+        PieceToHistory::update(e, bonus * b.weight
+                                      * KLIT_SCALED(CONT_CONSISTENCY[positive], cont_consistency_scale) / 65536
+                                  + KLIT(cont_near_bonus) * (b.plies < 2));
         HIST_SHADOW(hist_.shadow->write(ShadowTable::Continuation,
                                         hist_.continuation_cell(prev->cont_hist, hist_piece(piece), to),
                                         shadow_mover(ss)));
@@ -116,10 +126,11 @@ void Searcher::update_quiet_histories(SearchStack* ss, Move m, int bonus) {
 
     MainHistory::update(hist_.main.entry[state_.board->turn()][from][to], bonus);
     if (ply < LowPlyHistory::PLIES)
-        LowPlyHistory::update(hist_.low_ply.entry[ply][from][to], bonus * 712 / 1024);
-    update_continuation_histories(ss, piece, to, bonus * 750 / 1024);
+        LowPlyHistory::update(hist_.low_ply.entry[ply][from][to], bonus * KLIT(low_ply_share) / 1024);
+    update_continuation_histories(ss, piece, to, bonus * KLIT(cont_share) / 1024);
     PawnHistoryBucket::update(pawn_bucket().entry[hist_piece(piece)][to],
-                              bonus * (bonus > -4 ? 1104 : 459) / 1024);
+                              bonus * (bonus > KLIT(pawn_share_threshold) ? KLIT(pawn_share_up)
+                                                                       : KLIT(pawn_share_down)) / 1024);
     HIST_SHADOW(hist_.shadow->write(ShadowTable::Pawn,
                                     hist_.pawn_cell(&pawn_bucket(), hist_piece(piece), to),
                                     state_.board->turn()));
@@ -163,22 +174,22 @@ void Searcher::update_all_stats(SearchStack* ss, Move best, Move tt_move,
     if (PRICE_PROBING()) return;
     const auto& p = config_.limits.params;
     const Board& b = *state_.board;
-    int bonus = std::min(p.quiet_bonus_slope * depth - 81, p.quiet_bonus_cap)
-              + 364 * (best == tt_move) + (ss - 1)->stat_score / 28;
-    const int malus = std::min(p.malus_slope * depth - 235, p.malus_cap);
+    int bonus = std::min(p.quiet_bonus_slope * depth + KLIT(quiet_bonus_offset), p.quiet_bonus_cap)
+              + KLIT(quiet_bonus_tt) * (best == tt_move) + (ss - 1)->stat_score / KLIT(quiet_bonus_stat_den);
+    const int malus = std::min(p.malus_slope * depth + KLIT(malus_offset), p.malus_cap);
     if (!pv_node)
-        bonus += int(int64_t(bonus) * (quiet_count + capture_count) / 256);
+        bonus += int(int64_t(bonus) * (quiet_count + capture_count) / KLIT(bonus_count_den));
 
     const bool best_capture_stage = is_capture_stage(b, best);
     if (!best_capture_stage) {
-        update_quiet_histories(ss, best, bonus * 899 / 1024);
-        int actual_malus = malus * 1159 / 1024;
+        update_quiet_histories(ss, best, bonus * KLIT(quiet_bonus_share) / 1024);
+        int actual_malus = malus * KLIT(malus_share) / 1024;
         for (int i = 0; i < quiet_count; ++i) {
             actual_malus = actual_malus * p.malus_decay / 1024;
             update_quiet_histories(ss, quiets[i], -actual_malus);
         }
     } else {
-        update_capture_history(best, bonus * 1427 / 1024);
+        update_capture_history(best, bonus * KLIT(capt_bonus_share) / 1024);
     }
 
     const Move prev = (ss - 1)->move;
@@ -186,11 +197,11 @@ void Searcher::update_all_stats(SearchStack* ss, Move best, Move tt_move,
         && b.captured_piece() == NO_PIECE) {
         const Square prev_to = Square(to_sq(prev));
         update_continuation_histories(ss - 1, b.piece_on(prev_to), prev_to,
-                                      -malus * 713 / 1024);
+                                      -malus * KLIT(cont_malus_share) / 1024);
     }
 
     for (int i = 0; i < capture_count; ++i)
-        update_capture_history(captures[i], -malus * 1489 / 1024);
+        update_capture_history(captures[i], -malus * KLIT(capt_malus_share) / 1024);
 }
 
 // After a fail low: the parent's move caused it. A quiet one is rewarded by
@@ -205,29 +216,30 @@ void Searcher::update_fail_low_parent(SearchStack* ss, int depth, int best_score
     const Piece captured = b.captured_piece();
     if (captured != NO_PIECE) {
         CaptureHistory::update(
-            hist_.capture.entry[hist_piece(b.piece_on(prev_to))][prev_to][type_of(captured)], 892);
+            hist_.capture.entry[hist_piece(b.piece_on(prev_to))][prev_to][type_of(captured)], KLIT(fl_capture));
         HIST_SHADOW(hist_.shadow->write(
             ShadowTable::Capture,
             CoreHistoryTables::capture_cell(hist_piece(b.piece_on(prev_to)), prev_to, type_of(captured)),
             ~b.turn()));
         return;
     }
-    int scale = FL_BASE;
-    scale -= (ss - 1)->stat_score / FL_STAT_DIVISOR;
-    scale += std::min(FL_DEPTH_SLOPE * depth, FL_DEPTH_CAP);
-    scale += FL_LATE_MOVE * ((ss - 1)->move_count > 9);
-    scale += FL_BELOW_OWN_EVAL * (!ss->in_check && best_score <= ss->eval - 30);
-    scale += FL_BELOW_PARENT_EVAL * (!(ss - 1)->in_check && best_score <= -(ss - 1)->eval - 19);
+    int scale = KLIT(fl_base);
+    scale -= (ss - 1)->stat_score / KLIT(fl_stat_div);
+    scale += std::min(KLIT(fl_depth_slope) * depth, KLIT(fl_depth_cap));
+    scale += KLIT(fl_late_move) * ((ss - 1)->move_count > KLIT(fl_late_count));
+    scale += KLIT(fl_below_own) * (!ss->in_check && best_score <= ss->eval - KLIT(fl_own_margin));
+    scale += KLIT(fl_below_parent)
+           * (!(ss - 1)->in_check && best_score <= -(ss - 1)->eval - KLIT(fl_parent_margin));
     scale = std::max(scale, 0);
-    const int scaled = std::min(FL_SIZE_SLOPE * depth - FL_SIZE_OFFSET, FL_SIZE_CAP) * scale;
+    const int scaled = std::min(KLIT(fl_size_slope) * depth - KLIT(fl_size_offset), KLIT(fl_size_cap)) * scale;
 
     const PieceType pt = type_of(b.piece_on(prev_to));
     update_continuation_histories(ss - 1, b.piece_on(prev_to), prev_to,
-                                  scaled * FL_CONT_NUM / FL_CONT_DEN);
-    MainHistory::update(hist_.main.entry[~b.turn()][from_sq(prev)][prev_to], scaled * 215 / 32768);
+                                  scaled * KLIT(fl_cont_num) / FL_CONT_DEN);
+    MainHistory::update(hist_.main.entry[~b.turn()][from_sq(prev)][prev_to], scaled * KLIT(fl_main_share) / 32768);
     if (pt != PAWN && move_type(prev) != PROMOTION) {
         const int piece = hist_piece(b.piece_on(prev_to));
-        PawnHistoryBucket::update(pawn_bucket().entry[piece][prev_to], scaled * 324 / 8192);
+        PawnHistoryBucket::update(pawn_bucket().entry[piece][prev_to], scaled * KLIT(fl_pawn_share) / 8192);
         HIST_SHADOW(hist_.shadow->write(ShadowTable::Pawn,
                                         hist_.pawn_cell(&pawn_bucket(), piece, prev_to), ~b.turn()));
     }
@@ -238,11 +250,11 @@ void Searcher::update_parent_by_eval_difference(SearchStack* ss, int eval_diff, 
     const Move prev = (ss - 1)->move;
     const Square from = Square(from_sq(prev));
     const Square to   = Square(to_sq(prev));
-    MainHistory::update(hist_.main.entry[~state_.board->turn()][from][to], eval_diff * 11);
+    MainHistory::update(hist_.main.entry[~state_.board->turn()][from][to], eval_diff * KLIT(eval_diff_main));
     const PieceType pt = type_of(state_.board->piece_on(to));
     if (!tt_hit && pt != PAWN && move_type(prev) != PROMOTION) {
         const int piece = hist_piece(state_.board->piece_on(to));
-        PawnHistoryBucket::update(pawn_bucket().entry[piece][to], eval_diff * 13);
+        PawnHistoryBucket::update(pawn_bucket().entry[piece][to], eval_diff * KLIT(eval_diff_pawn));
         HIST_SHADOW(hist_.shadow->write(ShadowTable::Pawn, hist_.pawn_cell(&pawn_bucket(), piece, to),
                                         ~state_.board->turn()));
     }
@@ -262,7 +274,7 @@ int Searcher::correction_value(const SearchStack* ss) const {
     const int white = hist_.nonpawn_corr[us][WHITE][nonpawn_corr_key(b, WHITE, kings) & mask];
     const int black = hist_.nonpawn_corr[us][BLACK][nonpawn_corr_key(b, BLACK, kings) & mask];
     const Move m = (ss - 1)->move;
-    int cont = 64049;
+    int cont = KLIT(corr_cont_none);
     if (move_made(m)) {
         const Square to = Square(to_sq(m));
         const PieceType pt = type_of(b.piece_on(to));
@@ -274,7 +286,7 @@ int Searcher::correction_value(const SearchStack* ss) const {
                                hist_.cont_corr_cell((ss - back)->cont_corr, pt, to), us);
 #endif
     }
-    return 15341 * pawn + 10569 * minor + 12906 * (white + black) + cont;
+    return KLIT(corr_pawn_w) * pawn + KLIT(corr_minor_w) * minor + KLIT(corr_nonpawn_w) * (white + black) + cont;
 }
 
 void Searcher::update_correction_history(SearchStack* ss, int bonus) {
@@ -284,17 +296,17 @@ void Searcher::update_correction_history(SearchStack* ss, int bonus) {
     const bool kings = config_.limits.params.corr_nonpawn_kings;
     const Color us = b.turn();
     CorrectionBound::update(hist_.pawn_corr[us][b.pawn_key_value() & mask], bonus);
-    CorrectionBound::update(hist_.minor_corr[us][b.minor_key_value() & mask], bonus * 150 / 128);
+    CorrectionBound::update(hist_.minor_corr[us][b.minor_key_value() & mask], bonus * KLIT(corr_minor_share) / 128);
     CorrectionBound::update(hist_.nonpawn_corr[us][WHITE][nonpawn_corr_key(b, WHITE, kings) & mask],
-                            bonus * 186 / 128);
+                            bonus * KLIT(corr_nonpawn_share) / 128);
     CorrectionBound::update(hist_.nonpawn_corr[us][BLACK][nonpawn_corr_key(b, BLACK, kings) & mask],
-                            bonus * 186 / 128);
+                            bonus * KLIT(corr_nonpawn_share) / 128);
     const Move m = (ss - 1)->move;
     if (move_made(m)) {
         const Square to = Square(to_sq(m));
         const PieceType pt = type_of(b.piece_on(to));
-        PieceToCorrection::update((ss - 2)->cont_corr->entry[pt][to], bonus * 130 / 128);
-        PieceToCorrection::update((ss - 4)->cont_corr->entry[pt][to], bonus * 70 / 128);
+        PieceToCorrection::update((ss - 2)->cont_corr->entry[pt][to], bonus * KLIT(corr_cont2_share) / 128);
+        PieceToCorrection::update((ss - 4)->cont_corr->entry[pt][to], bonus * KLIT(corr_cont4_share) / 128);
 #ifdef BASILISK_DIAGNOSTIC
         for (int back : {2, 4})
             hist_.shadow->write(ShadowTable::ContCorr,

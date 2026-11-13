@@ -4,6 +4,7 @@
 // the driver, the kernel and the tests share.
 
 #include "constants.h"
+#include "kernel_literals.h"
 #include "search_root.h"
 #include <algorithm>
 #include <cstdint>
@@ -21,8 +22,9 @@ struct EmaWeights {
 
 [[nodiscard]] inline EmaWeights ema_weights(int64_t nodes, int64_t earlier) {
     const int64_t e = std::max<int64_t>(earlier, 1);
-    const int w = static_cast<int>(std::clamp<int64_t>(32 * nodes * 2 / (nodes * 2 + 3 * e), 12, 24));
-    return {w, std::min(w, 16)};
+    const int w = static_cast<int>(std::clamp<int64_t>(32 * nodes * 2 / (nodes * 2 + KLIT(ema_chi) * e),
+                                                         KLIT(ema_min), KLIT(ema_max)));
+    return {w, std::min(w, KLIT(ema_msq_max))};
 }
 
 [[nodiscard]] inline int blend_average(int average, int value, int weight) {
@@ -92,7 +94,7 @@ struct RootWindow {
 // were only with the null window in the donor's units. The node's type says which
 // it is, since a PV node's window can narrow to one unit too.
 [[nodiscard]] inline int lmr_window_term(bool pv, int delta, int root_delta) {
-    return (pv ? delta * 577 : 163) / root_delta;
+    return (pv ? delta * KLIT(lmr_window_pv) : KLIT(lmr_window_null)) / root_delta;
 }
 
 // The depth of a root search inside its window's loop: the iteration's, less one

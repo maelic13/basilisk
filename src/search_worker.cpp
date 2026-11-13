@@ -638,7 +638,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
 
         if (limits.root_alpha != limits.root_beta) {
             score = search_window(depth, limits.root_alpha, limits.root_beta);
-        } else if (depth <= 3 || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
+        } else if (depth <= KLIT(asp_min_depth) || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
             score = search_window(depth, -INF_SCORE, INF_SCORE);
         } else if (limits.params.b5_window && !state_.root_moves.empty()) {
             windowed = true;
@@ -811,7 +811,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             // A move that was no line's last iteration has no previous score.
             const bool was_mate = line.previous_score != kRootScoreNone
                                && std::abs(line.previous_score) >= MATE_SCORE - MAX_PLY;
-            if (depth <= 3 || !limits.params.b5_window || was_mate)
+            if (depth <= KLIT(asp_min_depth) || !limits.params.b5_window || was_mate)
                 search_window(depth, -INF_SCORE, INF_SCORE);
             else
                 search_line_window();

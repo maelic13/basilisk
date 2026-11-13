@@ -525,6 +525,10 @@ option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production build
 # B6_DONOR_FORMS is B.6.6's adoptions: the donor's razoring and the kings in
 # the non-pawn correction keys, set as defaults by BASILISK_B6_CORE_DEFAULTS.
 option(B6_DONOR_FORMS "Make B.6.6's adopted donor forms the defaults (sets BASILISK_B6_DONOR_FORMS)" OFF)
+# LITERAL_SCREEN is B.6.7's screen of the kernel's literals: on a Tune build it
+# advertises each entry of src/kernel_literals.h as a UCI option (sets
+# BASILISK_LITERAL_SCREEN). Every other build reads them as compile-time constants.
+option(LITERAL_SCREEN "Advertise the kernel's literals as UCI options on a Tune build (sets BASILISK_LITERAL_SCREEN)" OFF)
 option(PROFILE_SYMBOLS "Emit line tables with inline records in Release builds for the sampling profiler; code generation is unchanged" OFF)
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
@@ -644,6 +648,16 @@ if(B6_DONOR_FORMS)
         target_compile_definitions(${_tgt} PRIVATE BASILISK_B6_DONOR_FORMS)
     endforeach()
     message(STATUS "B6_DONOR_FORMS arm: B.6.6's adopted donor forms are the defaults (BASILISK_B6_DONOR_FORMS defined)")
+endif()
+
+if(LITERAL_SCREEN)
+    if(NOT TUNE)
+        message(FATAL_ERROR "LITERAL_SCREEN needs TUNE: the literals are advertised beside the search options")
+    endif()
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_LITERAL_SCREEN)
+    endforeach()
+    message(STATUS "LITERAL_SCREEN build: the kernel's literals are UCI options (BASILISK_LITERAL_SCREEN defined)")
 endif()
 
 if(TUNE)

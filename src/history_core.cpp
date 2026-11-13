@@ -38,5 +38,5 @@ void CoreHistoryTables::clear(bool donor_fills) {
 
 void CoreHistoryTables::age(int main_num) {
     scale_entries(main.entry, main_num, 1024);
-    fill_entries(low_ply.entry, LOW_PLY_REFILL);
+    fill_entries(low_ply.entry, KLIT(low_ply_refill));
 }

@@ -3,6 +3,7 @@
 // Cluster 2's arithmetic, kept free of the kernel so tests read it directly:
 // the per-line extension budget and the previous-PV predicate.
 
+#include "kernel_literals.h"
 #include "move.h"
 #include <algorithm>
 #include <cstdint>
@@ -40,7 +41,7 @@ namespace b3 {
 // 1/63 of an evaluation unit, with the donor's integer division.
 [[nodiscard]] inline int singular_beta(int tt_score, int depth, bool tt_pv_off_pv, int per_ply,
                                        int tt_pv_per_ply) {
-    return tt_score - (per_ply + tt_pv_per_ply * int(tt_pv_off_pv)) * depth / 63;
+    return tt_score - (per_ply + tt_pv_per_ply * int(tt_pv_off_pv)) * depth / KLIT(sing_beta_den);
 }
 
 // The graded extension: one ply, a second when the exclusion search fell
@@ -87,9 +88,9 @@ namespace b3 {
 // guard, ported as written and never tuned.
 [[nodiscard]] inline bool is_shuffling(bool capture_stage, int rule50, int plies_from_null,
                                        int ply, Move m, Move prev2, Move prev4) {
-    if (capture_stage || rule50 < 10)
+    if (capture_stage || rule50 < KLIT(shuffle_rule50))
         return false;
-    if (plies_from_null < 6 || ply < 20)
+    if (plies_from_null < KLIT(shuffle_null_plies) || ply < KLIT(shuffle_ply))
         return false;
     return from_sq(m) == to_sq(prev2) && from_sq(prev2) == to_sq(prev4);
 }
@@ -115,7 +116,7 @@ namespace b3 {
 // 96: nearer the limit a stored score may no longer hold, since the entry's
 // key does not carry the count.
 [[nodiscard]] inline bool tt_cutoff_rule50_allows(int rule50) {
-    return rule50 < 96;
+    return rule50 < KLIT(tt_rule50);
 }
 
 }  // namespace b3

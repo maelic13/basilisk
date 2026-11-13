@@ -921,12 +921,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // was large and the opponent's position did not worsen, and loses one
     // when the reduction was moderate and the two static evals sum high (a
     // quiet node both sides rate well for themselves).
-    if (prior_reduction >= 3 && !opponent_worsening) {
+    if (prior_reduction >= KLIT(hind_up_reduction) && !opponent_worsening) {
         ++depth;
         DIAG_COUNT(++state_.diag.hindsight_up);
     }
     [[maybe_unused]] bool hindsight_reduced = false;
-    if (prior_reduction >= 2 && depth >= 2 && ss->eval + (ss - 1)->eval > 47) {
+    if (prior_reduction >= KLIT(hind_down_reduction) && depth >= KLIT(hind_down_depth)
+        && ss->eval + (ss - 1)->eval > KLIT(hind_down_eval)) {
         --depth;
         DIAG_COUNT(++state_.diag.hindsight_down);
         DIAG_COUNT(hindsight_reduced = true);
@@ -941,7 +942,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (!is_pv && ss->excluded == MOVE_NONE && tt_score != VALUE_NONE
         && tt_depth > depth - (tt_score <= beta)
         && (tt_score >= beta ? proves_lower(tt_flag) : proves_upper(tt_flag))
-        && (!kp.tt_cutoff_node_typed || cut_node == (tt_score >= beta) || depth > 4)) {
+        && (!kp.tt_cutoff_node_typed || cut_node == (tt_score >= beta) || depth > KLIT(tt_node_typed_depth))) {
 
         // A quiet TT move that fails high trains the quiet histories, and the
         // parent's early quiet move it refutes is penalised.
@@ -955,10 +956,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 DIAG_COUNT(++state_.diag.tt_cutoff_quiet_bonus);
             }
             const Move prev = (ss - 1)->move;
-            if (prev != MOVE_NONE && prev != MOVE_NULL && (ss - 1)->move_count < 5
+            if (prev != MOVE_NONE && prev != MOVE_NULL && (ss - 1)->move_count < KLIT(tt_prev_move_count)
                 && state_.board->captured_piece() == NO_PIECE)
                 update_continuation_histories(
-                    ss - 1, state_.board->piece_on(to_sq(prev)), Square(to_sq(prev)), -2210);
+                    ss - 1, state_.board->piece_on(to_sq(prev)), Square(to_sq(prev)), KLIT(tt_prev_malus));
         }
 
         // Near the rule-50 limit the stored score may not hold, so no cutoff.
@@ -966,7 +967,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // entry must agree that the move fails high (or low), against
         // graph-history errors.
         bool cut = b3::tt_cutoff_rule50_allows(state_.board->rule50_count());
-        if (cut && depth >= 7 && !is_decisive(tt_score) && tt_move_playable(tt_move)) {
+        if (cut && depth >= KLIT(tt_graph_depth) && !is_decisive(tt_score) && tt_move_playable(tt_move)) {
             do_move(ss, tt_move);
             TTEntry next{};
             const bool next_found = tt_probe(tt_key(*state_.board), next);
@@ -986,7 +987,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
     } else if (kp.b3_tt_penalty && !is_pv && ss->excluded == MOVE_NONE
                && tt_score != VALUE_NONE && tt_depth > depth - (tt_score <= beta)
-               && tt_flag == (tt_score >= beta ? TT_ALPHA : TT_BETA) && depth > 5) {
+               && tt_flag == (tt_score >= beta ? TT_ALPHA : TT_BETA) && depth > KLIT(tt_penalty_depth)) {
         // Deep enough to cut, but the bound lies on the wrong side of beta:
         // the entry no longer answers this window, so it gives up a ply of
         // depth to the next store (the donor's penalty).
@@ -1044,7 +1045,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (!in_check && (ss - 1)->move != MOVE_NONE && (ss - 1)->move != MOVE_NULL
         && !(ss - 1)->in_check && state_.board->captured_piece() == NO_PIECE) {
         // The sum in the donor's evaluation units, under its clamp and offset.
-        const int eval_diff = std::clamp(-((ss - 1)->eval + ss->eval) * 1000 / 282, -189, 194) + 60;
+        const int eval_diff = std::clamp(-((ss - 1)->eval + ss->eval) * 1000 / 282, KLIT(eval_diff_lo), KLIT(eval_diff_hi))
+                            + KLIT(eval_diff_offset);
         update_parent_by_eval_difference(ss, eval_diff, tt_found);
     }
 
@@ -1174,7 +1176,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                         const int saved_stat_score = ss->stat_score;
                         int v;
                         if (mode == 1) {
-                            nmp_min_ply_ = ply + 3 * (depth - r) / 4;
+                            nmp_min_ply_ = ply + KLIT(nmp_min_ply_num) * (depth - r) / 4;
                             CHILD_SITE(NullVerify, is_pv, cut_node);
                             v = negamax<NodeType::NonPV>(depth - r, beta - 1, beta,
                                                          ply, ss, true, false);
@@ -1399,7 +1401,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 #endif
 
     // The root's queen promotions searched so far, for the rule below.
-    static constexpr int ROOT_UNDERPROMOTION_MARGIN = 200;
     Move root_queen[8];
     int  root_queen_score[8];
     int  root_queen_count = 0;
@@ -1545,8 +1546,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     return false;
                 }
 
-                history += 69 * main_hist[from][to] / 32;
-                lmr_depth += history / LMR_HISTORY_DIVISOR[std::min(depth, 16) - 1];
+                history += KLIT(prune_main_hist) * main_hist[from][to] / 32;
+                lmr_depth += history / KLIT_SCALED(LMR_HISTORY_DIVISOR[std::min(depth, 16) - 1],
+                                                    lmr_hist_div_scale);
 
                 // Quiet futility: the static eval and a margin that grows
                 // with the reduced depth stay below alpha. The best score
@@ -1604,7 +1606,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (!ABLATED(6) && !is_root && m == tt_move && ss->excluded == MOVE_NONE
             && ply < MAX_PLY - 2 && depth >= kp.b3_sing_min_depth + int(ss->tt_pv)
             && tt_score != VALUE_NONE && !is_decisive(tt_score) && proves_lower(tt_flag)
-            && tt_depth >= depth - (kp.b3_sing_tt_depth ? 2 : 3)) {
+            && tt_depth >= depth - (kp.b3_sing_tt_depth ? 2 : KLIT(sing_tt_depth))) {
             if (b3::is_shuffling(tt_capture, state_.board->rule50_count(),
                                  state_.board->plies_since_null(), ply, m,
                                  (ss - 2)->move, (ss - 4)->move)) {
@@ -1636,7 +1638,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     const bool deep = ply > root_depth_;
                     const int double_margin = kp.b3_sing_double_base + kp.b3_sing_double_pv * is_pv
                         + kp.b3_sing_double_quiet * !tt_capture - corr_adj
-                        - kp.b3_sing_tmh_mult * hist_.tt_move.value / 114178
+                        - kp.b3_sing_tmh_mult * hist_.tt_move.value / KLIT(sing_tmh_den)
                         + kp.b3_sing_double_deep * deep;
                     const int triple_margin = kp.b3_sing_triple_base + kp.b3_sing_triple_pv * is_pv
                         + kp.b3_sing_triple_quiet * !tt_capture
@@ -1710,7 +1712,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (capture_stage) {
             const PieceType captured = move_type(m) == EN_PASSANT ? PAWN
                                      : type_of(state_.board->piece_on(move_to));
-            stat_score = 873 * HIST_PIECE_VALUE[captured] / 128
+            stat_score = KLIT(stat_capture) * HIST_PIECE_VALUE[captured] / 128
                        + hist_.capture.entry[hist_piece(state_.board->turn(), moved_pt)][move_to][captured];
             HIST_SHADOW(hist_.shadow->read(
                 ShadowTable::Capture,
@@ -1718,7 +1720,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 state_.board->turn()));
         } else {
             const int moved_piece = hist_piece(state_.board->turn(), moved_pt);
-            stat_score = QuietStatScore::of(main_hist[from_sq(m)][move_to],
+            stat_score = QuietStatScore::score(main_hist[from_sq(m)][move_to],
                                             (ss - 1)->cont_hist->entry[moved_piece][move_to],
                                             (ss - 2)->cont_hist->entry[moved_piece][move_to]);
 #ifdef BASILISK_DIAGNOSTIC
@@ -1748,14 +1750,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (ss->tt_pv)
             r -= kp.lmr_tt_pv_base + kp.lmr_tt_pv_pv_node * is_pv
                + kp.lmr_tt_pv_above_alpha * (tt_score > alpha)
-               + (tt_depth >= depth) * (kp.lmr_tt_pv_depth_ok + 940 * cut_node);
-        r += 697;
-        r -= move_count * 65;
+               + (tt_depth >= depth) * (kp.lmr_tt_pv_depth_ok + KLIT(lmr_tt_pv_cut) * cut_node);
+        r += KLIT(lmr_base);
+        r -= move_count * KLIT(lmr_move_count);
         // The donor's slope in this engine's evaluation units (26310 x 0.282),
         // capped at the donor's largest value of the term: its correction
         // tables saturate at (15341 + 10569 + 2*12906 + 2*8761) * 1024, and
         // ours, keeping that limit, would otherwise reach 3.5 times further.
-        r -= std::min(std::abs(correction_raw) / 7419, 2695);
+        r -= std::min(std::abs(correction_raw) / KLIT(lmr_corr_div), KLIT(lmr_corr_cap));
         if (cut_node)
             r += kp.lmr_cut_node + kp.lmr_cut_node_no_tt * (tt_move == MOVE_NONE);
         if (tt_capture)
@@ -1764,17 +1766,18 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             r += kp.lmr_cutoff_cnt + kp.lmr_cutoff_cnt2 * ((ss + 1)->cutoff_cnt > 2)
                + kp.lmr_cutoff_cnt_all * all_node;
         else if (m == tt_move)
-            r -= 2179;
+            r -= KLIT(lmr_bias);
         r -= stat_score * kp.lmr_stat_scale / 4096;
         if (!capture_stage && !is_decisive(alpha))
             // The difference in the donor's evaluation units, under its clamp.
-            r += kp.lmr_alpha_eval_scale * std::clamp((alpha - lmr_eval) * 1000 / 282, -64, 96);
+            r += kp.lmr_alpha_eval_scale * std::clamp((alpha - lmr_eval) * 1000 / 282,
+                                                         KLIT(lmr_alpha_lo), KLIT(lmr_alpha_hi));
         // A singular TT move relaxes its quiet siblings' reductions when
         // B3SingularQuietLmr keeps the old relaxation.
         if (!capture_stage && singular_quiet_lmr)
             r -= kp.lmr_singular_quiet;
         if (all_node)
-            r += r * kp.lmr_all_node_scale / (256 * depth + 268);
+            r += r * kp.lmr_all_node_scale / (KLIT(lmr_all_slope) * depth + KLIT(lmr_all_offset));
 
         int score;
         if (searched == 0) {
@@ -1783,14 +1786,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             // check unless B3CheckPrune), as later moves without LMR are.
             int step = 0;
             if (!is_pv && !ABLATED(7) && !is_root && (!in_check || check_prune)) {
-                const int rr = r + (tt_move == MOVE_NONE ? 1127 : 0);
-                step = (rr > 5234) + (rr > 5487 && new_depth > 2);
+                const int rr = r + (tt_move == MOVE_NONE ? KLIT(lmr_no_tt_step) : 0);
+                step = (rr > KLIT(lmr_step1)) + (rr > KLIT(lmr_step2) && new_depth > KLIT(lmr_step2_depth));
             }
             // At a PV node the TT move is searched at least one ply deep when
             // its entry is deep or decisive, as on the re-search below.
             if (is_pv && m == tt_move
                 && ((tt_score != VALUE_NONE && is_decisive(tt_score) && tt_depth > 0)
-                    || tt_depth > 1))
+                    || tt_depth > KLIT(pv_tt_move_depth)))
                 new_depth = std::max(new_depth, 1);
             // At a non-PV node the first move's child is the opposite type:
             // the expected refutation of an all node's move is a cut node.
@@ -1804,10 +1807,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             const bool reducible = !ABLATED(7) && (!is_root || root_reduces) && (!in_check || check_prune);
             if (!ABLATED(7) && (!is_root || root_reduces)) {
                 DIAG_COUNT(++state_.diag.lmr_eligible);
-                if (depth < 2)     DIAG_COUNT(++state_.diag.lmr_blocked_depth);
+                if (depth < KLIT(lmr_min_depth)) DIAG_COUNT(++state_.diag.lmr_blocked_depth);
                 else if (in_check && !check_prune) DIAG_COUNT(++state_.diag.lmr_blocked_in_check);
             }
-            if (reducible && depth >= 2) {
+            if (reducible && depth >= KLIT(lmr_min_depth)) {
                 // The reduced depth: at least one ply, at most two beyond the
                 // full depth (a negative reduction) unless that is switched
                 // off, plus one at PV nodes.
@@ -1878,15 +1881,15 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     // A reduced move that failed high trains its continuations.
                     // The move is still made, so its side is the one not to move.
                     update_continuation_histories(ss, make_piece(~state_.board->turn(), moved_pt),
-                                                  move_to, 1334);
+                                                  move_to, KLIT(research_cont_bonus));
                 }
             } else {
                 // Without LMR the move is searched at full depth, one or two
                 // plies less when its reduction would have been large.
                 int step = 0;
                 if (reducible && !is_root) {
-                    const int rr = r + (tt_move == MOVE_NONE ? 1127 : 0);
-                    step = (rr > 5234) + (rr > 5487 && new_depth > 2);
+                    const int rr = r + (tt_move == MOVE_NONE ? KLIT(lmr_no_tt_step) : 0);
+                    step = (rr > KLIT(lmr_step1)) + (rr > KLIT(lmr_step2) && new_depth > KLIT(lmr_step2_depth));
                 }
                 CHILD_SITE(ZeroWindow, is_pv, cut_node);
                 score = -negamax<NodeType::NonPV>(new_depth - step, -alpha - 1, -alpha,
@@ -1898,7 +1901,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (is_pv && score > alpha && !state_.stopped) {
                 if (m == tt_move
                     && ((tt_score != VALUE_NONE && is_decisive(tt_score) && tt_depth > 0)
-                        || tt_depth > 1))
+                        || tt_depth > KLIT(pv_tt_move_depth)))
                     new_depth = std::max(new_depth, 1);
                 if (is_root)
                     TRACE_DECISION(TraceEvent::RootPvResearch, ply, new_depth, m, alpha, beta, eval,
@@ -1939,7 +1942,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             } else if (rook_or_bishop_promotion(m)) {
                 for (int k = 0; k < root_queen_count; ++k)
                     if (from_sq(root_queen[k]) == from_sq(m) && to_sq(root_queen[k]) == to_sq(m)
-                        && score <= root_queen_score[k] + ROOT_UNDERPROMOTION_MARGIN)
+                        && score <= root_queen_score[k] + KLIT(root_underpromo))
                         score = std::min(score, root_queen_score[k]);
             }
         }
@@ -1953,7 +1956,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // later move is searched with a null window at alpha, so an equal
         // score is usually a fail-low bound, and the move played must have
         // proved itself, as Stockfish's root moves must exceed alpha.
-        const int inc = !is_root && score == best_score && ply + 2 >= root_depth_
+        const int inc = !is_root && score == best_score && ply + KLIT(tie_promo_plies) >= root_depth_
                      && (int(state_.nodes) & 14) == 0
                      && std::abs(score) + 1 < tablebaseWinInMaxPly;
         if (inc)
@@ -1970,9 +1973,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 alpha = score;
                 // Once a move raised alpha the rest are searched shallower
                 // (never at the root, nor in check unless B3CheckPrune).
-                if (score < beta && depth > 3 && depth < 12 && !is_decisive(score)
+                if (score < beta && depth > KLIT(fh_red_min) && depth < KLIT(fh_red_max) && !is_decisive(score)
                     && !is_root && (!in_check || check_prune))
-                    depth -= 3;
+                    depth -= KLIT(fh_red_by);
                 // Update PV. A child at MAX_PLY returns before it sets a
                 // length, and pv_len has no entry for it, so it adds none.
                 state_.pv_table[ply][ply] = m;
@@ -2085,7 +2088,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         update_all_stats(ss, alpha_move, tt_move, quiets_searched, quiets_count,
                          captures_searched, captures_count, depth, is_pv);
         if (!is_pv && !PRICE_PROBING())
-            TTMoveHistory::update(hist_.tt_move.value, alpha_move == tt_move ? 918 : -747);
+            TTMoveHistory::update(hist_.tt_move.value, alpha_move == tt_move ? KLIT(tt_move_bonus) : KLIT(tt_move_malus));
     } else if ((ss - 1)->move != MOVE_NONE && (ss - 1)->move != MOVE_NULL) {
         update_fail_low_parent(ss, depth, best_score);
     }
@@ -2111,9 +2114,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         && !(raised_alpha && captures_piece(*state_.board, best_move))
         && (kp.corr_admission ? (best_score > static_eval) == raised_alpha
                               : (best_score >= beta || raised_alpha))) {
-        const int scale = raised_alpha ? kp.corr_update_scale : kp.corr_update_scale * 3 / 2;
+        const int scale = raised_alpha ? kp.corr_update_scale
+                                        : KLIT_SCALED(kp.corr_update_scale * 3 / 2, corr_no_move_scale);
         const int bonus = std::clamp((best_score - static_eval) * depth * scale / 128, -256, 256);
-        update_correction_history(ss, 1061 * bonus / 1024);
+        update_correction_history(ss, KLIT(corr_share) * bonus / 1024);
     }
 
     // A node that did not fail high under a PV-near parent is kept near the

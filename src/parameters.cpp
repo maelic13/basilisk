@@ -12,6 +12,7 @@
 #include "board.h"
 #include "constants.h"
 #include "eval.h"
+#include "kernel_literals.h"
 #include "parameters.h"
 #include "physical_memory.h"
 #include "uci_output.h"
@@ -114,6 +115,10 @@ bool is_go_parameter(const std::string& token) {
 }
 
 } // namespace
+
+#ifdef BASILISK_LITERAL_SCREEN
+KernelLiterals g_kernel_literals;
+#endif
 
 Parameters::Parameters() {
     board.set_fen(std::string(startPosition));
@@ -224,6 +229,15 @@ std::string Parameters::uci_options() {
     BASILISK_B5_PARAMS(BASILISK_SEARCH_PARAM_OPT, BASILISK_SEARCH_PARAM_OPT,
                        BASILISK_SEARCH_PARAM_OPT)
 #undef BASILISK_SEARCH_PARAM_OPT
+#ifdef BASILISK_LITERAL_SCREEN
+    // The kernel's literals (src/kernel_literals.h), for B.6.7's screen.
+#define BASILISK_KERNEL_LITERAL_OPT(field, uci, value)                               \
+    opts += "option name " #uci " type spin default " + std::to_string(value) +     \
+            " min " + std::to_string(kernel_literal_min(value)) +                     \
+            " max " + std::to_string(kernel_literal_max(value)) + "\n";
+    BASILISK_KERNEL_LITERALS(BASILISK_KERNEL_LITERAL_OPT)
+#undef BASILISK_KERNEL_LITERAL_OPT
+#endif
 #endif
     return opts;
 }
@@ -448,6 +462,14 @@ void Parameters::set_option(const std::string& args) {
     BASILISK_B5_PARAMS(BASILISK_SEARCH_PARAM_SET, BASILISK_SEARCH_PARAM_SET,
                        BASILISK_SEARCH_PARAM_SET)
 #undef BASILISK_SEARCH_PARAM_SET
+#ifdef BASILISK_LITERAL_SCREEN
+#define BASILISK_KERNEL_LITERAL_SET(field, uci, value)                               \
+    else if (uci_option_name_is(name_lower, #uci)) {                                 \
+        g_kernel_literals.field = std::clamp(parsed, kernel_literal_min(value), kernel_literal_max(value)); \
+    }
+    BASILISK_KERNEL_LITERALS(BASILISK_KERNEL_LITERAL_SET)
+#undef BASILISK_KERNEL_LITERAL_SET
+#endif
 #endif
     // An unrecognised option name must not fall off the end of this chain in
     // silence, or a misspelled knob or an SPSA vector aimed at a non-TUNE
