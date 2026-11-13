@@ -562,6 +562,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S60](experiments/BAS-S60.md) — B.6.6: razoring and the kings key, the two adopted donor forms, against the head, SPRT `[0,3]` — CLOSED 2026-11-13: cap reached, +2.2 ± 4.2 Elo over 10,000 games, LLR +0.52; neither adopted
 
+- [BAS-S61](experiments/BAS-S61.md) — B.6.7: the literal screen and the relevance read, the curvature sweep, then the joint search SPSA — registered
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
