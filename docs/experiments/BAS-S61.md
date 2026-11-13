@@ -26,8 +26,10 @@
   them as constants), rails and boundaries, the WAC curvature sweep, and the tune.
 - **The tune:** rule 7c, the screen build at the surface commit with final PGO,
   `3+0.03`, 1T, Hash 64, UHO paired, no adjudication, tablebases off, 30 games an
-  iteration on 15 slots, `r_end` 0.00155, seed 67001, a ceiling of 2,000 iterations
-  (one night); its read there goes to the maintainer.
+  iteration on 15 slots, `r_end` 0.00155, seed 67001, one night to rule 7c's first
+  checkpoint at 2,000 iterations, whose read goes to the maintainer. Amendment 1
+  (packet §7, before any game; it follows from the wrapper and no read): the production schedule for a ceiling of 6,000,
+  held at 2,000 by `spsa_colosseum.ps1 -PauseAt 2000`.
 - No subject, point, row, threshold or ceiling changes after a read is seen.
 
 #### PRE-REGISTERED PREDICTION — freeze before exposure

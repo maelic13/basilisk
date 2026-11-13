@@ -180,4 +180,129 @@ This file is also the constants census B.11.3's disclosure reads.
 
 ## Reads
 
-Appended after the screen (B.6.7's registration).
+BAS-S61's relevance read (2026-11-13; `analysis/b67_surface_2026-11-13.md` §3 and its
+results): `suite_v2` at depth 14 at each point against the defaults, the largest
+movement of a row the null points left eligible. **60 of the 118 join B.6.7's surface**
+as their screen options; the rest stay literals. The curvature sweep may still drop a
+joiner (the packet's results).
+
+| Option | points | read | largest eligible movement |
+|---|---|---|---|
+| `LitAspMinDepth` | 2, 4 | stays a literal | -6.4% ply-2 correction updates / interior at 4 |
+| `LitBonusCountDen` | 205, 307 | stays a literal | -8.6% continuation pruning / moves tested at 307 |
+| `LitBoundCapture` | 8554, 12830 | **joins** | -17.8% continuation pruning / moves tested at 8554 |
+| `LitBoundCont` | 24000, 36000 | **joins** | -13.9% continuation pruning / moves tested at 24000 |
+| `LitBoundContCorr` | 819, 1229 | stays a literal | -9.1% continuation pruning / moves tested at 1229 |
+| `LitBoundCorr` | 819, 1229 | **joins** | -12.8% continuation pruning / moves tested at 819 |
+| `LitBoundLowPly` | 5746, 8620 | **joins** | -10.1% null tries / interior at 5746 |
+| `LitBoundMain` | 5746, 8620 | **joins** | -12.2% continuation pruning / moves tested at 5746 |
+| `LitBoundPawn` | 6554, 9830 | stays a literal | -7.6% null tries / interior at 9830 |
+| `LitBoundTtMove` | 6554, 9830 | stays a literal | -4.5% null tries / interior at 6554 |
+| `LitCaptBonusShare` | 1142, 1712 | **joins** | -18.6% continuation pruning / moves tested at 1142 |
+| `LitCaptMalusShare` | 1191, 1787 | stays a literal | +7.9% capture SEE / moves tested at 1191 |
+| `LitContConsistencyScale` | 819, 1229 | **joins** | -25.4% continuation pruning / moves tested at 819 |
+| `LitContMalusShare` | 570, 856 | **joins** | -16.9% continuation pruning / moves tested at 570 |
+| `LitContNearBonus` | 58, 88 | stays a literal | +9.8% IIR reductions / interior at 88 |
+| `LitContShare` | 600, 900 | **joins** | -10.0% continuation pruning / moves tested at 600 |
+| `LitContW1` | 416, 624 | stays a literal | -8.9% continuation pruning / moves tested at 416 |
+| `LitContW2` | 312, 468 | **joins** | -10.6% continuation pruning / moves tested at 312 |
+| `LitContW3` | 116, 174 | stays a literal | +7.3% IIR reductions / interior at 116 |
+| `LitContW4` | 201, 301 | **joins** | -14.1% continuation pruning / moves tested at 301 |
+| `LitContW5` | 53, 79 | stays a literal | -8.9% continuation pruning / moves tested at 53 |
+| `LitContW6` | 167, 251 | **joins** | -12.4% continuation pruning / moves tested at 251 |
+| `LitCorrCont2Share` | 104, 156 | stays a literal | +8.5% IIR reductions / interior at 156 |
+| `LitCorrCont4Share` | 56, 84 | **joins** | -19.1% continuation pruning / moves tested at 84 |
+| `LitCorrContNone` | 51239, 76859 | stays a literal | -6.8% ply-2 correction updates / interior at 76859 |
+| `LitCorrMinorShare` | 120, 180 | **joins** | -12.2% continuation pruning / moves tested at 180 |
+| `LitCorrMinorW` | 8455, 12683 | **joins** | -10.4% continuation pruning / moves tested at 8455 |
+| `LitCorrNoMoveScale` | 819, 1229 | **joins** | -13.6% continuation pruning / moves tested at 819 |
+| `LitCorrNonPawnShare` | 149, 223 | **joins** | -20.7% continuation pruning / moves tested at 149 |
+| `LitCorrNonPawnW` | 10325, 15487 | **joins** | -14.0% continuation pruning / moves tested at 15487 |
+| `LitCorrPawnW` | 12273, 18409 | **joins** | -10.9% continuation pruning / moves tested at 18409 |
+| `LitCorrShare` | 849, 1273 | **joins** | -19.7% continuation pruning / moves tested at 849 |
+| `LitEmaChi` | 2, 4 | stays a literal | -7.0% continuation pruning / moves tested at 4 |
+| `LitEmaMax` | 19, 29 | stays a literal | -5.8% continuation pruning / moves tested at 29 |
+| `LitEmaMin` | 10, 14 | stays a literal | -7.3% continuation pruning / moves tested at 14 |
+| `LitEmaMsqMax` | 13, 19 | stays a literal | +6.8% IIR reductions / interior at 13 |
+| `LitEvalDiffHi` | 155, 233 | stays a literal | -8.2% continuation pruning / moves tested at 155 |
+| `LitEvalDiffLo` | -227, -151 | **joins** | +10.4% multi-cuts / singular tries at -227 |
+| `LitEvalDiffMain` | 9, 13 | **joins** | -12.5% continuation pruning / moves tested at 13 |
+| `LitEvalDiffOffset` | 48, 72 | **joins** | -17.2% continuation pruning / moves tested at 48 |
+| `LitEvalDiffPawn` | 10, 16 | stays a literal | -6.7% continuation pruning / moves tested at 10 |
+| `LitFhRedBy` | 2 | stays a literal | -6.3% LMR applied / moves tested at 2 |
+| `LitFhRedMax` | 10, 14 | **joins** | -11.6% continuation pruning / moves tested at 14 |
+| `LitFhRedMin` | 4 | stays a literal | -6.6% null tries / interior at 4 |
+| `LitFlBase` | -289, -193 | **joins** | +10.7% IIR reductions / interior at -289 |
+| `LitFlBelowOwn` | 114, 170 | **joins** | -15.6% continuation pruning / moves tested at 114 |
+| `LitFlBelowParent` | 127, 191 | **joins** | -13.1% null tries / interior at 191 |
+| `LitFlCapture` | 714, 1070 | **joins** | -11.8% continuation pruning / moves tested at 1070 |
+| `LitFlContNum` | 210, 316 | stays a literal | -8.8% continuation pruning / moves tested at 316 |
+| `LitFlDepthCap` | 336, 504 | **joins** | -14.9% continuation pruning / moves tested at 504 |
+| `LitFlDepthSlope` | 47, 71 | stays a literal | -9.8% continuation pruning / moves tested at 71 |
+| `LitFlLateCount` | 7, 11 | stays a literal | -9.7% continuation pruning / moves tested at 7 |
+| `LitFlLateMove` | 149, 223 | **joins** | -14.5% continuation pruning / moves tested at 223 |
+| `LitFlMainShare` | 172, 258 | stays a literal | -9.7% continuation pruning / moves tested at 172 |
+| `LitFlOwnMargin` | 24, 36 | stays a literal | -9.9% continuation pruning / moves tested at 36 |
+| `LitFlParentMargin` | 15, 23 | **joins** | -14.5% continuation pruning / moves tested at 15 |
+| `LitFlPawnShare` | 259, 389 | stays a literal | +9.7% IIR reductions / interior at 259 |
+| `LitFlSizeCap` | 1070, 1604 | stays a literal | -8.9% continuation pruning / moves tested at 1604 |
+| `LitFlSizeOffset` | 68, 102 | stays a literal | -9.2% continuation pruning / moves tested at 68 |
+| `LitFlSizeSlope` | 120, 180 | **joins** | -16.1% continuation pruning / moves tested at 180 |
+| `LitFlStatDiv` | 78, 118 | **joins** | +11.0% IIR reductions / interior at 78 |
+| `LitHindDownDepth` | 3 | **joins** | -25.0% hindsight shallowings / interior at 3 |
+| `LitHindDownEval` | 38, 56 | **joins** | -13.7% hindsight shallowings / interior at 56 |
+| `LitHindDownReduction` | 1, 3 | **joins** | +21.1% hindsight shallowings / interior at 1 |
+| `LitHindUpReduction` | 2, 4 | **joins** | +46.4% hindsight deepenings / interior at 2 |
+| `LitLmrAllOffset` | 214, 322 | **joins** | -10.4% continuation pruning / moves tested at 214 |
+| `LitLmrAllSlope` | 205, 307 | **joins** | -16.9% continuation pruning / moves tested at 205 |
+| `LitLmrAlphaHi` | 77, 115 | **joins** | -11.5% continuation pruning / moves tested at 115 |
+| `LitLmrAlphaLo` | -77, -51 | **joins** | -12.5% continuation pruning / moves tested at -77 |
+| `LitLmrBase` | 558, 836 | **joins** | -13.0% continuation pruning / moves tested at 836 |
+| `LitLmrBias` | 1743, 2615 | stays a literal | +7.4% IIR reductions / interior at 1743 |
+| `LitLmrCorrCap` | 2156, 3234 | stays a literal | +7.0% IIR reductions / interior at 3234 |
+| `LitLmrCorrDiv` | 5935, 8903 | stays a literal | -8.7% continuation pruning / moves tested at 8903 |
+| `LitLmrHistDivScale` | 819, 1229 | **joins** | +22.8% IIR reductions / interior at 819 |
+| `LitLmrMinDepth` | 1, 3 | **joins** | -16.6% stand-pat cuts / quiescence nodes at 1 |
+| `LitLmrMoveCount` | 52, 78 | stays a literal | -7.2% hindsight deepenings / interior at 78 |
+| `LitLmrNoTtStep` | 902, 1352 | stays a literal | -8.4% null tries / interior at 902 |
+| `LitLmrStep1` | 4187, 6281 | **joins** | +21.6% razoring cuts / interior at 6281 |
+| `LitLmrStep2` | 4390, 6584 | **joins** | -13.3% continuation pruning / moves tested at 4390 |
+| `LitLmrStep2Depth` | 1, 3 | **joins** | +11.4% IIR reductions / interior at 1 |
+| `LitLmrTtPvCut` | 752, 1128 | stays a literal | +2.5% mean fail-high index at 752 |
+| `LitLmrWindowNull` | 130, 196 | stays a literal | +5.7% IIR reductions / interior at 196 |
+| `LitLmrWindowPv` | 462, 692 | stays a literal | +8.3% IIR reductions / interior at 692 |
+| `LitLowPlyRefill` | 82, 122 | **joins** | -12.1% continuation pruning / moves tested at 82 |
+| `LitLowPlyShare` | 570, 854 | stays a literal | -7.9% continuation pruning / moves tested at 570 |
+| `LitMalusOffset` | -282, -188 | stays a literal | +7.0% IIR reductions / interior at -188 |
+| `LitMalusShare` | 927, 1391 | **joins** | -16.4% continuation pruning / moves tested at 927 |
+| `LitNmpMinPlyNum` | 2, 4 | stays a literal | +2.0% null tries / interior at 4 |
+| `LitPawnShareDown` | 367, 551 | **joins** | -12.9% continuation pruning / moves tested at 367 |
+| `LitPawnShareThreshold` | -5, -3 | stays a literal | +2.2% multi-cuts / singular tries at -3 |
+| `LitPawnShareUp` | 883, 1325 | stays a literal | -7.9% continuation pruning / moves tested at 1325 |
+| `LitPruneMainHist` | 55, 83 | **joins** | -14.3% quiet futility / moves tested at 55 |
+| `LitPvTtMoveDepth` | 0, 2 | stays a literal | -7.2% continuation pruning / moves tested at 2 |
+| `LitQuietBonusOffset` | -97, -65 | stays a literal | +5.1% singular doubles / singular tries at -97 |
+| `LitQuietBonusShare` | 719, 1079 | **joins** | -13.7% continuation pruning / moves tested at 1079 |
+| `LitQuietBonusStatDen` | 22, 34 | stays a literal | -8.4% null tries / interior at 22 |
+| `LitQuietBonusTt` | 291, 437 | **joins** | -14.0% continuation pruning / moves tested at 437 |
+| `LitResearchContBonus` | 1067, 1601 | **joins** | -13.4% continuation pruning / moves tested at 1601 |
+| `LitRootUnderpromo` | 160, 240 | stays a literal | +0.0% LMR applied / moves tested at 160 |
+| `LitShuffleNullPlies` | 5, 7 | stays a literal | +0.0% LMR applied / moves tested at 5 |
+| `LitShufflePly` | 16, 24 | stays a literal | +2.0% null tries / interior at 16 |
+| `LitShuffleRule50` | 8, 12 | stays a literal | +2.2% hindsight deepenings / interior at 8 |
+| `LitSingBetaDen` | 50, 76 | **joins** | -15.2% singular doubles / singular tries at 50 |
+| `LitSingTmhDen` | 91342, 137014 | stays a literal | -4.0% quiescence futility / quiescence moves at 137014 |
+| `LitSingTtDepth` | 2, 4 | **joins** | -15.5% continuation pruning / moves tested at 2 |
+| `LitStatCapture` | 698, 1048 | stays a literal | +6.7% razoring cuts / interior at 1048 |
+| `LitStatCont1` | 901, 1351 | stays a literal | -9.4% continuation pruning / moves tested at 901 |
+| `LitStatCont2` | 874, 1312 | **joins** | -15.2% continuation pruning / moves tested at 1312 |
+| `LitStatMain` | 1802, 2702 | **joins** | -16.6% continuation pruning / moves tested at 1802 |
+| `LitTiePromoPlies` | 1, 3 | stays a literal | +9.8% IIR reductions / interior at 3 |
+| `LitTtGraphDepth` | 6, 8 | stays a literal | -6.7% continuation pruning / moves tested at 6 |
+| `LitTtMoveBonus` | 734, 1102 | stays a literal | +5.7% IIR reductions / interior at 734 |
+| `LitTtMoveMalus` | -896, -598 | stays a literal | +5.3% quiescence fail highs / quiescence nodes at -896 |
+| `LitTtNodeTypedDepth` | 3, 5 | stays a literal | +8.6% singular doubles / singular tries at 3 |
+| `LitTtPenaltyDepth` | 4, 6 | stays a literal | -8.8% continuation pruning / moves tested at 6 |
+| `LitTtPrevMalus` | -2652, -1768 | **joins** | -10.8% continuation pruning / moves tested at -1768 |
+| `LitTtPrevMoveCount` | 4, 6 | **joins** | -16.4% continuation pruning / moves tested at 4 |
+| `LitTtRule50` | 77, 115 | stays a literal | +0.0% LMR applied / moves tested at 77 |
