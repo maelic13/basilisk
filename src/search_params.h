@@ -120,12 +120,12 @@
     X(rfp_depth_cap,         CoreRfpDepthCap,         10,    6,    19)    \
     X(rfp_beta_weight,       CoreRfpBetaWeight,     660,  512,  1024)    \
     /* Move-loop pruning */                                              \
-    X(lmp_base,              CoreLmpBase,             3,    1,     8)    \
+    X(lmp_base,              CoreLmpBase,             3,    0,     8)    \
     X(lmp_square_scale,      CoreLmpSquareScale,     16,    8,    32)    \
     X(quiet_fut_base,        CoreQuietFutBase,      166,   80,   300)    \
     X(quiet_fut_slope,       CoreQuietFutSlope,     107,   34,   190)    \
     X(quiet_fut_alpha_term,  CoreQuietFutAlphaTerm,  29,    0,    90)    \
-    X(quiet_fut_depth_cap,   CoreQuietFutDepthCap,    8,    5,    12)    \
+    X(quiet_fut_depth_cap,   CoreQuietFutDepthCap,    8,    4,    12)    \
     X(capt_fut_base,         CoreCaptFutBase,        79,   40,   270)    \
     X(capt_fut_slope,        CoreCaptFutSlope,      105,   60,   390)    \
     X(capt_fut_hist_div,     CoreCaptFutHistDiv,     15,    8,   128)    \
@@ -150,10 +150,10 @@
     X(lmr_cutoff_cnt2,       CoreLmrCutoffCnt2,     996,    0,  2500)    \
     X(lmr_cutoff_cnt_all,    CoreLmrCutoffCntAll,   910,    0,  2500)    \
     X(lmr_stat_scale,        CoreLmrStatScale,      526,  100,  1200)    \
-    X(lmr_alpha_eval_scale,  CoreLmrAlphaEvalScale,   2,    0,    10)    \
+    X(lmr_alpha_eval_scale,  CoreLmrAlphaEvalScale,   2,    1,    10)    \
     X(lmr_all_node_scale,    CoreLmrAllNodeScale,   247,    0,   800)    \
     X(research_deeper,       CoreResearchDeeper,     13,    4,    40)    \
-    X(research_shallower,    CoreResearchShallower,   1,    0,    12)    \
+    X(research_shallower,    CoreResearchShallower,   1,    1,    12)    \
     /* History update policy */                                          \
     X(quiet_bonus_cap,       CoreQuietBonusCap,    1394,  600,  3000)    \
     X(quiet_bonus_slope,     CoreQuietBonusSlope,   151,   60,   300)    \
@@ -165,7 +165,7 @@
     X(tt_cutoff_bonus_slope, CoreTtCutoffBonusSlope, 151,    0,   300)   \
     F(tt_cutoff_bonus_max,   CoreTtCutoffBonusMax,  695,  200,  3000)   \
     /* Correction */                                                     \
-    X(corr_update_scale,     CoreCorrUpdateScale,    16,    4,    30)     \
+    X(corr_update_scale,     CoreCorrUpdateScale,    16,    4,    64)     \
     X(corr_cont_weight,      CoreCorrContWeight,   9649, 2000, 16000)
 
 // Categorical switches of Cluster 1's kernel: S(field, UciName, default, min,
@@ -292,7 +292,7 @@
     X(b3_nmp_per_ply,        B3NmpPerPly,           16,    2,    32)     \
     X(b3_nmp_improving,      B3NmpImproving,        15,    0,    40)     \
     X(b3_nmp_base,           B3NmpBase,            163,   50,   300)     \
-    X(b3_nmp_red_base,       B3NmpRedBase,           4,    2,    10)     \
+    X(b3_nmp_red_base,       B3NmpRedBase,           4,    1,    10)     \
     X(b3_nmp_red_eval_div,   B3NmpRedEvalDiv,       80,   36,   256)     \
     F(b3_nmp_red_depth_div,  B3NmpRedDepthDiv,       3,    2,     6)     \
     F(b3_nmp_beta_floor,     B3NmpBetaFloor,      -564, -2000,    0)     \
@@ -301,7 +301,7 @@
     S(b3_nmp_verify,         B3NmpVerify,            1,    0,     2)     \
     S(b3_nmp_eval_gate,      B3NmpEvalGate,          0,    0,     1)     \
     /* Internal iterative reduction */                                   \
-    X(b3_iir_min_depth,      B3IirMinDepth,          5,    3,    10)     \
+    X(b3_iir_min_depth,      B3IirMinDepth,          5,    3,    11)     \
     S(b3_iir,                B3Iir,                  1,    0,     1)     \
     S(b3_iir_stale,          B3IirStale,             0,    0,     1)     \
     /* ProbCut */                                                        \
