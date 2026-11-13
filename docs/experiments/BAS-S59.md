@@ -114,3 +114,48 @@ Frozen 2026-11-12, before the floors were read:
   3,019,185. P8 hits.
 - **Dry runs**: all five accepted (packet §7.2). The games are the
   maintainer's (packet §7.3).
+- **The games** (maintainer-run overnight 2026-11-12 to 13, the chain of
+  packet §7.3): all five completed 2,000 games, natural termination, 0
+  time losses, 0 other faults; every move annotated. The independent PGN
+  recount (`colosseum_recount.py`) agrees on all five pentanomials. Each
+  run's resolved configuration gives arm A its one option at 1 and arm B
+  none. Run records `tools/results/b66-<run>/`; PGNs:
+  - `b66-TtCap/games.pgn` `506269C0B923734649EC35BD5422CB44D04BA15D3FAA68F36048F4D497BE3255`
+  - `b66-TtCap10/games.pgn` `8D8082882A97AC507E74460AC24C22BCB23202EBF15F92135EBF7AB518F97021`
+  - `b66-Razor/games.pgn` `4954CE8E69E0D752B91F608B01B32FE9B7C05A7659DC3B0C23009C17863BC19E`
+  - `b66-Key50/games.pgn` `6587B9D843F6BE3F17E3948730929F79633BE0D156267F37BC1A41C8592EDCD8`
+  - `b66-Kings/games.pgn` `3DF828543C5E87376BF6019258A7304406453C8DA2AF0C9F736A84B223156324`
+
+| Run | Elo (95%) | Interval | W/D/L | Pentanomial | Rule |
+|---|---:|---|---|---|---|
+| `TtCap` (`3+0.03`) | +8.0 ± 9.1 | [−1.1, +17.1] | 547/952/501 | 27, 223, 458, 261, 31 | not adopted: the interval includes 0 |
+| `TtCap10` (`10+0.1`) | −0.5 ± 8.6 | [−9.1, +8.1] | 497/1003/500 | 23, 233, 483, 246, 15 | not adopted |
+| `Razor` | **+10.6 ± 9.4** | [+1.2, +20.0] | 566/929/505 | 37, 201, 468, 252, 42 | **adopted** |
+| `Key50` | −4.5 ± 8.4 | [−12.9, +3.9] | 490/994/516 | 28, 218, 525, 210, 19 | not adopted; not rejected |
+| `Kings` | **+11.6 ± 9.3** | [+2.3, +20.9] | 568/931/501 | 32, 208, 454, 273, 33 | **adopted** |
+
+- **Diagnostics (not the verdict).** Mean depth without mate scores, arm A
+  against B: `TtCap` 16.20/16.17, `TtCap10` 20.06/20.05, `Razor`
+  16.27/16.08, `Key50` 16.11/16.19, `Kings` 16.34/16.19. Speed within
+  1% on every pair (1.88 to 1.93M nodes per second).
+- **Disposition per row.**
+  - TT-cutoff cap: neither leg adopts, so Basilisk's form stays. Not
+    cleared: `3+0.03` read +8.0, `10+0.1` −0.5; both readings go to H.2.
+    B.6.7 fits the slope uncapped.
+  - Razoring: the donor's form is **adopted**.
+  - Rule-50 key: Basilisk's form stays; under +5, so H.2.
+  - Kings in the non-pawn key: the donor's form is **adopted**.
+  - The two adoptions go together behind one switch to the SPRT `[0,3]`
+    against the head, before B.6.7 (the registered next step). If every row were null, each run would clear
+    the rule by noise about 2.4% of the time (an estimate above 9.3 at
+    this width), about one chance in nine that one of five would; the
+    SPRT is the guard against that.
+- **Calibration.** Hits: P3, P6, P8. Misses: P1 (+8.0, outside ±5), P2
+  (`10+0.1` read lower, not higher), P4 and P5 (razoring read positive and
+  adopted; P5 gave it 10%), P7 (kings +11.6), P9 (two adoptions). The wrong
+  part of the model: the tilt toward the fitted forms was expected to
+  dominate. For razoring, the reason the depth-1 form was seeded
+  (a checkless quiescence) left with B.4, and the fitted neighbours did not
+  hold its place. For the kings, the bare-king pooling cost more than
+  B.3.0's drift reading suggested. The TT cap's long-control argument did
+  not show at `10+0.1`.

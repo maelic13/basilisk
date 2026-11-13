@@ -3381,6 +3381,15 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           of the head's 259 (268, 259, 257, 261).
         - Five dry runs accepted. The maintainer runs the chain of §7.3;
           `tools/run_b66_games.py` applies the vetoes again before each.
+      - Runs read 2026-11-13 (maintainer-run overnight; BAS-S59 *RESULT*,
+        packet §8): all five clean, the PGN recount agrees.
+        - Adopted: razoring in the donor's form, +10.6 ± 9.4; kings in
+          the non-pawn key, +11.6 ± 9.3.
+        - Basilisk's form stays, not cleared, H.2: the TT-cutoff cap
+          (+8.0 ± 9.1 at `3+0.03`, −0.5 ± 8.6 at `10+0.1`) and the rule-50
+          key (−4.5 ± 8.4).
+        - Next: the two adoptions behind one switch, SPRT `[0,3]` against
+          the head, registered and prepared before any game.
     - [ ] **B.6.7** `[V]` Joint search SPSA
       It was B.6.2 until 2026-11-11.
       The joint SPSA above, on the reconciled head.
@@ -4249,7 +4258,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.6.6 | GAME_GATE | R2 | Was B.6.1; prepared 2026-11-12: BAS-S59's five paired runs, maintainer-run; then the adoptions' SPRT `[0,3]` |
+| B.6.6 | GAME_GATE | R2 | Was B.6.1; BAS-S59's runs read 2026-11-13: razoring and the kings key adopted; their SPRT `[0,3]` next |
 | B.6.7 | RESEARCH | V | Was B.6.2; runs (maintainer 2026-11-05); the curvature evidence chooses its surface, after the zero-game screen of the kernel's literals (added 2026-11-10) |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
 | B.7.2 | RESEARCH | R2 | Was B.15.2; after B.7.1 |

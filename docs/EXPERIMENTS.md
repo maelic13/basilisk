@@ -558,7 +558,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S58](experiments/BAS-S58.md) — B.5.7: 28 or 30 one-thread games on SMT siblings against 15 on 15 cores, at `3+0.03` (a speed read and two direction replays) — CLOSED 2026-11-12, NOT_WORTH_PURSUING: g28 +10.8 ± 6.1 against (a)'s +15.6 ± 5.9 at 1.87× the games an hour, but 1.6 plies shallower and an SPRT about ×0.84 as fast; g30 two time forfeits; gates keep 15 on 15 cores
 
-- [BAS-S59](experiments/BAS-S59.md) — B.6.6: the donor-form paired runs (TT-cutoff cap at two controls, razoring, rule-50 key, kings in the non-pawn key) — registered
+- [BAS-S59](experiments/BAS-S59.md) — B.6.6: the donor-form paired runs (TT-cutoff cap at two controls, razoring, rule-50 key, kings in the non-pawn key) — runs read: razoring +10.6 ± 9.4 and kings +11.6 ± 9.3 adopted, their SPRT `[0,3]` owed; the TT cap and rule-50 key stay
 
 | ID | Title | Disposition |
 |---|---|---|

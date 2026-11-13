@@ -266,3 +266,30 @@ python tools/run_b66_games.py TtCap; python tools/run_b66_games.py Razor; python
 
 Results land in `tools/results/b66-<run>/`. Then BAS-S59's decision rule
 reads each, and any adoptions go behind one switch to the `[0,3]` SPRT.
+
+## 8. The runs (maintainer-run, 2026-11-12 to 13)
+
+BAS-S59 *RESULT* holds the records. All five ran 2,000 games clean, and
+the PGN recount agrees.
+
+| Row | Reading | Decision |
+|---|---|---|
+| TT-cutoff cap | +8.0 ± 9.1 at `3+0.03`; −0.5 ± 8.6 at `10+0.1` | Basilisk's form stays; H.2 |
+| Razoring | **+10.6 ± 9.4** | the donor's form adopted |
+| Rule-50 key | −4.5 ± 8.4 | Basilisk's form stays; H.2 |
+| Kings in the non-pawn key | **+11.6 ± 9.3** | the donor's form adopted |
+
+What follows from it:
+- **The SPRT** (PLAN B.6.6): `CoreRazorDonor` 1 and `CoreCorrNonPawnKings`
+  1 become the defaults together behind one umbrella switch, and the ON
+  release build plays the OFF build of the same revision at `[0,3]`. Its
+  cap comes from the drift model at the expected value. Registered and
+  prepared before any game; the maintainer runs it.
+- **B.6.7's surface, if the SPRT accepts.** `CoreRazorMargin` and
+  `CoreRazorDepthCap` go dead under the donor's razoring and leave the
+  surface. `CoreRazorQuadMargin` (136, an F line) becomes the margin the
+  fit reads; whether it joins as an X line is B.6.7's curvature read. The
+  non-pawn correction weights and `CoreCorrUpdateScale` were fitted on the
+  kingless key and are refitted on the new one.
+- **If the SPRT rejects**, both rows stay Basilisk's and wait in H.2 with
+  their readings, and B.6.7 fits the current forms.
