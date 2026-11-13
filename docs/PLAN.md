@@ -3475,6 +3475,29 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       Added 2026-11-11: the screen's list of literals, each with its
       donor line, is kept as a tracked file; it is also the constants
       census B.11.3's disclosure reads.
+      - Prepared 2026-11-13, `GAME_GATE` (BAS-S61; the rules are
+        `analysis/b67_surface_2026-11-13.md`, the list
+        `analysis/b67_kernel_literals.md`; `bench 13` 3,783,135 at every
+        commit):
+        - The literal screen (`bebf2ad`): 118 literals in
+          `src/kernel_literals.h`, read as constants by release and tune
+          builds (the release code instruction-identical to the head's)
+          and advertised as `Lit<Name>` options by a `LITERAL_SCREEN` tune
+          build. Release and sanitizer CTest 30/30. 115 move the bench
+          replay at 20%; three are guards whose other side crashes.
+        - The relevance read, zero-game: 42 of 74 coordinates and 60 of
+          118 literals pass; eight rows were too chaotic to decide, among
+          them both aspiration rows, so `B5AspBase` and `B5AspGrowth`
+          could not be read and leave the surface by the rule.
+        - Rails (`fb84591`): five ranges widened or floored, no default
+          moved. The curvature sweep drops two flat coordinates.
+        - The surface (`c0b3944`): 41 coordinates and 59 literals, the
+          tune file generated for rule 7c's ceiling of 6,000 and held at
+          its first checkpoint by `spsa_colosseum.ps1 -PauseAt 2000`
+          (`c155612`, amendment 1; route tests 6/6, B.5.8's guards 13/13).
+          Dry run accepted on the screen build `A15704C2…` at `6084ae0`.
+        - The maintainer runs the night; the read at 2,000 is discussed
+          before the run continues or stops there.
 - [ ] **B.7** Board review and rebuild
   Added 2026-11-03 (maintainer): Basilisk's board is reviewed against
   Stockfish's (`Position` and `StateInfo`, the modern donor's form) and
@@ -4284,7 +4307,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.6.7 | RESEARCH | V | Was B.6.2; runs (maintainer 2026-11-05); the curvature evidence chooses its surface, after the zero-game screen of the kernel's literals (added 2026-11-10) |
+| B.6.7 | GAME_GATE | V | Was B.6.2; the screen, read and sweep done 2026-11-13; the SPSA (BAS-S61) prepared, maintainer-run, paused at 2,000 for the read |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
 | B.7.2 | RESEARCH | R2 | Was B.15.2; after B.7.1 |
 | B.7.3 | RESEARCH | I2 | Was B.15.3; on B.7.2's frozen handoff |
