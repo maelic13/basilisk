@@ -12,7 +12,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 |---|---|
 | Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08), `bench 13` 14,978,465 |
 | Bench fingerprint | **3,783,135** (`bench 13`, since B.5.5's gates turned Cluster 4 on; 4,144,790 at B.4.7; 6,090,091 at B.4.2; 5,361,058 at B.3.6; 5,369,042 at B.3.5; 11,880,564 at B.14; 16,615,757 at B.12; 19,470,325 at A.13.2; 19,108,490 at A.13.1; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
-| Active experiment | BAS-S59 (B.6.6): runs read; two adoptions (razoring, kings key) owe their SPRT `[0,3]` |
+| Active experiment | BAS-S60 (B.6.6): razoring and the kings key against the head, SPRT `[0,3]`, prepared, maintainer-run |
 | Long job | None |
 | Next release | **1.11.0** after B (B.11.4), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
 
@@ -220,5 +220,6 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
 - [ ] **H.3** `[I2]` Time-management refinements at their own control
 - [ ] **H.4** `[R2]` Throughput at an identical tree on the network head
 - [ ] **H.5** `[I2]` Harness rewritten in Python for a Linux host
+- [ ] **H.6** `[R2]` Donor-form re-reads, both arms refitted
 
 <!-- END GENERATED -->

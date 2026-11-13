@@ -293,3 +293,42 @@ What follows from it:
   kingless key and are refitted on the new one.
 - **If the SPRT rejects**, both rows stay Basilisk's and wait in H.2 with
   their readings, and B.6.7 fits the current forms.
+
+## 9. The gate, prepared (2026-11-13)
+
+- **What BAS-S59 tested for the TT cap.** Arm A ran the donor's cap on
+  the fitted slope, `min(151·d, 695)`, not the donor's whole bonus
+  `min(112·d, 695)`: the slope is B.6.7's coordinate. The whole form is
+  H.6's row, with both arms refitted.
+- **The umbrella.** `B6_DONOR_FORMS` (`65448d0`, off) sets
+  `CoreRazorDonor` and `CoreCorrNonPawnKings` to 1 through
+  `BASILISK_B6_CORE_DEFAULTS`. OFF reproduces 3,783,135 and passes release
+  CTest 30 of 30; ON reads 3,268,437.
+- **ON-arm CTest: three tests bound to the OFF tree**, each re-based in
+  its own commit with its measurement before a flip (BAS-S60's H1):
+  - `test_b5_root`, *a proven mate stands*: the fixture needs a tree that
+    proves mate in 8 at depth 15 and reads 2,607 at 16. OFF proves mate
+    in 8 from depth 14. The pinned Tune build with razoring alone first
+    proves mate in 9 at depth 17, with the kings key alone mate in 10 at
+    depth 18, and ON proves mate in 9 at depth 16. The guard's own
+    assertions pass; the search never reaches the state the fixture
+    exercises.
+  - The depth-6 WAC floor (186): ON reads 178 against OFF's 189. At
+    100,000 nodes ON reads 256 against the head's 259; more pruning
+    solves less at a fixed depth.
+  - KQ-K's staleness guard: ON mates in 10.7 plies on average against
+    OFF's 12.0, below the guard's ratio of its 16.3-ply ceiling. The
+    ceiling is due to be tightened.
+- **A test gap closed on the way** (`bd814cb`): the arm-default range check
+  did not expand the kernel switches, so the umbrella's overrides could not
+  match.
+- **The mate delay, read in games.** On BAS-S59's PGNs
+  (`pgn_time_census.py`; `tools/results/b66-20261112/census-*.json`),
+  games decided at +300 for a side and not won: razoring 47 against 38
+  (L1's margin is 18.5), the kings key 24 against 42; none at +800 on
+  either donor arm. The delay costs no conversions there. BAS-S60's flip
+  carries the same census on its own games.
+- **The gate.** BAS-S60: SPRT `[0,3]`, cap 5,000 pairs, final-PGO arms ON
+  `A2BF3537…` and OFF `07BB73F3…` from `65448d0`, seed 66010, dry run
+  accepted (`tools/results/colosseum_sprt_b66-sprt_20261113_091911.*`).
+  Command: `python tools/run_b66_sprt.py`.

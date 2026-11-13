@@ -3390,6 +3390,20 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           key (−4.5 ± 8.4).
         - Next: the two adoptions behind one switch, SPRT `[0,3]` against
           the head, registered and prepared before any game.
+      - SPRT prepared 2026-11-13 (BAS-S60, packet §9):
+        - `B6_DONOR_FORMS` (`65448d0`, off): ON `bench 13` 3,268,437,
+          OFF 3,783,135. Release CTest: OFF 30 of 30; ON fails only
+          three tests bound to the OFF tree, re-based before a flip.
+          A test gap found on the way is closed in its own commit
+          (`bd814cb`: the arm-default range check now covers the
+          kernel switches).
+        - Both forms delay a mate proof at fixed depth on one fixture;
+          BAS-S59's games show no conversion cost (razoring 47
+          unconverted at +300 against 38, kings 24 against 42), and
+          the flip carries B.5.5's L1 census on the SPRT's games.
+        - Final-PGO arms `A2BF3537…` (ON) and `07BB73F3…` (OFF); cap
+          5,000 pairs; dry run accepted. The maintainer runs
+          `python tools/run_b66_sprt.py`.
     - [ ] **B.6.7** `[V]` Joint search SPSA
       It was B.6.2 until 2026-11-11.
       The joint SPSA above, on the reconciled head.
@@ -4258,7 +4272,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.6.6 | GAME_GATE | R2 | Was B.6.1; BAS-S59's runs read 2026-11-13: razoring and the kings key adopted; their SPRT `[0,3]` next |
+| B.6.6 | GAME_GATE | R2 | Was B.6.1; BAS-S59's runs read 2026-11-13: razoring and the kings key adopted; their SPRT (BAS-S60) prepared, maintainer-run |
 | B.6.7 | RESEARCH | V | Was B.6.2; runs (maintainer 2026-11-05); the curvature evidence chooses its surface, after the zero-game screen of the kernel's literals (added 2026-11-10) |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
 | B.7.2 | RESEARCH | R2 | Was B.15.2; after B.7.1 |
@@ -5595,8 +5609,9 @@ already repairing or a form it must choose anyway, and says so.
       then one SPRT.
     - Until then Basilisk's forms stay, since they work.
   B.6.6 input (2026-11-05): a departures row that reads under +5 there is
-  not cleared by a run on one fitted arm; it waits here for the fair
-  re-read with both arms refitted.
+  not cleared by a run on one fitted arm; it waits for the fair re-read
+  with both arms refitted, which is H.6's since 2026-11-13, as are the
+  B.3.4 forms above.
   B.4.3 input (2026-11-06, `analysis/b43_cluster3_research_2026-11-06.md`,
   research amendment 1 §4):
   - A queen capture exempt from quiescence's gain rules. On the B.4.2
@@ -5702,6 +5717,38 @@ already repairing or a form it must choose anyway, and says so.
   - Speed reads and NPS baselines become specific to host and OS: both
     arms of a read or a gate run on one host under one OS, and the build
     manifest records the OS.
+- [ ] **H.6** `[R2]` Donor-form re-reads, both arms refitted
+  Added 2026-11-13 at the maintainer's request: every place the search
+  still keeps a form that is not the donor's is checked against `sf_19`
+  and tested, so that no departure stays a choice nobody measured
+  fairly. It runs last in the phase, on the search H.2's refinements
+  leave. The rows earlier leaves sent to "H.2 for the fair re-read" are
+  this leaf's; H.2 keeps the new mechanisms.
+  - **The check.** One census of the head against the donor, read afresh
+    and not only from the departures tables: each place where the forms
+    differ, Basilisk's form, the donor's, the prerequisite and whether it
+    has landed, and the population counter on `bench 13` and the gate
+    games. The tables and readings so far are the input:
+    `analysis/b66_reconciliation_2026-11-12.md` §3 and §8 (B.6.6's 39
+    rows), BAS-S59 and BAS-S60, and every later packet's departures table.
+    Rows the network or time management owns go to F and H.3.
+  - **The testing.** For each row whose population can carry a game: a
+    switch for the donor's form, then both arms refitted on the
+    coordinates the row moves, the same SPSA budget each, then one SPRT
+    `[0,3]` of the refitted donor arm against the refitted head (the
+    maintainer's 2026-11-04 rule: a run on one fitted arm can confirm the
+    donor's form, never clear it). Rows that share coordinates are
+    refitted and read together. H1 adopts the donor's form; anything else
+    keeps Basilisk's, recorded with the reading as a measured choice.
+  - Known rows today (B.6.6, BAS-S59): the TT-cutoff bonus whole, the
+    donor's slope 112 with its cap 695 (BAS-S59 read the cap alone on the
+    fitted slope 151: +8.0 ± 9.1 at `3+0.03`, −0.5 ± 8.6 at `10+0.1`); the
+    rule-50 key (−4.5 ± 8.4); `CoreHistoryFills`, `B3ProbCutTt`,
+    `B3ExtBudget`; the stand-pat store; the evasion order; the SEE vector;
+    the capture stage's promotions (F5); razoring and reverse futility in
+    the exclusion search and its estimate (R2a, R2b); the verification's
+    frame (R7, with H.2's frame item); and razoring and the kings key if
+    BAS-S60 does not accept them.
 
 ## 4. Measurement protocols
 

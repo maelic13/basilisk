@@ -560,6 +560,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S59](experiments/BAS-S59.md) — B.6.6: the donor-form paired runs (TT-cutoff cap at two controls, razoring, rule-50 key, kings in the non-pawn key) — runs read: razoring +10.6 ± 9.4 and kings +11.6 ± 9.3 adopted, their SPRT `[0,3]` owed; the TT cap and rule-50 key stay
 
+- [BAS-S60](experiments/BAS-S60.md) — B.6.6: razoring and the kings key, the two adopted donor forms, against the head, SPRT `[0,3]` — registered
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |

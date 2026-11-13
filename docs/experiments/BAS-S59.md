@@ -139,7 +139,9 @@ Frozen 2026-11-12, before the floors were read:
   16.27/16.08, `Key50` 16.11/16.19, `Kings` 16.34/16.19. Speed within
   1% on every pair (1.88 to 1.93M nodes per second).
 - **Disposition per row.**
-  - TT-cutoff cap: neither leg adopts, so Basilisk's form stays. Not
+  - TT-cutoff cap: arm A ran the donor's cap on the fitted slope,
+    `min(151·d, 695)`, not the donor's whole `min(112·d, 695)`; the
+    whole form is H.6's. Neither leg adopts, so Basilisk's form stays. Not
     cleared: `3+0.03` read +8.0, `10+0.1` −0.5; both readings go to H.2.
     B.6.7 fits the slope uncapped.
   - Razoring: the donor's form is **adopted**.
