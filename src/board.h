@@ -323,6 +323,8 @@ private:
     // The original forms of rebuilt board operations, which a cross-check
     // build runs beside the rebuilt ones (board.cpp).
     void unmake_move_reference(Move m);
+    [[nodiscard]] bool see_ge_rebuilt(Move m, int threshold) const;
+    [[nodiscard]] bool see_ge_reference(Move m, int threshold) const;
 #endif
     [[nodiscard]] Key compute_hash() const;
 };

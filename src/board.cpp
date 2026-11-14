@@ -1975,8 +1975,199 @@ int Board::see(Move m) const {
     return gain[0];
 }
 
+// Empty-board slider attacks, for the SEE's pin snipers.
+namespace {
+struct EmptyBoardAttacks {
+    Bitboard rook[SQUARE_NB]{}, bishop[SQUARE_NB]{};
+    constexpr EmptyBoardAttacks() {
+        for (int a = 0; a < SQUARE_NB; ++a) {
+            const int r = a / 8, f = a % 8;
+            for (int t = 0; t < SQUARE_NB; ++t) {
+                if (t == a) continue;
+                const int tr = t / 8, tf = t % 8;
+                if (tr == r || tf == f) rook[a] |= Bitboard(1) << t;
+                if (tr - r == tf - f || tr - r == f - tf) bishop[a] |= Bitboard(1) << t;
+            }
+        }
+    }
+};
+constexpr EmptyBoardAttacks EMPTY_BOARD;
+}  // namespace
+
+#ifdef BASILISK_BOARD_CROSSCHECK
 bool Board::BT(see_ge)(Move m, int threshold) const {
+    const bool result = see_ge_rebuilt(m, threshold);
+    if (result != see_ge_reference(m, threshold)) {
+        std::fprintf(stderr, "board cross-check: see_ge %s %d differs from the original in %s\n",
+                     move_to_uci(m).c_str(), threshold, get_fen().c_str());
+        std::abort();
+    }
+    return result;
+}
+
+bool Board::see_ge_rebuilt(Move m, int threshold) const {
+#else
+bool Board::BT(see_ge)(Move m, int threshold) const {
+#endif
     ++diag_see_ge_calls;
+#ifdef BASILISK_TUNE
+    const int* const SEE_VALUES = see_values_;
+#else
+    static constexpr int SEE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
+#endif
+
+    const Square from = from_sq(m);
+    const Square to   = to_sq(m);
+    const MoveType mt = move_type(m);
+    const Piece target = board_sq[to];
+
+    int swap = 0;
+    if (mt == EN_PASSANT)
+        swap = SEE_VALUES[PAWN];
+    else if (target != NO_PIECE)
+        swap = SEE_VALUES[type_of(target)];
+
+    if (mt == PROMOTION)
+        swap += SEE_VALUES[promo_type(m)] - SEE_VALUES[PAWN];
+
+    // A quiet move is an exchange that starts with nothing won: the moved
+    // piece is the first one at risk on `to`, so it goes through the same
+    // loop. Castling alone answers from the gain: its king lands on an
+    // unattacked square and never enters an exchange.
+    if (mt == CASTLING)
+        return swap >= threshold;
+
+    swap -= threshold;
+    if (swap < 0)
+        return false;
+
+    PieceType attacker_type = type_of(board_sq[from]);
+    if (mt == PROMOTION)
+        attacker_type = promo_type(m);
+
+    // A pawn capturing onto a back rank promotes. In the swap form that leaves
+    // `swap` unchanged (the queen's surplus is won and the queen left on the
+    // square is worth as much more), but it moves both "already safe even if
+    // my piece is taken" exits below: losing the piece to a promoting pawn
+    // costs the surplus as well.
+    const bool promo_sq = (sq_bb(to) & (BB_RANKS[RANK_1] | BB_RANKS[RANK_8])) != 0;
+    const int PROMO_SURPLUS = SEE_VALUES[QUEEN] - SEE_VALUES[PAWN];
+
+    swap = SEE_VALUES[attacker_type] - swap;
+    if (swap <= 0 && !promo_sq)
+        return true;
+
+    Bitboard occ = all_occ ^ sq_bb(from);
+    if (mt == EN_PASSANT) {
+        Square ep_pawn = make_square(file_of(to), rank_of(from));
+        occ ^= sq_bb(ep_pawn);
+    } else if (target != NO_PIECE) {
+        occ ^= sq_bb(to);
+    }
+
+    Color stm = side_to_move;
+
+    // Nobody of the other side attacks `to`: the loop would stop at its first
+    // step with the move standing. The pin filter only removes attackers, so
+    // answering here is exact and skips the pin computation.
+    Bitboard attackers = attackers_to(to, occ) & occ;
+    if (!(attackers & occupancy[~stm]))
+        return true;
+
+    // Absolute pins, read on the exchange occupancy of the moment they are
+    // used: a piece of `c` is pinned when it alone stands between c's king
+    // and a sniper still in the exchange, an enemy slider on an empty-board
+    // line of its kind from that king; it may still capture along that line.
+    // This is the set see_pins computes, and reading it at each use replaces
+    // both its recomputation after a departure and the pinner test.
+    Bitboard snipers[NCOLORS];
+    for (int ci = 0; ci < NCOLORS; ++ci) {
+        const Color c = Color(ci);
+        const Square k = king_sq[c];
+        snipers[c] = (EMPTY_BOARD.rook[k] & (pieces[~c][ROOK] | pieces[~c][QUEEN]))
+                   | (EMPTY_BOARD.bishop[k] & (pieces[~c][BISHOP] | pieces[~c][QUEEN]));
+    }
+    auto pin_filtered = [&](Bitboard bb, Color c) {
+        Bitboard sn = snipers[c] & occ;
+        if (!sn || !bb)
+            return bb;
+        const Square k = king_sq[c];
+        do {
+            const Square sniper = Square(pop_lsb(sn));
+            const Bitboard between = BB_BETWEEN[k][sniper] & occ;
+            if ((between & bb) && !more_than_one(between) && !(BB_LINE[k][sniper] & sq_bb(to)))
+                bb ^= between;
+        } while (sn);
+        return bb;
+    };
+
+    // The surplus `c` would add by recapturing now: its least valuable
+    // attacker is a pawn whenever it has one the pins allow.
+    auto promo_threat = [&](Color c) {
+        return promo_sq && pin_filtered(attackers & pieces[c][PAWN], c)
+             ? PROMO_SURPLUS : 0;
+    };
+    if (swap + promo_threat(~stm) <= 0)
+        return true;
+
+    int result = 1;
+
+    while (true) {
+        stm = ~stm;
+        attackers &= occ;
+        Bitboard side_att = attackers & occupancy[stm] & occ;
+        if (!side_att)
+            break;
+
+        PieceType next_attacker = NO_PIECE_TYPE;
+        Bitboard attacker_bb = 0;
+        for (int pt = PAWN; pt <= KING; ++pt) {
+            attacker_bb = side_att & pieces[stm][pt];
+            if (pt != KING) attacker_bb = pin_filtered(attacker_bb, stm);
+            if (attacker_bb) {
+                next_attacker = PieceType(pt);
+                break;
+            }
+        }
+        if (next_attacker == NO_PIECE_TYPE)
+            break;
+
+        // King legality. Identical rule to see(), including the
+        // deliberately unfiltered opponent set -- see the comment there for
+        // why the pin filter must not be applied to it.
+        if (next_attacker == KING && (attackers & occupancy[~stm] & occ))
+            break;
+
+        result ^= 1;
+        swap = SEE_VALUES[next_attacker] - swap;
+        if (swap < result && !promo_sq)
+            break;
+
+        Bitboard lva_bit = attacker_bb & (0ULL - attacker_bb);
+        occ ^= lva_bit;
+        // A piece attacking `to` stands on one of its lines, so taking it away
+        // opens that kind of line alone: pawns and bishops the diagonals, rooks
+        // the files and ranks, queens both.
+        attackers &= occ;
+        if (next_attacker == PAWN || next_attacker == BISHOP || next_attacker == QUEEN)
+            attackers |= bishop_attacks(to, occ) & occ
+                       & (pieces[WHITE][BISHOP] | pieces[WHITE][QUEEN]
+                          | pieces[BLACK][BISHOP] | pieces[BLACK][QUEEN]);
+        if (next_attacker == ROOK || next_attacker == QUEEN)
+            attackers |= rook_attacks(to, occ) & occ
+                       & (pieces[WHITE][ROOK] | pieces[WHITE][QUEEN]
+                          | pieces[BLACK][ROOK] | pieces[BLACK][QUEEN]);
+        if (promo_sq && swap + promo_threat(~stm) < result)
+            break;
+    }
+
+    return result != 0;
+}
+
+#ifdef BASILISK_BOARD_CROSSCHECK
+// The original see_ge, with pins computed up front by see_pins and
+// recomputed after a departure that may open a line.
+bool Board::see_ge_reference(Move m, int threshold) const {
 #ifdef BASILISK_TUNE
     const int* const SEE_VALUES = see_values_;
 #else
@@ -2120,3 +2311,4 @@ bool Board::BT(see_ge)(Move m, int threshold) const {
 
     return result != 0;
 }
+#endif
