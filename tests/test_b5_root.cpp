@@ -600,22 +600,25 @@ static void test_a_proven_mate_stands() {
     EXPECT(b5::forgotten_mate(mate_in_8, 2607));
     EXPECT(b5::forgotten_mate(mate_in_8, MATE_SCORE - 19));   // a longer one
     EXPECT(b5::forgotten_mate(-mate_in_8, -2607));      // being mated, likewise
-    // The search proves this mate at depth 17 and keeps it to depth 18. Before
-    // B.6.7's fit it proved it at depth 15 and read 2607 at depth 16, which the
-    // rule kept; the fitted tree loses it at no depth to 26 (nor any WAC mate to
-    // depth 18), so this checks the proof's lines, not the rule's rescue.
+    // The search proves this mate at depth 19 (in 9) and keeps it to depth 20.
+    // Before B.6.7's fit it proved it at depth 15 and read 2607 at depth 16,
+    // which the rule kept; with the fit, in 8 from depth 17; since a return to
+    // the root needs a second occurrence, in 9 from depth 19 and in 8 from 24.
+    // The tree loses it at no depth after its proof, so this checks the
+    // proof's lines, not the rule's rescue.
+    const int mate_in_9 = MATE_SCORE - 17;
     SearchLimits lim;
-    lim.depth = 18;
+    lim.depth = 20;
     const Run run = search_limits("r1bq1r2/pp4k1/4p2p/3pPp1Q/3N1R1P/2PB4/6P1/6K1 w - - 0 1", lim);
-    EXPECT_EQ(run.result.score, mate_in_8);
+    EXPECT_EQ(run.result.score, mate_in_9);
     EXPECT_STR(move_to_uci(run.result.bestmove), "f4g4");
     // Every line from the proof on says so.
     int after_the_proof = 0;
     for (const std::string& line : run.lines) {
-        if ((line.rfind("info depth 17 ", 0) == 0 || line.rfind("info depth 18 ", 0) == 0)
+        if ((line.rfind("info depth 19 ", 0) == 0 || line.rfind("info depth 20 ", 0) == 0)
             && line.find("bound") == std::string::npos) {
             ++after_the_proof;
-            EXPECT(line.find(" score mate 8 ") != std::string::npos);
+            EXPECT(line.find(" score mate 9 ") != std::string::npos);
         }
     }
     EXPECT_EQ(after_the_proof, 2);
