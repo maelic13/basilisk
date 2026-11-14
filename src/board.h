@@ -208,7 +208,13 @@ public:
     [[nodiscard]] int64_t see_ge_call_count() const noexcept { return diag_see_ge_calls; }
     [[nodiscard]] int64_t gives_check_call_count() const noexcept { return diag_gives_check_calls; }
 
+    // Called more than once a node: defined here so that every caller inlines
+    // it. A trace build defines it out of line, to record it (board_trace.cpp).
+#ifdef BASILISK_BOARD_TRACE
     [[nodiscard]] bool is_in_check() const;
+#else
+    [[nodiscard]] bool is_in_check() const { return checkers != 0; }
+#endif
     [[nodiscard]] bool gives_check(Move m) const;
     [[nodiscard]] Bitboard check_squares(PieceType pt, Color us) const;
     [[nodiscard]] bool is_square_attacked(Square sq, Color by) const;
@@ -258,7 +264,14 @@ public:
     [[nodiscard]] bool upcoming_repetition(int search_ply) const;
     [[nodiscard]] bool is_insufficient_material() const;
 
+    // Inlined in every caller, as is_in_check.
+#ifdef BASILISK_BOARD_TRACE
     [[nodiscard]] bool has_non_pawn_material(Color c) const;
+#else
+    [[nodiscard]] bool has_non_pawn_material(Color c) const {
+        return (pieces[c][KNIGHT] | pieces[c][BISHOP] | pieces[c][ROOK] | pieces[c][QUEEN]) != 0;
+    }
+#endif
     [[nodiscard]] int see(Move m) const;
     [[nodiscard]] bool see_ge(Move m, int threshold) const;
 #ifdef BASILISK_TUNE

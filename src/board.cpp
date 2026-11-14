@@ -1014,9 +1014,12 @@ bool Board::is_attacked_by(Square sq, Bitboard occ, Color by) const {
     return (KingAttacks[sq] & pieces[by][KING]) != 0;
 }
 
+#ifdef BASILISK_BOARD_TRACE
+// Defined in board.h, except in a trace build, which records the call.
 bool Board::BT(is_in_check)() const {
     return checkers != 0;
 }
+#endif
 
 // ---- Move generation -------------------------------------------------------
 
@@ -1862,9 +1865,12 @@ bool Board::is_insufficient_material() const {
     return false;
 }
 
+#ifdef BASILISK_BOARD_TRACE
+// Defined in board.h, except in a trace build, which records the call.
 bool Board::BT(has_non_pawn_material)(Color c) const {
     return (pieces[c][KNIGHT] | pieces[c][BISHOP] | pieces[c][ROOK] | pieces[c][QUEEN]) != 0;
 }
+#endif
 
 // ---- SEE -------------------------------------------------------------------
 
