@@ -4289,8 +4289,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         TT duplicates, if one exists (TB-15).
       - Priors on what did not pay there: prefetching and reordering loads,
         AVX-512 gathers, the next-move TT prefetch on AMD (TB-16).
-      - B.16.4's identical-tree counter read beside A.9.4's pooled read
-        (TM-7).
+      - No hardware-counter read (maintainer, 2026-11-14): B.16.4's
+        instrument failed its null twice (BAS-P28, BAS-P33), identical
+        builds reading 0.5% apart, so pooled NPS alone decides.
       - Shortcut builds (TM-10): each shortcut ships with a build switch that
         runs the original beside it at every node and aborts on the first
         disagreement, as Triumviratus checked every identical-tree patch.
