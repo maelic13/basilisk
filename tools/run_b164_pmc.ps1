@@ -13,9 +13,14 @@
    -DryRun needs neither: it checks the inputs, makes the copy, runs every
    binary's `bench 13` untraced (its node count must be 19,470,325) and
    parses the B.16.4 probe trace through the same calls.
-   The defaults are BAS-P28's frozen arms. Another pair of four-build pools
-   is read the same way with -BasePool, -CandPool, -ExpectNodes, -Name (the
-   contrast and the archive tools/results/<Name>-pmc) and -Label. #>
+   The defaults are BAS-P28's arms. Another pair of four-build pools is read
+   the same way with -BasePool, -CandPool, -ExpectNodes, -Name (the
+   contrast and the archive tools/results/<Name>-pmc) and -Label.
+   The null: -NullCopies 4 (the default, BAS-P33) copies every build of the
+   base pool, and the null is decided like the contrast, over builds, each a
+   median of its runs, so one disturbed run moves it no more than it moves
+   the contrast. -NullCopies 1 is BAS-P28's original design, one copy of the
+   first build decided over runs. #>
 param(
     [switch]$DryRun,
     [string]$BasePool = '',
@@ -23,7 +28,8 @@ param(
     [long]$ExpectNodes = 19470325,
     [string]$Name = 'b164',
     [string]$Contrast = 'p25',
-    [string]$Label = 'BAS-P28 counters'
+    [string]$Label = 'BAS-P28 counters',
+    [ValidateSet(1, 4)][int]$NullCopies = 4
 )
 
 $ErrorActionPreference = 'Stop'
@@ -59,10 +65,15 @@ foreach ($p in $pools) {
     }
 }
 $source = $items[0]
-$copyPath = Join-Path $engines ("$($source.Build)-copy.exe")
-Copy-Item $source.Path $copyPath -Force
-if ((Get-HarnessSha256 $copyPath) -ne $source.Sha) { throw 'the null copy is not byte-identical' }
-$items += @{ Arm = 'copy'; Build = "$($source.Build)-copy"; Path = (Resolve-Path $copyPath).Path; Sha = $source.Sha }
+for ($i = 0; $i -lt $NullCopies; $i++) {
+    $src = $items[$i]
+    $copyPath = Join-Path $engines ("$($src.Build)-copy.exe")
+    Copy-Item $src.Path $copyPath -Force
+    if ((Get-HarnessSha256 $copyPath) -ne $src.Sha) { throw "the null copy of $($src.Build) is not byte-identical" }
+    $items += @{ Arm = 'copy'; Build = "$($src.Build)-copy"; Path = (Resolve-Path $copyPath).Path; Sha = $src.Sha }
+}
+$nullContrast = if ($NullCopies -eq 1) { @{ name = 'null'; base = $baseArm; base_build = $source.Build; cand = 'copy' } }
+                else { @{ name = 'null'; base = $baseArm; cand = 'copy' } }
 
 $out = Join-Path $PSScriptRoot $(if ($DryRun) { "results\$Name-pmc-dryrun" } else { "results\$Name-pmc" })
 if (Test-Path (Join-Path $out 'runs.jsonl')) {
@@ -71,7 +82,7 @@ if (Test-Path (Join-Path $out 'runs.jsonl')) {
 New-Item -ItemType Directory -Force $out | Out-Null
 @{ label = $Label; contrasts = @(
         @{ name = $Contrast; base = $baseArm; cand = $candArm }
-        @{ name = 'null'; base = $baseArm; base_build = $source.Build; cand = 'copy' }) } |
+        $nullContrast) } |
     ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 (Join-Path $out 'config.json')
 
 $before = Assert-HarnessHostIdle -Allow:$DryRun
@@ -118,8 +129,10 @@ if ($DryRun) {
 
 foreach ($item in $items) { Invoke-Bench $item.Path '8' | Out-Null }
 $order = @()
-for ($i = 0; $i -lt 4; $i++) { $order += $items[$i]; $order += $items[$i + 4] }
-$order += $items[8]
+for ($i = 0; $i -lt 4; $i++) {
+    $order += $items[$i]; $order += $items[$i + 4]
+    if ($i -lt $NullCopies) { $order += $items[$i + 8] }
+}
 for ($cycle = 1; $cycle -le 3; $cycle++) {
     $sequence = $order.Clone()
     if ($cycle % 2 -eq 0) { [array]::Reverse($sequence) }
