@@ -1660,7 +1660,46 @@ bool Board::rule50_draw() const {
     return !ml.empty();
 }
 
+#ifdef BASILISK_BOARD_CROSSCHECK
 bool Board::is_draw() const {
+    const bool result = is_draw_rebuilt();
+    if (result != is_draw_reference()) {
+        std::fprintf(stderr, "board cross-check: is_draw differs from the original in %s\n",
+                     get_fen().c_str());
+        std::abort();
+    }
+    return result;
+}
+
+bool Board::is_draw_rebuilt() const {
+#else
+bool Board::is_draw() const {
+#endif
+    if (is_insufficient_material()) return true;
+
+    // 50-move rule (with mate precedence at the boundary)
+    if (rule50_draw()) return true;
+    if (halfmove_clock < 4) return false;
+
+    // 2-fold repetition (search back through history)
+    int reps = 0;
+    const int hist_size = static_cast<int>(history.size());
+    int stop = std::max(0, hist_size - halfmove_clock);
+    // Two plies back is never this position: each side has moved once since,
+    // and one move cannot restore a position (two null moves in a row could,
+    // and the search never makes them). The scan starts four plies back.
+    for (int i = hist_size - 4; i >= stop; i -= 2) {
+        if (history[static_cast<size_t>(i)].hash == hash) {
+            reps++;
+            if (reps >= 1) return true; // 2-fold (current + one prior)
+        }
+    }
+    return false;
+}
+
+#ifdef BASILISK_BOARD_CROSSCHECK
+// The original is_draw, scanning from two plies back.
+bool Board::is_draw_reference() const {
     if (is_insufficient_material()) return true;
 
     // 50-move rule (with mate precedence at the boundary)
@@ -1679,8 +1718,55 @@ bool Board::is_draw() const {
     }
     return false;
 }
+#endif
 
+#ifdef BASILISK_BOARD_CROSSCHECK
 bool Board::BT(is_repetition)(int search_ply) const {
+    const bool result = is_repetition_rebuilt(search_ply);
+    if (result != is_repetition_reference(search_ply)) {
+        std::fprintf(stderr, "board cross-check: is_repetition %d differs from the original in %s\n",
+                     search_ply, get_fen().c_str());
+        std::abort();
+    }
+    return result;
+}
+
+bool Board::is_repetition_rebuilt(int search_ply) const {
+#else
+bool Board::BT(is_repetition)(int search_ply) const {
+#endif
+    if (halfmove_clock < 4)
+        return false;
+
+    int reps = 0;
+    const int reversible = std::min(halfmove_clock, plies_from_null);
+    const int hist_size = static_cast<int>(history.size());
+    const int stop = std::max(0, hist_size - reversible);
+
+    // Two plies back is never this position: each side has moved once since,
+    // and one move cannot restore a position (two null moves in a row could,
+    // and the search never makes them). The scan starts four plies back.
+    for (int i = hist_size - 4; i >= stop; i -= 2) {
+        if (history[static_cast<size_t>(i)].hash != hash)
+            continue;
+
+        // Once is enough strictly after the root; the root itself, or a
+        // position before it, needs a second earlier occurrence. The same
+        // rule as upcoming_repetition's.
+        const int distance = hist_size - i;
+        if (distance < search_ply)
+            return true;
+
+        if (++reps >= 2)
+            return true;
+    }
+
+    return false;
+}
+
+#ifdef BASILISK_BOARD_CROSSCHECK
+// The original is_repetition, scanning from two plies back.
+bool Board::is_repetition_reference(int search_ply) const {
     if (halfmove_clock < 4)
         return false;
 
@@ -1706,6 +1792,7 @@ bool Board::BT(is_repetition)(int search_ply) const {
 
     return false;
 }
+#endif
 
 bool Board::BT(upcoming_repetition)(int search_ply) const {
     const int hist_size = static_cast<int>(history.size());

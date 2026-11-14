@@ -325,6 +325,10 @@ private:
     void unmake_move_reference(Move m);
     [[nodiscard]] bool see_ge_rebuilt(Move m, int threshold) const;
     [[nodiscard]] bool see_ge_reference(Move m, int threshold) const;
+    [[nodiscard]] bool is_draw_rebuilt() const;
+    [[nodiscard]] bool is_draw_reference() const;
+    [[nodiscard]] bool is_repetition_rebuilt(int search_ply) const;
+    [[nodiscard]] bool is_repetition_reference(int search_ply) const;
 #endif
     [[nodiscard]] Key compute_hash() const;
 };
