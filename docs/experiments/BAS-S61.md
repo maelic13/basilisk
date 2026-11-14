@@ -51,3 +51,22 @@ wire (30%); R5 a third of the surface flat on WAC (60%); R6 most pruning margins
 WAC maxima on the less-pruning side (55%).
 
 #### RESULT — append after exposure
+
+- **The tune** (maintainer-run 2026-11-13 22:23 to 2026-11-14 10:36 UTC,
+  `tools/results/b67-spsa/`): **STOP_QUIET at 2,000**, 60,000 games, no engine, time
+  or infrastructure fault, no rail, no arm clamped. The window 1,000–2,000: largest
+  |z| 2.82 (line 3.61), Σz² − n +32.1 (+1.7 SD). The window 0–1,000 read live
+  (+3.8 SD; `B3SingMargin` z −3.82). The tune's own gain read +22.9 Elo, null SD
+  11.6, not a gate. Theta: the 2,000 checkpoint's rounded centres
+  (`theta-2000.toml` 6c240b98…).
+- **Predictions.** Amendment 2's: A1 misses (quiet, not live); A2 misses (4.2% of the
+  read's fails at |z| ≥ 2 against 11.2% of its passes, 1.7 standard errors, short of
+  the falsifier's two); A3 misses; A4 hits. The registration's R1–R6 are scored in
+  the packet.
+- **The fitted-constant analysis** (`analysis/b67_constants_2026-11-14.md`): eight
+  findings; none blocks the bake. One is a defect of the screen the bake found: a
+  scale literal could not be baked (`0f30bf1`).
+- **The bake** (`25c570f`): 61 X lines and 93 literals; `bench 13` **4,278,307**,
+  equal to theta's replay; release and sanitizer CTest 30/30; the floors pass.
+- **Disposition:** baked, pending B.6's SPRT `[0,3]` against the B.6.6 head,
+  registered on its own.

@@ -562,7 +562,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S60](experiments/BAS-S60.md) — B.6.6: razoring and the kings key, the two adopted donor forms, against the head, SPRT `[0,3]` — CLOSED 2026-11-13: cap reached, +2.2 ± 4.2 Elo over 10,000 games, LLR +0.52; neither adopted
 
-- [BAS-S61](experiments/BAS-S61.md) — B.6.7: the literal screen and the relevance read, the curvature sweep, then the joint search SPSA — reads done 2026-11-13 (42 of 74 coordinates and 60 of 118 literals pass; two flat dropped); the SPSA over 100 coordinates prepared, maintainer-run
+- [BAS-S61](experiments/BAS-S61.md) — B.6.7: the literal screen and the relevance read, the curvature sweep, then the joint search SPSA — reads done 2026-11-13 (42 of 74 coordinates and 60 of 118 literals pass; two flat dropped); the SPSA run 2026-11-13 to 14 over 170 coordinates (amendment 2): STOP_QUIET at 2,000, 60,000 games, no fault; baked, `bench 13` 4,278,307; B.6's SPRT owed
 
 | ID | Title | Disposition |
 |---|---|---|

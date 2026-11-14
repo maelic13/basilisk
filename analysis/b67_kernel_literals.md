@@ -327,3 +327,115 @@ joiner (the packet's results).
 | `LitTtPrevMalus` | -2652, -1768 | **joins** | -10.8% continuation pruning / moves tested at -1768 |
 | `LitTtPrevMoveCount` | 4, 6 | **joins** | -16.4% continuation pruning / moves tested at 4 |
 | `LitTtRule50` | 77, 115 | stays a literal | +0.0% LMR applied / moves tested at 77 |
+
+## Fitted by B.6.7
+
+BAS-S61's joint fit (`analysis/b67_constants_2026-11-14.md`) tuned 101 of these as
+screen options and baked theta into `src/kernel_literals.h` (`bench 13` 4,278,307).
+The *Screened* table above keeps each literal's value before the fit. Movement is not
+evidence of fitting: most literals moved by under half a step, which is noise about the
+donor's value (finding 6). *Steps* are the generator's; *z* is the last window's.
+
+| Option | before | theta | steps | z, 1,000–2,000 |
+|---|---:|---:|---:|---:|
+| `LitBonusCountDen` | 256 | 263 | +0.27 | +0.34 |
+| `LitBoundCapture` | 10692 | 10685 | -0.01 | -0.30 |
+| `LitBoundCont` | 30000 | 30169 | +0.15 | +1.67 |
+| `LitBoundContCorr` | 1024 | 1052 | +0.29 | +0.50 |
+| `LitBoundCorr` | 1024 | 1019 | -0.05 | -0.27 |
+| `LitBoundLowPly` | 7183 | 7746 | +0.84 | +0.72 |
+| `LitBoundMain` | 7183 | 6837 | -0.51 | -1.84 |
+| `LitBoundPawn` | 8192 | 7558 | -0.83 | +0.48 |
+| `LitBoundTtMove` | 8192 | 8021 | -0.22 | -0.05 |
+| `LitCaptBonusShare` | 1427 | 1340 | -0.65 | +0.28 |
+| `LitCaptMalusShare` | 1489 | 1536 | +0.33 | +1.03 |
+| `LitContMalusShare` | 713 | 749 | +0.54 | +0.08 |
+| `LitContNearBonus` | 73 | 75 | +0.31 | +0.34 |
+| `LitContShare` | 750 | 756 | +0.08 | +0.27 |
+| `LitContW1` | 520 | 499 | -0.42 | -1.53 |
+| `LitContW2` | 390 | 396 | +0.15 | +0.36 |
+| `LitContW3` | 145 | 156 | +0.75 | +2.59 |
+| `LitContW4` | 251 | 251 | +0.00 | -0.58 |
+| `LitContW5` | 66 | 66 | +0.05 | +1.36 |
+| `LitContW6` | 209 | 208 | -0.06 | -0.69 |
+| `LitCorrCont2Share` | 130 | 141 | +0.95 | +1.93 |
+| `LitCorrCont4Share` | 70 | 72 | +0.35 | +0.19 |
+| `LitCorrContNone` | 64049 | 69413 | +0.89 | +1.01 |
+| `LitCorrMinorShare` | 150 | 151 | +0.09 | -0.12 |
+| `LitCorrMinorW` | 10569 | 10327 | -0.24 | +0.63 |
+| `LitCorrNoMoveScale` | 1024 | 1066 | +0.44 | +1.47 |
+| `LitCorrNonPawnShare` | 186 | 188 | +0.12 | +0.80 |
+| `LitCorrNonPawnW` | 12906 | 12143 | -0.63 | -0.72 |
+| `LitCorrPawnW` | 15341 | 15909 | +0.40 | +0.78 |
+| `LitEmaMax` | 24 | 23 | -0.60 | +0.63 |
+| `LitEmaMin` | 12 | 12 | +0.22 | -0.47 |
+| `LitEmaMsqMax` | 16 | 16 | +0.18 | -1.11 |
+| `LitEvalDiffHi` | 194 | 185 | -0.50 | -1.84 |
+| `LitEvalDiffLo` | -189 | -184 | +0.30 | -0.67 |
+| `LitEvalDiffMain` | 11 | 11 | +0.06 | +1.07 |
+| `LitEvalDiffOffset` | 60 | 57 | -0.43 | +0.90 |
+| `LitEvalDiffPawn` | 13 | 11 | -1.07 | -1.05 |
+| `LitFhRedMax` | 12 | 11 | -0.27 | -1.31 |
+| `LitFlBase` | -241 | -240 | +0.04 | -0.58 |
+| `LitFlBelowOwn` | 142 | 134 | -0.65 | -2.24 |
+| `LitFlBelowParent` | 159 | 166 | +0.47 | +0.23 |
+| `LitFlCapture` | 892 | 917 | +0.30 | -0.92 |
+| `LitFlContNum` | 263 | 266 | +0.12 | +0.01 |
+| `LitFlDepthCap` | 420 | 404 | -0.39 | +0.90 |
+| `LitFlDepthSlope` | 59 | 59 | +0.07 | +0.08 |
+| `LitFlLateCount` | 9 | 9 | +0.08 | +0.28 |
+| `LitFlLateMove` | 186 | 181 | -0.30 | -1.64 |
+| `LitFlMainShare` | 215 | 226 | +0.56 | -0.16 |
+| `LitFlOwnMargin` | 30 | 29 | -0.24 | -0.14 |
+| `LitFlParentMargin` | 19 | 20 | +0.30 | -1.71 |
+| `LitFlPawnShare` | 324 | 320 | -0.13 | -0.69 |
+| `LitFlSizeCap` | 1337 | 1220 | -0.93 | -1.64 |
+| `LitFlSizeOffset` | 85 | 88 | +0.35 | -0.01 |
+| `LitFlSizeSlope` | 150 | 152 | +0.11 | +0.61 |
+| `LitFlStatDiv` | 98 | 95 | -0.30 | -0.08 |
+| `LitHindDownEval` | 47 | 49 | +0.30 | +0.08 |
+| `LitLmrAllOffset` | 268 | 283 | +0.61 | +0.52 |
+| `LitLmrAlphaHi` | 96 | 85 | -1.25 | -2.20 |
+| `LitLmrAlphaLo` | -64 | -67 | -0.49 | -0.92 |
+| `LitLmrBase` | 697 | 695 | -0.03 | -0.34 |
+| `LitLmrBias` | 2179 | 2244 | +0.32 | +0.69 |
+| `LitLmrCorrCap` | 2695 | 2649 | -0.18 | -1.16 |
+| `LitLmrCorrDiv` | 7419 | 7235 | -0.26 | +0.30 |
+| `LitLmrHistDivScale` | 1024 | 988 | -0.38 | -1.29 |
+| `LitLmrMoveCount` | 65 | 64 | -0.09 | -0.56 |
+| `LitLmrNoTtStep` | 1127 | 1105 | -0.21 | +0.39 |
+| `LitLmrStep1` | 5234 | 5073 | -0.33 | -0.30 |
+| `LitLmrStep2` | 5487 | 5559 | +0.14 | +1.93 |
+| `LitLmrTtPvCut` | 940 | 914 | -0.29 | -1.93 |
+| `LitLmrWindowNull` | 163 | 164 | +0.06 | -0.45 |
+| `LitLmrWindowPv` | 577 | 611 | +0.62 | +1.40 |
+| `LitLowPlyRefill` | 102 | 111 | +0.85 | +2.82 |
+| `LitLowPlyShare` | 712 | 710 | -0.03 | -0.52 |
+| `LitMalusOffset` | -235 | -230 | +0.22 | +1.42 |
+| `LitMalusShare` | 1159 | 1335 | +1.61 | +2.42 |
+| `LitPawnShareDown` | 459 | 435 | -0.55 | -2.20 |
+| `LitPawnShareUp` | 1104 | 1031 | -0.70 | -0.01 |
+| `LitPickCaptureScale` | 1024 | 1043 | +0.19 | +1.80 |
+| `LitPickCheckBonus` | 16384 | 17113 | +0.47 | +0.76 |
+| `LitPickContFarScale` | 1024 | 986 | -0.40 | -0.34 |
+| `LitPickGoodCaptureDiv` | 47 | 44 | -0.66 | -1.01 |
+| `LitPickGoodQuiet` | -14000 | -12781 | +0.93 | -0.48 |
+| `LitPickLowPlyScale` | 1024 | 1023 | -0.01 | -0.10 |
+| `LitPickMainScale` | 1024 | 1089 | +0.68 | +1.31 |
+| `LitPickPawnScale` | 1024 | 1003 | -0.22 | +0.12 |
+| `LitPickSortLimit` | -3560 | -3612 | -0.15 | -0.69 |
+| `LitPickThreatScale` | 1024 | 971 | -0.55 | -1.67 |
+| `LitPruneMainHist` | 69 | 73 | +0.53 | +0.45 |
+| `LitQuietBonusOffset` | -81 | -87 | -0.81 | +0.03 |
+| `LitQuietBonusShare` | 899 | 919 | +0.24 | +1.62 |
+| `LitQuietBonusStatDen` | 28 | 28 | +0.02 | -0.08 |
+| `LitQuietBonusTt` | 364 | 357 | -0.20 | +0.37 |
+| `LitResearchContBonus` | 1334 | 1323 | -0.09 | +0.48 |
+| `LitSingTmhDen` | 114178 | 116906 | +0.25 | +1.05 |
+| `LitStatCapture` | 873 | 883 | +0.12 | +1.95 |
+| `LitStatCont1` | 1126 | 1182 | +0.53 | -1.31 |
+| `LitStatCont2` | 1093 | 1096 | +0.03 | +0.06 |
+| `LitStatMain` | 2252 | 1940 | -1.48 | -2.68 |
+| `LitTtMoveBonus` | 918 | 919 | +0.01 | -1.25 |
+| `LitTtMoveMalus` | -747 | -767 | -0.28 | +0.48 |
+| `LitTtPrevMalus` | -2210 | -2325 | -0.55 | +0.28 |

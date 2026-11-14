@@ -3524,6 +3524,32 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
             are unchanged.
         - The maintainer runs the night; the read at 2,000 is discussed
           before the run continues or stops there.
+      - Run 2026-11-13 to 14 and baked 2026-11-14, `GAME_GATE` (BAS-S61
+        *RESULT*; `analysis/b67_constants_2026-11-14.md`):
+        - The tune stopped quiet at its first checkpoint: 60,000 games,
+          no fault, no rail, largest |z| 2.82 against the line's 3.61.
+          The tune's own gain read is +22.9 Elo (null SD 11.6), taken
+          by iteration 1,000. Theta is the checkpoint's centres.
+        - The analysis: no rail or clamp; the singular margin falls a
+          third fit running (201 to 160); the history updates lean on
+          the malus; reductions deepen while extensions grow, the
+          `bench 13` replay +13.1%; the correction's update scale and
+          IIR's least depth drift up again; most literal movement is
+          noise. Owners are named there.
+        - The bake found a defect of the screen (`0f30bf1`): a scale
+          literal was read as its own default in release builds, so its
+          fitted value could not be baked. No game played it.
+        - Baked (`25c570f`): 61 X lines in `BASILISK_B67_DEFAULTS`, 93
+          literals in `src/kernel_literals.h`; `bench 13` **4,278,307**,
+          the replay. Release and sanitizer CTest 30/30 after five tests
+          bound to the old values were re-based; `test_endgames`
+          191/191, the conversion grid PASS, WAC at 100,000 nodes 254.
+          The forgotten-mate rule has lost its end-to-end witness on the
+          fitted tree (finding 8, B.9's).
+        - Owed: B.6's SPRT `[0,3]` of the bake against the B.6.6 head,
+          registered on its own before its first game. The fingerprint
+          record and `CHANGELOG.md` move when it accepts; a rejection
+          reverts the bake.
 - [ ] **B.7** Board review and rebuild
   Added 2026-11-03 (maintainer): Basilisk's board is reviewed against
   Stockfish's (`Position` and `StateInfo`, the modern donor's form) and
@@ -4333,7 +4359,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.6.7 | GAME_GATE | V | Was B.6.2; the screen, read and sweep done 2026-11-13; the SPSA (BAS-S61) prepared, maintainer-run, paused at 2,000 for the read |
+| B.6.7 | GAME_GATE | V | Was B.6.2; the SPSA (BAS-S61) stopped quiet at 2,000 and baked 2026-11-14 (`bench 13` 4,278,307); B.6's SPRT `[0,3]` owed |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
 | B.7.2 | RESEARCH | R2 | Was B.15.2; after B.7.1 |
 | B.7.3 | RESEARCH | I2 | Was B.15.3; on B.7.2's frozen handoff |
