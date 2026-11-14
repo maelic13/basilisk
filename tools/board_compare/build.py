@@ -50,7 +50,27 @@ ENGINES = {
         # bench never loads it, so point it at the local copy instead.
         "env": {"EVALFILE": "D:/code/Reckless/networks/v60-7f587dfb.nnue"},
     },
+    # Stockfish is built by its own Makefile with Basilisk's compiler (MSYS2
+    # clang64, Clang 23.1.5), COMP=clang ARCH=x86-64-bmi2, no PGO. The patch's
+    # BOARD_BENCH switch swaps main.cpp for the adapter and sets the SEE values.
+    "stockfish19": {
+        "checkout": Path("D:/code/stockfish"),
+        "commit": "edb0d9db",
+        "patch": HERE / "stockfish19" / "stockfish19-board-adapter.patch",
+        # `all`, not `build`: `build` first runs `net`, which downloads the
+        # network; the adapter loads none (NNUE embedding is off).
+        "make": ["-j8", "OS=Windows_NT", "BOARD_BENCH=1", "ARCH=x86-64-bmi2", "COMP=clang",
+                 "CXX=C:/msys64/clang64/bin/clang++.exe", "all"],
+    },
+    "stockfish-classical": {
+        "checkout": Path("D:/code/stockfish"),
+        "commit": "9587eeeb",
+        "patch": HERE / "stockfish-classical" / "stockfish-classical-board-adapter.patch",
+        "make": ["-j8", "BOARD_BENCH=yes", "ARCH=x86-64-bmi2", "COMP=clang",
+                 "COMPCXX=C:/msys64/clang64/bin/clang++.exe", "build"],
+    },
 }
+MSYS_PATH = "C:/msys64/clang64/bin;C:/msys64/usr/bin"
 
 
 def run(cmd: list[str], cwd: Path, env: dict | None = None) -> str:
@@ -62,6 +82,36 @@ def run(cmd: list[str], cwd: Path, env: dict | None = None) -> str:
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest().upper()
+
+
+def cargo_build(name: str, spec: dict, src: Path) -> tuple[Path, list[str]]:
+    env = dict(os.environ, RUSTFLAGS=spec["rustflags"], **spec["env"])
+    target = WORK / "target" / name
+    run(["cargo", "bench", *spec["cargo"], "--bench", spec["bench"], "--no-run",
+         "--message-format=short", "--target-dir", str(target)], src, env)
+    # The newest bench executable under the target directory is this build's.
+    candidates = sorted(target.rglob(f"{spec['bench']}-*.exe"), key=lambda p: p.stat().st_mtime)
+    if not candidates:
+        raise SystemExit(f"no {spec['bench']} executable under {target}")
+    rustc = run(["rustc", "-vV"], src)
+    return candidates[-1], [
+        f"rustflags: {spec['rustflags']}",
+        f"cargo: bench {' '.join(spec['cargo'])} --bench {spec['bench']}",
+        *(f"env {k}: {v}" for k, v in spec["env"].items()),
+        *(f"rustc {line}" for line in rustc.splitlines()
+          if line.split(":")[0] in ("release", "LLVM version", "host")),
+    ]
+
+
+def make_build(spec: dict, src: Path) -> tuple[Path, list[str]]:
+    """Stockfish's Makefile under MSYS2 (Windows; the Linux form drops the PATH)."""
+    env = dict(os.environ, PATH=MSYS_PATH + os.pathsep + os.environ.get("PATH", ""))
+    run(["C:/msys64/usr/bin/make.exe", *spec["make"]], src / "src", env)
+    exe = src / "src" / "board_bench.exe"
+    if not exe.is_file():
+        raise SystemExit(f"no board_bench.exe in {src / 'src'}")
+    clang = run(["C:/msys64/clang64/bin/clang++.exe", "--version"], src).splitlines()[0]
+    return exe, [f"make: {' '.join(spec['make'])}", f"compiler: {clang}"]
 
 
 def build(name: str, spec: dict) -> None:
@@ -79,33 +129,23 @@ def build(name: str, spec: dict) -> None:
     run(["git", "apply", str(spec["patch"])], src)
     revision = run(["git", "rev-parse", "HEAD"], src).strip()
 
-    env = dict(os.environ, RUSTFLAGS=spec["rustflags"], **spec["env"])
-    target = WORK / "target" / name
-    run(["cargo", "bench", *spec["cargo"], "--bench", spec["bench"], "--no-run",
-               "--message-format=short", "--target-dir", str(target)], src, env)
-    # cargo prints the bench executable it built on stderr; find the newest.
-    candidates = sorted(target.rglob(f"{spec['bench']}-*.exe"), key=lambda p: p.stat().st_mtime)
-    if not candidates:
-        raise SystemExit(f"no {spec['bench']} executable under {target}")
-    exe = candidates[-1]
+    if "make" in spec:
+        exe, toolchain = make_build(spec, src)
+    else:
+        exe, toolchain = cargo_build(name, spec, src)
     out = WORK / "bin" / f"{name}-board-v2.exe"
     out.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(exe, out)
 
     preflight = subprocess.run([str(out), str(POSITIONS), "--preflight-only"],
                                capture_output=True, text=True)
-    rustc = run(["rustc", "-vV"], src)
     manifest = [
         f"engine: {name}",
         f"checkout: {spec['checkout']}",
         f"revision: {revision}",
         f"patch: {spec['patch'].relative_to(REPO).as_posix()}",
         f"patch_sha256: {sha256(spec['patch'])}",
-        f"rustflags: {spec['rustflags']}",
-        f"cargo: bench {' '.join(spec['cargo'])} --bench {spec['bench']}",
-        *(f"env {k}: {v}" for k, v in spec["env"].items()),
-        *(f"rustc {line}" for line in rustc.splitlines() if line.split(":")[0] in
-          ("release", "LLVM version", "host")),
+        *toolchain,
         f"binary_sha256: {sha256(out)}",
         f"preflight_exit: {preflight.returncode}",
     ]

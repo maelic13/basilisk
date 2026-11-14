@@ -1,0 +1,538 @@
+diff --git a/src/Makefile b/src/Makefile
+index e5c94df3..9cfe55f9 100644
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -502,6 +502,16 @@ CXXFLAGS = $(ENV_CXXFLAGS) -Wall -Wcast-qual -fno-exceptions -std=c++17 $(EXTRAC
+ DEPENDFLAGS = $(ENV_DEPENDFLAGS) -std=c++17
+ LDFLAGS = $(ENV_LDFLAGS) $(EXTRALDFLAGS)
+ 
++### cross-engine-board-v2 adapter: `make BOARD_BENCH=1 ... all` replaces main.cpp
++### with board_bench.cpp and builds board_bench.exe. No network is embedded or
++### loaded; -DBOARD_BENCH also selects the contract's SEE piece values (types.h).
++ifdef BOARD_BENCH
++SRCS := $(filter-out main.cpp,$(SRCS)) board_bench.cpp
++EXE := board_bench$(suffix $(EXE))
++### -include iterator: numa.h uses std::inserter without <iterator> (libc++).
++CXXFLAGS += -DBOARD_BENCH -DNNUE_EMBEDDING_OFF -include iterator
++endif
++
+ ifeq ($(COMP),)
+ 	COMP=gcc
+ endif
+diff --git a/src/board_bench.cpp b/src/board_bench.cpp
+new file mode 100644
+index 00000000..82385182
+--- /dev/null
++++ b/src/board_bench.cpp
+@@ -0,0 +1,487 @@
++// cross-engine-board-v2 adapter for Stockfish 19 (tools/board_compare/CONTRACT.md
++// in Basilisk). Replaces main(); built by `make BOARD_BENCH=1 ... all`.
++//
++// Six columns over the 512-position game file: legal_gen, capture_gen,
++// make_unmake, see_captures, gives_check, board_perft. Every input is built
++// before timing; the timed loops reuse caller-owned lists and allocate
++// nothing. Output is the format of Basilisk's tests/board_micro.cpp, which
++// tools/diag/board_micro_run.py parses.
++//
++//   board_bench <positions.fen> [--samples N] [--sample-ms MS] [--columns a,b] [--preflight-only]
++//
++// Stockfish functions used (no board, search or evaluation source changed):
++//   legal_gen    generate<LEGAL>(pos, Move*)   pseudo-legal EVASIONS/NON_EVASIONS
++//                                              filtered by Position::legal(), into a reused Move[]
++//   capture_gen  generate<CAPTURES> (generate<EVASIONS> when in check, as the
++//                MovePicker's stages do), pseudo-legal, no legality filter
++//   make_unmake  Position::do_move(m, st, givesCheck, dirties, nullptr, nullptr) + undo_move
++//   see_captures Position::see_ge(m, 0) (piece values swapped by -DBOARD_BENCH in types.h)
++//   gives_check  Position::gives_check(m)
++//   board_perft  generate<LEGAL> + do_move/undo_move, bulk-counted at depth 1
++
++#include <algorithm>
++#include <chrono>
++#include <cmath>
++#include <cstdint>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <fstream>
++#include <functional>
++#include <memory>
++#include <new>
++#include <string>
++#include <utility>
++#include <vector>
++
++#include "attacks.h"
++#include "movegen.h"
++#include "position.h"
++#include "types.h"
++
++using namespace Stockfish;
++
++namespace {
++
++template<typename T>
++inline void keep(T const& value) {
++    asm volatile("" : : "r,m"(value) : "memory");
++}
++
++// A Position is neither copyable nor movable and points at its StateInfo, so
++// each board lives in one heap block.
++struct Slot {
++    Position  pos;
++    StateInfo st;
++};
++
++struct Move1 {
++    uint32_t board;
++    Move     move;
++    bool     check;  // gives_check, precomputed at setup as the search passes it
++};
++
++struct Inputs {
++    std::vector<std::unique_ptr<Slot>> boards;
++    std::vector<Move1>                 all_moves;  // every legal move
++    std::vector<Move1>                 tactical;   // legal captures (incl. en passant) and promotions
++    // Reused by the timed loops.
++    Move      list[MAX_MOVES];
++    StateInfo scratch_state;
++    Dirties   scratch_dirties;
++};
++
++struct Oracle {
++    uint64_t positions = 0, legal = 0, tactical = 0, checking = 0;
++    bool     present = false;
++};
++
++std::vector<std::string> read_fens(const char* path, Oracle& oracle) {
++    std::ifstream in(path);
++    if (!in)
++    {
++        std::fprintf(stderr, "cannot read %s\n", path);
++        std::exit(2);
++    }
++    std::vector<std::string> fens;
++    for (std::string line; std::getline(in, line);)
++    {
++        if (!line.empty() && line.back() == '\r')
++            line.pop_back();
++        unsigned long long n[4];
++        if (std::sscanf(line.c_str(),
++                        "# Oracle: positions %llu legal %llu tactical %llu checking %llu", &n[0],
++                        &n[1], &n[2], &n[3])
++            == 4)
++            oracle = {n[0], n[1], n[2], n[3], true};
++        if (line.empty() || line[0] == '#')
++            continue;
++        fens.push_back(line);
++    }
++    return fens;
++}
++
++Inputs* build_inputs(const std::vector<std::string>& fens) {
++    auto* in = new Inputs;
++    in->boards.reserve(fens.size());
++    for (const std::string& fen : fens)
++    {
++        auto slot = std::make_unique<Slot>();
++        if (auto err = slot->pos.set(fen, false, &slot->st))
++        {
++            std::fprintf(stderr, "bad FEN %s: %s\n", fen.c_str(), err->what());
++            std::exit(2);
++        }
++        in->boards.push_back(std::move(slot));
++    }
++    for (uint32_t i = 0; i < in->boards.size(); ++i)
++    {
++        Position& pos = in->boards[i]->pos;
++        Move*     end = generate<LEGAL>(pos, in->list);
++        for (Move* m = in->list; m != end; ++m)
++        {
++            const Move1 e{i, *m, pos.gives_check(*m)};
++            in->all_moves.push_back(e);
++            if (m->type_of() == PROMOTION || pos.capture(*m))
++                in->tactical.push_back(e);
++        }
++    }
++    return in;
++}
++
++// ---- Columns -----------------------------------------------------------------
++
++struct Pass {
++    uint64_t ops;
++    uint64_t sum;
++};
++
++inline uint64_t fold_list(uint64_t sum, const Move* first, const Move* end) {
++    const uint64_t n = uint64_t(end - first);
++    return sum * 31 + n + (n ? first[n - 1].raw() : 0);
++}
++
++Pass legal_gen(Inputs& in) {
++    Pass p{0, 0};
++    for (const auto& b : in.boards)
++    {
++        Move* end = generate<LEGAL>(b->pos, in.list);
++        keep(in.list);
++        keep(end);
++        p.ops += 1;
++        p.sum = fold_list(p.sum, in.list, end);
++    }
++    return p;
++}
++
++// What the picker's capture stages generate: CAPTURES, or EVASIONS in check.
++// Pseudo-legal; Stockfish filters at delivery (Position::legal in the search).
++Pass capture_gen(Inputs& in) {
++    Pass p{0, 0};
++    for (const auto& b : in.boards)
++    {
++        const Position& pos = b->pos;
++        Move*           end = pos.checkers() ? generate<EVASIONS>(pos, in.list)
++                                             : generate<CAPTURES>(pos, in.list);
++        keep(in.list);
++        keep(end);
++        p.ops += 1;
++        p.sum = fold_list(p.sum, in.list, end);
++    }
++    return p;
++}
++
++// do_move as Search::Worker::do_move calls it: the hint precomputed, a fresh
++// DirtyThreats / DirtyPawnPairs as AccumulatorStack::push() makes them, the
++// transposition-table and shared-history prefetch pointers null.
++inline void make(Position& pos, Move m, bool check, StateInfo& st, Dirties& d) {
++    new (&d.dirtyThreats) DirtyThreats;
++    new (&d.dirtyPawnPairs) DirtyPawnPairs;
++    pos.do_move(m, st, check, d, nullptr, nullptr);
++}
++
++Pass make_unmake(Inputs& in) {
++    Pass p{0, 0};
++    for (const Move1& e : in.all_moves)
++    {
++        Position& pos = in.boards[e.board]->pos;
++        make(pos, e.move, e.check, in.scratch_state, in.scratch_dirties);
++        keep(pos.key());
++        p.sum += pos.key() ^ pos.checkers();
++        keep(&in.scratch_dirties);
++        pos.undo_move(e.move);
++        p.ops += 1;
++    }
++    return p;
++}
++
++Pass see_captures(Inputs& in) {
++    Pass p{0, 0};
++    for (const Move1& e : in.tactical)
++    {
++        const bool r = in.boards[e.board]->pos.see_ge(e.move, 0);
++        keep(r);
++        p.sum = p.sum * 3 + r;
++        p.ops += 1;
++    }
++    return p;
++}
++
++Pass gives_check(Inputs& in) {
++    Pass p{0, 0};
++    for (const Move1& e : in.all_moves)
++    {
++        const bool r = in.boards[e.board]->pos.gives_check(e.move);
++        keep(r);
++        p.sum = p.sum * 3 + r;
++        p.ops += 1;
++    }
++    return p;
++}
++
++struct PerftRoot {
++    std::unique_ptr<Slot> slot;
++    int                   depth;
++};
++
++struct Perft {
++    std::vector<PerftRoot> roots;
++    StateInfo              states[8];
++    Dirties                dirties[8];
++
++    uint64_t walk(Position& pos, int depth, int ply) {
++        Move  list[MAX_MOVES];
++        Move* end = generate<LEGAL>(pos, list);
++        if (depth == 1)
++            return uint64_t(end - list);
++        uint64_t n = 0;
++        for (Move* m = list; m != end; ++m)
++        {
++            make(pos, *m, pos.gives_check(*m), states[ply], dirties[ply]);
++            n += walk(pos, depth - 1, ply + 1);
++            pos.undo_move(*m);
++        }
++        return n;
++    }
++};
++
++Perft* perft_inputs() {
++    auto* pf = new Perft;
++    const std::pair<const char*, int> roots[] = {
++      {"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 4},
++      {"r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 3},
++      {"8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", 5},
++    };
++    for (const auto& [fen, depth] : roots)
++    {
++        auto slot = std::make_unique<Slot>();
++        if (auto err = slot->pos.set(fen, false, &slot->st))
++        {
++            std::fprintf(stderr, "bad perft FEN %s: %s\n", fen, err->what());
++            std::exit(2);
++        }
++        pf->roots.push_back({std::move(slot), depth});
++    }
++    return pf;
++}
++
++Pass board_perft(Perft& pf) {
++    Pass p{0, 0};
++    for (auto& r : pf.roots)
++    {
++        const uint64_t n = pf.walk(r.slot->pos, r.depth, 0);
++        p.ops += n;
++        p.sum = p.sum * 1000003 + n;
++    }
++    return p;
++}
++
++// ---- Harness -----------------------------------------------------------------
++
++struct Column {
++    Column(const char* n, const char* u, std::function<Pass()> f) :
++        name(n),
++        unit(u),
++        run(std::move(f)) {}
++    const char*           name;
++    const char*           unit;
++    std::function<Pass()> run;
++    Pass                  expected{};
++    uint64_t              passes = 1;
++    std::vector<double>   ns_per_op;
++};
++
++double median(std::vector<double> v) {
++    std::sort(v.begin(), v.end());
++    const std::size_t n = v.size();
++    return n % 2 ? v[n / 2] : 0.5 * (v[n / 2 - 1] + v[n / 2]);
++}
++
++}  // namespace
++
++int main(int argc, char** argv) {
++    if (argc < 2)
++    {
++        std::fprintf(stderr, "usage: board_bench <positions.fen> [--samples N] [--sample-ms MS]"
++                             " [--columns a,b] [--preflight-only]\n");
++        return 2;
++    }
++    int         samples        = 15;
++    double      sample_ms      = 200.0;
++    bool        preflight_only = false;
++    std::string only;
++    for (int a = 2; a < argc; ++a)
++    {
++        if (!std::strcmp(argv[a], "--samples") && a + 1 < argc)
++            samples = std::atoi(argv[++a]);
++        else if (!std::strcmp(argv[a], "--sample-ms") && a + 1 < argc)
++            sample_ms = std::atof(argv[++a]);
++        else if (!std::strcmp(argv[a], "--columns") && a + 1 < argc)
++            only = std::string(",") + argv[++a] + ",";
++        else if (!std::strcmp(argv[a], "--preflight-only"))
++            preflight_only = true;
++        else
++        {
++            std::fprintf(stderr, "unknown argument %s\n", argv[a]);
++            return 2;
++        }
++    }
++    if (samples < 3 || sample_ms <= 0)
++    {
++        std::fprintf(stderr, "need at least 3 samples and a positive sample time\n");
++        return 2;
++    }
++
++    Attacks::init();
++    Position::init();
++
++    Oracle  oracle;
++    Inputs& in = *build_inputs(read_fens(argv[1], oracle));
++    Perft&  pf = *perft_inputs();
++
++    std::vector<Column> columns = {
++      {"legal_gen", "positions", [&] { return legal_gen(in); }},
++      {"capture_gen", "positions", [&] { return capture_gen(in); }},
++      {"make_unmake", "moves", [&] { return make_unmake(in); }},
++      {"see_captures", "moves", [&] { return see_captures(in); }},
++      {"gives_check", "moves", [&] { return gives_check(in); }},
++      {"board_perft", "leaves", [&] { return board_perft(pf); }},
++    };
++    if (!only.empty())
++    {
++        columns.erase(std::remove_if(columns.begin(), columns.end(),
++                                     [&](const Column& c) {
++                                         return only.find(std::string(",") + c.name + ",")
++                                             == std::string::npos;
++                                     }),
++                      columns.end());
++        if (columns.empty())
++        {
++            std::fprintf(stderr, "no column matches %s\n", only.c_str());
++            return 2;
++        }
++    }
++
++    std::printf("profile: cross-engine-board-v2\n");
++
++    // Preflight: two passes of each column must agree on work and checksum.
++    bool ok = true;
++    for (Column& c : columns)
++    {
++        c.expected       = c.run();
++        const Pass again = c.run();
++        if (again.ops != c.expected.ops || again.sum != c.expected.sum)
++        {
++            std::fprintf(stderr, "preflight: %s is not repeatable\n", c.name);
++            ok = false;
++        }
++        std::printf("work %-16s %10llu %-9s checksum %016llx\n", c.name,
++                    (unsigned long long) c.expected.ops, c.unit,
++                    (unsigned long long) c.expected.sum);
++    }
++
++    // Engine-independent semantics (CONTRACT.md).
++    uint64_t checking = 0, see_true = 0, perft_total = 0, gen_total = 0;
++    for (const Move1& e : in.all_moves)
++        checking += in.boards[e.board]->pos.gives_check(e.move);
++    for (const Move1& e : in.tactical)
++        see_true += in.boards[e.board]->pos.see_ge(e.move, 0);
++    perft_total = board_perft(pf).ops;
++    for (const auto& b : in.boards)
++    {
++        const Position& pos = b->pos;
++        gen_total += uint64_t((pos.checkers() ? generate<EVASIONS>(pos, in.list)
++                                              : generate<CAPTURES>(pos, in.list))
++                              - in.list);
++    }
++    std::printf("semantic positions %zu\n", in.boards.size());
++    std::printf("semantic legal %zu\n", in.all_moves.size());
++    std::printf("semantic tactical %llu\n", (unsigned long long) gen_total);
++    std::printf("semantic checking %llu\n", (unsigned long long) checking);
++    std::printf("semantic see_ge0 %llu\n", (unsigned long long) see_true);
++    std::printf("semantic perft %llu\n", (unsigned long long) perft_total);
++    // The tactical set is not the generator's set: the generator is
++    // pseudo-legal (illegal moves are filtered at delivery), and in check it
++    // is EVASIONS, which holds the quiet evasions too.
++    if (gen_total != in.tactical.size())
++        std::printf("noncomparable capture_gen %llu of %zu (pseudo-legal CAPTURES, EVASIONS in "
++                    "check, unfiltered; set differs from the legal tactical moves)\n",
++                    (unsigned long long) gen_total, in.tactical.size());
++    if (perft_total != 969767)
++    {
++        std::fprintf(stderr, "preflight: perft found %llu leaves, not 969767\n",
++                     (unsigned long long) perft_total);
++        ok = false;
++    }
++    if (!oracle.present)
++    {
++        std::fprintf(stderr, "preflight: %s has no oracle line\n", argv[1]);
++        ok = false;
++    }
++    else if (oracle.positions != in.boards.size() || oracle.legal != in.all_moves.size()
++             || oracle.tactical != in.tactical.size() || oracle.checking != checking)
++    {
++        std::fprintf(stderr, "preflight: the board disagrees with the file's oracle counts\n");
++        ok = false;
++    }
++    if (!ok)
++        return 1;
++    std::printf("preflight: PASS\n");
++    if (preflight_only)
++        return 0;
++
++    using clock = std::chrono::steady_clock;
++    // Warm up for one sample's time each, and fix the passes per sample.
++    for (Column& c : columns)
++    {
++        const auto t0 = clock::now();
++        uint64_t   n  = 0;
++        while (std::chrono::duration<double, std::milli>(clock::now() - t0).count() < sample_ms)
++        {
++            keep(c.run().sum);
++            ++n;
++        }
++        c.passes = std::max<uint64_t>(1, n);
++    }
++
++    std::printf("samples: %d round-robin, about %.0f ms each\n", samples, sample_ms);
++    for (int s = 0; s < samples; ++s)
++    {
++        for (Column& c : columns)
++        {
++            uint64_t   ops = 0, sum = 0;
++            const auto t0 = clock::now();
++            for (uint64_t k = 0; k < c.passes; ++k)
++            {
++                const Pass p = c.run();
++                ops += p.ops;
++                sum ^= p.sum + k;
++            }
++            const double ns = std::chrono::duration<double, std::nano>(clock::now() - t0).count();
++            keep(sum);
++            if (ops != c.expected.ops * c.passes)
++            {
++                std::fprintf(stderr, "sample %d: %s did %llu operations, not %llu\n", s, c.name,
++                             (unsigned long long) ops,
++                             (unsigned long long) (c.expected.ops * c.passes));
++                return 1;
++            }
++            c.ns_per_op.push_back(ns / double(ops));
++            std::printf("sample %2d %-16s %10.3f ns/op\n", s, c.name, c.ns_per_op.back());
++        }
++    }
++
++    std::printf("\n%-16s %12s %10s %8s %12s\n", "column", "median ns/op", "MAD ns", "MAD %",
++                "passes/sample");
++    for (Column& c : columns)
++    {
++        const double       med = median(c.ns_per_op);
++        std::vector<double> dev;
++        for (double x : c.ns_per_op)
++            dev.push_back(std::fabs(x - med));
++        const double mad = median(dev);
++        std::printf("%-16s %12.3f %10.3f %7.2f%% %12llu\n", c.name, med, mad, 100.0 * mad / med,
++                    (unsigned long long) c.passes);
++    }
++    return 0;
++}
+diff --git a/src/types.h b/src/types.h
+index f51bdb89..367bf14c 100644
+--- a/src/types.h
++++ b/src/types.h
+@@ -196,11 +196,19 @@ constexpr Value mated_in(int ply) { return -VALUE_MATE + ply; }
+ // In the code, we make the assumption that these values
+ // are such that non_pawn_material() can be used to uniquely
+ // identify the material on the board.
++#ifdef BOARD_BENCH  // cross-engine-board-v2 SEE values (P100 N300 B300 R500 Q900)
++constexpr Value PawnValue   = 100;
++constexpr Value KnightValue = 300;
++constexpr Value BishopValue = 300;
++constexpr Value RookValue   = 500;
++constexpr Value QueenValue  = 900;
++#else
+ constexpr Value PawnValue   = 208;
+ constexpr Value KnightValue = 781;
+ constexpr Value BishopValue = 825;
+ constexpr Value RookValue   = 1276;
+ constexpr Value QueenValue  = 2538;
++#endif
+ 
+ 
+ // clang-format off
