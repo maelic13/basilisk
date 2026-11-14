@@ -67,7 +67,8 @@ class SurfaceTests(unittest.TestCase):
         generated = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
         self.assertEqual([item[0] for item in parameters], list(generated))
         # The core table's X lines; its F line (CoreQuietSeeCoeff) stays off.
-        self.assertEqual(len(parameters), 48)
+        # B.8.2 removed CoreResearchShallower (B-63): 47.
+        self.assertEqual(len(parameters), 47)
         self.assertNotIn("CoreQuietSeeCoeff", generated)
         self.assertTrue(all(name.startswith("Core") for name in generated))
         self.assertFalse(set(generated) & {"NullBase", "ProbCutMargin", "LmrSingularQuiet"})
@@ -382,16 +383,16 @@ class SurfaceTests(unittest.TestCase):
         # widened four ranges and floored two at their switch boundaries: 7
         # short, 4 of them of one. Its bake moved the seeds: 9 short, the same 4
         # of one. B.8.2 removed B3ProbCutTtMargin, which only the deleted
-        # small ProbCut read: 73, the same 9 short.
+        # small ProbCut read: 73, the same 9 short. B-63 removed
+        # CoreResearchShallower, one of the four under one step: 72, 8 short.
         text = surface.HEADER.read_text(encoding="utf-8")
         parameters = surface.head_parameters(text)
         _, report = surface.render_rule7c(parameters, 6000, "head")
-        self.assertEqual(len(parameters), 73)
-        self.assertEqual(len(report), 9)
-        self.assertEqual(sum("under one step" in line for line in report), 4)
+        self.assertEqual(len(parameters), 72)
+        self.assertEqual(len(report), 8)
+        self.assertEqual(sum("under one step" in line for line in report), 3)
         names = {line.split(":")[0] for line in report if "under one step" in line}
-        self.assertEqual(names, {"CoreCaptFutHistDiv", "CoreLmrAlphaEvalScale", "CoreResearchShallower",
-                                 "B3SingTripleQuiet"})
+        self.assertEqual(names, {"CoreCaptFutHistDiv", "CoreLmrAlphaEvalScale", "B3SingTripleQuiet"})
 
     def test_rule7c_seeds_are_the_values_the_head_runs(self):
         text = surface.HEADER.read_text(encoding="utf-8")

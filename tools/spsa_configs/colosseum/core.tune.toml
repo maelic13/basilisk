@@ -269,13 +269,6 @@ max = 40
 c_end = 0.9211
 
 [[parameters]]
-name = "CoreResearchShallower"
-initial = 1
-min = 1
-max = 12
-c_end = 0.9211
-
-[[parameters]]
 name = "CoreQuietBonusCap"
 initial = 1394
 min = 600

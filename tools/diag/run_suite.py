@@ -100,7 +100,7 @@ B2_COUNTER_UNITS = {
     **{name: "events" for name in """
         rfp_cuts_d1_3 rfp_cuts_d4_7 rfp_cuts_d8p
         razor_cuts_d1_3 razor_cuts_d4_7 razor_cuts_d8p
-        lmr_floor_hits lmr_extended lmr_research_deeper lmr_research_shallower
+        lmr_floor_hits lmr_extended lmr_research_deeper
         hindsight_up hindsight_down corr_cont2_updates corr_cont4_updates
         tt_cutoff_quiet_bonus tt_cutoff_graph_refused
         cont_hist_pruned capture_futility_pruned quiet_see_pruned
@@ -110,7 +110,7 @@ B2_COUNTER_UNITS = {
     "skip_quiets_nodes": "nodes",
     "moveloop_tested": "moves",
 }
-assert len(B2_COUNTER_UNITS) == 26
+assert len(B2_COUNTER_UNITS) == 25
 assert not set(B2_COUNTER_UNITS) & set(CORE_COUNTER_UNITS)
 
 
@@ -339,8 +339,7 @@ def validate_diag(counters):
                 and c["lmr_extended"] <= c["lmr_clamped_zero"]
             ),
             "re-search depth moves within eligibility": (
-                c["lmr_research_deeper"] + c["lmr_research_shallower"]
-                <= c["lmr_eligible"]
+                c["lmr_research_deeper"] <= c["lmr_eligible"]
             ),
             "node adjustments within interior nodes": (
                 c["hindsight_up"] <= c["interior_nodes"]

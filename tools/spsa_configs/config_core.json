@@ -227,12 +227,6 @@
         "max_value": 40,
         "step": 2
     },
-    "CoreResearchShallower": {
-        "value": 1,
-        "min_value": 1,
-        "max_value": 12,
-        "step": 2
-    },
     "CoreQuietBonusCap": {
         "value": 1394,
         "min_value": 600,
