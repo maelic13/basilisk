@@ -3831,6 +3831,28 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         its spread (uncorrected, ns per node: make and unmake 26.1,
         generation 29.5 more, SEE 28.8 more, `gives_check` 16.9 more);
         and the null pair reads within ±0.3%.
+      Prepared 2026-11-14; the two timed reads wait for the idle host:
+      - The trace build (`-DBASILISK_BOARD_TRACE=ON`) and the plain build
+        both give `bench 13` 4,247,965. Its `bench 13` trace, 58,598,640
+        records, is byte-identical to the review's (SHA-256
+        4C6643CD9CB43460…). With the option off, `board.cpp`, `eval.cpp`
+        and `search_worker.cpp` preprocess byte-identically to the
+        commit before, and differ with it on.
+      - `board_replay --verify` passes on that trace. The CTest
+        `board_replay_verify` (trace trees only) records Kiwipete at
+        20,000 nodes, verifies it, and catches a planted wrong answer of
+        each of eleven kinds at the planted record. `board_replay` links
+        the untraced board in either tree.
+      - `board_replay_run.py` and `engine_ab.py` ran end to end on a busy
+        host with tiny settings (numbers discarded).
+      - Contract v3: `quiet_gen` on the 477 positions not in check,
+        whose 13,029 legal quiets every harness agrees on. Basilisk's
+        generator yields exactly that set; the four adapters build from
+        their pinned commits and pass preflight, each printing its own
+        count (Rarog 13,085, Reckless 13,071, Stockfish 19 13,713,
+        classical 13,714). Rarog's adapter makes its quiet stage `pub`,
+        nothing else. B.7.2's twelve microbenchmark checksums are
+        unchanged. The v3 binaries sit beside v2's (`*-board-v3.exe`).
     - [ ] **B.7.6** `[I2]` Rebuild behind the board contract
       It was B.7.3 until 2026-11-14. B.7.2's handoff as the frontier
       review amended it (its §6), one commit each, in this order.
@@ -4738,7 +4760,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.7.5 | READY_FOR_IMPLEMENTATION | I2 | The frontier review's instruments made permanent, before the rebuild |
+| B.7.5 | IMPLEMENTED | I2 | Built and verified; the null pair and the head's class table wait for the idle host |
 | B.7.6 | READY_FOR_IMPLEMENTATION | I2 | Was B.7.3; the amended handoff: C1, C3′, C5, C8 |
 | B.7.7 | RESEARCH | R2 | Second round on B.7.6's head; the rule is frozen in the leaf |
 | B.7.8 | RESEARCH | I2 | B.7.7's handoff, or NO_CHANGE |
