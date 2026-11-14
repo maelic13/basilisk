@@ -182,12 +182,18 @@ The four layers, kept separate (`analysis/endgame_measurement_layers_v1.md`):
 
 ## 5. Performance assumptions
 
-- **The board is not the bottleneck, and "make it faster" is not a motivation.**
-  BAS-X16 measured this source ahead of a peer engine by 22-46% on every board
-  microbenchmark. Board work starts as a **defect hunt** (PLAN B.7.1). The
-  review against Stockfish's and Triumviratus's boards (B.7.2, maintainer
-  decision 2026-11-03) replaces a component only where the other form
-  measures better, and keeps Basilisk's otherwise.
+- **The board is about a quarter of a node, and B.7 makes it as fast as can
+  be measured** (maintainer decision 2026-11-14). The profile at `bench 13`
+  reads it at 24.0% of samples. B.7.1 was the defect hunt; the review
+  against Stockfish's and Triumviratus's boards (B.7.2) and the frontier
+  review (`analysis/b7_frontier_review_2026-11-14.md`) replace a component
+  only where another form measures faster, and keep Basilisk's otherwise.
+- **A board change is priced in real search order and in the engine, never
+  on a microbenchmark column alone.** A column times game positions on cold
+  boards and underpriced the board by 22% to 57%. Of nine candidate kernels
+  read on the search replay and the engine screen (PLAN B.7.5), two gained:
+  the ones that removed a whole code path. Every one that only removed or
+  skipped slider lookups gained nothing or lost.
 - **Nodes-to-depth, not raw NPS, is where the peer gap lives.**
 - Bench node counts are **chaotic** under small evaluation perturbations: in
   the 6.5.a floor sweep, floor 32 cost +28.5% while 24 and 40 sat near

@@ -1,7 +1,8 @@
 # B.7 — frontier review of the board work (2026-11-14)
 
-**Status: research packet (R3). No engine source changed. The PLAN
-amendments of §7 are proposals; none is applied.**
+**Status: research packet (R3). No engine source changed. The maintainer
+decided on it the same day (§10): the amendments are applied with three
+changes, and the leaf numbers of §6 and §7 are superseded by §10's.**
 
 **Recommendation: amend B.7.3's handoff before it runs (§6): keep C1 and
 C5, replace C3's pre-test by SEE pins read from aligned sliders, drop C2
@@ -579,5 +580,40 @@ digits of each SHA-256:
 - **`Board::is_in_check` and `has_non_pawn_material` are out-of-line calls**
   made 1.2 times per node each. LTO may inline them; a header definition
   would not depend on it. B.8.5.
-- **Two throwaway worktrees** remain under `.claude/worktrees/` in the
-  checkout (untracked). Their content is the two patches of §8.
+- **Two throwaway worktrees** held the prototypes. They were removed the
+  same day; their content is the two patches of §8.
+
+## 10. Maintainer decisions, 2026-11-14
+
+The review was accepted with three changes, and PLAN was reworked to match.
+
+- **B.7 ends with the fastest board that can be measured here.** So the
+  unmeasured ideas of §4 (undo as one block, the byte mailbox, the attack
+  map) do not wait in H.4: they are a second round inside B.7, with keys
+  by table, next attacker by index and the hinted make with the search
+  wired. Only the forms §3 measured as no gain wait for H.4.
+- **Chess960 is not a goal.** C7 is withdrawn, not moved to G.2, and G.2's
+  Chess960 item with it. The board is built for standard chess.
+- **The separate findings are fixed or placed:** DESIGN §5 is rewritten;
+  the two out-of-line accessors are a component of the rebuild (C8); the
+  evaluation's `check_squares`, the carried SEE verdicts and the repeated
+  capture generation are B.8.5's, with their counts.
+
+**Leaf numbers.** §6 and §7 wrote B.7.3, B.7.4 and B.7.5. The roadmap
+retires B.7.3 and B.7.4 instead (HISTORY's number map):
+
+| In §6 and §7 | In PLAN | Leaf |
+|---|---|---|
+| B.7.3 (new) | B.7.5 `[I2]` | Board instruments: replay and engine screen |
+| B.7.4 | B.7.6 `[I2]` | Rebuild behind the board contract: C1, C3′, C5, C8 |
+| — | B.7.7 `[R2]` | Second round: candidates on the instruments |
+| — | B.7.8 `[I2]` | Second rebuild: the candidates that cleared |
+| B.7.5 | B.7.9 `[V]` | Board speed read and gate |
+
+**One more read, taken for the decision:** the two kept kernels on the
+microbenchmark's own columns (`tools/results/b7-frontier/micro_protos/`,
+three alternating rounds). `see_captures` 15.25 to 10.42 ns with the new
+pins (Stockfish 6.6), `see_quiets` 18.43 to 15.77, `make_unmake` 17.89 to
+15.98 with C1 (Rarog 14.7). On B.7.2's composite without its quiet-stage
+term that is 56.2 to about 47.6 ns per node, against 53.8 for classical
+Stockfish and 54.6 for Rarog. B.7.9 reads it properly, on contract v3.

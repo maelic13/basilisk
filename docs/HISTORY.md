@@ -301,6 +301,21 @@ search-board perft (TB-1) to B.6.3; C.7.1's drawn-overclaim instrument and
 Syzygy vetoes (C-133, C-142) are built in B.9.3 and read again in C.2.7;
 G.2's printed-score calibration (TA-2) to F.6.
 
+Renumbered in B.7 on 2026-11-14 (maintainer decision, after
+`analysis/b7_frontier_review_2026-11-14.md`): the board's instruments come
+before its rebuild, and a second round of candidates before its gate. The
+two retired numbers are retired for good. A reference dated before this,
+B.7.1's and B.7.2's packets included, uses the earlier numbering.
+
+| Was | Now | Note |
+|---|---|---|
+| B.7.3 | B.7.6 | rebuild behind the board contract, on the amended handoff |
+| B.7.4 | B.7.9 | board speed read and gate |
+
+New the same day: B.7.5 (search replay and engine screen), B.7.7 (second
+round of board candidates) and B.7.8 (their rebuild). Withdrawn the same
+day: Chess960 (handoff item C7, TB-9, G.2's bullet).
+
 ## Completed current-roadmap work (dated records; PLAN owns IDs)
 
 - **2026-09-28 — PLAN A.1 CLOSED: document reset.** The roadmap was rewritten
