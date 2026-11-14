@@ -3772,7 +3772,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         composite's stand-in for the quiet stage, and B.7.9 reads it
         without one.
       - The dirty-piece record is not written by make (F.1).
-    - [ ] **B.7.5** `[I2]` Board instruments: replay and engine screen
+    - [x] **B.7.5** `[I2]` Board instruments: replay and engine screen
       Added 2026-11-14 (`analysis/b7_frontier_review_2026-11-14.md` §2.5,
       §3, §8). The two instruments every later leaf of B.7 reads, made
       permanent from the review's prototypes. A microbenchmark column
@@ -3831,7 +3831,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         its spread (uncorrected, ns per node: make and unmake 26.1,
         generation 29.5 more, SEE 28.8 more, `gives_check` 16.9 more);
         and the null pair reads within ±0.3%.
-      Prepared 2026-11-14; the two timed reads wait for the idle host:
+      Done 2026-11-14:
       - The trace build (`-DBASILISK_BOARD_TRACE=ON`) and the plain build
         both give `bench 13` 4,247,965. Its `bench 13` trace, 58,598,640
         records, is byte-identical to the review's (SHA-256
@@ -3853,6 +3853,19 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         classical 13,714). Rarog's adapter makes its quiet stage `pub`,
         nothing else. B.7.2's twelve microbenchmark checksums are
         unchanged. The v3 binaries sit beside v2's (`*-board-v3.exe`).
+      - Timed reads, idle host, CPU 2:
+        - Head class table (`tools/results/b75/replay-head/`, replayer
+          SHA-256 305889121CA972FC…, three rounds of five passes),
+          uncorrected ns per node, the review's in brackets: make and
+          unmake 26.00 (26.1), generation 29.54 more (29.5), SEE 28.88
+          more (28.8), `gives_check` 17.43 more (16.9). Each lies within
+          its row's spread plus `none`'s (0.45 to 0.97 ns).
+        - Less stub: 16.48, 25.43, 21.82 and 10.99 (17.2, 25.9, 22.2,
+          11.1). All classes in one run time 143.3 (spread 5.0%),
+          against 135.1 for the sum of the classes read one at a time.
+        - Engine null pair (`tools/results/b75/screen-null/`, SHA-256
+          C0A50086AA2AAF2C…): median −0.03%; single rounds −0.68% to
+          +0.85%, the copy faster in 7 of 16.
     - [ ] **B.7.6** `[I2]` Rebuild behind the board contract
       It was B.7.3 until 2026-11-14. B.7.2's handoff as the frontier
       review amended it (its §6), one commit each, in this order.
@@ -4760,7 +4773,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.7.5 | IMPLEMENTED | I2 | Built and verified; the null pair and the head's class table wait for the idle host |
 | B.7.6 | READY_FOR_IMPLEMENTATION | I2 | Was B.7.3; the amended handoff: C1, C3′, C5, C8 |
 | B.7.7 | RESEARCH | R2 | Second round on B.7.6's head; the rule is frozen in the leaf |
 | B.7.8 | RESEARCH | I2 | B.7.7's handoff, or NO_CHANGE |

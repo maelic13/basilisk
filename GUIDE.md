@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.7.5** `[I2]` Board instruments: replay and engine screen — Claude Opus
+**Next step:** **B.7.6** `[I2]` Rebuild behind the board contract — Claude Opus
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -125,7 +125,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
 - [ ] **B.7** Board review and rebuild
     - [x] **B.7.1** `[R2]` Board contract audit and instruments
     - [x] **B.7.2** `[R2]` Board review against Stockfish and Triumviratus
-    - [ ] **B.7.5** `[I2]` Board instruments: replay and engine screen
+    - [x] **B.7.5** `[I2]` Board instruments: replay and engine screen
     - [ ] **B.7.6** `[I2]` Rebuild behind the board contract
     - [ ] **B.7.7** `[R2]` Second round: candidates on the instruments
     - [ ] **B.7.8** `[I2]` Second rebuild: the candidates that cleared
