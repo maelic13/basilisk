@@ -169,8 +169,6 @@ inline constexpr KernelLiterals kKernelLiteralDefaults{};
 // The screen's values, set by UCI options before a search; one per process.
 extern KernelLiterals g_kernel_literals;
 #define KLIT(field) (::g_kernel_literals.field)
-// A whole table or ratio scaled by a literal in its compiled value's units.
-#define KLIT_SCALED(x, field) ((x) * KLIT(field) / ::kKernelLiteralDefaults.field)
 // A product of screened values is taken in 64 bits: the release build proves
 // its 32-bit widths at the compiled values, which a moved option leaves.
 #define KLIT_WIDE(x) (static_cast<long long>(x))
@@ -182,9 +180,13 @@ extern KernelLiterals g_kernel_literals;
 BASILISK_KERNEL_LITERALS(BASILISK_KERNEL_LITERAL_CONST)
 #undef BASILISK_KERNEL_LITERAL_CONST
 #define KLIT(field) (int(::klit_##field))
-#define KLIT_SCALED(x, field) (x)
 #define KLIT_WIDE(x) (x)
 #endif
+
+// A whole table or ratio scaled by a literal in 1/1024, the unit every scale
+// literal was seeded at (1024, the form it replaced). The same in every build:
+// a baked scale is applied at its value, as the tune read it.
+#define KLIT_SCALED(x, field) ((x) * KLIT(field) / 1024)
 
 // A screen option's range: about half to twice the value (every divisor here
 // is at least 2, so none reaches 0). A history bound is read no further than a
