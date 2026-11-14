@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.7.1** `[R2]` Board contract audit and instruments — Claude Opus
+**Next step:** **B.7.2** `[R2]` Board review against Stockfish and Triumviratus — Claude Opus
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -123,7 +123,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.6.6** `[R2]` Donor-form reconciliation
     - [x] **B.6.7** `[V]` Joint search SPSA
 - [ ] **B.7** Board review and rebuild
-    - [ ] **B.7.1** `[R2]` Board contract audit and instruments
+    - [x] **B.7.1** `[R2]` Board contract audit and instruments
     - [ ] **B.7.2** `[R2]` Board review against Stockfish and Triumviratus
     - [ ] **B.7.3** `[I2]` Rebuild behind the board contract
     - [ ] **B.7.4** `[V]` Board speed read and gate

@@ -3578,7 +3578,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   own: phase letters are identifiers, and a phase between B and C would
   re-letter C–G. Inputs: `analysis/triumviratus_review_2026-11-03.md` (TB
   items) and the archived board leaves 7.1–7.12 (HISTORY's number map).
-    - [ ] **B.7.1** `[R2]` Board contract audit and instruments
+    - [x] **B.7.1** `[R2]` Board contract audit and instruments
       Was D.3.1, then B.15.1 (HISTORY's number map): the defect
       hunt, and the safety net B.7.3 rebuilds behind (archived 7.1, 7.7,
       7.9–7.12). Port the snapshot's board-v2 corpus and oracle
@@ -3611,6 +3611,37 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - FEN robustness (TB-3): an en-passant square inconsistent with the
         side to move, castling rights that do not match the board, a side
         not to move in check; one position must never get two keys.
+      Closed 2026-11-14 (`analysis/b71_board_contract_2026-11-14.md`):
+      instruments built, one defect repaired, one policy finding for the
+      maintainer. `bench 13` unchanged at **4,278,307**.
+      - The corpus: 26 tagged positions checked by python-chess
+        (`tools/diag/board_v2_oracle.py`), and 192 SEE cases with the
+        legal exchange tree (`tools/diag/see_oracle.py`, every
+        `test_board` fixture, Rarog's cases and mirrors). `test_board_v2`
+        reads both. At the roots: FEN, checkers, legal, capture and
+        checking sets, perft and divide equal the oracle.
+      - Over 12,451 walked nodes: make, unmake and null restore every
+        field; `gives_check` matches play on 9,498 checks; every FEN
+        reads back to the same keys.
+      - The rest: the generators' partition, clones and 160-ply unwinds;
+        Zobrist rank 64 (TB-2); TB-3's FEN cases; the clock outside the
+        key (A-14); `see_ge` exact on all 187 moves (A-5).
+      - Negative controls show each check can fail: `gives_check`
+        without its discovered clause disagrees 161 times; 32-bit keys
+        read rank 32.
+      - A-13 is a `test_search` fixture whose control without history
+        shows the stored claim answering. TB-1 is B.6.3's search-path
+        perft, reused.
+      - Repaired: a board copy of a game longer than the reserve had no
+        room for a search line, so the search grew the history at its
+        first node. The copy now reserves `2 × MAX_PLY` past it, under a
+        test that fails on the old code. Also repaired: `test_board`'s
+        SEE fixture "pinner stays" was an illegal position; its bishop
+        moves to f3.
+      - For the maintainer (F1): `is_repetition` scores one return to the
+        root as a draw; the cuckoo test (donor form) and Stockfish do not.
+        A policy repair that moves the tree, through the repair path.
+      - For B.8.2 (F4): `Board::see` has no caller left in `src/`.
     - [ ] **B.7.2** `[R2]` Board review against Stockfish and Triumviratus
       A packet that reads each component against the donor's form and
       Triumviratus's, measures Basilisk's (its share in A.9.5's profile at
@@ -4372,7 +4403,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
 | B.7.2 | RESEARCH | R2 | Was B.15.2; after B.7.1 |
 | B.7.3 | RESEARCH | I2 | Was B.15.3; on B.7.2's frozen handoff |
 | B.7.4 | RESEARCH | V | Was B.15.4; after B.7.3, before B.8 |
