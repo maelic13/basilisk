@@ -351,8 +351,12 @@ class SurfaceTests(unittest.TestCase):
             header, literals, "B3SingMargin\n# a comment\n\nLitLmrBase  # inline\nLitBoundCont 24000 32767\n"
                               "B5AspBase 500 6000\n")
         head = {p[0]: p for p in surface.head_parameters(header)}
-        self.assertEqual(chosen, [head["B3SingMargin"], ("LitLmrBase", 697, 348, 1396),
-                                  ("LitBoundCont", 30000, 24000, 32767),
+        # The literals' values are read from the table, which a bake moves.
+        base = surface.kernel_literals(literals)["LitLmrBase"]
+        bound = surface.kernel_literals(literals)["LitBoundCont"]
+        self.assertEqual(chosen, [head["B3SingMargin"],
+                                  ("LitLmrBase", base, surface.literal_min(base), surface.literal_max(base)),
+                                  ("LitBoundCont", bound, 24000, 32767),
                                   ("B5AspBase", head["B5AspBase"][1], 500, 6000)])
         self.assertEqual(len(surface.kernel_literals(literals)), 128)
 
@@ -377,12 +381,13 @@ class SurfaceTests(unittest.TestCase):
         # BAS-S57 counted 10 of the head's 74 coordinates short of two steps of
         # room at their seeds, 3 of them of one. B.6.7's rails (BAS-S61 section 5)
         # widened four ranges and floored two at their switch boundaries: 7
-        # short, 4 of them of one.
+        # short, 4 of them of one. Its bake moved the seeds: 9 short, the same 4
+        # of one.
         text = surface.HEADER.read_text(encoding="utf-8")
         parameters = surface.head_parameters(text)
         _, report = surface.render_rule7c(parameters, 6000, "head")
         self.assertEqual(len(parameters), 74)
-        self.assertEqual(len(report), 7)
+        self.assertEqual(len(report), 9)
         self.assertEqual(sum("under one step" in line for line in report), 4)
         names = {line.split(":")[0] for line in report if "under one step" in line}
         self.assertEqual(names, {"CoreCaptFutHistDiv", "CoreLmrAlphaEvalScale", "CoreResearchShallower",
@@ -392,6 +397,7 @@ class SurfaceTests(unittest.TestCase):
         text = surface.HEADER.read_text(encoding="utf-8")
         overrides = {**surface.b3_core_defaults(text), **surface.b4_core_defaults(text),
                      **surface.b5_core_defaults(text)}
+        overrides.update(surface.b67_defaults(text, overrides))
         seeds = {name: start for name, start, _, _ in surface.head_parameters(text)}
         for name, value in overrides.items():
             if name in seeds:

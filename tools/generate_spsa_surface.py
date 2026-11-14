@@ -117,8 +117,10 @@ B4_CORE_DEFAULTS_TABLE = "#define BASILISK_B4_CORE_DEFAULTS("
 # Cluster 4's refit of earlier clusters' lines, in the same form, applied over
 # the B4 table's.
 B5_CORE_DEFAULTS_TABLE = "#define BASILISK_B5_CORE_DEFAULTS("
+# B.6.7's joint fit of the head's X lines, applied after the clusters' refits.
+B67_DEFAULTS_TABLE = "#define BASILISK_B67_DEFAULTS("
 TABLES = (CORE_TABLE, B3_TABLE, B4_TABLE, B5_TABLE, B3_CORE_DEFAULTS_TABLE,
-          B4_CORE_DEFAULTS_TABLE, B5_CORE_DEFAULTS_TABLE)
+          B4_CORE_DEFAULTS_TABLE, B5_CORE_DEFAULTS_TABLE, B67_DEFAULTS_TABLE)
 ARM_DEFAULT_RE = re.compile(
     r"^\s*A\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,\s*(-?\d+)\s*\)"
 )
@@ -223,6 +225,31 @@ def b5_core_defaults(text: str) -> dict[str, int]:
     return arm_core_defaults(text, B5_CORE_DEFAULTS_TABLE, "Cluster 4",
                              [*parse_parameters(text, core=True), *parse_parameters(text, b3=True),
                               *parse_parameters(text, b4=True)])
+
+
+def b67_defaults(text: str, earlier: dict[str, int]) -> dict[str, int]:
+    """B.6.7's joint fit, each checked: an X line of the head's tables, inside its
+    range, off the value the clusters left it, named once."""
+    if B67_DEFAULTS_TABLE not in text:
+        return {}
+    lines = {name: (default, minimum, maximum) for name, default, minimum, maximum in
+             [*parse_parameters(text, core=True), *parse_parameters(text, b3=True),
+              *parse_parameters(text, b4=True), *parse_parameters(text, b5=True)]}
+    overrides: dict[str, int] = {}
+    for line in split_tables(text)[B67_DEFAULTS_TABLE]:
+        match = ARM_DEFAULT_RE.match(line)
+        if not match:
+            continue
+        name, value = match.group(1), int(match.group(2))
+        if name not in lines:
+            raise ValueError(f"B.6.7 default {name} names no X line")
+        default, minimum, maximum = lines[name]
+        before = earlier.get(name, default)
+        if not minimum <= value <= maximum or value == before or name in overrides:
+            raise ValueError(f"B.6.7 default {name} {value}: must lie in [{minimum}, {maximum}] "
+                             f"off {before}, once")
+        overrides[name] = value
+    return overrides
 
 
 def arm_core_defaults(text: str, table: str, cluster: str,
@@ -469,8 +496,10 @@ def b67_parameters(header_text: str, literal_text: str, surface_text: str) -> li
 
 def head_parameters(text: str, surface: str = "head") -> list[tuple[str, int, int, int]]:
     """A surface's X lines with the seeds the head runs: every cluster's
-    refit of earlier lines applied. "head" is the core, B3, B4 and B5 tables."""
+    refit of earlier lines applied, then B.6.7's joint fit. "head" is the core, B3, B4
+    and B5 tables."""
     overrides = {**b3_core_defaults(text), **b4_core_defaults(text), **b5_core_defaults(text)}
+    overrides.update(b67_defaults(text, overrides))
     tables = {
         "core": parse_parameters(text, core=True), "b3": parse_parameters(text, b3=True),
         "b4": parse_parameters(text, b4=True), "b5": parse_parameters(text, b5=True),
