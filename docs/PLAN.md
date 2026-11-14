@@ -4271,6 +4271,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       B.8.4's large pages. The archived board-speed leaves (7.2–7.8) moved
       to the board review (B.7) on 2026-11-03; this leaf profiles the board
       B.7 leaves. It was B.7.2 until 2026-11-05.
+      Scope (maintainer, 2026-11-14):
+      - The search is the main target, with everything around it (the
+        driver, the TT, ordering, the build and link).
+      - The board is not a target: B.7 made it as fast as could be
+        measured (+3.21%, BAS-P30), and B.7.7's second round found nothing.
+      - The evaluation is not a target: the HCE is Phase C's.
+      - A board or evaluation item enters only where the search's profile
+        shows its cost moved.
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
       - Uses A.9.4's NPS read and A.9.5's profiler.
