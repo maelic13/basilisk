@@ -3937,6 +3937,24 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       Not built (review §3): C2, C3's pre-test and C6 (no gain
       measured), C7 (withdrawn). `UndoInfo` gains no field for the
       network (F.1).
+      Prepared 2026-11-14; the timed reads wait for the idle host:
+      - One commit each: C1 `1097ee8`, C3′ `eccf9b7`, C5 `5e40371`, C8
+        `0c978c2`. After each, `bench 13` is 4,247,965, `test_board_v2`,
+        `test_search_path` and `board_replay --verify` pass, and the
+        twelve checksums of `tools/results/b72-micro/manifest.json`
+        hold. The head's fresh `bench 13` trace is byte-identical to the
+        base's (SHA-256 4C6643CD9CB43460…).
+      - The cross-check build (`-DBASILISK_BOARD_CROSSCHECK=ON`) runs the
+        original unmake, `see_ge`, `is_repetition` and `is_draw` beside
+        the rebuilt ones. It passes `bench 13`, `test_search_path` and
+        `test_board`, and a planted defect in each of C1, C3′ and C5
+        aborts it.
+      - Also: CTest without the strength floors (30 tests), the
+        sanitizer build's `test_board`, `test_board_v2` and
+        `test_invariants`, and a TUNE build.
+      - The pooled read is BAS-P30: pools `b76-base` (`fb91be6`) and
+        `b76-head` (`0c978c2`), four PGO builds each, built and
+        accepted.
     - [ ] **B.7.7** `[R2]` Second round: candidates on the instruments
       Added 2026-11-14 (maintainer: the fastest board possible at the end
       of B.7). Bounded research on B.7.6's head. Each candidate below is
@@ -4792,7 +4810,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.7.6 | READY_FOR_IMPLEMENTATION | I2 | Was B.7.3; the amended handoff: C1, C3′, C5, C8; ends with its pooled NPS read |
+| B.7.6 | IMPLEMENTED | I2 | C1, C3′, C5, C8 built and qualified; the screens and BAS-P30's pooled read wait for the idle host |
 | B.7.7 | RESEARCH | R2 | Second round on B.7.6's head; the rule is frozen in the leaf |
 | B.7.8 | RESEARCH | I2 | B.7.7's handoff, or NO_CHANGE |
 | B.7.9 | RESEARCH | V | Was B.7.4 (B.15.4); after B.7.8, before B.8 |
