@@ -4,10 +4,11 @@
 #include <string>
 
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
-void DecisionTrace::start(bool enabled) {
+void DecisionTrace::start(bool enabled, bool root_only) {
     count_ = 0;
     overflow_ = false;
     enabled_ = enabled;
+    root_only_ = root_only;
     if (enabled_)
         records_ = std::make_unique<std::array<TraceRecord, CAPACITY>>();
     else
@@ -20,7 +21,7 @@ void DecisionTrace::record(TraceEvent event, int ply, int depth, Move move,
                            int move_count, int reduction, int margin, int result,
                            int cutoff_count, int lmr_depth, int skip_quiets,
                            TraceFamily family) {
-    if (!enabled_ || ply < 1 || ply > 2)
+    if (!enabled_ || (root_only_ ? ply != 0 : (ply < 1 || ply > 2)))
         return;
     if (count_ >= CAPACITY) {
         overflow_ = true;
@@ -90,6 +91,7 @@ void DecisionTrace::print(const InfoCallback& info, const std::vector<Move>& roo
             case TraceEvent::QsCountPrune:         return "qs_count_prune";
             case TraceEvent::QsEvasionPrune:       return "qs_evasion_prune";
             case TraceEvent::QsStalemate:          return "qs_stalemate";
+            case TraceEvent::RootPvResearch:       return "root_pv_research";
         }
         return "unknown";
     };
@@ -108,8 +110,8 @@ void DecisionTrace::print(const InfoCallback& info, const std::vector<Move>& roo
         return "unknown";
     };
 
-    info("info string trace begin version=2 plies=1-2 root="
-             + move_to_uci(root_moves.front())
+    info(std::string("info string trace begin version=2 plies=") + (root_only_ ? "0" : "1-2")
+             + " root=" + (root_moves.empty() ? std::string("all") : move_to_uci(root_moves.front()))
              + " cutoff_count=available"
              + " value_none=" + std::to_string(VALUE_NONE)
              + " bool_unknown=-1 capacity=" + std::to_string(CAPACITY));
@@ -372,6 +374,25 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.qs_count_pruned, d.qs_recapture_exempt, d.qs_evasion_quiets_pruned,
             d.qs_evasion_see_pruned, d.qs_stalemates, d.qs_quiet_checks,
             d.rfp_seekmate_capped, d.qs_gain_tested);
+        emit(buf);
+        // Cluster 4's root and aspiration.
+        buf = std::format("kv ply_cap_hits={} ply_cap_in_check={} qs_ply_cap_hits={} "
+            "qs_ply_cap_in_check={} negext_total={} negext_chain1={} negext_chain2p={} "
+            "root_lmr_reduced={} root_lmr_researched={}",
+            d.ply_cap_hits, d.ply_cap_in_check, d.qs_ply_cap_hits, d.qs_ply_cap_in_check,
+            d.negext_total, d.negext_chain1, d.negext_chain2p,
+            d.root_lmr_reduced, d.root_lmr_researched);
+        emit(buf);
+        buf = std::format("kv root_tt_probe_first={} root_tt_mismatch_first={} "
+            "root_tt_probe_fl={} root_tt_mismatch_fl={} root_tt_probe_fh={} "
+            "root_tt_mismatch_fh={}",
+            d.root_tt_probe_first, d.root_tt_mismatch_first, d.root_tt_probe_fl,
+            d.root_tt_mismatch_fl, d.root_tt_probe_fh, d.root_tt_mismatch_fh);
+        emit(buf);
+        buf = std::format("kv asp_nodes_windowed={} asp_nodes_failed={} asp_nodes_giveup={} "
+            "asp_fail_high_research_nodes={} fhstop_fired={} root_effort_hi={} root_effort_lo={}",
+            d.asp_nodes_windowed, d.asp_nodes_failed, d.asp_nodes_giveup,
+            d.asp_fail_high_research_nodes, d.fhstop_fired, d.root_effort_hi, d.root_effort_lo);
         emit(buf);
     }
     // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the

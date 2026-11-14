@@ -255,6 +255,43 @@ function Get-HarnessSiblingFreeCpuList {
     @($list)
 }
 
+function Get-HarnessSiblingPairCpuList {
+    <#
+        The explicit list for a sibling-paired one-thread run (B.5.7): the
+        first Concurrency/2 game cores with both of their SMT siblings, so
+        every game shares its physical core with exactly one other game.
+        CPU 0's core is never listed; the cores after the list stay free for
+        the runner and the operating system. Each sibling is its own game
+        slot only under the prototype runner's --slot-per-logical-cpu.
+    #>
+    param(
+        [Parameter(Mandatory)][int]$Concurrency,
+        [object[]]$GameCores = @()
+    )
+
+    if (-not $GameCores.Count) { $GameCores = @(Get-HarnessGameCpus) }
+    if ($Concurrency -lt 2 -or ($Concurrency % 2)) {
+        throw "a sibling-paired run needs an even concurrency of at least 2, not $Concurrency"
+    }
+    $cores = @($GameCores | Sort-Object Cpu)
+    $pairs = $Concurrency / 2
+    if ($pairs -gt $cores.Count) {
+        throw "concurrency $Concurrency needs $pairs game cores; the host has $($cores.Count) (physical cores except CPU 0's)"
+    }
+    $list = [System.Collections.Generic.List[int]]::new()
+    foreach ($core in ($cores | Select-Object -First $pairs)) {
+        $logical = @($core.Logical | ForEach-Object { [int]$_ } | Sort-Object)
+        if ($logical.Count -ne 2) {
+            throw "game core $($core.Cpu) has $($logical.Count) logical CPUs; a sibling-paired run needs exactly two per core"
+        }
+        foreach ($cpu in $logical) {
+            if ($cpu -ge 63) { throw 'an explicit placement list above logical CPU 62 is not supported by this harness' }
+            $list.Add($cpu)
+        }
+    }
+    @($list)
+}
+
 function Assert-HarnessResolvedPlacement {
     <#
         Verify that a non-ponder match received one physical core per engine
@@ -267,8 +304,9 @@ function Assert-HarnessResolvedPlacement {
         [Parameter(Mandatory)][object]$Resolved,
         [Parameter(Mandatory)][int]$ExpectedConcurrency,
         [Parameter(Mandatory)][int]$ThreadsPerGame,
-        [ValidateSet('auto', 'sibling-free')][string]$Placement = 'auto',
-        [int[]]$GameCpus = @()
+        [ValidateSet('auto', 'sibling-free', 'siblings')][string]$Placement = 'auto',
+        [int[]]$GameCpus = @(),
+        [int[]]$ExpectedCpus = @()
     )
 
     if ([int]$Resolved.execution.concurrency -ne $ExpectedConcurrency) {
@@ -286,6 +324,21 @@ function Assert-HarnessResolvedPlacement {
         if ([int]$policy.headroom_physical_cores -lt 1) {
             throw 'placement leaves no physical-core headroom'
         }
+    } elseif ($Placement -eq 'siblings') {
+        if ($ThreadsPerGame -ne 1) { throw "a sibling-paired run is one thread per engine, not $ThreadsPerGame" }
+        if ("$($policy.mode)" -ne 'explicit') {
+            throw "placement is '$($policy.mode)', expected an explicit sibling-pair list"
+        }
+        if ("$($Resolved.execution.allocation.mode)" -ne 'shared-logical-cpu') {
+            throw "allocation mode is '$($Resolved.execution.allocation.mode)', expected shared-logical-cpu"
+        }
+        $listed = @($policy.cpus | ForEach-Object { [int]$_.group * 64 + [int]$_.number } | Sort-Object -Unique)
+        $expected = @($ExpectedCpus | Sort-Object -Unique)
+        if (-not $expected.Count) { throw 'a sibling-paired check needs the expected CPU list' }
+        if (($listed -join ',') -ne ($expected -join ',')) {
+            throw "explicit placement lists ($($listed -join ',')), expected the sibling pairs ($($expected -join ','))"
+        }
+        if ($listed -contains 0) { throw 'explicit placement lists CPU 0' }
     } else {
         if ("$($policy.mode)" -ne 'explicit') {
             throw "placement is '$($policy.mode)', expected an explicit sibling-free list"
@@ -303,11 +356,13 @@ function Assert-HarnessResolvedPlacement {
             throw 'explicit placement leaves no game core free as headroom'
         }
     }
-    if ("$($Resolved.execution.allocation.mode)" -ne 'shared') {
-        throw "allocation mode is '$($Resolved.execution.allocation.mode)', expected shared"
-    }
-    if ([int]$Resolved.execution.allocation.cores_per_game -ne $ThreadsPerGame) {
-        throw "cores per game is $($Resolved.execution.allocation.cores_per_game), expected $ThreadsPerGame for Threads=$ThreadsPerGame"
+    if ($Placement -ne 'siblings') {
+        if ("$($Resolved.execution.allocation.mode)" -ne 'shared') {
+            throw "allocation mode is '$($Resolved.execution.allocation.mode)', expected shared"
+        }
+        if ([int]$Resolved.execution.allocation.cores_per_game -ne $ThreadsPerGame) {
+            throw "cores per game is $($Resolved.execution.allocation.cores_per_game), expected $ThreadsPerGame for Threads=$ThreadsPerGame"
+        }
     }
 
     $slots = @($Resolved.execution.slots)
@@ -330,6 +385,9 @@ function Assert-HarnessResolvedPlacement {
             $logical = @($allocation.allocation.cpus).Count
             if ($Placement -eq 'sibling-free' -and $logical -ne $ThreadsPerGame) {
                 throw "slot $($slot.slot_index) $side has $logical logical CPUs on $ThreadsPerGame physical cores; a sibling-free slot has one per core"
+            }
+            if ($Placement -eq 'siblings' -and $logical -ne 1) {
+                throw "slot $($slot.slot_index) $side has $logical logical CPUs; a sibling-paired slot has one"
             }
         }
         $aCpus = @($slot.engine_a.allocation.cpus | ForEach-Object { "$($_.group):$($_.number)" })

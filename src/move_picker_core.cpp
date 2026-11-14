@@ -70,7 +70,8 @@ int capture_order_score(const Board& board, const CoreHistoryTables& history, Mo
     HIST_SHADOW(history.shadow->read(ShadowTable::Capture,
                                      CoreHistoryTables::capture_cell(attacker, to, captured),
                                      board.turn()));
-    return history.capture.entry[attacker][to][captured] + 7 * HIST_PIECE_VALUE[captured];
+    return history.capture.entry[attacker][to][captured]
+         + KLIT_SCALED(7 * HIST_PIECE_VALUE[captured], pick_capture_scale);
 }
 
 void CoreMovePicker::score_captures(int begin, int end) {
@@ -101,9 +102,11 @@ void CoreMovePicker::score_quiets(int begin, int end) {
 
         const int hp = hist_piece(us, pt);
 
-        int v = 2 * main[from][to] + 2 * pawn_.entry[hp][to]
-              + cont_[0]->entry[hp][to] + cont_[1]->entry[hp][to] + cont_[2]->entry[hp][to]
-              + cont_[3]->entry[hp][to] + cont_[5]->entry[hp][to];
+        int v = KLIT_SCALED(2 * main[from][to], pick_main_scale)
+              + KLIT_SCALED(2 * pawn_.entry[hp][to], pick_pawn_scale)
+              + cont_[0]->entry[hp][to] + cont_[1]->entry[hp][to]
+              + KLIT_SCALED(cont_[2]->entry[hp][to] + cont_[3]->entry[hp][to]
+                                + cont_[5]->entry[hp][to], pick_cont_far_scale);
 #ifdef BASILISK_DIAGNOSTIC
         history_.shadow->read(ShadowTable::Pawn, history_.pawn_cell(&pawn_, hp, to), us);
         for (int k : {0, 1, 2, 3, 5})
@@ -112,7 +115,7 @@ void CoreMovePicker::score_quiets(int begin, int end) {
 #endif
 
         if ((checks_for(pt) & sq_bb(to)) && board_.see_ge(m, -75))
-            v += 16384;
+            v += KLIT(pick_check_bonus);
 
         if (pt != KING && pt != PAWN) {
             if (!threats_known) {
@@ -122,13 +125,13 @@ void CoreMovePicker::score_quiets(int begin, int end) {
                 threat_by_lesser[QUEEN] = threats.by_rook;
                 threats_known = true;
             }
-            v += HIST_PIECE_VALUE[pt] * 20
+            v += KLIT_SCALED(HIST_PIECE_VALUE[pt] * 20, pick_threat_scale)
                * (int((threat_by_lesser[pt] & sq_bb(from)) != 0)
                   - int((threat_by_lesser[pt] & sq_bb(to)) != 0));
         }
 
         if (low_ply)
-            v += 8 * (*low_ply)[from][to] / (1 + ply_);
+            v += KLIT_SCALED(8 * (*low_ply)[from][to], pick_low_ply_scale) / (1 + ply_);
 
         moves_[i].score = v + root_ordering(m);
     }
@@ -140,13 +143,10 @@ Move CoreMovePicker::next() {
         switch (stage_) {
             case Stage::TT:
                 stage_ = Stage::CaptureInit;
-                if (tt_move_ != MOVE_NONE && tt_move_ != excluded_) {
-                    const Piece p = board_.piece_on(from_sq(tt_move_));
-                    if (p != NO_PIECE && color_of(p) == board_.turn() && board_.is_legal(tt_move_)) {
-                        tt_delivered_ = true;
-                        last_src_ = Src::TT;
-                        return tt_move_;
-                    }
+                if (tt_move_ != excluded_ && table_move_usable(board_, tt_move_)) {
+                    tt_delivered_ = true;
+                    last_src_ = Src::TT;
+                    return tt_move_;
                 }
                 break;
 
@@ -166,7 +166,7 @@ Move CoreMovePicker::next() {
                     const ScoredMove sm = moves_[cur_];
                     // The donor's threshold, score / 18 in its material units,
                     // in this engine's SEE units (x 0.38): score / 47.
-                    if (board_.see_ge(sm.move, -sm.score / 47)) {
+                    if (board_.see_ge(sm.move, -sm.score / KLIT(pick_good_capture_div))) {
                         ++cur_;
                         last_src_ = Src::GoodTactical;
                         return sm.move;
@@ -185,7 +185,7 @@ Move CoreMovePicker::next() {
                     end_quiets_ = fill(list, end_captures_);
                     score_quiets(end_captures_, end_quiets_);
                     partial_insertion_sort(moves_ + end_captures_, moves_ + end_quiets_,
-                                           -3560 * depth_);
+                                           KLIT(pick_sort_limit) * depth_);
                 }
                 cur_ = end_captures_;
                 stage_ = Stage::GoodQuiet;
@@ -194,7 +194,7 @@ Move CoreMovePicker::next() {
             case Stage::GoodQuiet:
                 while ((!skip_quiets_ || keep_direct_checks_) && cur_ < end_quiets_) {
                     const ScoredMove sm = moves_[cur_++];
-                    if (sm.score > GOOD_QUIET_THRESHOLD && deliverable_quiet(sm.move)) {
+                    if (sm.score > KLIT(pick_good_quiet) && deliverable_quiet(sm.move)) {
                         last_src_ = Src::Quiet;
                         return sm.move;
                     }
@@ -215,7 +215,7 @@ Move CoreMovePicker::next() {
             case Stage::BadQuiet:
                 while ((!skip_quiets_ || keep_direct_checks_) && cur_ < end_quiets_) {
                     const ScoredMove sm = moves_[cur_++];
-                    if (sm.score <= GOOD_QUIET_THRESHOLD && deliverable_quiet(sm.move)) {
+                    if (sm.score <= KLIT(pick_good_quiet) && deliverable_quiet(sm.move)) {
                         last_src_ = Src::Quiet;
                         return sm.move;
                     }
@@ -237,7 +237,7 @@ Move CoreMovePicker::first_denied_quiet(ScoredMove* scratch) {
     // from the start of the quiets, after the captures set aside.
     const auto first_bad = [&](int from) {
         for (int i = from; i < end_quiets_; ++i)
-            if (moves_[i].score <= GOOD_QUIET_THRESHOLD && denied(moves_[i].move))
+            if (moves_[i].score <= KLIT(pick_good_quiet) && denied(moves_[i].move))
                 return moves_[i].move;
         return MOVE_NONE;
     };
@@ -258,7 +258,7 @@ Move CoreMovePicker::first_denied_quiet(ScoredMove* scratch) {
         }
         case Stage::GoodQuiet:
             for (int i = cur_; i < end_quiets_; ++i)
-                if (moves_[i].score > GOOD_QUIET_THRESHOLD && denied(moves_[i].move))
+                if (moves_[i].score > KLIT(pick_good_quiet) && denied(moves_[i].move))
                     return moves_[i].move;
             return first_bad(end_captures_);
         case Stage::BadCapture:
@@ -275,7 +275,7 @@ Move CoreMovePicker::first_denied_quiet(ScoredMove* scratch) {
 bool ProbCutPicker::candidate(Move m) const {
     if (move_type(m) == PROMOTION)
         return promo_type(m) == QUEEN;
-    return move_type(m) == EN_PASSANT || board_.piece_on(to_sq(m)) != NO_PIECE;
+    return captures_piece(board_, m);
 }
 
 Move ProbCutPicker::next() {
@@ -283,14 +283,11 @@ Move ProbCutPicker::next() {
         switch (stage_) {
             case Stage::TT:
                 stage_ = Stage::Init;
-                if (tt_move_ != MOVE_NONE && tt_move_ != excluded_) {
-                    const Piece p = board_.piece_on(from_sq(tt_move_));
-                    if (p != NO_PIECE && color_of(p) == board_.turn() && board_.is_legal(tt_move_)
-                        && candidate(tt_move_)) {
-                        tt_delivered_ = true;
-                        if (board_.see_ge(tt_move_, threshold_))
-                            return tt_move_;
-                    }
+                if (tt_move_ != excluded_ && table_move_usable(board_, tt_move_)
+                    && candidate(tt_move_)) {
+                    tt_delivered_ = true;
+                    if (board_.see_ge(tt_move_, threshold_))
+                        return tt_move_;
                 }
                 break;
 

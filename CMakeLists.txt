@@ -196,7 +196,7 @@ set(BASILISK_SEARCH_KERNEL_SOURCES
 )
 
 # Engine library — evaluation and search (depends on board)
-add_library(basilisk_engine STATIC
+set(BASILISK_ENGINE_SOURCES
     src/eval.cpp
     src/search_thread_pool.cpp
     src/search_worker.cpp
@@ -207,7 +207,15 @@ add_library(basilisk_engine STATIC
     src/physical_memory.cpp
     ${BASILISK_SEARCH_KERNEL_SOURCES}
 )
+add_library(basilisk_engine STATIC ${BASILISK_ENGINE_SOURCES})
 target_link_libraries(basilisk_engine PUBLIC basilisk_board PRIVATE fathom)
+
+# The same library with each recursive call of the kernel logged
+# (src/search_child_log.h), for the test that pins the node type every call
+# passes. Test-only: nothing that ships links it.
+add_library(basilisk_engine_child_log STATIC ${BASILISK_ENGINE_SOURCES})
+target_link_libraries(basilisk_engine_child_log PUBLIC basilisk_board PRIVATE fathom)
+target_compile_definitions(basilisk_engine_child_log PUBLIC BASILISK_CHILD_LOG)
 
 # The name a build reports. Development builds read Stockfish's form,
 # `Basilisk dev-<commit date>-<hash>`, from a header regenerated at every build,
@@ -325,6 +333,17 @@ target_link_libraries(test_b3_proof PRIVATE basilisk_engine)
 add_executable(test_b4_qsearch tests/test_b4_qsearch.cpp
                src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_b4_qsearch PRIVATE basilisk_engine)
+# Cluster 4's arithmetic and mechanisms, and the ply cap on both arms.
+add_executable(test_b5_root tests/test_b5_root.cpp
+               src/parameters.cpp src/bench.cpp src/wac.cpp)
+target_link_libraries(test_b5_root PRIVATE basilisk_engine)
+# Perft through the search's own pickers, make and unmake.
+add_executable(test_search_path tests/test_search_path.cpp)
+target_link_libraries(test_search_path PRIVATE basilisk_engine)
+# The kernel's present choices, pinned so that a change is a decision.
+add_executable(test_kernel_pins tests/test_kernel_pins.cpp
+               src/parameters.cpp src/bench.cpp src/wac.cpp)
+target_link_libraries(test_kernel_pins PRIVATE basilisk_engine_child_log)
 
 add_executable(test_cpu_features tests/test_cpu_features.cpp)
 target_include_directories(test_cpu_features PRIVATE
@@ -397,6 +416,9 @@ add_test(NAME test_move_picker_core COMMAND test_move_picker_core)
 add_test(NAME test_stack_unwind     COMMAND test_stack_unwind)
 add_test(NAME test_b3_proof         COMMAND test_b3_proof)
 add_test(NAME test_b4_qsearch       COMMAND test_b4_qsearch)
+add_test(NAME test_b5_root          COMMAND test_b5_root ${CMAKE_SOURCE_DIR}/tools/diag/suite_v2.epd)
+add_test(NAME test_search_path      COMMAND test_search_path)
+add_test(NAME test_kernel_pins      COMMAND test_kernel_pins)
 add_test(NAME test_cpu_features COMMAND test_cpu_features)
 add_test(NAME test_move         COMMAND test_move)
 add_test(NAME test_magics       COMMAND test_magics)
@@ -498,8 +520,15 @@ option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production build
 # Cluster umbrellas (PROCESS, Cluster delivery shape): a Boolean option that
 # compiles one search cluster in. It defaults OFF until the cluster passes its
 # gate, then ON; OFF then reproduces the previous fingerprint and stays
-# compilable, unmaintained, until it is deleted. None is open: Clusters 2 and 3
-# and the coloured histories passed their gates, and their OFF arms are gone.
+# compilable, unmaintained, until it is deleted. Clusters 2, 3 and 4 and the
+# coloured histories passed their gates, and their OFF arms are gone.
+# B6_DONOR_FORMS is B.6.6's adoptions: the donor's razoring and the kings in
+# the non-pawn correction keys, set as defaults by BASILISK_B6_CORE_DEFAULTS.
+option(B6_DONOR_FORMS "Make B.6.6's adopted donor forms the defaults (sets BASILISK_B6_DONOR_FORMS)" OFF)
+# LITERAL_SCREEN is B.6.7's screen of the kernel's literals: on a Tune build it
+# advertises each entry of src/kernel_literals.h as a UCI option (sets
+# BASILISK_LITERAL_SCREEN). Every other build reads them as compile-time constants.
+option(LITERAL_SCREEN "Advertise the kernel's literals as UCI options on a Tune build (sets BASILISK_LITERAL_SCREEN)" OFF)
 option(PROFILE_SYMBOLS "Emit line tables with inline records in Release builds for the sampling profiler; code generation is unchanged" OFF)
 set(BASILISK_PGO_ARM_OPTION "" CACHE STRING "Boolean CMake option identifying an umbrella arm in PGO child builds")
 set(BASILISK_PGO_ARM_STATE "OFF" CACHE STRING "Value for BASILISK_PGO_ARM_OPTION in PGO child builds")
@@ -580,7 +609,8 @@ set(_ALL_TARGETS
     basilisk board_performance_test
     test_board test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics test_threats
-    test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch
+    test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch test_b5_root
+    basilisk_engine_child_log test_search_path test_kernel_pins
 )
 
 # Fathom is part of the shipped executable and must obey its ISA contract, but
@@ -611,6 +641,23 @@ endif()
 
 if(RELEASE_DIAG_COUNTERS)
     target_compile_definitions(basilisk_engine PRIVATE BASILISK_RELEASE_DIAG_COUNTERS)
+endif()
+
+if(B6_DONOR_FORMS)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_B6_DONOR_FORMS)
+    endforeach()
+    message(STATUS "B6_DONOR_FORMS arm: B.6.6's adopted donor forms are the defaults (BASILISK_B6_DONOR_FORMS defined)")
+endif()
+
+if(LITERAL_SCREEN)
+    if(NOT TUNE)
+        message(FATAL_ERROR "LITERAL_SCREEN needs TUNE: the literals are advertised beside the search options")
+    endif()
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_LITERAL_SCREEN)
+    endforeach()
+    message(STATUS "LITERAL_SCREEN build: the kernel's literals are UCI options (BASILISK_LITERAL_SCREEN defined)")
 endif()
 
 if(TUNE)

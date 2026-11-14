@@ -30,3 +30,15 @@ B.8.3's allocation guard checks the first clause.
   its precondition in its own commit, with the justifying measurement.
 - Comments explain the problem or the invariant, briefly: no roadmap step
   numbers or ledger IDs as the explanation, no narration of earlier versions.
+
+## Tools
+
+- New tools are written in Python and portable: Windows stays the primary
+  platform, but every new tool is expected to run on Linux in time. Use
+  `pathlib`, `subprocess` with argument lists and no shell syntax, and keep
+  any Windows-only call (CPU affinity, process times, `.exe` names) behind
+  one function that says so and picks the other platform's form or refuses
+  plainly (maintainer, 2026-11-12).
+- No new PowerShell tools. The existing ones are maintained where they are;
+  a command may still be started from PowerShell, and a fix to an existing
+  `.ps1` stays in PowerShell rather than forcing a rewrite.

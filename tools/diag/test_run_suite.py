@@ -53,6 +53,31 @@ class FixedBudgetRecordTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "partial Cluster 2"):
             run_suite.validate_diag(counters)
 
+    def test_cluster4_counters_are_all_or_none_and_bounded(self):
+        self.assertEqual(len(run_suite.B5_COUNTER_UNITS), 22)
+        counters = {name: 0 for name in run_suite.CORE_COUNTER_UNITS}
+        counters.update({name: 0 for name in run_suite.B5_COUNTER_UNITS})
+        counters.update({"asp_windows": 4, "asp_fail_high": 2, "asp_researches": 2,
+                         "root_effort_hi": 1,
+                         "asp_nodes_windowed": 100, "asp_nodes_failed": 60,
+                         "negext_total": 5, "negext_chain1": 2, "negext_chain2p": 3})
+        self.assertTrue(all(run_suite.validate_diag(counters).values()))
+        for name, value, message in (
+                ("negext_chain2p", 4, "negative-reduction chains"),
+                ("asp_nodes_failed", 101, "failed and fail-high"),
+                ("root_lmr_researched", 1, "searched again"),
+                ("ply_cap_in_check", 1, "ply-cap returns"),
+                ("root_tt_mismatch_fl", 1, "root table mismatches"),
+                ("fhstop_fired", 3, "fail-high stops"),
+                ("root_effort_lo", 4, "effort readings")):
+            broken = dict(counters)
+            broken[name] = value
+            with self.assertRaisesRegex(ValueError, message):
+                run_suite.validate_diag(broken)
+        del counters["fhstop_fired"]
+        with self.assertRaisesRegex(ValueError, "partial Cluster 4"):
+            run_suite.validate_diag(counters)
+
     def test_quiescence_counters_are_all_or_none_and_bounded(self):
         self.assertEqual(len(run_suite.B4_COUNTER_UNITS), 41)
         counters = {name: 0 for name in run_suite.CORE_COUNTER_UNITS}

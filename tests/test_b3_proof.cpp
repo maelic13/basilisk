@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
 #include <cstdio>
 #include <map>
 #include <memory>
@@ -122,6 +123,39 @@ static void test_multicut_and_negative() {
     EXPECT(b3::negative_extension(100, 100, false));
     EXPECT(b3::negative_extension(50, 100, true));      // a cut node, TT score below beta
     EXPECT(!b3::negative_extension(50, 100, false));
+    end_section();
+}
+
+static void test_multicut_correction_bonus() {
+    begin_section("multi-cut correction: the full clamp where 32 bits would wrap");
+    // Each product passes 2^31 before the division by 1024; in int it
+    // wraps negative and trains the correction the wrong way.
+    EXPECT_EQ(b3::multicut_correction_bonus(31742, -31742, 53, 177), 256);
+    EXPECT_EQ(b3::multicut_correction_bonus(31742, -31742, 54, 177), 256);
+    EXPECT_EQ(b3::multicut_correction_bonus(31742, -31742, 24, 400), 256);
+    EXPECT_EQ(b3::multicut_correction_bonus(17300, -17300, 99, 177), 256);
+    EXPECT_EQ(b3::multicut_correction_bonus(-31742, 31742, 54, 177), -256);
+    end_section();
+
+    begin_section("multi-cut correction: equal to the 32-bit form wherever it is defined");
+    // Gaps to the band's width, singular depths to 99, the multiplier at
+    // 0, 1, its default 177 and its rail 400. The 32-bit form is evaluated
+    // only where its last product fits; every earlier one is smaller.
+    long long checked = 0, differ = 0;
+    for (int gap = -63484; gap <= 63484; gap += 7)
+        for (int s_depth = 0; s_depth <= 99; ++s_depth)
+            for (int mult : {0, 1, 100, 177, 400}) {
+                const int64_t wide = int64_t(gap) * 1000 / 282 * s_depth * mult;
+                if (wide > INT32_MAX || wide < INT32_MIN)
+                    continue;
+                const int narrow =
+                    std::clamp(gap * 1000 / 282 * s_depth * mult / 1024, -256, 256);
+                const int value = gap - gap / 2, static_eval = -(gap / 2);
+                ++checked;
+                differ += b3::multicut_correction_bonus(value, static_eval, s_depth, mult) != narrow;
+            }
+    EXPECT_EQ(checked, 8085737LL);
+    EXPECT_EQ(differ, 0LL);
     end_section();
 }
 
@@ -573,6 +607,7 @@ int main() {
     test_singular_margin();
     test_graded_extension();
     test_multicut_and_negative();
+    test_multicut_correction_bonus();
     test_shuffling_truth_table();
     test_seek_mate_gate();
     test_history_fill_values();

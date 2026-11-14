@@ -39,6 +39,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <vector>
@@ -56,6 +57,25 @@ enum class NodeType { Root, PV, NonPV };
 #define PRICE_PROBING() (state_.price.probing())
 #else
 #define PRICE_PROBING() false
+#endif
+
+// Node checks: invariants of the per-ply record verified at every node
+// entry, and the width bounds of the history updates. Live in the Diag
+// flavour and in builds without NDEBUG (the sanitizer suite runs them);
+// compiled out of release. A failure aborts with the condition, so a field
+// a search forgets to reset, or a bonus that would wrap, cannot go
+// unnoticed.
+#if defined(BASILISK_DIAGNOSTIC) || !defined(NDEBUG)
+#define CORE_NODE_CHECK(cond)                                                   \
+    do {                                                                        \
+        if (!(cond)) {                                                          \
+            std::fprintf(stderr, "node check failed: %s (%s:%d)\n", #cond,      \
+                         __FILE__, __LINE__);                                   \
+            std::abort();                                                       \
+        }                                                                       \
+    } while (0)
+#else
+#define CORE_NODE_CHECK(cond) ((void)0)
 #endif
 
 struct SearchConfig {
@@ -118,14 +138,19 @@ struct SearchState {
     bool tb_probe_in_search = true;
     // The root's move-ordering inputs, set at the start of each search.
     RootOrdering root_ordering;
-    // MultiPV: root moves already reported at this depth, which the search of
-    // the next line skips. Empty at every other time, so a single-PV search
-    // never consults it.
-    std::vector<Move> root_excluded;
     int multipv_lines = 1;
     int64_t root_depth_nodes = 0;
     int64_t root_best_nodes = 0;
     int     root_best_effort = 0;
+    // The longest root search of this `go` and when it began, in seconds, read
+    // while TM_Debug is on: a stop tests the clock only as a window returns.
+    double  longest_window = 0.0;
+    double  longest_window_start = 0.0;
+    // Cluster 4's record of the root moves: the line being searched, as an index into it, and the iterations
+    // completed, of which the record's lines are the last.
+    std::vector<RootMove> root_moves;
+    int root_line = 0;
+    int root_iterations = 0;
     // The last completed iteration, which Cluster 2 reads: its first line's
     // PV (empty before one completes and while a MultiPV line after the first
     // is searched) and its raw root score (0 before one completes).
@@ -179,7 +204,14 @@ private:
     // ---- The driver's view of the kernel ---------------------------------
     // Searches the root at `depth` inside [alpha, beta] and returns its score;
     // the line, selective depth and root effort land in state_.
-    int  root_search(int depth, int alpha, int beta);
+    // `searched_depth` is how deep this root search goes; `depth` is the iteration's,
+    // which is what the kernel's own depth tests read.
+    int  root_search(int depth, int alpha, int beta, int searched_depth);
+    // The kernel's root loop, on the arm: the record of a root move the search
+    // may play (null when the limits forbid it), and its bookkeeping after a
+    // search that cost `nodes`, the line taken from the child's table.
+    [[nodiscard]] RootMove* root_record_find(Move m);
+    void root_record_searched(RootMove& rm, int value, int64_t nodes, bool first, int alpha, int beta);
     // Prepares the kernel's tables and stack for one `go`: the LMR table from
     // the parameters, history ageing, a clean stack.
     void kernel_begin_search();
@@ -205,6 +237,15 @@ private:
     int    root_tablebase_display(Move move) const;
     bool   root_tablebase_allows(Move move) const;
     Move   ponder_from_tt(const Board& root, Move bestmove) const;
+    // The counters' read of the table's root move before a window: against the
+    // last completed iteration's best, by what the window before it did
+    // (0 none, 1 failed low, 2 failed high).
+    void   diag_root_tt(int last_window, Move best);
+    // The record, on the arm: every root move the limits allow in generation
+    // order, each with a line of one move; and an iteration's start, which saves
+    // the last one's scores and lines and takes line 1's for the search to follow.
+    void   root_record_init(const Board& board);
+    void   root_record_begin_iteration();
 
     // ---- Node kernel -------------------------------------------------------
     // Everything from here to the end of the class belongs to the node kernel
@@ -237,6 +278,8 @@ private:
     // Cluster 2's null-move verification region: while a verification runs,
     // nodes above this ply try no null move (0 outside a verification).
     int nmp_min_ply_ = 0;
+    // The ply at which a line ends: MAX_PLY, or a test's cap below it.
+    int ply_cap_ = MAX_PLY;
     // The positive extension plies a line may take: the iteration's depth, or
     // a test's cap below it.
     [[nodiscard]] int ext_budget() const {
@@ -246,7 +289,7 @@ private:
     // The base reduction of a move, in 1024ths of a ply: the product of the
     // depth's and the move count's entries, less a share of the node's window
     // against the root's, more when not improving, plus an offset.
-    [[nodiscard]] int lmr_reduction(bool improving, int depth, int move_count, int delta) const;
+    [[nodiscard]] int lmr_reduction(bool improving, int depth, int move_count, int delta, bool pv) const;
 
     // Every TT store in the search goes through this wrapper, so the same-key
     // telemetry cannot drift out of sync with the store sites.
@@ -254,6 +297,14 @@ private:
                   int static_eval, bool pv);
     // Every TT read in the kernel likewise (a pricing probe reads its own
     // table beside the engine's).
+    // The key the table reads and writes for `b`: the position's, or with
+    // CoreTtKey50 the position's mixed with the rule-50 count's eight-ply
+    // bucket from a count of 14 (the donor's form). Repetition reads the raw
+    // key.
+    Key tt_key(const Board& b) const {
+        return config_.limits.params.tt_key50 ? tt_key50(b.position_key(), b.rule50_count())
+                                              : b.position_key();
+    }
     bool tt_probe(Key key, TTEntry& out) const {
 #ifdef BASILISK_PRICING
         if (state_.price.probing())
@@ -290,8 +341,7 @@ private:
     // piece and its destination. The null move selects the sentinel row.
     void do_move(SearchStack* ss, Move m) {
         const Square to = Square(to_sq(m));
-        const bool capture_stage = state_.board->piece_on(to) != NO_PIECE
-                                || move_type(m) == EN_PASSANT || move_type(m) == PROMOTION;
+        const bool capture_stage = is_capture_stage(*state_.board, m);
         ss->move        = m;
         const Piece piece = state_.board->piece_on(from_sq(m));
         ss->moved_piece = type_of(piece);

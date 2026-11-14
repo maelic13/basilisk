@@ -98,9 +98,10 @@ line names where it lives.
   defect to repair since 2026-10-26, owned by PLAN D.2).
   Under SMP a reader can match its key against one store and consume the
   score/depth/bound of another position's store. Nothing downstream catches it:
-  `negamax` (`src/search.cpp`) returns `tt_score` as the node value on a
-  depth-and-bound match with no verification, and its singular multi-cut
-  (`s_beta >= beta`) returns a score derived from it. Worst case is a foreign
+  `negamax` (`src/search_kernel_core.cpp`) returns `tt_score` as the node
+  value on a depth-and-bound match with no verification, and its singular
+  multi-cut returns the value of a search whose bound is derived from it.
+  Worst case is a foreign
   mate score reaching the root. Do not repeat the pre-2026-09-07 claim that a
   mismatched pair is "harmless" because bounds are validated — they are not.
 - **Why it is accepted.** Both repairs cost more than the defect, measured at
@@ -111,9 +112,11 @@ line names where it lives.
   and the word holds 64 — and Stockfish ships this same tolerance in this same
   structure. Reopen only on the BAS-C05 retry trigger.
 - `move16` likewise has no publication guarantee, and **every consumer must
-  validate it** — `MovePicker`'s TT stage checks piece/colour/`is_legal`,
-  `ponder_from_tt` checks legality, qsearch only compares it against generated
-  legal moves (all in `src/search.cpp`). All `Move` accessors mask
+  validate it** — both pickers' TT stage and the kernel's own uses check
+  piece/colour/`is_legal` (`table_move_usable`, `src/move_picker_core.h`),
+  `ponder_from_tt` checks legality (`src/search_worker.cpp`), and
+  quiescence outside check only compares it against generated legal
+  captures (`src/search_kernel_core.cpp`). All `Move` accessors mask
   (`src/move.h`), so any 16-bit value decodes in-bounds.
 - Detection strength against a genuinely different position is the plain 16-bit
   partial-key collision, 1/65536.
@@ -134,9 +137,9 @@ line names where it lives.
   must record the policy and never mix with natural-termination evidence.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
-- **Bench signature** of the accepted head: `bench 13` = **4,144,790**
-  nodes (since B.4.7's gates, which turned Cluster 3's quiescence on.
-  Earlier: 6,090,091 at B.4.2's SEE repairs of promotion recaptures and
+- **Bench signature** of the accepted head: `bench 13` = **4,278,307**
+  nodes (since B.5.5's gates, which turned Cluster 4's root and aspiration on.
+  Earlier: 4,144,790 at B.4.7's gates, which turned Cluster 3's quiescence on, 6,090,091 at B.4.2's SEE repairs of promotion recaptures and
   created pins, 5,361,058 at B.3.6's gate, which indexed the histories
   by coloured piece, 5,369,042 at B.3.5's gate, which turned Cluster 2's proof
   searches and extensions on; 11,880,564 at B.14's verdict guard, 16,615,757 at B.12's quiescence repair, 19,470,325 at A.13.2's

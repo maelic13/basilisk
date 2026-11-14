@@ -193,8 +193,8 @@ structures hide.
    the per-position and equal-cost results explain it.
 7. **Paired run** — the unfitted 2,000-game paired run, which governs.
 8. **Fit** — categorical semantics held fixed, the curvature sweep, then SPSA
-   in blocks over the live surface; theta is the last completed block's
-   rounded centres, never a selected checkpoint.
+   over the live surface (PLAN rule 7c); theta is the rounded centres at the
+   checkpoint where the tune stopped, never one selected among checkpoints.
 9. **Gate** — prepare and verify the fitted candidate, the revision-matched
    baseline, clean final-PGO builds, manifests and the registered command. The
    maintainer starts it. Do not change the candidate, bounds, cap, book or
@@ -311,9 +311,10 @@ deterministic diagnostics.
 
 **Colosseum CLI is the main path** for gates, fixed matches, tunes, null pairs
 and gauntlets. `tools/colosseum.ps1` drives matches from the committed run
-files in `tools/colosseum/`; `tools/spsa_colosseum.ps1` drives generated tune
-blocks from `tools/spsa_configs/colosseum/`. The experiment registration owns
-the engines, cap or horizon, seed and evidence directory. The runner is pinned
+files in `tools/colosseum/`; `tools/spsa_colosseum.ps1` drives a tune from a
+rule 7c tune file generated into `tools/spsa_configs/colosseum/`. The
+experiment registration owns the engines, cap or ceiling, seed and evidence
+directory. The runner is pinned
 by revision and SHA-256 in `colosseum.pin.json` (`colosseum-cli` 0.5.0 since
 2026-10-30); a different binary is refused, not substituted. Colosseum is
 qualified in its own repository, with Rarog as the validation engine, and
@@ -330,16 +331,30 @@ The wrappers prove an idle host, runner and engine hashes, build manifests,
 the expected revision and bench fingerprint, advertised UCI options, natural
 termination, placement and the fully resolved policy before play. Match exits
 are interpreted as outcomes rather than shell success/failure, faults are read
-from durable state and the PGN is independently recounted. Tune blocks require
-zero engine, time and infrastructure faults. A gauntlet reads faults per
+from durable state and the PGN is independently recounted. A tune requires
+zero engine, time and infrastructure faults, read at every checkpoint: a fault
+lets the run reach its checkpoint, reads FAULT there and stops with no theta
+(the runner itself ends a run sooner past its own cap: more faults than the
+larger of 3 and 0.5% of the games played).
+The faults are then analysed with the maintainer, who may accept the recorded
+counts with their reason (`tools/spsa_read.py <dir> --accept-faults "<reason>"`);
+the tune's command then reads that checkpoint again for its real verdict and
+resumes or stops by it, and a fault beyond the accepted counts stops it again
+(maintainer, 2026-11-12). A gauntlet reads faults per
 engine from `colosseum-cli stats`: any fault or time loss by a Basilisk build
 (a participant with a build manifest) voids it, as does any infrastructure
 fault, while a foreign opponent's faults are read when they stay within 1% of
 that opponent's games (`-OpponentFaultRatePercent`) and are quoted in the
 manifest. The runner's fault cap is that 1% of the foreign games, zero for an
-all-Basilisk field. An existing match directory
-resumes only at its recorded seed; a later tune block uses `-SeedFrom`, a fresh
-seed and a fresh schedule.
+all-Basilisk field. An existing match or tune directory resumes only at its
+recorded seed. A tune is one run (PLAN rule 7c): `tools/spsa_colosseum.ps1`
+plays it to its registered ceiling a checkpoint at a time with Colosseum's
+`--stop-after-iteration`, reads each checkpoint with `tools/spsa_read.py`, and
+resumes or stops; a `STOP` file in the run directory stops it at the next
+checkpoint, and `-PauseAt <checkpoint>` holds a live tune there for the
+maintainer (the same command without it continues; with a `STOP` file it stops
+there with that checkpoint's centres). Its tune file is `tools/generate_spsa_surface.py --rule7c` for that
+ceiling.
 
 **fastchess and weather-factory stay installed, working and documented** as
 the backup path, for when Colosseum cannot run, until at least the classical
@@ -378,9 +393,10 @@ stop at unrelated depths and contaminate a mean over all moves) and, from
 the sampler, how many physical cores each slot's hot logical CPUs spanned.
 Windows CPU 0 is never a timed game core; on hybrid
 CPUs only the highest efficiency class is eligible. The Ryzen
-9 5950X production host therefore runs fourteen concurrent match games with
-two physical cores free. A tune runs the registered fifteen slots × thirty
-games per iteration there, because its two perturbation arms share a slot; a
+9 5950X production host therefore runs fifteen concurrent Colosseum games, one
+per physical core 1–15, with CPU 0's core free; the fastchess backup path
+keeps a second core free and runs fourteen. A tune runs the registered fifteen
+slots × thirty games per iteration there; a
 different host may reduce concurrency only for an explicitly labelled
 instrument smoke, never for a registered tune. fastchess pins one core per
 game and starves `Threads > 1`, so multi-thread runs on that path drop affinity.
@@ -666,14 +682,19 @@ evaluation and search coordinates never share a run.
 4. Select continuous coordinates from activation and interaction evidence,
    never from a historical coordinate count. Generate the surface from the
    X-macro table in `src/search_params.h` so defaults and ranges cannot drift.
-5. Register the tune in blocks (PLAN rule 7c): 2,000 iterations × 30 games,
-   later blocks seeded from the previous block's rounded centres with a fresh
-   schedule and the same steps, the movement stop rule, a ceiling of three
-   blocks; block size, rule and ceiling never change after the first game.
-   Register the surface, fixed values, binary hash and fingerprint, slots,
-   the budget in games, gain (`r_end` 0.0031) and estimator before launch.
-6. Theta is the last completed block's rounded centres, without checkpoint
-   selection; bake it into a fresh clean PGO binary and run a paired SPRT.
+5. Register the tune as one run (PLAN rule 7c): the surface, fixed values,
+   binary hash and fingerprint, slots, the ceiling in games, the
+   perturbation, the gain (`r_end` 0.00155), the checkpoints and the
+   estimator, before launch. The test, the checkpoints and the ceiling never
+   change after the first game.
+6. Theta is the rounded centres at the checkpoint where the tune stopped,
+   without selection among checkpoints. The fit is gated once, theta against
+   the seeds on the tune binary. Where the tune's own read of its gain is
+   +10 Elo or more, the gate is a fixed 6,000 games and passes when its 95%
+   interval excludes 0 (BAS-S56's rule); otherwise it is the `[0,3]` SPRT.
+   The read chooses the instrument before any gate game. Bake theta into a
+   fresh clean PGO binary whose `bench 13` reproduces the tune binary's
+   count with theta set.
 7. Verify at bake time that every correctness floor still passes under
    generous limits, not only the fixed-depth test: a tuned optimum once broke
    the KBNK conversion core that the fast-TC games never reached, and was
@@ -832,11 +853,18 @@ python tools/diag/check_roadmap.py --self-test
   -ExpectRevision <sha> -ExpectBench <candidate-bench>,<baseline-bench> `
   -Dir tools/results/<experiment>
 
-# MAIN PATH — one registered SPSA block; later blocks add
-# -SeedFrom tools/results/<previous-block> and use a fresh seed.
+# MAIN PATH — one registered SPSA tune (PLAN rule 7c): the tune file for its
+# ceiling, then the run, read and stopped at its checkpoints; -DryRun first.
+python tools/generate_spsa_surface.py --rule7c <surface> --ceiling 6000 `
+  --output tools/spsa_configs/colosseum/<tune>.rule7c.tune.toml
 ./tools/spsa_colosseum.ps1 -Engine <tune.exe> -ExpectBench <bench> `
-  -Seed <seed> -Dir tools/results/<block>
-python tools/spsa_block_rule.py tools/results/<block>
+  -Tune tools/spsa_configs/colosseum/<tune>.rule7c.tune.toml `
+  -Seed <seed> -Dir tools/results/<tune>
+# A live read between checkpoints decides nothing; it is safe while the tune runs.
+python tools/spsa_read.py tools/results/<tune>
+# After a FAULT read, once the faults are analysed and the maintainer accepts them;
+# then the run command above again.
+python tools/spsa_read.py tools/results/<tune> --accept-faults "<reason>"
 
 # BACKUP / SECOND OPINION. Pass the registered bounds: this wrapper's gainer
 # default upper bound is 5, not the registered 3.

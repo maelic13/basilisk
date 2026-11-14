@@ -34,6 +34,32 @@
 // SEE, futility and the evaluation keep the search's own PIECE_VALUE.
 inline constexpr int HIST_PIECE_VALUE[PIECE_TYPE_NB] = {0, 208, 781, 825, 1276, 2538, 0};
 
+// The two meanings of "capture" the search reads. Castling is quiet in both:
+// its destination is the king's square, which is empty.
+//
+// A move of the capture stage: it takes a piece (en passant included) or
+// promotes. The picker, quiescence and the move loop count it a capture.
+inline bool is_capture_stage(const Board& board, Move m) {
+    return board.piece_on(to_sq(m)) != NO_PIECE || move_type(m) == EN_PASSANT
+        || move_type(m) == PROMOTION;
+}
+
+// A move that takes a piece, en passant included; a promotion that takes
+// nothing does not. Correction training and ProbCut read this one.
+inline bool captures_piece(const Board& board, Move m) {
+    return board.piece_on(to_sq(m)) != NO_PIECE || move_type(m) == EN_PASSANT;
+}
+
+// The test a move read from the table passes before it is played: a move of
+// the side to move that is legal here. A key collision or a stale entry hands
+// the node any 16 bits, so nothing about the move is assumed.
+inline bool table_move_usable(const Board& board, Move m) {
+    if (m == MOVE_NONE)
+        return false;
+    const Piece p = board.piece_on(from_sq(m));
+    return p != NO_PIECE && color_of(p) == board.turn() && board.is_legal(m);
+}
+
 class CoreMovePicker {
 public:
     // The stage that produced the move next() just returned.
@@ -63,7 +89,8 @@ public:
     Move first_denied_quiet(ScoredMove* scratch);
 #endif
 
-    static constexpr int GOOD_QUIET_THRESHOLD = -14000;
+    // The compiled threshold; the picker reads the kernel literal behind it.
+    static constexpr int GOOD_QUIET_THRESHOLD = kKernelLiteralDefaults.pick_good_quiet;
 
 private:
     enum class Stage { TT, CaptureInit, GoodCapture, QuietInit, GoodQuiet, BadCapture, BadQuiet, Done };

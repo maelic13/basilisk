@@ -136,7 +136,7 @@ name says.**
   bench, game gate or chess-specific test when that is what acceptance needs.
   Run each required check once on the final relevant state, and reuse the pass
   while its inputs are unchanged.
-- A behavior-neutral engine change reproduces the immediate development fingerprint (currently **4,144,790** at `bench 13`) plus focused tests for behaviour the bench does not reach.
+- A behavior-neutral engine change reproduces the immediate development fingerprint (currently **4,278,307** at `bench 13`) plus focused tests for behaviour the bench does not reach.
   Memory, state or concurrency work also needs the relevant sanitizer/stress
   coverage. The comparison fingerprint is revision-specific: a deliberately
   integrated behaviour change updates the fingerprint record; never preserve
@@ -216,6 +216,7 @@ name says.**
   block and restate them rather than referring back.
 - End-step reports are short: outcome, essential verification, commit, any
   separate findings/ideas, and the exact next unchecked leaf with a model
-  recommendation from its class and GUIDE's mapping (`Claude: <model> —
-  <mode>`) and a one-line reason. Prefer the least costly model judged
+  recommendation from its class and GUIDE's mapping (`Claude: <model>`, the
+  tier only, with a thinking mode only where the leaf needs a specific
+  one) and a one-line reason. Prefer the least costly model judged
   sufficient; never substitute a model the mapping does not name.

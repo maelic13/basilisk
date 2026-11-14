@@ -3,8 +3,10 @@
 // Cluster 2's arithmetic, kept free of the kernel so tests read it directly:
 // the per-line extension budget and the previous-PV predicate.
 
+#include "kernel_literals.h"
 #include "move.h"
 #include <algorithm>
+#include <cstdint>
 
 namespace b3 {
 
@@ -39,7 +41,7 @@ namespace b3 {
 // 1/63 of an evaluation unit, with the donor's integer division.
 [[nodiscard]] inline int singular_beta(int tt_score, int depth, bool tt_pv_off_pv, int per_ply,
                                        int tt_pv_per_ply) {
-    return tt_score - (per_ply + tt_pv_per_ply * int(tt_pv_off_pv)) * depth / 63;
+    return tt_score - (per_ply + tt_pv_per_ply * int(tt_pv_off_pv)) * depth / KLIT(sing_beta_den);
 }
 
 // The graded extension: one ply, a second when the exclusion search fell
@@ -61,6 +63,19 @@ namespace b3 {
     return bound_rule == 0 ? value >= beta : s_beta >= beta;
 }
 
+// The multi-cut's correction bonus: the gap by which the exclusion search
+// cleared the static eval, in the donor's units (`* 1000 / 282`), times the
+// singular depth and `mult`, in 1/1024, clamped to the correction's +-256.
+// The products are 64-bit: the conversion widens them 3.55 times, and in
+// `int` they pass 2^31 from a singular depth of 54 and train the correction
+// by the full clamp the wrong way. The operations and their order are the
+// 32-bit form's, so the two agree wherever that one is defined.
+[[nodiscard]] inline int multicut_correction_bonus(int value, int static_eval, int s_depth,
+                                                   int mult) {
+    const int64_t product = int64_t(value - static_eval) * 1000 / 282 * s_depth * mult / 1024;
+    return int(std::clamp<int64_t>(product, -256, 256));
+}
+
 // The negative extension, when the move is neither singular nor a multi-cut:
 // the TT score proves the node fails high, or the node is an expected cut.
 [[nodiscard]] inline bool negative_extension(int tt_score, int beta, bool cut_node) {
@@ -73,9 +88,9 @@ namespace b3 {
 // guard, ported as written and never tuned.
 [[nodiscard]] inline bool is_shuffling(bool capture_stage, int rule50, int plies_from_null,
                                        int ply, Move m, Move prev2, Move prev4) {
-    if (capture_stage || rule50 < 10)
+    if (capture_stage || rule50 < KLIT(shuffle_rule50))
         return false;
-    if (plies_from_null < 6 || ply < 20)
+    if (plies_from_null < KLIT(shuffle_null_plies) || ply < KLIT(shuffle_ply))
         return false;
     return from_sq(m) == to_sq(prev2) && from_sq(prev2) == to_sq(prev4);
 }
@@ -84,6 +99,24 @@ namespace b3 {
 // drives for mate: singular extensions stand down.
 [[nodiscard]] inline bool seek_mate(int root_depth, int root_score, int min_depth, int min_score) {
     return root_depth >= min_depth && (root_score >= min_score || root_score <= -min_score);
+}
+
+// IIR, the donor's form: a PV or cut node off the previous iteration's PV,
+// not in check and at least `min_depth` deep, loses a ply when it has no
+// table move, or, with `stale`, when its table entry is more than three
+// plies shallower than the node.
+[[nodiscard]] inline bool iir_applies(bool is_pv, bool cut_node, bool in_check, bool follow_pv,
+                                      int depth, int min_depth, bool has_tt_move, bool stale,
+                                      bool tt_found, int tt_depth) {
+    return !in_check && !follow_pv && (is_pv || cut_node) && depth >= min_depth
+        && (!has_tt_move || (stale && tt_found && tt_depth < depth - 3));
+}
+
+// The main search takes a table cutoff only while the rule-50 count is below
+// 96: nearer the limit a stored score may no longer hold, since the entry's
+// key does not carry the count.
+[[nodiscard]] inline bool tt_cutoff_rule50_allows(int rule50) {
+    return rule50 < KLIT(tt_rule50);
 }
 
 }  // namespace b3

@@ -14,6 +14,7 @@
 // their from-to, which differs from keying the whole move only for
 // under-promotions.
 
+#include "kernel_literals.h"
 #include "types.h"
 
 #include <algorithm>
@@ -40,13 +41,20 @@ inline constexpr int hist_piece(Piece p) { return hist_piece(color_of(p), type_o
 // History gravity: a bonus, first clamped to [-Limit, Limit], pulls the entry
 // toward the bound of its sign by the bonus's share of the remaining distance,
 // so repeated bonuses saturate at the bound instead of overflowing.
-template<int Limit>
+// The bound is a kernel literal (src/kernel_literals.h); LIMIT is its compiled
+// value, which the width proofs read.
+template<int KernelLiterals::*Bound>
 struct HistoryBound {
-    static_assert(Limit > 0 && Limit <= 32767, "an entry is a signed 16-bit value");
-    static constexpr int LIMIT = Limit;
+    static constexpr int LIMIT = kKernelLiteralDefaults.*Bound;
+    static_assert(LIMIT > 0 && LIMIT <= 32767, "an entry is a signed 16-bit value");
     static void update(int16_t& e, int bonus) {
-        const int b = std::clamp(bonus, -Limit, Limit);
-        e = static_cast<int16_t>(e + b - e * std::abs(b) / Limit);
+#ifdef BASILISK_LITERAL_SCREEN
+        const int limit = std::min(g_kernel_literals.*Bound, 32767);
+#else
+        constexpr int limit = LIMIT;
+#endif
+        const int b = std::clamp(bonus, -limit, limit);
+        e = static_cast<int16_t>(e + b - e * std::abs(b) / limit);
     }
 };
 
@@ -60,19 +68,19 @@ template<class T, size_t N>
 void scale_entries(T (&a)[N], int num, int den) { for (auto& x : a) scale_entries(x, num, den); }
 
 // Quiet moves by colour and from-to (the butterfly table).
-struct MainHistory : HistoryBound<7183> {
+struct MainHistory : HistoryBound<&KernelLiterals::bound_main> {
     int16_t entry[NCOLORS][SQUARE_NB][SQUARE_NB];
 };
 
 // Captures by attacking piece, destination and captured piece type (the
 // victim's colour is the attacker's opposite).
-struct CaptureHistory : HistoryBound<10692> {
+struct CaptureHistory : HistoryBound<&KernelLiterals::bound_capture> {
     int16_t entry[HIST_PIECE_NB][SQUARE_NB][PIECE_TYPE_NB];
 };
 
 // A [piece][to] row: one continuation-history leaf, selected by an earlier
 // move and read for the move being scored.
-struct PieceToHistory : HistoryBound<30000> {
+struct PieceToHistory : HistoryBound<&KernelLiterals::bound_cont> {
     int16_t entry[HIST_PIECE_NB][SQUARE_NB];
 };
 
@@ -86,7 +94,7 @@ struct ContinuationHistory {
 
 // Quiet moves by pawn structure: a bucket per pawn-key hash, each a
 // [piece][to] row.
-struct PawnHistoryBucket : HistoryBound<8192> {
+struct PawnHistoryBucket : HistoryBound<&KernelLiterals::bound_pawn> {
     int16_t entry[HIST_PIECE_NB][SQUARE_NB];
 };
 struct PawnHistory {
@@ -96,22 +104,39 @@ struct PawnHistory {
 };
 
 // Quiet moves at the first plies of the search, by ply and from-to.
-struct LowPlyHistory : HistoryBound<7183> {
+struct LowPlyHistory : HistoryBound<&KernelLiterals::bound_low_ply> {
     static constexpr int PLIES = 5;
     int16_t entry[PLIES][SQUARE_NB][SQUARE_NB];
 };
 
 // How often the TT move turned out best.
-struct TTMoveHistory : HistoryBound<8192> {
+struct TTMoveHistory : HistoryBound<&KernelLiterals::bound_tt_move> {
     int16_t value;
+};
+
+// A quiet move's history score at the node that searches it: its main and
+// its two nearest continuation entries, in 1/1024. A capture-stage move's is
+// its captured value plus its capture history instead.
+// `of` is the compiled weights, for the width proofs; `score` is the search's
+// read, the same outside the literal-screen build.
+struct QuietStatScore {
+    static constexpr int MAIN = kKernelLiteralDefaults.stat_main;
+    static constexpr int CONT1 = kKernelLiteralDefaults.stat_cont1;
+    static constexpr int CONT2 = kKernelLiteralDefaults.stat_cont2;
+    static constexpr int of(int main, int cont1, int cont2) {
+        return (MAIN * main + CONT1 * cont1 + CONT2 * cont2) / 1024;
+    }
+    static int score(int main, int cont1, int cont2) {
+        return (KLIT(stat_main) * main + KLIT(stat_cont1) * cont1 + KLIT(stat_cont2) * cont2) / 1024;
+    }
 };
 
 // Correction histories: the error of the static evaluation against the
 // search, by structure and by move pair, in evaluation units.
-using CorrectionBound = HistoryBound<1024>;
+using CorrectionBound = HistoryBound<&KernelLiterals::bound_corr>;
 
 // A [piece type][to] correction row, selected by an earlier move.
-struct PieceToCorrection : HistoryBound<1024> {
+struct PieceToCorrection : HistoryBound<&KernelLiterals::bound_cont_corr> {
     int16_t entry[PIECE_TYPE_NB][SQUARE_NB];
 };
 
@@ -156,7 +181,7 @@ struct CoreHistoryTables {
     // Between searches: the main history keeps main_num/1024 of each entry and
     // the low-ply history restarts at LOW_PLY_REFILL; nothing else ages.
     void age(int main_num);
-    static constexpr int LOW_PLY_REFILL = 102;
+    static constexpr int LOW_PLY_REFILL = kKernelLiteralDefaults.low_ply_refill;
 
     [[nodiscard]] PieceToHistory* sentinel_row() {
         return &continuation->row[0][0][NO_PIECE_TYPE][0];

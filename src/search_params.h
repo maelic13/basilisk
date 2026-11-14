@@ -19,7 +19,7 @@
 //   BASILISK_CORE_KERNEL_PARAMS     the node kernel's, which includes the
 //                                   line it inherited from the kernel it
 //                                   replaced (BASILISK_LEGACY_LMR_SINGULAR);
-//   BASILISK_B3_PARAMS, _B4_PARAMS  Cluster 2's and Cluster 3's.
+//   BASILISK_B3_PARAMS, _B4_PARAMS, _B5_PARAMS  Clusters 2, 3 and 4's.
 //
 // BASILISK_SEARCH_PARAMS, the table every consumer expands, is the kernel
 // table followed by the root table.
@@ -112,6 +112,7 @@
     BASILISK_LEGACY_LMR_SINGULAR(X)                                      \
     /* Node margins */                                                   \
     X(razor_margin,          CoreRazorMargin,       269,  128,   527)    \
+    F(razor_quad_margin,     CoreRazorQuadMargin,   136,   60,   300)    \
     X(rfp_per_ply,           CoreRfpPerPly,         101,   40,   227)    \
     X(rfp_improving,         CoreRfpImproving,       98,   35,   160)    \
     X(rfp_worsening,         CoreRfpWorsening,       13,    0,    60)    \
@@ -119,12 +120,12 @@
     X(rfp_depth_cap,         CoreRfpDepthCap,         10,    6,    19)    \
     X(rfp_beta_weight,       CoreRfpBetaWeight,     660,  512,  1024)    \
     /* Move-loop pruning */                                              \
-    X(lmp_base,              CoreLmpBase,             3,    1,     8)    \
+    X(lmp_base,              CoreLmpBase,             3,    0,     8)    \
     X(lmp_square_scale,      CoreLmpSquareScale,     16,    8,    32)    \
     X(quiet_fut_base,        CoreQuietFutBase,      166,   80,   300)    \
     X(quiet_fut_slope,       CoreQuietFutSlope,     107,   34,   190)    \
     X(quiet_fut_alpha_term,  CoreQuietFutAlphaTerm,  29,    0,    90)    \
-    X(quiet_fut_depth_cap,   CoreQuietFutDepthCap,    8,    5,    12)    \
+    X(quiet_fut_depth_cap,   CoreQuietFutDepthCap,    8,    4,    12)    \
     X(capt_fut_base,         CoreCaptFutBase,        79,   40,   270)    \
     X(capt_fut_slope,        CoreCaptFutSlope,      105,   60,   390)    \
     X(capt_fut_hist_div,     CoreCaptFutHistDiv,     15,    8,   128)    \
@@ -149,10 +150,10 @@
     X(lmr_cutoff_cnt2,       CoreLmrCutoffCnt2,     996,    0,  2500)    \
     X(lmr_cutoff_cnt_all,    CoreLmrCutoffCntAll,   910,    0,  2500)    \
     X(lmr_stat_scale,        CoreLmrStatScale,      526,  100,  1200)    \
-    X(lmr_alpha_eval_scale,  CoreLmrAlphaEvalScale,   2,    0,    10)    \
+    X(lmr_alpha_eval_scale,  CoreLmrAlphaEvalScale,   2,    1,    10)    \
     X(lmr_all_node_scale,    CoreLmrAllNodeScale,   247,    0,   800)    \
     X(research_deeper,       CoreResearchDeeper,     13,    4,    40)    \
-    X(research_shallower,    CoreResearchShallower,   1,    0,    12)    \
+    X(research_shallower,    CoreResearchShallower,   1,    1,    12)    \
     /* History update policy */                                          \
     X(quiet_bonus_cap,       CoreQuietBonusCap,    1394,  600,  3000)    \
     X(quiet_bonus_slope,     CoreQuietBonusSlope,   151,   60,   300)    \
@@ -162,8 +163,9 @@
     X(main_hist_decay,       CoreMainHistDecay,     749,  400,  1024)    \
     /* TT cutoff training */                                             \
     X(tt_cutoff_bonus_slope, CoreTtCutoffBonusSlope, 151,    0,   300)   \
+    F(tt_cutoff_bonus_max,   CoreTtCutoffBonusMax,  695,  200,  3000)   \
     /* Correction */                                                     \
-    X(corr_update_scale,     CoreCorrUpdateScale,    16,    4,    30)     \
+    X(corr_update_scale,     CoreCorrUpdateScale,    16,    4,    64)     \
     X(corr_cont_weight,      CoreCorrContWeight,   9649, 2000, 16000)
 
 // Categorical switches of Cluster 1's kernel: S(field, UciName, default, min,
@@ -183,6 +185,19 @@
 //   the default and the donor's form, delivers no quiet after it.
 // lmr_negative_allowed: 1 lets a negative reduction extend a reduced search
 //   up to two plies beyond the full depth; 0 caps it at the full depth.
+// The donor's forms where Basilisk keeps its own, each read by a paired run
+// against the default (0, Basilisk's form):
+// tt_cutoff_bonus_cap: 1 caps the TT-cutoff quiet bonus at
+//   CoreTtCutoffBonusMax (the donor's 695); 0 slope * depth uncapped.
+// razor_donor: 1 razors at any depth when the estimate is below alpha -
+//   CoreRazorQuadMargin * depth^2 (the donor's 482 in its units), with no
+//   table-move or bound guard; 0 the form above.
+// tt_key50: 1 the table's key carries the rule-50 count's eight-ply bucket
+//   from a count of 14, so a bound is not shared between positions with
+//   very different fifty-move horizons (repetition reads the raw key); 0
+//   the raw key.
+// corr_nonpawn_kings: 1 the non-pawn correction keys include each side's
+//   king; 0 leaves it out, so every bare king shares one entry.
 // corr_admission: 1 trains the correction where the error's sign agrees with
 //   the bound (above the static eval exactly when a move raised alpha); 0
 //   where the node failed high or raised alpha.
@@ -192,7 +207,11 @@
     S(corr_admission,        CoreCorrAdmission,      1,    0,     1)     \
     S(razor_depth_cap,       CoreRazorDepthCap,      1,    1,     3)     \
     S(lmp_exempt_checks,     CoreLmpExemptChecks,    0,    0,     1)     \
-    S(lmr_negative_allowed,  CoreLmrNegativeAllowed, 1,    0,     1)
+    S(lmr_negative_allowed,  CoreLmrNegativeAllowed, 1,    0,     1)     \
+    S(tt_cutoff_bonus_cap,   CoreTtCutoffBonusCap,   0,    0,     1)     \
+    S(razor_donor,           CoreRazorDonor,         0,    0,     1)     \
+    S(tt_key50,              CoreTtKey50,            0,    0,     1)     \
+    S(corr_nonpawn_kings,    CoreCorrNonPawnKings,   0,    0,     1)
 
 // ---- Cluster 2, the proof searches and extensions ---------------------------
 //
@@ -273,7 +292,7 @@
     X(b3_nmp_per_ply,        B3NmpPerPly,           16,    2,    32)     \
     X(b3_nmp_improving,      B3NmpImproving,        15,    0,    40)     \
     X(b3_nmp_base,           B3NmpBase,            163,   50,   300)     \
-    X(b3_nmp_red_base,       B3NmpRedBase,           4,    2,    10)     \
+    X(b3_nmp_red_base,       B3NmpRedBase,           4,    1,    10)     \
     X(b3_nmp_red_eval_div,   B3NmpRedEvalDiv,       80,   36,   256)     \
     F(b3_nmp_red_depth_div,  B3NmpRedDepthDiv,       3,    2,     6)     \
     F(b3_nmp_beta_floor,     B3NmpBetaFloor,      -564, -2000,    0)     \
@@ -282,7 +301,7 @@
     S(b3_nmp_verify,         B3NmpVerify,            1,    0,     2)     \
     S(b3_nmp_eval_gate,      B3NmpEvalGate,          0,    0,     1)     \
     /* Internal iterative reduction */                                   \
-    X(b3_iir_min_depth,      B3IirMinDepth,          5,    3,    10)     \
+    X(b3_iir_min_depth,      B3IirMinDepth,          5,    3,    11)     \
     S(b3_iir,                B3Iir,                  1,    0,     1)     \
     S(b3_iir_stale,          B3IirStale,             0,    0,     1)     \
     /* ProbCut */                                                        \
@@ -413,6 +432,128 @@
     A(b3_nmp_per_ply,        B3NmpPerPly,            13)                \
     A(b3_iir_min_depth,      B3IirMinDepth,           6)
 
+// ---- Cluster 4: the root and the aspiration window ---------------------------
+//
+// The width of a root line's window counts thousandths of a unit:
+// `b5_asp_base + (thread % 8) * 282 + |mean square of the line's scores| * 1000 /
+// b5_asp_msq_div`, rounded up to a whole unit either side of the line's average
+// score, and it grows by b5_asp_growth/128 per failure. These are the donor's 5
+// and 10193 in this engine's evaluation units (0.282 of the donor's), its 47
+// unchanged.
+//
+// S lines. Categoricals, each settled by a paired run:
+//   b5_fail_high_reduce: 1 the re-search after a fail high runs that many plies
+//     shallower, at least one deep; 0 full depth.
+//   b5_neg_ext_max: extensions from a negative reduction a line may hold before
+//     the ceiling stops granting them; 0 unbounded.
+// Attribution switches, whose defaults are the cluster's form:
+//   b5_window: 1 the loop above; 0 the driver's older loop on the record.
+//   b5_root_lmr: 1 root moves after the first are reduced at depth 2 or more.
+//   b5_lmr_window_units: 1 the LMR window term reads a non-PV node's window in
+//     the donor's units (577 * 0.282 = 163); 0 reads 577 at every node.
+// b5_fail_high_stop: the percent of the optimum past which a fail high on the
+//   previous best ends the search; 0 never. The cluster's window fails high
+//   more often than the older loop's, and there the stop at the optimum itself
+//   lost to the stop at twice it, so its default is BASILISK_B5_CORE_DEFAULTS's.
+#define BASILISK_B5_PARAMS(X, F, S)                                      \
+    X(b5_asp_base,           B5AspBase,           2202,  500, 40000)     \
+    X(b5_asp_msq_div,        B5AspMsqDiv,         2907, 1000, 12000)     \
+    X(b5_asp_growth,         B5AspGrowth,           46,   32,    96)     \
+    S(b5_fail_high_reduce,   B5FailHighReduce,       0,    0,     1)     \
+    S(b5_neg_ext_max,        B5NegExtMax,            1,    0,     2)     \
+    S(b5_window,             B5Window,               1,    0,     1)     \
+    S(b5_root_lmr,           B5RootLmr,              1,    0,     1)     \
+    S(b5_lmr_window_units,   B5LmrWindowUnits,       1,    0,     1)     \
+    S(b5_fail_high_stop,     B5FailHighStop,       100,    0,   400)
+
+// Cluster 4's own defaults where they differ from a line's, in the form of
+// BASILISK_B4_CORE_DEFAULTS and applied after it. The earlier clusters'
+// coordinates here were fitted on Cluster 4's tree beside the window's.
+#define BASILISK_B5_CORE_DEFAULTS(A)                                     \
+    A(b5_fail_high_stop,     B5FailHighStop,        200)                \
+    A(cont_hist_prune_slope, CoreContHistPruneSlope, 3783)              \
+    A(corr_update_scale,     CoreCorrUpdateScale,    18)                \
+    A(b3_nmp_per_ply,        B3NmpPerPly,            11)                \
+    A(b3_sing_margin,        B3SingMargin,          201)                \
+    A(b3_iir_min_depth,      B3IirMinDepth,           7)
+
+// B.6.7's joint fit (BAS-S61, theta at iteration 2,000) where it differs from the
+// value the clusters left, in the same form and applied after them. The
+// kernel's literals the fit moved are baked in src/kernel_literals.h.
+#define BASILISK_B67_DEFAULTS(A)                                         \
+    A(razor_margin,          CoreRazorMargin,           258)                \
+    A(rfp_per_ply,           CoreRfpPerPly,             101)                \
+    A(rfp_improving,         CoreRfpImproving,           93)                \
+    A(rfp_worsening,         CoreRfpWorsening,           12)                \
+    A(rfp_corr_mult,         CoreRfpCorrMult,           504)                \
+    A(rfp_depth_cap,         CoreRfpDepthCap,             9)                \
+    A(rfp_beta_weight,       CoreRfpBetaWeight,         646)                \
+    A(quiet_fut_base,        CoreQuietFutBase,          171)                \
+    A(quiet_fut_slope,       CoreQuietFutSlope,         110)                \
+    A(quiet_fut_alpha_term,  CoreQuietFutAlphaTerm,      32)                \
+    A(capt_fut_base,         CoreCaptFutBase,            68)                \
+    A(capt_fut_slope,        CoreCaptFutSlope,           92)                \
+    A(cont_hist_prune_slope, CoreContHistPruneSlope,   3594)                \
+    A(capt_see_coeff,        CoreCaptSeeCoeff,           65)                \
+    A(capt_see_hist_div,     CoreCaptSeeHistDiv,         75)                \
+    A(lmr_table_scale,       CoreLmrTableScale,        3119)                \
+    A(lmr_offset,            CoreLmrOffset,             947)                \
+    A(lmr_not_improving,     CoreLmrNotImproving,       224)                \
+    A(lmr_tt_pv,             CoreLmrTtPv,               978)                \
+    A(lmr_tt_pv_base,        CoreLmrTtPvBase,          3025)                \
+    A(lmr_tt_pv_pv_node,     CoreLmrTtPvPvNode,         964)                \
+    A(lmr_tt_pv_above_alpha, CoreLmrTtPvAboveAlpha,     763)                \
+    A(lmr_tt_pv_depth_ok,    CoreLmrTtPvDepthOk,        838)                \
+    A(lmr_cut_node,          CoreLmrCutNode,           3782)                \
+    A(lmr_cut_node_no_tt,    CoreLmrCutNodeNoTt,        762)                \
+    A(lmr_tt_capture,        CoreLmrTtCapture,          969)                \
+    A(lmr_cutoff_cnt,        CoreLmrCutoffCnt,          253)                \
+    A(lmr_cutoff_cnt2,       CoreLmrCutoffCnt2,        1006)                \
+    A(lmr_cutoff_cnt_all,    CoreLmrCutoffCntAll,       874)                \
+    A(lmr_stat_scale,        CoreLmrStatScale,          573)                \
+    A(lmr_all_node_scale,    CoreLmrAllNodeScale,       242)                \
+    A(research_deeper,       CoreResearchDeeper,         14)                \
+    A(quiet_bonus_cap,       CoreQuietBonusCap,        1459)                \
+    A(quiet_bonus_slope,     CoreQuietBonusSlope,       144)                \
+    A(malus_cap,             CoreMalusCap,             2410)                \
+    A(malus_slope,           CoreMalusSlope,            931)                \
+    A(malus_decay,           CoreMalusDecay,            937)                \
+    A(main_hist_decay,       CoreMainHistDecay,         776)                \
+    A(tt_cutoff_bonus_slope, CoreTtCutoffBonusSlope,    139)                \
+    A(corr_update_scale,     CoreCorrUpdateScale,        20)                \
+    A(corr_cont_weight,      CoreCorrContWeight,      10045)                \
+    A(b3_nmp_base,           B3NmpBase,                 180)                \
+    A(b3_nmp_red_base,       B3NmpRedBase,                5)                \
+    A(b3_nmp_red_eval_div,   B3NmpRedEvalDiv,            75)                \
+    A(b3_iir_min_depth,      B3IirMinDepth,               8)                \
+    A(b3_probcut_base,       B3ProbCutBase,              70)                \
+    A(b3_probcut_improving,  B3ProbCutImproving,         20)                \
+    A(b3_sing_margin,        B3SingMargin,              160)                \
+    A(b3_sing_double_base,   B3SingDoubleBase,            0)                \
+    A(b3_sing_double_pv,     B3SingDoublePv,             58)                \
+    A(b3_sing_double_quiet,  B3SingDoubleQuiet,         -44)                \
+    A(b3_sing_triple_base,   B3SingTripleBase,           23)                \
+    A(b3_sing_triple_pv,     B3SingTriplePv,             82)                \
+    A(b3_sing_triple_ttpv,   B3SingTripleTtPv,           19)                \
+    A(b3_sing_triple_deep,   B3SingTripleDeep,          -11)                \
+    A(b4_qs_fut_base,        B4QsFutBase,                87)                \
+    A(b4_qs_stand_pat_blend, B4QsStandPatBlend,         436)                \
+    A(b4_qs_fail_high_blend, B4QsFailHighBlend,         469)                \
+    A(b5_asp_base,           B5AspBase,                2139)                \
+    A(b5_asp_msq_div,        B5AspMsqDiv,              3260)                \
+    A(b5_asp_growth,         B5AspGrowth,                47)
+
+// B.6.6's adoptions, the B6_DONOR_FORMS arm, in the same form and applied
+// last: the donor's razoring and the kings in the non-pawn correction keys,
+// each adopted by its paired run and gated together. Empty on the OFF arm.
+#ifdef BASILISK_B6_DONOR_FORMS
+#define BASILISK_B6_CORE_DEFAULTS(A)                                     \
+    A(razor_donor,           CoreRazorDonor,          1)                \
+    A(corr_nonpawn_kings,    CoreCorrNonPawnKings,    1)
+#else
+#define BASILISK_B6_CORE_DEFAULTS(A)
+#endif
+
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
 
@@ -428,11 +569,16 @@ struct SearchParams {
                        BASILISK_SEARCH_PARAM_FIELD)
     BASILISK_B4_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
                        BASILISK_SEARCH_PARAM_FIELD)
+    BASILISK_B5_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
+                       BASILISK_SEARCH_PARAM_FIELD)
 #undef BASILISK_SEARCH_PARAM_FIELD
     constexpr SearchParams() noexcept {
 #define BASILISK_ARM_DEFAULT(field, uci, value) field = value;
         BASILISK_B3_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
         BASILISK_B4_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
+        BASILISK_B5_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
+        BASILISK_B67_DEFAULTS(BASILISK_ARM_DEFAULT)
+        BASILISK_B6_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
 #undef BASILISK_ARM_DEFAULT
     }
 };

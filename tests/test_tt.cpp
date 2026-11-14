@@ -377,6 +377,43 @@ static void test_move_preserved() {
     end_section();
 }
 
+// A store that passes no move keeps the move the entry already holds for that
+// position, and takes none from another position's entry; a store with a move
+// replaces it.
+static void test_store_without_move_keeps_move() {
+    TranspositionTable tt(1);
+    const Key key = 0x5151515151515151ULL;
+    const Move m = make_move(G1, F3);
+    TTEntry e{};
+
+    begin_section("store without a move: the entry keeps its move");
+    tt.store(key, 6, 40, TT_BETA, m, 0, 40);
+    tt.store(key, 7, -10, TT_ALPHA, MOVE_NONE, 0, 40);
+    EXPECT(tt.probe_copy(key, e));
+    EXPECT_EQ(move_from_tt(e.move16), m);
+    EXPECT_EQ(int(e.depth), 7);
+    EXPECT_EQ(int(e.bound()), int(TT_ALPHA));
+    end_section();
+
+    begin_section("store without a move: a new move replaces it");
+    const Move n = make_move(E2, E4);
+    tt.store(key, 8, 15, TT_EXACT, n, 0, 40);
+    EXPECT(tt.probe_copy(key, e));
+    EXPECT_EQ(move_from_tt(e.move16), n);
+    end_section();
+
+    begin_section("store without a move: none taken from another position");
+    // Another position in the same cluster: the same index bits, another
+    // key fragment.
+    const Key other = key ^ 0x0001000000000000ULL;
+    tt.store(other, 9, 5, TT_EXACT, MOVE_NONE, 0, 5);
+    EXPECT(tt.probe_copy(other, e));
+    EXPECT_EQ(move_from_tt(e.move16), MOVE_NONE);
+    EXPECT(tt.probe_copy(key, e));
+    EXPECT_EQ(move_from_tt(e.move16), n);
+    end_section();
+}
+
 static void test_empty_slot_with_key_zero_is_a_miss() {
     // A key whose 16-bit fragment is 0 matches every empty slot's key16; the
     // empty payload must still reject it.
@@ -438,6 +475,22 @@ static void test_age_cycle() {
 // Cluster 2's bound-mismatch penalty: the entry loses one ply of depth and
 // nothing else; an entry at depth 0, an evaluation-only entry and a missing
 // key are left as they were.
+static void test_key50_buckets() {
+    const Key key = 0x5A5A5A5A12345678ULL;
+    begin_section("rule-50 key: raw below 14, one key per eight-ply bucket from 14");
+    EXPECT_EQ(tt_key50(key, 0), key);
+    EXPECT_EQ(tt_key50(key, 13), key);
+    EXPECT(tt_key50(key, 14) != key);
+    EXPECT_EQ(tt_key50(key, 21), tt_key50(key, 14));
+    EXPECT(tt_key50(key, 22) != tt_key50(key, 21));
+    EXPECT_EQ(tt_key50(key, 29), tt_key50(key, 22));
+    EXPECT(tt_key50(key, 96) != tt_key50(key, 22));
+    EXPECT_EQ(tt_key50(key, 99), tt_key50(key, 94));
+    // Distinct positions stay distinct within a bucket.
+    EXPECT(tt_key50(key, 30) != tt_key50(key ^ 1, 30));
+    end_section();
+}
+
 static void test_penalize() {
     TranspositionTable tt(1);
     const Key key = 0x5A5A5A5A12345678ULL;
@@ -596,6 +649,9 @@ int main() {
     std::printf("\nPrefetch\n");
     test_prefetch_is_safe();
 
+    std::printf("\nRule-50 key\n");
+    test_key50_buckets();
+
     std::printf("\nReplacement policy\n");
     test_deeper_entry_preferred();
 
@@ -607,6 +663,7 @@ int main() {
 
     std::printf("\nMove preservation\n");
     test_move_preserved();
+    test_store_without_move_keeps_move();
 
     std::printf("\nEmpty slots\n");
     test_empty_slot_with_key_zero_is_a_miss();

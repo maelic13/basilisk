@@ -54,6 +54,8 @@ static constexpr int64_t CONV_NODES = 60000;
 // `--nodes N` replays the floors at another budget (B-3's multi-budget read);
 // the bounds are set at CONV_NODES, so another budget reports, it does not judge.
 static int64_t conv_nodes = CONV_NODES;
+// `--list` names every playout, one line each, for a grid's per-position read.
+static bool conv_list = false;
 static constexpr int MATE_BUDGET = 100;   // max plies to deliver mate
 
 // White-perspective static eval.
@@ -360,6 +362,10 @@ static void test_conversion_floors() {
     work();
     for (std::thread& t : pool)
         t.join();
+
+    if (conv_list)
+        for (const Job& job : jobs)
+            std::printf("playout %s %d %s\n", fams[job.family].name, job.plies, job.fen.c_str());
 
     for (size_t k = 0; k < fams.size(); ++k) {
         const Family& f = fams[k];
@@ -778,6 +784,7 @@ int main(int argc, char** argv) {
         if (std::strcmp(argv[i], "--conversion") == 0) conversion = true;
         else if (std::strcmp(argv[i], "--nodes") == 0 && i + 1 < argc)
             conv_nodes = std::atoll(argv[++i]);
+        else if (std::strcmp(argv[i], "--list") == 0) conv_list = true;
         else epd_path = argv[i];
     }
 

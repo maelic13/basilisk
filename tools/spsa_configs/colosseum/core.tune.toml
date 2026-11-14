@@ -54,7 +54,7 @@ c_end = 14.7382
 [[parameters]]
 name = "CoreLmpBase"
 initial = 3
-min = 1
+min = 0
 max = 8
 c_end = 0.9211
 
@@ -89,7 +89,7 @@ c_end = 2.7634
 [[parameters]]
 name = "CoreQuietFutDepthCap"
 initial = 8
-min = 5
+min = 4
 max = 12
 c_end = 0.9211
 
@@ -250,7 +250,7 @@ c_end = 31.7793
 [[parameters]]
 name = "CoreLmrAlphaEvalScale"
 initial = 2
-min = 0
+min = 1
 max = 10
 c_end = 0.9211
 
@@ -271,7 +271,7 @@ c_end = 0.9211
 [[parameters]]
 name = "CoreResearchShallower"
 initial = 1
-min = 0
+min = 1
 max = 12
 c_end = 0.9211
 
@@ -328,8 +328,8 @@ c_end = 8.7508
 name = "CoreCorrUpdateScale"
 initial = 16
 min = 4
-max = 30
-c_end = 0.9211
+max = 64
+c_end = 1.8423
 
 [[parameters]]
 name = "CoreCorrContWeight"

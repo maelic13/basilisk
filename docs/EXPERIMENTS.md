@@ -135,6 +135,7 @@ X is good/bad”. If conditions or artifacts are unknown, say so.
 | [BAS-M12](experiments/BAS-M12.md) | Houdini 3 crashes at 4T: diagnosis (observation, 2026-10-05). | A race in Houdini 3's multi-thread start-up, triggered |
 | [BAS-M13](experiments/BAS-M13.md) | Frozen before any game, the 1.10.2 verification match against 1.10.1 with tablebases. | WITHDRAWN unplayed |
 | [BAS-M14](experiments/BAS-M14.md) | Loss analysis by cell: stored games judged by Stockfish 19, worst errors re-searched (B.16.3). | Withdrawn unplayed: instrument built, the read moves to D.1 |
+| [BAS-M15](experiments/BAS-M15.md) | "Dev Test": the head after Clusters 1 to 3 in a twelve-engine 1T round robin. | Observation: pool +314.2 over 1.10.2, +74.6 over Rarog 2.5.0 |
 
 ## 3. Search and selectivity
 
@@ -545,6 +546,26 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S52](experiments/BAS-S52.md) — B.4.7: the Cluster 3 gates — H1, +31.7 ± 8.6 Elo; `B4_QSEARCH` defaults ON, `bench 13` 4,144,790
 
+- [BAS-S53](experiments/BAS-S53.md) — B.5.3: Cluster 4 diagnostics, M1 and the unfitted paired run — closed: the unfitted arm +3.3 ± 9.3 Elo; the width stays at 1410; both categoricals stay 0 (item 2 rejected, −10.9 ± 9.4)
+
+- [BAS-S54](experiments/BAS-S54.md) — B.5.4: the Cluster 4 curvature sweep, then SPSA in blocks — closed: one block (block 2 withdrawn by the maintainer), theta baked on the arm, ON `bench 13` 4,585,613
+
+- [BAS-S55](experiments/BAS-S55.md) — B.5.5: the Cluster 4 gates — H1, +15.6 ± 5.9 Elo on the arm at `B5NegExtMax` 1 (+20.3 ± 8.9 at `10+0.1`); L1 waived by the maintainer, (e) not owed; `B5_ROOT` defaults ON, `bench 13` 3,783,135
+
+- [BAS-S56](experiments/BAS-S56.md) — B.5.4 diagnostic: SPSA block 1's centres (theta) against the seeds — +10.8 ± 5.3 Elo over 6,000 games; gate (b) retired by its rule
+
+- [BAS-S57](experiments/BAS-S57.md) — B.5.6: two zero-game reads for the SPSA method (steps by effect; the doubled perturbation) — CLOSED 2026-11-12: steps by tree effect not adopted (pooled rank correlation +0.24 against +0.40); two-step perturbations run clean; rule 7c's range exception graded by room
+
+- [BAS-S58](experiments/BAS-S58.md) — B.5.7: 28 or 30 one-thread games on SMT siblings against 15 on 15 cores, at `3+0.03` (a speed read and two direction replays) — CLOSED 2026-11-12, NOT_WORTH_PURSUING: g28 +10.8 ± 6.1 against (a)'s +15.6 ± 5.9 at 1.87× the games an hour, but 1.6 plies shallower and an SPRT about ×0.84 as fast; g30 two time forfeits; gates keep 15 on 15 cores
+
+- [BAS-S59](experiments/BAS-S59.md) — B.6.6: the donor-form paired runs (TT-cutoff cap at two controls, razoring, rule-50 key, kings in the non-pawn key) — CLOSED 2026-11-13: razoring +10.6 ± 9.4 and kings +11.6 ± 9.3 adopted by their rule, then not confirmed together (BAS-S60); the TT cap and rule-50 key stay; all four to H.6
+
+- [BAS-S60](experiments/BAS-S60.md) — B.6.6: razoring and the kings key, the two adopted donor forms, against the head, SPRT `[0,3]` — CLOSED 2026-11-13: cap reached, +2.2 ± 4.2 Elo over 10,000 games, LLR +0.52; neither adopted
+
+- [BAS-S61](experiments/BAS-S61.md) — B.6.7: the literal screen and the relevance read, the curvature sweep, then the joint search SPSA — reads done 2026-11-13 (42 of 74 coordinates and 60 of 118 literals pass; two flat dropped); the SPSA run 2026-11-13 to 14 over 170 coordinates (amendment 2): STOP_QUIET at 2,000, 60,000 games, no fault; baked, `bench 13` 4,278,307 — CLOSED 2026-11-14: accepted by BAS-S62
+
+- [BAS-S62](experiments/BAS-S62.md) — B.6's gate: the B.6.7 bake against the head before it, SPRT `[0,3]` — CLOSED 2026-11-14: H1 at 2,620 games, first-crossing +28.2 ± 7.9 Elo; the bake accepted
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |
@@ -587,6 +608,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 | [BAS-R07](experiments/BAS-R07.md) | Fail-high clock stop sink probes: B.10 ended rec1's sink by a mate proof; cascade and the stop's hole remain. | Observation |
 | [BAS-R08](experiments/BAS-R08.md) | Wall-clock overhead read against Stockfish 19 at Threads 1 and 4. | Observation: 1T passes (gaps ≤ +0.77 ms); 4T movetime overshoot +1.08 to +1.14 ms over the line, a repair finding |
 | [BAS-R09](experiments/BAS-R09.md) | Helpers read the stop flag at every node (4T stop latency). | Retained: cap 3,000 games at 4T, −2.2 ± 7.1 Elo, LLR −0.96; 4T stop latency −0.25 ms |
+| [BAS-R10](experiments/BAS-R10.md) | B.5.3: M1, the fail-high stop's firing read, on the arm. | Closed: 2× against 1× (1× ends 23.42% of searches), played before B.5.4's fit as BAS-S55 (c), which read H1 (+9.3 ± 4.4 Elo), so the arm's stop is at 2×; the hole 6.28%, a D.1 research card |
 
 ## 5. Evaluation and data experiments
 

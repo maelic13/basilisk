@@ -1,5 +1,6 @@
 #include "search_worker.h"
 #include "constants.h"
+#include "search_b5.h"
 #include "syzygy.h"
 #include <algorithm>
 #include <bit>
@@ -313,13 +314,73 @@ Move Searcher::ponder_from_tt(const Board& root, Move bestmove) const {
     child.make_move(bestmove);
 
     TTEntry entry{};
-    if (!shared_.tt.probe_copy(child.position_key(), entry))
+    if (!shared_.tt.probe_copy(tt_key(child), entry))
         return MOVE_NONE;
 
     const Move ponder = move_from_tt(entry.move16);
     return is_legal_move_on_board(child, ponder) ? ponder : MOVE_NONE;
 }
 
+
+void Searcher::diag_root_tt([[maybe_unused]] int last_window, [[maybe_unused]] Move best) {
+    TTEntry entry{};
+    if (!shared_.tt.probe_copy(tt_key(*state_.board), entry))
+        return;
+    [[maybe_unused]] const bool mismatch = move_from_tt(entry.move16) != best;
+    if (last_window == 0) {
+        DIAG_COUNT(++state_.diag.root_tt_probe_first);
+        DIAG_COUNT(state_.diag.root_tt_mismatch_first += mismatch);
+    } else if (last_window == 1) {
+        DIAG_COUNT(++state_.diag.root_tt_probe_fl);
+        DIAG_COUNT(state_.diag.root_tt_mismatch_fl += mismatch);
+    } else {
+        DIAG_COUNT(++state_.diag.root_tt_probe_fh);
+        DIAG_COUNT(state_.diag.root_tt_mismatch_fh += mismatch);
+    }
+}
+
+void Searcher::root_record_init(const Board& board) {
+    state_.root_moves.clear();
+    state_.root_line = 0;
+    state_.root_iterations = 0;
+    MoveList legal;
+    board.gen_legal(legal);
+    int ordinal = 0;
+    for (Move m : legal) {
+        if (!move_in_root_moves(m, config_.limits.root_moves) || !root_tablebase_allows(m))
+            continue;
+        const int place = ordinal++;
+        if (config_.root_filter_index >= 0
+            && place % config_.root_filter_count != config_.root_filter_index)
+            continue;
+        RootMove& rm = state_.root_moves.emplace_back();
+        rm.move = m;
+        rm.tb_rank = root_tablebase_ordering_score(state_.root_tb_moves, m);
+        // Reserved here so that nothing below the root allocates.
+        rm.pv.reserve(MAX_PLY);
+        rm.previous_pv.reserve(MAX_PLY);
+        rm.pv.push_back(m);
+    }
+}
+
+void Searcher::root_record_begin_iteration() {
+    state_.root_line = 0;
+    for (RootMove& rm : state_.root_moves) {
+        rm.previous_score = rm.score;
+        rm.previous_pv = rm.pv;
+    }
+    // Line 1's last score, the input of the rules that read it, and its line,
+    // which the iteration follows. Before an iteration completed there is
+    // neither, whatever the records hold.
+    state_.prev_pv_len = 0;
+    state_.prev_root_score = 0;
+    if (state_.root_iterations > 0 && !state_.root_moves.empty()) {
+        const RootMove& line = state_.root_moves.front();
+        state_.prev_pv_len = std::min<int>(static_cast<int>(line.previous_pv.size()), MAX_PLY);
+        std::copy_n(line.previous_pv.begin(), state_.prev_pv_len, state_.prev_pv);
+        state_.prev_root_score = line.previous_score;
+    }
+}
 
 // ---- Iterative deepening ---------------------------------------------------
 
@@ -350,12 +411,15 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     state_.sel_depth    = 0;
     state_.stopped      = false;
     state_.last_line_move = MOVE_NONE;
+    state_.longest_window = 0.0;
+    state_.longest_window_start = 0.0;
     state_.pondering    = limits.ponder;
     state_.root_side    = board.turn();
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     state_.trace.start(limits.decision_trace && limits.diag && shared_.info
                        && config_.thread_count == 1 && config_.thread_id == 0
-                       && limits.root_moves.size() == 1);
+                       && (limits.trace_root || limits.root_moves.size() == 1),
+                       limits.trace_root);
     if (limits.decision_trace && shared_.info && !state_.trace.enabled())
         shared_.info("info string trace error requires Diag=true Threads=1 and exactly one searchmoves root");
     // Pricing probes restore a single thread's state; the trace would record
@@ -387,6 +451,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     state_.prev_root_score = 0;
     init_root_tablebase_scores(board);
     state_.root_ordering = RootOrdering{&state_.root_tb_moves, shared_.pool.root_table};
+    root_record_init(board);
 
     SearchResult result;
     int prev_score      = 0;
@@ -415,7 +480,6 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     // MultiPV: the main thread reports up to `multipv` lines, never more than
     // the root moves the search may play; helpers search one.
     state_.multipv_lines = 1;
-    state_.root_excluded.clear();
     if (limits.multipv > 1 && config_.thread_id == 0) {
         MoveList root_legal;
         board.gen_legal(root_legal);
@@ -451,54 +515,159 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     if (config_.thread_id > 0 && max_depth > 2)
         start_depth = 1 + (config_.thread_id % 2);
 
+    // One root search, with the longest timed for TM_Debug. A stopped search
+    // counts: it is the think the stop's test did not reach.
+    auto search_window = [&](int window_depth, int window_alpha, int window_beta, int searched_depth = 0) {
+        const double began = limits.tm_debug ? elapsed_seconds() : 0.0;
+        const int window_score = root_search(window_depth, window_alpha, window_beta,
+                                             searched_depth > 0 ? searched_depth : window_depth);
+        if (limits.tm_debug && elapsed_seconds() - began > state_.longest_window) {
+            state_.longest_window = elapsed_seconds() - began;
+            state_.longest_window_start = began;
+        }
+        return window_score;
+    };
+
+    int last_best_score = kRootScoreNone;
+    std::vector<Move> last_best_pv;
+
     for (int depth = start_depth; depth <= max_depth && !state_.stopped; depth++) {
         state_.pv_len[0] = 0;
         state_.sel_depth = 0;
         state_.root_depth_nodes = 0;
         state_.root_best_nodes = 0;
         state_.root_best_effort = 0;
+        root_record_begin_iteration();
         int score;
+        [[maybe_unused]] bool windowed = false;
+
+        // A long iteration whose window fails reports the bound it proved,
+        // with the line that failed high, or the previous line on a fail low.
+        // At a tablebase root the line's move shows its tablebase score,
+        // without a bound, as the depth lines do.
+        auto bound_line = [&](int bound_score, bool lower) {
+            if (!shared_.info || elapsed_seconds() <= config_.limits.bound_line_after)
+                return;
+            std::vector<Move> line = result.pv;
+            if (lower && state_.pv_len[0] > 0)
+                line.assign(state_.pv_table[0], state_.pv_table[0] + std::clamp(state_.pv_len[0], 0, MAX_PLY));
+            line = legal_line(*state_.board, line);
+            const int tb_display = line.empty() ? VALUE_NONE : root_tablebase_display(line.front());
+            const bool tb_root = tb_display != VALUE_NONE;
+            shared_.info(format_info_line(depth, state_.sel_depth, 1,
+                                      tb_root ? tb_display : bound_score,
+                                      tb_root ? "" : (lower ? "lowerbound" : "upperbound"),
+                                      current_nodes(), elapsed_seconds(), current_tbhits(),
+                                      shared_.tt.hashfull(), line));
+            if (!line.empty())
+                state_.last_line_move = line.front();
+        };
+        // Past the optimum, a fail-high on the move the last iteration chose
+        // only proves that move better than the window expected: play it rather
+        // than spend the rest of the budget measuring by how much. A rising
+        // score in a won ending otherwise re-searches at full depth until the
+        // hard maximum. The iteration is discarded as on any stop, so the move
+        // played is that iteration's, and it is this one.
+        auto fail_high_stop = [&]() {
+            if (state_.soft_limit > 0.0 && !state_.pondering && config_.thread_id == 0
+                && state_.pv_len[0] > 0 && state_.pv_table[0][0] == result.bestmove
+                && limits.params.b5_fail_high_stop > 0
+                && elapsed_seconds() >= state_.soft_limit
+                                        * (limits.params.b5_fail_high_stop / 100.0)) {
+                DIAG_COUNT(++state_.diag.fhstop_fired);
+                state_.stopped = true;
+                return true;
+            }
+            return false;
+        };
+
+        // The window of the line's own record: around its average, as wide as
+        // its scores are large. There is no give-up hatch: a window wide enough
+        // to give up on is open from its first search. Only line 1 prints its
+        // bounds and can end the search on a fail high.
+        auto search_line_window = [&]() {
+            const bool line_one = state_.root_line == 0;
+            const RootMove& line = state_.root_moves[static_cast<size_t>(state_.root_line)];
+            int64_t width = b5::first_width(limits.params.b5_asp_base, config_.thread_id, line.mean_sq,
+                                            limits.params.b5_asp_msq_div);
+            int delta = b5::width_delta(width);
+            b5::RootWindow window = b5::first_window(line.average, delta);
+            DIAG_COUNT(++state_.diag.asp_windows);
+            [[maybe_unused]] int last_window = 0;
+            int failed_high_cnt = 0;
+            int line_score;
+            while (true) {
+                if (line_one)
+                    DIAG_COUNT(diag_root_tt(last_window, result.bestmove));
+                [[maybe_unused]] const int64_t window_nodes = state_.nodes;
+                line_score = search_window(depth, window.alpha, window.beta,
+                                           b5::adjusted_depth(depth, failed_high_cnt, limits.params.b5_fail_high_reduce != 0));
+                if (state_.stopped) break;
+                DIAG_COUNT(state_.diag.asp_nodes_windowed += state_.nodes - window_nodes);
+                DIAG_COUNT(state_.diag.asp_nodes_failed
+                           += (line_score <= window.alpha || line_score >= window.beta)
+                                  ? state_.nodes - window_nodes : 0);
+                DIAG_COUNT(state_.diag.asp_fail_high_research_nodes
+                           += last_window == 2 ? state_.nodes - window_nodes : 0);
+                if (line_score <= window.alpha) {
+                    if (line_one)
+                        bound_line(line_score, false);
+                    last_window = 1;
+                    DIAG_COUNT(++state_.diag.asp_fail_low);
+                    DIAG_COUNT(++state_.diag.asp_researches);
+                    window = b5::after_fail_low(window, line_score, delta);
+                    failed_high_cnt = 0;
+                } else if (line_score >= window.beta) {
+                    if (line_one)
+                        bound_line(line_score, true);
+                    last_window = 2;
+                    DIAG_COUNT(++state_.diag.asp_fail_high);
+                    if (line_one && fail_high_stop())
+                        break;
+                    DIAG_COUNT(++state_.diag.asp_researches);
+                    window = b5::after_fail_high(window, line_score, delta);
+                    ++failed_high_cnt;
+                } else {
+                    break;
+                }
+                width = b5::grow_width(width, limits.params.b5_asp_growth);
+                delta = b5::width_delta(width);
+            }
+            return line_score;
+        };
 
         if (limits.root_alpha != limits.root_beta) {
-            score = root_search(depth, limits.root_alpha, limits.root_beta);
-        } else if (depth <= 3 || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
-            score = root_search(depth, -INF_SCORE, INF_SCORE);
+            score = search_window(depth, limits.root_alpha, limits.root_beta);
+        } else if (depth <= KLIT(asp_min_depth) || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
+            score = search_window(depth, -INF_SCORE, INF_SCORE);
+        } else if (limits.params.b5_window && !state_.root_moves.empty()) {
+            windowed = true;
+            score = search_line_window();
         } else {
+            windowed = true;
             int delta = config_.limits.params.aspiration_delta;
             int asp_a = prev_score - delta;
             int asp_b = prev_score + delta;
-            // A long iteration whose window fails reports the bound it proved,
-            // with the line that failed high, or the previous line on a fail low.
-            // At a tablebase root the line's move shows its tablebase score,
-            // without a bound, as the depth lines do.
-            auto bound_line = [&](int bound_score, bool lower) {
-                if (!shared_.info || elapsed_seconds() <= config_.limits.bound_line_after)
-                    return;
-                std::vector<Move> line = result.pv;
-                if (lower && state_.pv_len[0] > 0)
-                    line.assign(state_.pv_table[0], state_.pv_table[0] + std::clamp(state_.pv_len[0], 0, MAX_PLY));
-                line = legal_line(*state_.board, line);
-                const int tb_display = line.empty() ? VALUE_NONE : root_tablebase_display(line.front());
-                const bool tb_root = tb_display != VALUE_NONE;
-                shared_.info(format_info_line(depth, state_.sel_depth, 1,
-                                          tb_root ? tb_display : bound_score,
-                                          tb_root ? "" : (lower ? "lowerbound" : "upperbound"),
-                                          current_nodes(), elapsed_seconds(), current_tbhits(),
-                                          shared_.tt.hashfull(), line));
-                if (!line.empty())
-                    state_.last_line_move = line.front();
-            };
             DIAG_COUNT(++state_.diag.asp_windows);
+            [[maybe_unused]] int last_window = 0;
             while (true) {
+                DIAG_COUNT(diag_root_tt(last_window, result.bestmove));
+                [[maybe_unused]] const int64_t window_nodes = state_.nodes;
                 // Full depth on every re-search. Stockfish re-searches
                 // shallower after each fail high; here that read WAC 137 -> 119
                 // against a floor of 130 and raised re-searches 1305 -> 1450,
                 // because a root failing high is often a tactical shot that a
                 // shallower search misses (BAS-D17).
-                score = root_search(depth, asp_a, asp_b);
+                score = search_window(depth, asp_a, asp_b);
                 if (state_.stopped) break;
+                DIAG_COUNT(state_.diag.asp_nodes_windowed += state_.nodes - window_nodes);
+                DIAG_COUNT(state_.diag.asp_nodes_failed
+                           += (score <= asp_a || score >= asp_b) ? state_.nodes - window_nodes : 0);
+                DIAG_COUNT(state_.diag.asp_fail_high_research_nodes
+                           += last_window == 2 ? state_.nodes - window_nodes : 0);
                 if (score <= asp_a) {
                     bound_line(score, false);
+                    last_window = 1;
                     DIAG_COUNT(++state_.diag.asp_fail_low);
                     DIAG_COUNT(++state_.diag.asp_researches);
                     // Only alpha moves, and delta grows by half. Pulling beta
@@ -511,20 +680,10 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                     delta += delta / 2;
                 } else if (score >= asp_b) {
                     bound_line(score, true);
+                    last_window = 2;
                     DIAG_COUNT(++state_.diag.asp_fail_high);
-                    // Past the optimum, a fail-high on the move the last
-                    // iteration chose only proves that move better than the
-                    // window expected: play it rather than spend the rest of
-                    // the budget measuring by how much. A rising score in a won
-                    // ending otherwise re-searches at full depth until the hard
-                    // maximum. The iteration is discarded as on any stop, so
-                    // the move played is that iteration's, and it is this one.
-                    if (state_.soft_limit > 0.0 && !state_.pondering && config_.thread_id == 0
-                        && state_.pv_len[0] > 0 && state_.pv_table[0][0] == result.bestmove
-                        && elapsed_seconds() >= state_.soft_limit) {
-                        state_.stopped = true;
+                    if (fail_high_stop())
                         break;
-                    }
                     DIAG_COUNT(++state_.diag.asp_researches);
                     asp_b  = std::min(score + delta, INF_SCORE);
                     delta += delta / 2;
@@ -536,7 +695,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                     DIAG_COUNT(++state_.diag.asp_researches);
                     asp_a = -INF_SCORE;
                     asp_b =  INF_SCORE;
-                    score = root_search(depth, asp_a, asp_b);
+                    [[maybe_unused]] const int64_t giveup_nodes = state_.nodes;
+                    score = search_window(depth, asp_a, asp_b);
+                    DIAG_COUNT(state_.diag.asp_nodes_giveup += state_.nodes - giveup_nodes);
                     break;
                 }
             }
@@ -547,9 +708,40 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         if (state_.root_depth_nodes > 0)
             state_.root_best_effort = static_cast<int>(
                 std::min<int64_t>(100, state_.root_best_nodes * 100 / state_.root_depth_nodes));
+        DIAG_COUNT(state_.diag.root_effort_hi
+                   += windowed && state_.root_best_effort >= limits.params.tm_effort_hi);
+        DIAG_COUNT(state_.diag.root_effort_lo
+                   += windowed && state_.root_best_effort <= limits.params.tm_effort_lo);
+
+        // A proven mate stands against an iteration that lost it: the previous
+        // line and score are kept.
+        if (!state_.root_moves.empty() && state_.root_moves.front().score != kRootScoreNone) {
+            const auto kept = std::find_if(state_.root_moves.begin(), state_.root_moves.end(), [&](const RootMove& rm) {
+                return !last_best_pv.empty() && rm.move == last_best_pv.front();
+            });
+            if (b5::forgotten_mate(last_best_score, state_.root_moves.front().score)
+                && kept != state_.root_moves.end()) {
+                std::rotate(state_.root_moves.begin(), kept, kept + 1);
+                state_.root_moves.front().score = last_best_score;
+                state_.root_moves.front().pv = last_best_pv;
+                score = last_best_score;
+            } else {
+                last_best_score = state_.root_moves.front().score;
+                last_best_pv = state_.root_moves.front().pv;
+            }
+        }
+
+        // The iteration's first line: the record's, whose first entry a stop at
+        // depth 1 may have left without a score.
+        const Move* best_line = state_.pv_table[0];
+        int best_line_len = 0;
+        if (!state_.root_moves.empty() && state_.root_moves.front().score != kRootScoreNone) {
+            best_line = state_.root_moves.front().pv.data();
+            best_line_len = static_cast<int>(state_.root_moves.front().pv.size());
+        }
 
         // Track best-move stability for adaptive soft time limit
-        Move cur_best = (state_.pv_len[0] > 0) ? state_.pv_table[0][0] : MOVE_NONE;
+        Move cur_best = best_line_len > 0 ? best_line[0] : MOVE_NONE;
 
         int reported_score = score;
         if (cur_best != MOVE_NONE) {
@@ -574,15 +766,17 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                 best_move_changes += 1.0;
         }
 
-        if (state_.pv_len[0] > 0) {
-            result.bestmove   = state_.pv_table[0][0];
-            result.pondermove = (state_.pv_len[0] > 1) ? state_.pv_table[0][1] : MOVE_NONE;
-            result.pv.assign(state_.pv_table[0], state_.pv_table[0] + std::clamp(state_.pv_len[0], 0, MAX_PLY));
+        if (best_line_len > 0) {
+            result.bestmove   = best_line[0];
+            result.pondermove = best_line_len > 1 ? best_line[1] : MOVE_NONE;
+            result.pv.assign(best_line, best_line + best_line_len);
             if (result.pondermove == MOVE_NONE)
                 result.pondermove = ponder_from_tt(board, result.bestmove);
         }
         result.score = reported_score;
         result.depth = depth;
+        if (best_line_len > 0)
+            state_.sel_depth = state_.root_moves.front().sel_depth;
         result.seldepth = state_.sel_depth;
 
         // The table is given the raw `score`, not the tablebase-corrected
@@ -593,27 +787,52 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             shared_.pool.root_table->update(result.bestmove, result.pondermove, depth, score);
 
         // The first line's own PV, before any later line overwrites the table.
-        const std::vector<Move> first_line(state_.pv_table[0], state_.pv_table[0] + std::clamp(state_.pv_len[0], 0, MAX_PLY));
+        const std::vector<Move> first_line(best_line, best_line + best_line_len);
 
         // MultiPV lines 2..N: each is the best of the root moves the earlier
         // lines did not play, searched at full width. A line a stop cuts short
         // is not reported; its previous depth stands.
         struct ExtraLine { int score; std::vector<Move> pv; };
         std::vector<ExtraLine> extra_lines;
-        if (state_.multipv_lines > 1 && cur_best != MOVE_NONE && !state_.stopped) {
-            // A later line follows no previous PV.
+        // On the record, each line is the first not yet searched this
+        // iteration, under its own window and following its own last line.
+        // The record keeps the finished lines in order at its front.
+        int finished = 1;
+        for (int k = 2; k <= state_.multipv_lines && cur_best != MOVE_NONE && !state_.stopped; ++k) {
+            state_.root_line = k - 1;
+            const RootMove& line = state_.root_moves[static_cast<size_t>(state_.root_line)];
             state_.prev_pv_len = 0;
-            state_.root_excluded.assign(1, cur_best);
-            for (int k = 2; k <= state_.multipv_lines; ++k) {
-                state_.pv_len[0] = 0;
-                const int line_score = root_search(depth, -INF_SCORE, INF_SCORE);
-                if (state_.stopped || state_.pv_len[0] == 0)
-                    break;
-                extra_lines.push_back({line_score, std::vector<Move>(
-                    state_.pv_table[0], state_.pv_table[0] + std::clamp(state_.pv_len[0], 0, MAX_PLY))});
-                state_.root_excluded.push_back(state_.pv_table[0][0]);
+            if (state_.root_iterations > 0) {
+                state_.prev_pv_len = std::min<int>(static_cast<int>(line.previous_pv.size()), MAX_PLY);
+                std::copy_n(line.previous_pv.begin(), state_.prev_pv_len, state_.prev_pv);
             }
-            state_.root_excluded.clear();
+            state_.pv_len[0] = 0;
+            state_.sel_depth = 0;
+            // A move that was no line's last iteration has no previous score.
+            const bool was_mate = line.previous_score != kRootScoreNone
+                               && std::abs(line.previous_score) >= MATE_SCORE - MAX_PLY;
+            if (depth <= KLIT(asp_min_depth) || !limits.params.b5_window || was_mate)
+                search_window(depth, -INF_SCORE, INF_SCORE);
+            else
+                search_line_window();
+            if (state_.stopped || state_.pv_len[0] == 0)
+                break;
+            ++finished;
+            std::stable_sort(state_.root_moves.begin(), state_.root_moves.begin() + finished,
+                             b5::root_move_before);
+        }
+        state_.root_line = 0;
+        if (finished > 1) {
+            // Line 1 is now the best of the lines, and what the next
+            // iteration reads of this one.
+            const RootMove& best = state_.root_moves.front();
+            prev_score = best.score;
+            state_.sel_depth = best.sel_depth;
+            result.seldepth = best.sel_depth;
+            for (int k = 0; k < finished; ++k) {
+                const RootMove& rm = state_.root_moves[static_cast<size_t>(k)];
+                extra_lines.push_back({rm.score, rm.pv});
+            }
         }
 
         // What the next iteration reads of this one: the first line's PV and
@@ -626,18 +845,13 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         if (extra_lines.empty()) {
             send_info(depth, 1, reported_score, first_line, current_nodes(), elapsed);
         } else {
-            // Report the lines best first, as Stockfish sorts its root moves, so
-            // `bestmove` is always line 1: a later line searched without the
-            // first can score above it.
+            // The record's lines, best first, so `bestmove` is always line 1.
             std::vector<ExtraLine> lines;
-            lines.push_back({reported_score, first_line});
             for (ExtraLine& line : extra_lines) {
                 const int tb_display = root_tablebase_display(line.pv.front());
                 lines.push_back({tb_display != VALUE_NONE ? tb_display : line.score,
                                  std::move(line.pv)});
             }
-            std::stable_sort(lines.begin(), lines.end(),
-                             [](const ExtraLine& a, const ExtraLine& b) { return a.score > b.score; });
             if (lines.front().pv.front() != result.bestmove) {
                 result.bestmove   = lines.front().pv.front();
                 result.pv         = lines.front().pv;
@@ -649,6 +863,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                 send_info(depth, static_cast<int>(k) + 1, lines[k].score, lines[k].pv,
                           current_nodes(), elapsed);
         }
+
+        ++state_.root_iterations;
 
         // Adaptive soft time limit:
         // The more stable the best move, the less time we need to confirm it.
@@ -724,6 +940,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     state_.root_ordering = RootOrdering{};
     state_.pondering = false;
     state_.root_tb_moves.clear();
+    state_.root_moves.clear();
+    state_.root_line = 0;
+    state_.root_iterations = 0;
     result.nodes      = state_.nodes;
     result.tbhits     = state_.tb_hits;
     result.elapsed_ms = int64_t(elapsed_seconds() * 1000.0);
@@ -747,7 +966,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
         shared_.info("info string tm soft_ms=" + std::to_string(int64_t(state_.soft_limit * 1000.0))
                + " hard_ms="     + std::to_string(int64_t(state_.hard_limit * 1000.0))
                + " elapsed_ms="  + std::to_string(int64_t(elapsed_seconds() * 1000.0))
-               + " dispatch_ms=" + std::to_string(dispatch_ms));
+               + " dispatch_ms=" + std::to_string(dispatch_ms)
+               + " longest_window_start_ms=" + std::to_string(int64_t(state_.longest_window_start * 1000.0))
+               + " longest_window_ms=" + std::to_string(int64_t(state_.longest_window * 1000.0)));
     }
     return result;
 }

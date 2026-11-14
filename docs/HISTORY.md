@@ -10,7 +10,9 @@ is reused, with three declared exceptions: Phase A's 2026-10-24 leaves were
 renumbered the same day to run in order; on 2026-10-27 fail-soft
 quiescence moved from A.11.10 to A.11.11; and on 2026-11-05 the open steps
 of Phases B to D were renumbered in the order they run. The *Number map*
-below resolves the earlier numbering of all three. Retired identifiers stay valid in `EXPERIMENTS.md`,
+below resolves the earlier numbering of all three. On 2026-11-11 open
+leaves of B.6, B.9, B.11, C.2, C.7 and F moved to new numbers, none of
+them reused; the map resolves those too. Retired identifiers stay valid in `EXPERIMENTS.md`,
 `analysis/`, source comments and commit messages, and resolve here:
 
 | Scheme | Where it appears | Resolve it in |
@@ -38,7 +40,7 @@ throwaway branch is cited by its recipe (PROCESS *Delivery*).
 | `oracle/hybrid-diag` | `324ace4` | `oracle/hybrid` plus a behaviour-neutral qsearch counter in `hybrid/stockfish/src/search.cpp` | BAS-D03; `analysis/cluster55_audit_v1.md` §3 | A.5.3 commits the oracle's counter set including the qsearch share, so BAS-D03 reproduces from `dev` | keep |
 | `archive/dev-1.10.0` | `3fe85c2` | The development line from 1.9.3 to the published 1.10.0 (Phases 5–15, 239 commits), deleted with `dev` after the 1.10.0 squash | 32 commit hashes in the ledger and `analysis/`, found unreachable from any ref on 2026-10-08 | never: the records cite it | keep |
 | `archive/dev-1.10.2` | `63ac175` | The development line of 1.10.1 and 1.10.2 (the PR #4 head), squashed on `master` as `Version 1.10.2` | the ledger and analyses from BAS-X30 on; PLAN A.8 | fired: PR #4's ref (`refs/pull/4/head`, the same `63ac175`) holds the whole line, so the citations resolve without the tag | removed 2026-10-25 |
-| `archive/nnue-local` | `1431a89` | The 2026-07 NNUE bring-up: scalar `.mnn` loader (`src/nnue.*`), `UseNNUE`/`EvalFile`, `test_nnue` with `tests/data/test_h16.mnn` vectors | PLAN F.4 | F.4 closes, or F.0 chooses a network format other than `.mnn` | keep |
+| `archive/nnue-local` | `1431a89` | The 2026-07 NNUE bring-up: scalar `.mnn` loader (`src/nnue.*`), `UseNNUE`/`EvalFile`, `test_nnue` with `tests/data/test_h16.mnn` vectors | PLAN F.2.3 (F.4 until 2026-11-11) | F.2.3 closes, or F.0 chooses a network format other than `.mnn` | keep |
 | `archive/nnue-origin` | `4fa11bf` | An ancestor of `archive/nnue-local`; nothing it reaches is lost without it | none | fired: redundant | removed 2026-09-28 |
 | `archive/backup` | `ae4af1a` | The pre-squash line of 2026-08-05 → 08-11, including the withdrawn Colosseum adoption (`3cbf90b`); an ancestor of `oracle/hybrid` | none | fired: redundant | removed 2026-09-28 |
 | `archive/arm_fix` | `67a987b` | One commit aligning the TT to 64-byte lines for Apple (`src/tt.h`) | BAS-P07, which states the mechanism and why it was rejected | fired: hypothesis rejected, the row carries the recipe | removed 2026-09-28 |
@@ -56,7 +58,7 @@ itself no longer exists locally or on `origin`. The other kept tags were
 re-checked the same day and stay. `oracle/hybrid` is still the oracle that
 PLAN rule 1 and PROCESS name, and `hybrid/` is not on `master`.
 `oracle/hybrid-diag`'s condition has not fired. `archive/nnue-local` waits
-on F.4.
+on F.2.3 (F.4 until 2026-11-11).
 
 The kept tags are annotated with their reason and retirement condition. The
 removed ones were deleted locally and on `origin`; their commits stay
@@ -150,7 +152,7 @@ map covers only open work.
 
 | Retired (archive 2026-09-09) | Continues as | Note |
 |---|---|---|
-| 6.6.a–6.6.e, 6.6.h | C.7.1 | endgame instruments and gate integrity |
+| 6.6.a–6.6.e, 6.6.h | C.2.7 | endgame instruments and gate integrity (C.7.1 until 2026-11-11) |
 | 6.6.f | A.3.1 | harness provenance refusals, shared guards |
 | 6.6.g | A.4.2 | build option and ISA combination matrix |
 | 6.7.a–6.7.d | C.7.2 | occurrence, classification, closure, ranking |
@@ -169,7 +171,7 @@ map covers only open work.
 | 8.3.a–8.3.c | C.2.3 | corpus A |
 | 8.4.a–8.4.f, 8.5.a–8.5.d | C.2.4 | matched label arms; whole-game tablebase adjudication |
 | 8.6.a–8.6.c | C.2.5 | initialization control |
-| 8.7.a–8.7.e, 8.8.a–8.8.d | C.2.6 | matched fits and the label-contract gate |
+| 8.7.a–8.7.e, 8.8.a–8.8.d | C.2.8 | matched fits and the label-contract gate (C.2.6 until 2026-11-11) |
 | 8.9.a–8.9.e | C.8 | refit cycles |
 | 8.10.a–8.10.e | C.9 | nonlinear HCE SPSA |
 | 8.11.a–8.11.d | C.11 | checkpoint and freeze |
@@ -188,7 +190,7 @@ map covers only open work.
 | 9.10.b | D.2 | SMP quality |
 | 9.11.a–9.11.d | G.2 | optional universal binary |
 | 10.0–10.4 | F.0, F.1 | NNUE runway |
-| 11.0–11.5 | F.2–F.6, F.9 | baseline NNUE and its release |
+| 11.0–11.5 | F.2, F.5, F.6, F.9 | baseline NNUE and its release (F.3 and F.4 are F.2's sub-steps since 2026-11-11) |
 | 12.0.a–12.0.c | F.7, F.8 | architecture ladder, data frontier |
 | 12.1.a–12.1.b | G.3 | selective search after NNUE |
 | 13.0 | G.1 | high-thread and NUMA |
@@ -271,6 +273,33 @@ and deep-line stack test (A-25) to B.5; D.4's A-57 and A-58 and D.1's
 A-50 and TT-4 tests to B.9.1; C.12's lazy-threshold audit and C.5.2's E7
 read to C.10; D.1's thread-instability time factor to D.2; B.5's 4T S6
 read to D.2.
+
+Renumbered on 2026-11-11 (at the maintainer's request for a roadmap that
+runs in ascending order with every correctness fix before the release;
+`analysis/rarog_import_2026-11-11.md` §4). Each retired number below is
+retired for good and none is reused, so a reference dated before this
+resolves here without ambiguity.
+
+| Was | Now | Note |
+|---|---|---|
+| B.6.1 | B.6.6 | donor-form reconciliation, after the audit's repairs |
+| B.6.2 | B.6.7 | joint search SPSA, last in B.6 |
+| B.9.2 | B.9.5 | repairs and the repair gate, now for B.9.1, B.9.3 and B.9.4 |
+| B.11.2 | B.11.4 | interim release 1.11.0, after the disclosure |
+| C.7.1 | C.2.7 | endgame instruments and gate integrity, before the first evaluation gate |
+| C.2.6 | C.2.8 | matched fits and the label-contract gate |
+| F.4 | F.2.3 | scalar integration, before any training |
+| F.3 | F.2.4 | trainer hardening and the learning curve; its baseline nets went to F.6 |
+| F.2.1 | F.2.5 | data generation at scale, sized by F.2.4's curve |
+| F.2.2 | F.2.6 | classical refit on search-visited data |
+
+New the same day: B.6.3 (search-path perft and kernel pins), B.6.4 (engine
+audit), B.6.5 (audit repairs), B.9.3 (hard verdicts against Syzygy), B.9.4
+(deferred defects), B.11.3 (originality and licence disclosure) and H.4
+(throughput on the network head). Moved between leaves: B.7.1's
+search-board perft (TB-1) to B.6.3; C.7.1's drawn-overclaim instrument and
+Syzygy vetoes (C-133, C-142) are built in B.9.3 and read again in C.2.7;
+G.2's printed-score calibration (TA-2) to F.6.
 
 ## Completed current-roadmap work (dated records; PLAN owns IDs)
 

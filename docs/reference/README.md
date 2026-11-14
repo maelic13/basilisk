@@ -102,7 +102,7 @@ Paths are relative to `rarog/`.
 | B.8.5 | `analysis/board_search_profile_2026-09-08.md`, `tools/profile_etw.ps1`, `tools/diag/board_search_profile.py`, `tools/diag/board_search_profile_etw.ps1`, `tools/diag/summarize_board_search_etw.py` | port |
 | C.0 | `analysis/hce_maturity_2026-08-25.md`, `analysis/hce_residuals_2026-09-01.md` | template |
 | C.2 | `tools/texel/`, `tools/texel-tuner/`, `tools/datagen.ps1`, `tools/diag/book_yield.py`, `tools/diag/datagen_label_audit.py`; `analysis/texel_fitting_handbook.md`, `analysis/texel_corpus_book_shape_2026-09-02.md`, `analysis/datagen_label_audit_2026-09-06.md` | port and template |
-| C.7.1 | `tools/diag/endgame_truth.py`, `endgame_floors.py`, `endgame_conversion.py`, `endgame_drawn.py`, `endgame_budget_bracket.py`, `nodes_per_move.py`, `endgame_reference_results.py`, with their tests and JSON artifacts; `analysis/endgame_truth_instrument_audit_2026-09-04.md`, `analysis/endgame_measurement_layers.md`, `analysis/endgame_budget_transfer_2026-09-05.md` | port |
+| C.2.7 | `tools/diag/endgame_truth.py`, `endgame_floors.py`, `endgame_conversion.py`, `endgame_drawn.py`, `endgame_budget_bracket.py`, `nodes_per_move.py`, `endgame_reference_results.py`, with their tests and JSON artifacts; `analysis/endgame_truth_instrument_audit_2026-09-04.md`, `analysis/endgame_measurement_layers.md`, `analysis/endgame_budget_transfer_2026-09-05.md` | port |
 | C.7.2 | `tools/diag/endgame_occurrence.py`, `endgame_board_occurrence.py`, `endgame_ranking.py` and their JSON artifacts; `analysis/endgame_occurrence_tournament_2026-09-05.md`, `analysis/endgame_search_occurrence_2026-09-03.md`, `analysis/endgame_occurrence_split_2026-09-05.md` | port |
 | C.7.3–C.7.7 | `analysis/mate_drive_promotion_closure_2026-09-06.md`, `analysis/conversion_claims_correction_2026-09-06.md`, `analysis/endgame_refresh_2026-09-09.md` | reference |
 | D.1 | `analysis/time_forfeit_2026-09-09.md`; `PLAN.md` D.1 (the audit checklist, also quoted in Basilisk's PLAN) | reference |
@@ -154,7 +154,7 @@ Paths are relative to `triumviratus/` unless they start with
 
 | Basilisk leaf | Snapshot inputs | Use |
 |---|---|---|
-| B.4, B.5, B.6.1, H.2 | `docs/development/archive/DEVELOPMENT_8.0.md` §17–§33, §41–§47 and its appendix (every search idea with its result); `docs/development/archive/DEVELOPMENT_6.0.md` (quiescence notes 9–10) | priors |
+| B.4, B.5, B.6.6, H.2 | `docs/development/archive/DEVELOPMENT_8.0.md` §17–§33, §41–§47 and its appendix (every search idea with its result); `docs/development/archive/DEVELOPMENT_6.0.md` (quiescence notes 9–10) | priors |
 | B.8.5 | `docs/development/archive/DEVELOPMENT_8.0.md` §2–§4, §20, §22, §27, §30, §36, §40, §48.3; `build/nps_pair.py`, `build/node_identity.py`, `build/search_counters.py` | reference |
 | B.16 | `source/prunelog.h`, `source/redlog.h`, `source/ordlog.h` (the pricing data builds), `removed/e876fa3/docs/development/8.1/SEARCH_2_REDUCTIONS.md` §2.6 and `SEARCH_3_PRUNING.md` §3.3; `docs/development/archive/DEVELOPMENT_8.0.md` §2, §32, §36, §45; `build/nps_pair.py`, `build/node_identity.py`, `build/search_counters.py` | reference |
 | B.7.1, B.7.2 | `source/search/16_tdperft.inc`, `source/movegen_legal.h`, `source/search/07_makemove.inc`, `source/see.cpp`, `source/attacks.cpp`, `source/sliders.cpp`, `source/zobrist.cpp`, `source/tt.h`; `docs/development/archive/DEVELOPMENT_8.0.md` §12, §14, §28, §40 | read, then design from Basilisk's own code |

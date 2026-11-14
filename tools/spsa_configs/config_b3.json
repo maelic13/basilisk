@@ -19,7 +19,7 @@
     },
     "B3NmpRedBase": {
         "value": 4,
-        "min_value": 2,
+        "min_value": 1,
         "max_value": 10,
         "step": 2
     },
@@ -32,7 +32,7 @@
     "B3IirMinDepth": {
         "value": 5,
         "min_value": 3,
-        "max_value": 10,
+        "max_value": 11,
         "step": 2
     },
     "B3ProbCutBase": {

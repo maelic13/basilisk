@@ -106,8 +106,9 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
   - A stopped SPRT is the wrong instrument for parity.
 - SPSA is conditional: first show activation, interaction and curvature with a
   zero-game sweep; a flat or monotone surface is evidence against the tune. A
-  tune runs in registered blocks with a movement stop rule (PLAN rule 7c),
-  never on a horizon chosen to fit the answer.
+  tune is one registered run, read at checkpoints by its gradient test and
+  stopped when that reads quiet (PLAN rule 7c), never on a horizon chosen to
+  fit the answer.
 
 ## Long-running work
 

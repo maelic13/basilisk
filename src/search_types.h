@@ -60,6 +60,11 @@ struct SearchStack {
     bool      follow_pv   = false;
     int       ext_plies   = 0;
     int       ext_taken   = 0;
+    // The extensions from a negative reduction on the line to this node, and
+    // the one the move searched from here takes, written where the counters
+    // are compiled in.
+    int       negext_path  = 0;
+    int       negext_taken = 0;
 };
 
 // A single-PV aspiration failure prints its bound only once a search has run
@@ -85,6 +90,7 @@ struct SearchLimits {
     bool diag = false;          // emit end-of-search diagnostic counters
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     bool decision_trace = false; // the bounded plies 1-2 decision trace
+    bool trace_root = false;     // a test's trace of the root's searches alone
     int pricing_every = 0;       // probe every N-th pruning decision (0 = off)
 #endif
 #ifdef BASILISK_ABLATION
@@ -101,6 +107,9 @@ struct SearchLimits {
     // A test caps the per-line extension budget below the root depth with
     // this (0 = the root depth alone), to prove the bound live.
     int ext_budget_cap = 0;
+    // A test lowers the ply cap with this (0 = MAX_PLY), to read what the
+    // search returns there without a line 128 plies long.
+    int ply_cap = 0;
     // A test fixes every iteration's root window with these (equal = the
     // driver's own windows), to read a cutoff at a node below the root.
     int root_alpha = 0;

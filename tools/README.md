@@ -17,8 +17,10 @@ and working as the backup, which PROCESS *Harness* says when to use.
 |---|---|---|
 | `colosseum.ps1` | A gate, fixed match, null pair or gauntlet on the pinned Colosseum CLI, from the committed run files. It applies every provenance, policy and idle-host guard, writes a per-run manifest, then runs the post-run fault rule and an independent recount. It resumes a `-Dir` at its recorded seed | PROCESS *Harness*, *Common commands*; every gate since A.3 |
 | `colosseum/` | The run files that hold Basilisk's conditions (shared, the SPRT brackets, fixed match, gauntlet, tune, null), and `colosseum.pin.json`, which pins the runner by revision and SHA-256 | `colosseum.ps1`, `setup_tools.ps1`; `colosseum/README.md` |
-| `spsa_colosseum.ps1` | One guarded Colosseum SPSA block from the generated search surface | PROCESS *Harness*; BAS-S22 |
-| `spsa_block_rule.py` | PLAN rule 7c's movement rule applied to a finished block | PROCESS *Common commands*; BAS-S22 |
+| `spsa_colosseum.ps1` | One guarded Colosseum SPSA tune under PLAN rule 7c: run to a registered ceiling a checkpoint at a time, each read by `spsa_read.py`, stopped quiet, at the ceiling, on a rail or a fault, or by the maintainer's `STOP` file | PROCESS *Harness*, *SPSA go/no-go* |
+| `spsa_read.py` | A tune read by its gradient test, at a checkpoint or live: every coordinate's z on the runner's own signs, the familywise line, live or quiet with its floor, rails, the tune's own read of its gain and a frozen forecast, scored later; theta at a stop; `--accept-faults` records the maintainer's acceptance of a FAULT read's faults | `spsa_colosseum.ps1`; PLAN rule 7c |
+| `smt_read.py` | Node rates under 15, 28 and 30 busy logical CPUs: each engine's share of a core and whether a pair keeps its speed ratio on SMT siblings | BAS-S58 |
+| `diag/replay_compare.py` | Two runs of one pair over the same openings compared opening by opening, with nElo and the decision-speed ratio | BAS-S58 |
 | `diag/colosseum_parity.py` | A Colosseum dry run compared field by field with a recorded `sprt.ps1` manifest | the harness parity of A.3 |
 | `diag/colosseum_recount.py` | A run's paired sample recounted from its PGN | `colosseum.ps1`'s post-run check |
 | `host_sampler.ps1` | A passive one-second typeperf sampler beside a multi-thread read: every logical CPU's load, parking and frequency, the engines' threads, and the core topology | PROCESS *Harness*, multi-thread reads |
@@ -56,6 +58,7 @@ kept so the run can be reproduced from its ledger entry.
 | `run_a159_nps_reads.ps1` | BAS-P24, the universal binary's assembly route for Clang and GCC |
 | `run_a16_nps_read.ps1` | BAS-P25, the zero-weight evaluation terms no longer computed |
 | `run_a17_nps_reads.ps1` | BAS-P26, compressed PEXT tables and code generation |
+| `run_b57_reads.ps1` | BAS-S58, 28 or 30 games on SMT siblings against 15 on 15 cores |
 
 ### Backup path: fastchess and weather-factory
 
@@ -108,7 +111,7 @@ kept so the run can be reproduced from its ledger entry.
 | `diag/source_census.py` | A mechanical census of the engine source for an architecture review | B.2.0 |
 | `diag/uci_probe.py` | Black-box UCI probes for protocol and clock defects | A.8 |
 | `oracle/build_oracle.ps1`, `oracle/bridge-board-access.patch` | The classical-Stockfish search oracle rebuilt around a Basilisk revision's evaluation | BAS-O05, BAS-S18 |
-| `generate_spsa_surface.py` | The SPSA inputs generated from the search-parameter X-macro | BAS-S22 |
+| `generate_spsa_surface.py` | The SPSA inputs generated from the search-parameter X-macro, and with `--rule7c` a run's tune file at its ceiling, the perturbation graded by room | BAS-S22; PLAN rule 7c |
 | `spsa_configs/` | The generated search surface: weather-factory configs and the Colosseum tune files | `spsa.ps1`, `spsa_colosseum.ps1`; `spsa_configs/README.md` |
 
 ## Endgames
