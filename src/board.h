@@ -107,6 +107,7 @@ public:
     public:
         PositionSnapshot(const PositionSnapshot&) = default;
         PositionSnapshot& operator=(const PositionSnapshot&) = default;
+        bool operator==(const PositionSnapshot&) const = default;
     };
 
 private:
@@ -313,5 +314,15 @@ private:
     void put_piece(Color c, PieceType pt, Square sq);
     void remove_piece(Square sq);
     void move_piece(Square from, Square to);
+    void put_piece_board(Color c, PieceType pt, Square sq);
+    void remove_piece_board(Square sq);
+    void move_piece_board(Square from, Square to);
+    // restore_position without touching the history or the counters.
+    void restore_fields(const PositionSnapshot& snapshot) noexcept;
+#ifdef BASILISK_BOARD_CROSSCHECK
+    // The original forms of rebuilt board operations, which a cross-check
+    // build runs beside the rebuilt ones (board.cpp).
+    void unmake_move_reference(Move m);
+#endif
     [[nodiscard]] Key compute_hash() const;
 };

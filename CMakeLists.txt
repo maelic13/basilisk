@@ -192,6 +192,15 @@ add_library(basilisk_board STATIC ${BOARD_SOURCES})
 if(BASILISK_BOARD_TRACE)
     target_compile_definitions(basilisk_board PUBLIC BASILISK_BOARD_TRACE)
 endif()
+# A check build: each rebuilt board operation runs its original form beside
+# it and aborts on the first difference. Never a release.
+option(BASILISK_BOARD_CROSSCHECK "Run rebuilt board operations beside their originals (a check build)" OFF)
+if(BASILISK_BOARD_CROSSCHECK)
+    target_compile_definitions(basilisk_board PUBLIC BASILISK_BOARD_CROSSCHECK)
+    if(TARGET basilisk_board_untraced)
+        target_compile_definitions(basilisk_board_untraced PUBLIC BASILISK_BOARD_CROSSCHECK)
+    endif()
+endif()
 target_include_directories(basilisk_board PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )

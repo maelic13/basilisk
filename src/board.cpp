@@ -5,6 +5,7 @@
 #include <cassert>
 #include <cctype>
 #include <cstdio>
+#include <cstdlib>
 #include <expected>
 #include <limits>
 #include <sstream>
@@ -47,6 +48,40 @@ void Board::remove_piece(Square sq) {
     if (pt == PAWN) pawn_key ^= Zobrist::PieceKeys[c][PAWN][sq];
     if (pt == KNIGHT || pt == BISHOP) minor_key ^= Zobrist::PieceKeys[c][pt][sq];
     if (pt != PAWN && pt != KING) nonpawn_key[c] ^= Zobrist::PieceKeys[c][pt][sq];
+}
+
+// Board-only forms of the three helpers: bitboards, occupancies, mailbox and
+// king square, no key. For unmake, which restores every key from UndoInfo.
+void Board::put_piece_board(Color c, PieceType pt, Square sq) {
+    const Bitboard bb = sq_bb(sq);
+    pieces[c][pt]  |= bb;
+    occupancy[c]   |= bb;
+    all_occ        |= bb;
+    board_sq[sq]    = make_piece(c, pt);
+    if (pt == KING) king_sq[c] = sq;
+}
+
+void Board::remove_piece_board(Square sq) {
+    const Piece p = board_sq[sq];
+    assert(p != NO_PIECE);
+    const Bitboard bb = sq_bb(sq);
+    pieces[color_of(p)][type_of(p)] &= ~bb;
+    occupancy[color_of(p)]          &= ~bb;
+    all_occ                         &= ~bb;
+    board_sq[sq] = NO_PIECE;
+}
+
+void Board::move_piece_board(Square from, Square to) {
+    const Piece p = board_sq[from];
+    const Color c = color_of(p);
+    const PieceType pt = type_of(p);
+    const Bitboard mask = sq_bb(from) | sq_bb(to);
+    pieces[c][pt]  ^= mask;
+    occupancy[c]   ^= mask;
+    all_occ        ^= mask;
+    board_sq[from]  = NO_PIECE;
+    board_sq[to]    = p;
+    if (pt == KING) king_sq[c] = to;
 }
 
 void Board::move_piece(Square from, Square to) {
@@ -307,6 +342,12 @@ Board::PositionSnapshot Board::snapshot_position() const noexcept {
 }
 
 void Board::restore_position(const PositionSnapshot& snapshot) noexcept {
+    restore_fields(snapshot);
+    history.clear();
+    reset_diag_counters();
+}
+
+void Board::restore_fields(const PositionSnapshot& snapshot) noexcept {
     for (int c = 0; c < NCOLORS; ++c) {
         for (int pt = 0; pt < PIECE_TYPE_NB; ++pt)
             pieces[c][pt] = snapshot.pieces[c][pt];
@@ -328,8 +369,6 @@ void Board::restore_position(const PositionSnapshot& snapshot) noexcept {
     halfmove_clock = snapshot.halfmove_clock;
     plies_from_null = snapshot.plies_from_null;
     checkers = snapshot.checkers;
-    history.clear();
-    reset_diag_counters();
 }
 
 void Board::set_fen(const std::string& fen) {
@@ -748,6 +787,81 @@ void Board::BT(make_move)(Move m) {
 }
 
 void Board::BT(unmake_move)(Move m) {
+#ifdef BASILISK_BOARD_CROSSCHECK
+    // The original unmake runs first on the same state; the state is put
+    // back, the rebuilt one runs, and the two results must be identical.
+    const PositionSnapshot before = snapshot_position();
+    const UndoInfo undo = history.back();
+    unmake_move_reference(m);
+    const PositionSnapshot expected = snapshot_position();
+    restore_fields(before);
+    history.push_back(undo);
+#endif
+    assert(!history.empty());
+    const UndoInfo ui = history.back();
+    history.pop_back();
+
+    ep_sq           = ui.ep_sq;
+    castling_rights = ui.castling;
+    halfmove_clock  = ui.halfmove;
+    plies_from_null = ui.plies_from_null;
+
+    ply--;
+    if (side_to_move == WHITE) fullmove_number--;
+    side_to_move = ~side_to_move;
+    const Color us   = side_to_move;
+    const Color them = ~us;
+
+    const Square from = from_sq(m);
+    const Square to   = to_sq(m);
+    const MoveType mt = move_type(m);
+
+    // Every key is restored from the undo record below, so the pieces are
+    // put back with the board-only helpers, which touch no key.
+    if (mt == EN_PASSANT) {
+        move_piece_board(to, from);
+        put_piece_board(them, PAWN, make_square(file_of(to), rank_of(from)));
+    }
+    else if (mt == CASTLING) {
+        const bool king_side = (to > from);
+        const Square rook_from = king_side ? make_square(FILE_H, rank_of(from))
+                                           : make_square(FILE_A, rank_of(from));
+        const Square rook_to   = king_side ? make_square(FILE_F, rank_of(from))
+                                           : make_square(FILE_D, rank_of(from));
+        move_piece_board(to, from);
+        move_piece_board(rook_to, rook_from);
+    }
+    else if (mt == PROMOTION) {
+        remove_piece_board(to);
+        put_piece_board(us, PAWN, from);
+        if (ui.captured != NO_PIECE)
+            put_piece_board(them, type_of(ui.captured), to);
+    }
+    else {
+        move_piece_board(to, from);
+        if (ui.captured != NO_PIECE)
+            put_piece_board(them, type_of(ui.captured), to);
+    }
+
+    hash     = ui.hash;
+    pawn_key = ui.pawn_key;
+    minor_key = ui.minor_key;
+    nonpawn_key[WHITE] = ui.nonpawn_key[WHITE];
+    nonpawn_key[BLACK] = ui.nonpawn_key[BLACK];
+    checkers = ui.checkers;
+#ifdef BASILISK_BOARD_CROSSCHECK
+    if (!(snapshot_position() == expected)) {
+        std::fprintf(stderr, "board cross-check: unmake_move %s differs from the original\n",
+                     move_to_uci(m).c_str());
+        std::abort();
+    }
+#endif
+}
+
+#ifdef BASILISK_BOARD_CROSSCHECK
+// The original unmake, which updated every key incrementally and then
+// overwrote them from the undo record.
+void Board::unmake_move_reference(Move m) {
     assert(!history.empty());
     UndoInfo ui = history.back();
     history.pop_back();
@@ -805,6 +919,7 @@ void Board::BT(unmake_move)(Move m) {
     nonpawn_key[BLACK] = ui.nonpawn_key[BLACK];
     checkers = ui.checkers;
 }
+#endif
 
 void Board::BT(make_null_move)() {
     UndoInfo ui;
