@@ -44,7 +44,9 @@ cycles per node [−3.663%, −1.510%], instructions −2.738%, branch misses �
 null −0.112% [−0.682%, +0.459%]. **Not counted:** BAS-P28 did not accept the
 instrument (its null's half-width 0.76% against a 0.5% rule). For information, the
 point estimate lies 0.5 points short of BAS-P30's −3.11% in time, with intervals
-overlapping.
+overlapping. Read again with BAS-P33's null (`tools/results/b79b-pmc/`): −2.698%
+[−3.285%, −2.112%], instructions −2.740%. Still not counted: BAS-P33 did not accept
+the instrument either.
 
 **2. Five engines on contract v3** (`tools/results/b79-micro5/`, five alternating
 rounds; Basilisk's harness at `0c978c2`, host 1.4% before, 4.8% after). Every

@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.7.9** `[V]` Board speed read and gate — Claude Sonnet
+**Next step:** **B.8.2** `[I1]` Dead parameters, switches and diagnostics — Claude Sonnet
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -122,14 +122,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.6.5** `[I1]` Audit repairs before the fit
     - [x] **B.6.6** `[R2]` Donor-form reconciliation
     - [x] **B.6.7** `[V]` Joint search SPSA
-- [ ] **B.7** Board review and rebuild
+- [x] **B.7** Board review and rebuild
     - [x] **B.7.1** `[R2]` Board contract audit and instruments
     - [x] **B.7.2** `[R2]` Board review against Stockfish and Triumviratus
     - [x] **B.7.5** `[I2]` Board instruments: replay and engine screen
     - [x] **B.7.6** `[I2]` Rebuild behind the board contract
     - [x] **B.7.7** `[R2]` Second round: candidates on the instruments
     - [x] **B.7.8** `[I2]` Second rebuild: the candidates that cleared
-    - [ ] **B.7.9** `[V]` Board speed read and gate
+    - [x] **B.7.9** `[V]` Board speed read and gate
 - [ ] **B.8** Cleanup and speed pass
     - [x] **B.8.1** `[I1]` Delete the legacy search kernel (ANY TIME) — before the A.11 gates
     - [ ] **B.8.2** `[I1]` Dead parameters, switches and diagnostics

@@ -197,8 +197,9 @@ The four layers, kept separate (`analysis/endgame_measurement_layers_v1.md`):
     60.7 ns per node, classical Stockfish 61.9, Rarog 69.8, Stockfish 19
     76.6. Every column a donor leads is work moved into its make or out of
     the timed column.
-  - **Counters:** the hardware-counter instrument is not validated
-    (BAS-P28), so cycles per node are not yet a speed verdict.
+  - **Counters:** the hardware-counter instrument failed its null twice
+    (BAS-P28, BAS-P33). At three cycles identical builds read 0.5% apart,
+    so cycles per node are no speed verdict. Pooled NPS decides.
 - **A board change is priced in real search order and in the engine, never
   on a microbenchmark column alone.** A column times game positions on cold
   boards and underpriced the board by 22% to 57%. Of nine candidate kernels

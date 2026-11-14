@@ -3563,7 +3563,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         singular family and the drifting correction scale and IIR depth
         to C.10, the forgotten-mate witness to B.9, the literal census
         to B.11.3.
-- [ ] **B.7** Board review and rebuild
+- [x] **B.7** Board review and rebuild
   Added 2026-11-03 (maintainer): Basilisk's board is reviewed against
   Stockfish's (`Position` and `StateInfo`, the modern donor's form) and
   against Triumviratus's measured board ideas (the third donor), and
@@ -4061,7 +4061,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       Done 2026-11-14, NO_CHANGE: B.7.7 kept nothing (BAS-P31). For
       information, all six candidates together read −7.76% on the engine
       screen, and all but the byte mailbox −2.83%.
-    - [ ] **B.7.9** `[V]` Board speed read and gate
+    - [x] **B.7.9** `[V]` Board speed read and gate
       It was B.7.4 until 2026-11-14.
       First, B.16.4's counter read is validated: BAS-P28, registered
       2026-11-05, `tools/run_b164_pmc.ps1` (elevated, idle host, about ten
@@ -4084,13 +4084,18 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - A component that changes the generation order, and so the tree,
         takes a `[-5,0]` SPRT at `3+0.03`; none is planned.
       It closes B.7, and DESIGN §5 takes the final figures.
-      Read 2026-11-14 (BAS-P28, BAS-P32); open on BAS-P28 alone:
+      Done 2026-11-14 (BAS-P28, BAS-P32, BAS-P33):
       - BAS-P28, maintainer-run, elevated: P25 reads −2.23% cycles per
         node [−2.80%, −1.67%], meeting its NPS read. But the null's
         half-width is 0.76% against the rule's 0.5% (three runs of one
-        binary against three of another). **The instrument is not
-        accepted**, and by its frozen rule goes back to research. Its read
-        of B.7.6's pools (−2.59% cycles per node) is therefore not counted.
+        binary against three of another): **not accepted**.
+      - BAS-P33, the null redesigned at the maintainer's request (copies
+        of every base build, decided over builds like the contrast):
+        identical builds read −0.56% [−1.10%, −0.02%] and +0.49%.
+        **Not accepted** either. At three cycles the counters resolve
+        about ±1%, coarser than pooled NPS. Neither read of B.7.6's
+        pools (−2.59%, −2.70% cycles per node) is counted, and no third
+        design is tried.
       - Total: B.7.8 closed NO_CHANGE, so BAS-P30's +3.21% [+2.90%,
         +3.52%] is B.7's.
       - Profile of the final head: B.7.7's, the same build (board 23.4% of
@@ -4857,7 +4862,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.7.9 | RESEARCH | V | Every read done but BAS-P28, which did not accept the counter instrument; the maintainer decides where its repair goes |
 | B.8.2 | RESEARCH | I1 | After the clusters and the board |
 | B.8.3 | READY_FOR_IMPLEMENTATION | I1 | Was B.7.1; before the speed pass, no engine change |
 | B.8.4 | RESEARCH | I1 | Split from the speed pass 2026-11-05; before it |
