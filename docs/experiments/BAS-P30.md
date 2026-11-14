@@ -33,4 +33,32 @@
   (`tools/diag/engine_ab.py`, 16 rounds). A component stays when its replay class is
   faster by more than twice the spread of the untouched classes and the screen is
   faster in at least 13 of 16 rounds.
-- **Status.** Registered; pools built, the read waits for the idle host.
+
+#### RESULT
+
+Idle host, 2026-11-14.
+
+- **Screens**, plain release builds, CPU 2:
+  - Replay (`tools/results/b76/replay-ab`, three rounds of five passes on the
+    regenerated `bench 13` trace, uncorrected ns per node): C1's make and unmake
+    −1.89 against the base, the untouched classes' marginals within ±0.36; C3′'s SEE
+    marginal −4.64 against C1 (28.39 to 23.75), the untouched within ±0.19. Both pass.
+  - Engine screen (`tools/results/b76/screen`, 16 rounds): C1 +0.77% against the
+    base, faster in 15 of 16; C3′ +1.92% against C1, 16 of 16; the set +2.77%. Both
+    pass.
+- **Pooled read** (`tools/nps_read.ps1`, `tools/results/b76-nps`), two cycles, host at
+  2.6% or less, no cycle disturbed:
+
+| Contrast | Delta | 95% interval | Verdict |
+|---|---:|---|---|
+| `b76-head` over `b76-base` | +3.21% | [+2.90%, +3.52%] | ACCEPT at step 1 |
+
+- **Disposition.** ACCEPTED: the set stays, and B.7.6 closes.
+- **Calibration.** The prediction was right in sign and floor, and low in magnitude:
+  +3.21% lies just above its 80% interval's top (+3.2%). The plain screen (+2.77%)
+  also read under the pooled read; the replay's figures matched the review's (−1.89
+  against −2.1, −4.64 against −4.3). C1 alone screened at +0.77%, under the review's
+  +1.86%, and C3′ at +1.92% over its +1.56%: the split between them moved, not the sum.
+- **Artifacts.** `tools/results/b76/` (binaries, replay, screen, trace),
+  `tools/results/b76-nps`, pools `tools/test_engines/b76-base.pool.json` and
+  `b76-head.pool.json`.

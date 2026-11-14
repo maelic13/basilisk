@@ -3883,7 +3883,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - Engine null pair (`tools/results/b75/screen-null/`, SHA-256
           C0A50086AA2AAF2C…): median −0.03%; single rounds −0.68% to
           +0.85%, the copy faster in 7 of 16.
-    - [ ] **B.7.6** `[I2]` Rebuild behind the board contract
+    - [x] **B.7.6** `[I2]` Rebuild behind the board contract
       It was B.7.3 until 2026-11-14. B.7.2's handoff as the frontier
       review amended it (its §6), one commit each, in this order.
       Rules for every component (B.7.2's packet §6):
@@ -3937,7 +3937,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       Not built (review §3): C2, C3's pre-test and C6 (no gain
       measured), C7 (withdrawn). `UndoInfo` gains no field for the
       network (F.1).
-      Prepared 2026-11-14; the timed reads wait for the idle host:
+      Done 2026-11-14 (BAS-P30):
       - One commit each: C1 `1097ee8`, C3′ `eccf9b7`, C5 `5e40371`, C8
         `0c978c2`. After each, `bench 13` is 4,247,965, `test_board_v2`,
         `test_search_path` and `board_replay --verify` pass, and the
@@ -3952,9 +3952,15 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - Also: CTest without the strength floors (30 tests), the
         sanitizer build's `test_board`, `test_board_v2` and
         `test_invariants`, and a TUNE build.
-      - The pooled read is BAS-P30: pools `b76-base` (`fb91be6`) and
-        `b76-head` (`0c978c2`), four PGO builds each, built and
-        accepted.
+      - Screens, idle host: the replay reads C1's make and unmake −1.89
+        ns per node and C3′'s SEE −4.64, each beyond twice its untouched
+        classes' spread (0.72 and 0.38); the engine screen reads C1
+        +0.77% (15 of 16 rounds) and C3′ +1.92% over C1 (16 of 16).
+        Both stay.
+      - Pooled read, BAS-P30 (pools `b76-base` at `fb91be6`, `b76-head`
+        at `0c978c2`): +3.21%, 95% interval [+2.90%, +3.52%], ACCEPT at
+        step 1. Above the floor, just above the frozen prediction's 80%
+        interval ([+0.8%, +3.2%]).
     - [ ] **B.7.7** `[R2]` Second round: candidates on the instruments
       Added 2026-11-14 (maintainer: the fastest board possible at the end
       of B.7). Bounded research on B.7.6's head. Each candidate below is
@@ -4810,7 +4816,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.7.6 | IMPLEMENTED | I2 | C1, C3′, C5, C8 built and qualified; the screens and BAS-P30's pooled read wait for the idle host |
 | B.7.7 | RESEARCH | R2 | Second round on B.7.6's head; the rule is frozen in the leaf |
 | B.7.8 | RESEARCH | I2 | B.7.7's handoff, or NO_CHANGE |
 | B.7.9 | RESEARCH | V | Was B.7.4 (B.15.4); after B.7.8, before B.8 |

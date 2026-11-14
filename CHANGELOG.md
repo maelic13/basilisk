@@ -16,6 +16,11 @@ and next step).
 
 ### Changed
 
+- **About 3% faster.** Taking a move back no longer recomputes the
+  position's keys only to throw them away, and the exchange evaluator works
+  out pinned pieces when it needs them instead of in advance (BAS-P30:
+  +3.21% nodes per second). It plays the same moves: `bench 13` is
+  unchanged at 4,247,965.
 - **Repetitions at the root of the search follow Stockfish.** A line that
   returns to the position the engine is thinking about was scored as a draw
   at once, although the game had seen that position only once more and the
