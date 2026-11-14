@@ -1443,6 +1443,58 @@ static void test_ponder_move_can_be_recovered_from_tt_child() {
     end_section();
 }
 
+// A stored bound must never answer a position that repeats the game history:
+// the draw check runs before the TT probe. White, a knight up, may play
+// Kg1-h1 into a position that occurred twice before the root: a draw. The
+// other root move, Re8+, gives the rook up. The table claims Black wins after
+// Kh1. A table cutoff happens only at a non-PV node, and a fail-high is
+// re-searched as PV, so the claim that matters is one that makes a root move
+// fail low under the null window: Re8+ is the root's TT move, searched first,
+// and Kh1 then runs under a null window where the claim could answer.
+static void test_stored_win_never_answers_a_repetition() {
+    const char* fen = "r5k1/8/8/8/8/2N5/4R3/6K1 w - - 0 1";
+    auto search = [&](bool with_history, bool poison) {
+        Board root;
+        root.set_fen(fen);
+        if (with_history)
+            for (int i = 0; i < 2; ++i)
+                for (const char* uci : {"g1h1", "g8h8", "h1g1", "h8g8"})
+                    EXPECT(apply_legal_uci(root, uci));
+        const Move check = legal_uci(root, "e2e8");
+        const Move step = legal_uci(root, "g1h1");
+        Board repeated = root;
+        repeated.make_move(step);
+        TranspositionTable tt(4);
+        tt.store(root.position_key(), 1, 0, TT_BETA, check, 0, 0);
+        if (poison)  // Black to move after Kh1: stored as winning.
+            tt.store(repeated.position_key(), 100, MATE_SCORE - 3, TT_EXACT, MOVE_NONE, 1, 0);
+        std::atomic_bool stop{false};
+        SearchLimits limits;
+        limits.depth = 8;
+        limits.root_moves = {check, step};
+        auto searcher = std::make_unique<Searcher>(tt, stop);
+        return searcher->search(root, limits);
+    };
+
+    // Negative control: without the history the stored win answers, Kh1
+    // fails low and Re8+ is played, so the table is reached where it can cut.
+    begin_section("repetition guard: controls (no history)");
+    const SearchResult plain = search(false, false);
+    const SearchResult poisoned = search(false, true);
+    EXPECT_STR(move_to_uci(plain.bestmove), "g1h1");
+    std::printf("(plain %d, poisoned %d) ", plain.score, poisoned.score);
+    EXPECT(plain.score > 0);
+    EXPECT_STR(move_to_uci(poisoned.bestmove), "e2e8");
+    EXPECT(poisoned.score < 0);
+    end_section();
+
+    begin_section("repetition guard: a stored win does not answer a repeat");
+    const SearchResult guarded = search(true, true);
+    EXPECT_STR(move_to_uci(guarded.bestmove), "g1h1");
+    EXPECT_EQ(guarded.score, 0);
+    end_section();
+}
+
 // ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
@@ -1642,6 +1694,7 @@ int main() {
     test_info_pv_lines_are_legal();
     test_corrupt_tt_move_is_not_searched();
     test_ponder_move_can_be_recovered_from_tt_child();
+    test_stored_win_never_answers_a_repetition();
 
     std::printf("\nFree queen capture\n");
     test_free_queen_capture();

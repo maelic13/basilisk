@@ -1289,11 +1289,11 @@ static void test_see_pin_legality() {
     check_see_case("pinner departs: pin released mid-exchange",
                    "4k3/8/8/4n3/6p1/7P/4Q3/K7 w - - 0 1", E2, G4, -500);
 
-    // Control twin: a different white piece (Bh5) initiates the same
+    // Control twin: a different white piece (Bf3) initiates the same
     // exchange while the e2 queen stays on the board -- the pin holds and
     // the knight cannot recapture: +100.
     check_see_case("pinner stays: pin holds during exchange",
-                   "4k3/8/8/4n2B/6p1/7P/4Q3/K7 w - - 0 1", H5, G4, 100);
+                   "4k3/8/8/4n3/6p1/5B1P/4Q3/K7 w - - 0 1", F3, G4, 100);
 
     // King recapture sanity (audit 4.4's SEE-king claim was REFUTED -- the
     // KING=20000 sentinel + minimax fold is correct; these verify it):

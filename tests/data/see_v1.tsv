@@ -1,0 +1,193 @@
+# name|source|FEN|uci|tree|lva|gain|asserted
+pawn captures undefended pawn|test_board:test_see|4k3/8/8/4p3/3P4/8/8/4K3 w - - 0 1|d4e5|100|100|100|100
+rook captures undefended pawn|test_board:test_see|4k3/8/8/4p3/4R3/8/8/4K3 w - - 0 1|e4e5|100|100|100|100
+pawn captures undefended knight|test_board:test_see|4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1|e4d5|300|300|300|300
+pawn captures undefended queen|test_board:test_see|7k/8/8/3q4/4P3/8/8/K7 w - - 0 1|e4d5|900|900|900|900
+rook captures undefended rook|test_board:test_see|7k/4r3/8/8/4R3/8/8/K7 w - - 0 1|e4e7|500|500|500|500
+SEE detects defended losing capture|test_board:test_see|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e5g6|-200|-200|100|-200
+second vector: bishop for a knight, first vector|test_board:test_see_on_the_second_vector|4k3/2p5/3n4/8/1B6/8/8/K7 w - - 0 1|b4d6|0|0|300|0
+pinned knight cannot recapture (audit repro)|test_board:test_see_pin_legality|4k3/4n3/2p5/1B6/8/8/8/K3R3 w - - 0 1|b5c6|100|100|100|100
+unpinned twin: knight recaptures|test_board:test_see_pin_legality|4k3/4n3/2p5/1B6/8/8/8/K2R4 w - - 0 1|b5c6|-200|-200|100|-200
+pinned bishop cannot recapture|test_board:test_see_pin_legality|3k4/3b4/2p5/8/3N4/8/8/K2R4 w - - 0 1|d4c6|100|100|100|100
+pinned pawn cannot recapture|test_board:test_see_pin_legality|3k4/3p4/2n5/8/3N4/8/8/K2R4 w - - 0 1|d4c6|300|300|300|300
+pinner departs: pin released mid-exchange|test_board:test_see_pin_legality|4k3/8/8/4n3/6p1/7P/4Q3/K7 w - - 0 1|e2g4|-500|-500|100|-500
+pinner stays: pin holds during exchange|test_board:test_see_pin_legality|4k3/8/8/4n3/6p1/5B1P/4Q3/K7 w - - 0 1|f3g4|100|100|100|100
+king recapture (legal): queen sac refused|test_board:test_see_pin_legality|4k3/4p3/8/8/8/8/8/4QK2 w - - 0 1|e1e7|-800|-800|100|-800
+king recapture (illegal): sentinel folds to legality|test_board:test_see_pin_legality|4k3/4p3/8/8/7B/8/8/4QK2 w - - 0 1|e1e7|100|100|100|100
+king legality: legal king recapture after pawn|test_board:test_see_king_legality|7k/8/2p5/3pK3/8/8/3R4/8 w - - 0 1|d2d5|-300|-300|100|-300
+king legality: legal king recapture of a queen|test_board:test_see_king_legality|3qk3/8/8/8/8/8/3Q4/3K4 w - - 0 1|d2d8|0|0|900|0
+king legality: defended destination refuses king recapture|test_board:test_see_king_legality|3qk3/8/8/6B1/8/8/3Q4/3K4 w - - 0 1|d2d8|900|900|900|900
+king legality: king as the initial capturer|test_board:test_see_king_legality|k7/7p/8/3n4/4K3/8/7P/8 w - - 0 1|e4d5|300|300|300|300
+king legality: mirror legal king recapture after pawn|test_board:test_see_king_legality|8/3r4/8/8/3Pk3/2P5/8/7K b - - 0 1|d7d4|-300|-300|100|-300
+king legality: mirror legal king recapture of a queen|test_board:test_see_king_legality|3k4/3q4/8/8/8/8/8/3QK3 b - - 0 1|d7d1|0|0|900|0
+king legality: mirror defended destination|test_board:test_see_king_legality|3k4/3q4/8/8/6b1/8/8/3QK3 b - - 0 1|d7d1|900|900|900|900
+king legality: pinned defender still forbids Kxf6|test_board:test_see_king_legality|8/6k1/5p2/8/3B3K/8/5Q2/4b3 w - - 0 1|d4f6|100|100|100|100
+king legality: pinned defender, mirror|test_board:test_see_king_legality|4B3/5q2/8/3b3k/8/5P2/6K1/8 b - - 0 1|d5f3|100|100|100|100
+created pin: opened by the mover's departure|test_board:test_see_created_pins_and_promotions|2k5/2n5/2B5/3p4/8/8/8/2R1K3 w - - 0 1|c6d5|100|100|100|100
+created pin: mover's departure, mirror|test_board:test_see_created_pins_and_promotions|2r1k3/8/8/8/3P4/2b5/2N5/2K5 b - - 0 1|c3d4|100|100|100|100
+created pin: skip the pinned attacker, choose the rook|test_board:test_see_created_pins_and_promotions|2kr4/2n5/2B5/3p4/8/8/8/2R1K3 w - - 0 1|c6d5|-200|-200|100|-200
+created pin: opened mid-exchange|test_board:test_see_created_pins_and_promotions|2k5/2n5/2B1p3/3p4/8/8/3R4/2R4K w - - 0 1|d2d5|-300|-300|100|-300
+promotion as the initial capture: queen|test_board:test_see_created_pins_and_promotions|1r2k3/P7/8/8/8/8/8/4K3 w - - 0 1|a7b8q|1300|1300|1300|1300
+promotion recapture: the queen is recaptured|test_board:test_see_created_pins_and_promotions|7k/8/8/8/8/8/pR6/1rR1K3 w - - 0 1|b2b1|100|100|500|100
+promotion recapture: the promoted queen stands|test_board:test_see_created_pins_and_promotions|7k/8/8/8/8/7K/pR6/1r6 w - - 0 1|b2b1|-800|-800|500|-800
+promotion recapture: the promoted queen stands, mirror|test_board:test_see_created_pins_and_promotions|1R6/Pr6/7k/8/8/8/8/7K b - - 0 1|b7b8|-800|-800|500|-800
+promotion recapture: the pawn is pinned|test_board:test_see_created_pins_and_promotions|R6K/8/8/8/8/8/pR6/kr6 w - - 0 1|b2b1|0|0|500|0
+test_see:0:e4d5|test_board:test_see:threshold-sweep|4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1|e4d5|300|300|300|-
+test_see:1:g7g8b|test_board:test_see:threshold-sweep|4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1|g7g8b|-100|-100|200|-
+test_see:1:g7g8n|test_board:test_see:threshold-sweep|4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1|g7g8n|-100|-100|200|-
+test_see:1:g7g8q|test_board:test_see:threshold-sweep|4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1|g7g8q|-100|-100|800|-
+test_see:1:g7g8r|test_board:test_see:threshold-sweep|4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1|g7g8r|-100|-100|400|-
+test_see:1:g7h8b|test_board:test_see:threshold-sweep|4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1|g7h8b|700|700|700|-
+test_see:1:g7h8n|test_board:test_see:threshold-sweep|4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1|g7h8n|700|700|700|-
+test_see:1:g7h8q|test_board:test_see:threshold-sweep|4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1|g7h8q|1300|1300|1300|-
+test_see:1:g7h8r|test_board:test_see:threshold-sweep|4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1|g7h8r|900|900|900|-
+test_see:2:a7a8b|test_board:test_see:threshold-sweep|4k3/P7/8/8/8/8/8/4K3 w - - 0 1|a7a8b|200|200|200|-
+test_see:2:a7a8n|test_board:test_see:threshold-sweep|4k3/P7/8/8/8/8/8/4K3 w - - 0 1|a7a8n|200|200|200|-
+test_see:2:a7a8q|test_board:test_see:threshold-sweep|4k3/P7/8/8/8/8/8/4K3 w - - 0 1|a7a8q|800|800|800|-
+test_see:2:a7a8r|test_board:test_see:threshold-sweep|4k3/P7/8/8/8/8/8/4K3 w - - 0 1|a7a8r|400|400|400|-
+test_see:3:d5e6|test_board:test_see:threshold-sweep|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|d5e6|0|0|100|-
+test_see:3:e2a6|test_board:test_see:threshold-sweep|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e2a6|300|300|300|-
+test_see:3:e5d7|test_board:test_see:threshold-sweep|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e5d7|-200|-200|100|-
+test_see:3:e5f7|test_board:test_see:threshold-sweep|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e5f7|-200|-200|100|-
+test_see:3:e5g6|test_board:test_see:threshold-sweep|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e5g6|-200|-200|100|-
+test_see:3:f3f6|test_board:test_see:threshold-sweep|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|f3f6|-600|-600|300|-
+test_see:3:f3h3|test_board:test_see:threshold-sweep|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|f3h3|-300|-300|100|-
+test_see:3:g2h3|test_board:test_see:threshold-sweep|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|g2h3|100|100|100|-
+test_see_on_the_second_vector:0:c4f7|test_board:test_see_on_the_second_vector:sweep|r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 1|c4f7|-200|-200|100|-
+test_see_on_the_second_vector:0:f3e5|test_board:test_see_on_the_second_vector:sweep|r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 1|f3e5|-200|-200|100|-
+test_see_quiet_moves:0:e1d1|test_board:test_see_quiet_moves:fen-list|4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1|e1d1|0|0|0|-
+test_see_quiet_moves:0:e1d2|test_board:test_see_quiet_moves:fen-list|4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1|e1d2|0|0|0|-
+test_see_quiet_moves:0:e1e2|test_board:test_see_quiet_moves:fen-list|4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1|e1e2|0|0|0|-
+test_see_quiet_moves:0:e1f1|test_board:test_see_quiet_moves:fen-list|4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1|e1f1|0|0|0|-
+test_see_quiet_moves:0:e1f2|test_board:test_see_quiet_moves:fen-list|4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1|e1f2|0|0|0|-
+test_see_quiet_moves:0:e4e5|test_board:test_see_quiet_moves:fen-list|4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1|e4e5|0|0|0|-
+test_see_quiet_moves:1:e1d1|test_board:test_see_quiet_moves:fen-list|4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1|e1d1|0|0|0|-
+test_see_quiet_moves:1:e1d2|test_board:test_see_quiet_moves:fen-list|4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1|e1d2|0|0|0|-
+test_see_quiet_moves:1:e1e2|test_board:test_see_quiet_moves:fen-list|4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1|e1e2|0|0|0|-
+test_see_quiet_moves:1:e1f1|test_board:test_see_quiet_moves:fen-list|4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1|e1f1|0|0|0|-
+test_see_quiet_moves:1:e1f2|test_board:test_see_quiet_moves:fen-list|4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1|e1f2|0|0|0|-
+test_see_quiet_moves:2:e1d1|test_board:test_see_quiet_moves:fen-list|4k3/P7/8/8/8/8/8/4K3 w - - 0 1|e1d1|0|0|0|-
+test_see_quiet_moves:2:e1d2|test_board:test_see_quiet_moves:fen-list|4k3/P7/8/8/8/8/8/4K3 w - - 0 1|e1d2|0|0|0|-
+test_see_quiet_moves:2:e1e2|test_board:test_see_quiet_moves:fen-list|4k3/P7/8/8/8/8/8/4K3 w - - 0 1|e1e2|0|0|0|-
+test_see_quiet_moves:2:e1f1|test_board:test_see_quiet_moves:fen-list|4k3/P7/8/8/8/8/8/4K3 w - - 0 1|e1f1|0|0|0|-
+test_see_quiet_moves:2:e1f2|test_board:test_see_quiet_moves:fen-list|4k3/P7/8/8/8/8/8/4K3 w - - 0 1|e1f2|0|0|0|-
+test_see_quiet_moves:3:a1b1|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|a1b1|0|0|0|-
+test_see_quiet_moves:3:a1c1|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|a1c1|0|0|0|-
+test_see_quiet_moves:3:a1d1|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|a1d1|0|0|0|-
+test_see_quiet_moves:3:a2a3|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|a2a3|0|0|0|-
+test_see_quiet_moves:3:a2a4|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|a2a4|0|0|0|-
+test_see_quiet_moves:3:b2b3|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|b2b3|0|0|0|-
+test_see_quiet_moves:3:c3a4|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|c3a4|-300|-300|0|-
+test_see_quiet_moves:3:c3b1|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|c3b1|0|0|0|-
+test_see_quiet_moves:3:c3b5|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|c3b5|0|0|0|-
+test_see_quiet_moves:3:c3d1|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|c3d1|0|0|0|-
+test_see_quiet_moves:3:d2c1|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|d2c1|0|0|0|-
+test_see_quiet_moves:3:d2e3|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|d2e3|0|0|0|-
+test_see_quiet_moves:3:d2f4|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|d2f4|0|0|0|-
+test_see_quiet_moves:3:d2g5|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|d2g5|0|0|0|-
+test_see_quiet_moves:3:d2h6|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|d2h6|-300|-300|0|-
+test_see_quiet_moves:3:d5d6|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|d5d6|-100|-100|0|-
+test_see_quiet_moves:3:e1d1|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e1d1|0|0|0|-
+test_see_quiet_moves:3:e1f1|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e1f1|0|0|0|-
+test_see_quiet_moves:3:e2b5|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e2b5|0|0|0|-
+test_see_quiet_moves:3:e2c4|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e2c4|-300|-300|0|-
+test_see_quiet_moves:3:e2d1|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e2d1|0|0|0|-
+test_see_quiet_moves:3:e2d3|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e2d3|0|0|0|-
+test_see_quiet_moves:3:e2f1|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e2f1|0|0|0|-
+test_see_quiet_moves:3:e5c4|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e5c4|-300|-300|0|-
+test_see_quiet_moves:3:e5c6|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e5c6|-200|-200|0|-
+test_see_quiet_moves:3:e5d3|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e5d3|0|0|0|-
+test_see_quiet_moves:3:e5g4|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|e5g4|0|0|0|-
+test_see_quiet_moves:3:f3d3|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|f3d3|-600|-600|0|-
+test_see_quiet_moves:3:f3e3|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|f3e3|0|0|0|-
+test_see_quiet_moves:3:f3f4|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|f3f4|0|0|0|-
+test_see_quiet_moves:3:f3f5|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|f3f5|-900|-900|0|-
+test_see_quiet_moves:3:f3g3|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|f3g3|0|0|0|-
+test_see_quiet_moves:3:f3g4|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|f3g4|-600|-600|0|-
+test_see_quiet_moves:3:f3h5|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|f3h5|-900|-900|0|-
+test_see_quiet_moves:3:g2g3|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|g2g3|0|0|0|-
+test_see_quiet_moves:3:g2g4|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|g2g4|0|0|0|-
+test_see_quiet_moves:3:h1f1|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|h1f1|0|0|0|-
+test_see_quiet_moves:3:h1g1|test_board:test_see_quiet_moves:fen-list|r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1|h1g1|0|0|0|-
+test_see_quiet_moves:4:d1a1|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1a1|0|0|0|-
+test_see_quiet_moves:4:d1a4|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1a4|0|0|0|-
+test_see_quiet_moves:4:d1b1|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1b1|0|0|0|-
+test_see_quiet_moves:4:d1b3|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1b3|0|0|0|-
+test_see_quiet_moves:4:d1c1|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1c1|0|0|0|-
+test_see_quiet_moves:4:d1c2|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1c2|0|0|0|-
+test_see_quiet_moves:4:d1d2|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1d2|0|0|0|-
+test_see_quiet_moves:4:d1d3|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1d3|0|0|0|-
+test_see_quiet_moves:4:d1d4|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1d4|0|0|0|-
+test_see_quiet_moves:4:d1d5|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1d5|-900|-900|0|-
+test_see_quiet_moves:4:d1d6|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1d6|0|0|0|-
+test_see_quiet_moves:4:d1d7|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1d7|-900|-900|0|-
+test_see_quiet_moves:4:d1d8|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1d8|-900|-900|0|-
+test_see_quiet_moves:4:d1e2|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1e2|0|0|0|-
+test_see_quiet_moves:4:d1f3|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1f3|0|0|0|-
+test_see_quiet_moves:4:d1g4|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1g4|0|0|0|-
+test_see_quiet_moves:4:d1h5|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|d1h5|0|0|0|-
+test_see_quiet_moves:4:e1d2|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|e1d2|0|0|0|-
+test_see_quiet_moves:4:e1e2|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|e1e2|0|0|0|-
+test_see_quiet_moves:4:e1f1|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|e1f1|0|0|0|-
+test_see_quiet_moves:4:e1f2|test_board:test_see_quiet_moves:fen-list|4k3/8/4p3/8/8/8/8/3QK3 w - - 0 1|e1f2|0|0|0|-
+test_see_quiet_moves:5:e1d1|test_board:test_see_quiet_moves:fen-list|4k3/4r3/8/8/8/8/4R3/4K3 w - - 0 1|e1d1|0|0|0|-
+test_see_quiet_moves:5:e1d2|test_board:test_see_quiet_moves:fen-list|4k3/4r3/8/8/8/8/4R3/4K3 w - - 0 1|e1d2|0|0|0|-
+test_see_quiet_moves:5:e1f1|test_board:test_see_quiet_moves:fen-list|4k3/4r3/8/8/8/8/4R3/4K3 w - - 0 1|e1f1|0|0|0|-
+test_see_quiet_moves:5:e1f2|test_board:test_see_quiet_moves:fen-list|4k3/4r3/8/8/8/8/4R3/4K3 w - - 0 1|e1f2|0|0|0|-
+test_see_quiet_moves:5:e2e3|test_board:test_see_quiet_moves:fen-list|4k3/4r3/8/8/8/8/4R3/4K3 w - - 0 1|e2e3|-500|-500|0|-
+test_see_quiet_moves:5:e2e4|test_board:test_see_quiet_moves:fen-list|4k3/4r3/8/8/8/8/4R3/4K3 w - - 0 1|e2e4|-500|-500|0|-
+test_see_quiet_moves:5:e2e5|test_board:test_see_quiet_moves:fen-list|4k3/4r3/8/8/8/8/4R3/4K3 w - - 0 1|e2e5|-500|-500|0|-
+test_see_quiet_moves:5:e2e6|test_board:test_see_quiet_moves:fen-list|4k3/4r3/8/8/8/8/4R3/4K3 w - - 0 1|e2e6|-500|-500|0|-
+test_see_quiet_moves:6:c6a5|test_board:test_see_quiet_moves:fen-list|4k3/8/2n5/8/2B5/8/8/2R1K3 b - - 0 1|c6a5|0|0|0|-
+test_see_quiet_moves:6:c6a7|test_board:test_see_quiet_moves:fen-list|4k3/8/2n5/8/2B5/8/8/2R1K3 b - - 0 1|c6a7|0|0|0|-
+test_see_quiet_moves:6:c6b4|test_board:test_see_quiet_moves:fen-list|4k3/8/2n5/8/2B5/8/8/2R1K3 b - - 0 1|c6b4|0|0|0|-
+test_see_quiet_moves:6:c6b8|test_board:test_see_quiet_moves:fen-list|4k3/8/2n5/8/2B5/8/8/2R1K3 b - - 0 1|c6b8|0|0|0|-
+test_see_quiet_moves:6:c6d4|test_board:test_see_quiet_moves:fen-list|4k3/8/2n5/8/2B5/8/8/2R1K3 b - - 0 1|c6d4|0|0|0|-
+test_see_quiet_moves:6:c6d8|test_board:test_see_quiet_moves:fen-list|4k3/8/2n5/8/2B5/8/8/2R1K3 b - - 0 1|c6d8|0|0|0|-
+test_see_quiet_moves:6:c6e5|test_board:test_see_quiet_moves:fen-list|4k3/8/2n5/8/2B5/8/8/2R1K3 b - - 0 1|c6e5|0|0|0|-
+test_see_quiet_moves:6:c6e7|test_board:test_see_quiet_moves:fen-list|4k3/8/2n5/8/2B5/8/8/2R1K3 b - - 0 1|c6e7|0|0|0|-
+test_see_quiet_moves:6:e8d7|test_board:test_see_quiet_moves:fen-list|4k3/8/2n5/8/2B5/8/8/2R1K3 b - - 0 1|e8d7|0|0|0|-
+test_see_quiet_moves:6:e8d8|test_board:test_see_quiet_moves:fen-list|4k3/8/2n5/8/2B5/8/8/2R1K3 b - - 0 1|e8d8|0|0|0|-
+test_see_quiet_moves:6:e8e7|test_board:test_see_quiet_moves:fen-list|4k3/8/2n5/8/2B5/8/8/2R1K3 b - - 0 1|e8e7|0|0|0|-
+test_see_quiet_moves:6:e8f8|test_board:test_see_quiet_moves:fen-list|4k3/8/2n5/8/2B5/8/8/2R1K3 b - - 0 1|e8f8|0|0|0|-
+free-pawn|rarog-contract|4k3/8/8/3p4/8/8/3R4/4K3 w - - 0 1|d2d5|100|100|100|-
+defended-pawn|rarog-contract|4k3/8/2p5/3p4/8/8/3R4/4K3 w - - 0 1|d2d5|-400|-400|100|-
+king-after-pawn|rarog-contract|7k/8/2p5/3pK3/8/8/3R4/8 w - - 0 1|d2d5|-300|-300|100|-
+legal-king-recapture|rarog-contract|3qk3/8/8/8/8/8/3Q4/3K4 w - - 0 1|d2d8|0|0|900|-
+defended-king-destination|rarog-contract|3qk3/8/8/6B1/8/8/3Q4/3K4 w - - 0 1|d2d8|900|900|900|-
+pinned-pawn|rarog-contract|3k4/3p4/2p5/8/4B3/8/8/3RK3 w - - 0 1|e4c6|100|100|100|-
+pin-created|rarog-contract|2k5/2n5/2B5/3p4/8/8/8/2R1K3 w - - 0 1|c6d5|100|100|100|-
+pin-released|rarog-contract|k7/1r1p4/2B5/8/8/8/8/4K3 w - - 0 1|c6d7|-200|-200|100|-
+xray|rarog-contract|3rk3/8/8/3r4/8/8/3R4/3RK3 w - - 0 1|d2d5|500|500|500|-
+ep-opens-rook|rarog-contract|7k/8/8/3pP3/8/8/K7/3r4 w - d6 0 1|e5d6|0|0|100|-
+quiet-hanging|rarog-contract|7k/8/8/2p5/8/8/3R4/7K w - - 0 1|d2d4|-500|-500|0|-
+quiet-promotion-hanging|rarog-contract|7r/P7/7k/8/8/8/8/K7 w - - 0 1|a7a8q|-100|-100|800|-
+quiet-underpromotion|rarog-contract|4k3/P7/8/8/8/8/8/4K3 w - - 0 1|a7a8n|200|200|200|-
+capture-promotion|rarog-contract|1r2k3/P7/8/8/8/8/8/4K3 w - - 0 1|a7b8q|1300|1300|1300|-
+capture-underpromotion|rarog-contract|1r2k3/P7/8/8/8/8/8/4K3 w - - 0 1|a7b8n|700|700|700|-
+promotion-recapture|rarog-contract|7k/8/8/8/8/7K/pR6/1r6 w - - 0 1|b2b1|-800|-800|500|-
+castle-king|rarog-contract|4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1|e1g1|0|0|0|-
+castle-queen|rarog-contract|4k3/8/8/8/8/8/8/R3K2R w KQ - 0 1|e1c1|0|0|0|-
+promoted-piece-recaptured|rarog-repair|7k/8/8/8/8/8/pR6/1rR1K3 w - - 0 1|b2b1|100|100|500|-
+pin-created-later|rarog-repair|2k5/2n5/2B1p3/3p4/8/8/3R4/2R4K w - - 0 1|d2d5|-300|-300|100|-
+skip-pinned-choose-rook|rarog-repair|2kr4/2n5/2B5/3p4/8/8/8/2R1K3 w - - 0 1|c6d5|-200|-200|100|-
+quiet-allows-promotion|rarog-repair|7k/8/8/8/8/7K/pR6/8 w - - 0 1|b2b1|-1300|-1300|0|-
+initial-king-capture|rarog-repair|k7/7p/8/3n4/4K3/8/7P/8 w - - 0 1|e4d5|300|300|300|-
+mirror-free-pawn|mirror|4k3/3r4/8/8/3P4/8/8/4K3 b - - 0 1|d7d4|100|100|100|-
+mirror-defended-pawn|mirror|4k3/3r4/8/8/3P4/2P5/8/4K3 b - - 0 1|d7d4|-400|-400|100|-
+mirror-king-after-pawn|mirror|8/3r4/8/8/3Pk3/2P5/8/7K b - - 0 1|d7d4|-300|-300|100|-
+mirror-legal-king-recapture|mirror|3k4/3q4/8/8/8/8/8/3QK3 b - - 0 1|d7d1|0|0|900|-
+mirror-defended-king-destination|mirror|3k4/3q4/8/8/6b1/8/8/3QK3 b - - 0 1|d7d1|900|900|900|-
+mirror-pinned-pawn|mirror|3rk3/8/8/4b3/8/2P5/3P4/3K4 b - - 0 1|e5c3|100|100|100|-
+mirror-pin-created|mirror|2r1k3/8/8/8/3P4/2b5/2N5/2K5 b - - 0 1|c3d4|100|100|100|-
+mirror-pin-released|mirror|4k3/8/8/8/8/2b5/1R1P4/K7 b - - 0 1|c3d2|-200|-200|100|-
+mirror-xray|mirror|3rk3/3r4/8/8/3R4/8/8/3RK3 b - - 0 1|d7d4|500|500|500|-
+mirror-ep-opens-rook|mirror|3R4/k7/8/8/3Pp3/8/8/7K b - d3 0 1|e4d3|0|0|100|-
+mirror-quiet-hanging|mirror|7k/3r4/8/8/2P5/8/8/7K b - - 0 1|d7d5|-500|-500|0|-
+mirror-quiet-promotion-hanging|mirror|k7/8/8/8/8/7K/p7/7R b - - 0 1|a2a1q|-100|-100|800|-
+mirror-quiet-underpromotion|mirror|4k3/8/8/8/8/8/p7/4K3 b - - 0 1|a2a1n|200|200|200|-
+mirror-capture-promotion|mirror|4k3/8/8/8/8/8/p7/1R2K3 b - - 0 1|a2b1q|1300|1300|1300|-
+mirror-capture-underpromotion|mirror|4k3/8/8/8/8/8/p7/1R2K3 b - - 0 1|a2b1n|700|700|700|-
+mirror-promotion-recapture|mirror|1R6/Pr6/7k/8/8/8/8/7K b - - 0 1|b7b8|-800|-800|500|-
+mirror-castle-king|mirror|r3k2r/8/8/8/8/8/8/4K3 b kq - 0 1|e8g8|0|0|0|-
+mirror-castle-queen|mirror|r3k2r/8/8/8/8/8/8/4K3 b kq - 0 1|e8c8|0|0|0|-

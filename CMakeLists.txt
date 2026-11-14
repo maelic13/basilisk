@@ -275,6 +275,9 @@ target_link_libraries(board_performance_test PRIVATE basilisk_board)
 # ---------------------------------------------------------------------------
 add_executable(test_board tests/test_board.cpp)
 target_link_libraries(test_board PRIVATE basilisk_board)
+# The board against python-chess's oracle files in tests/data.
+add_executable(test_board_v2 tests/test_board_v2.cpp)
+target_link_libraries(test_board_v2 PRIVATE basilisk_board)
 
 # ---------------------------------------------------------------------------
 # Move encoding / decoding tests
@@ -408,6 +411,7 @@ target_compile_definitions(test_endgames PRIVATE
 
 include(CTest)
 add_test(NAME test_board        COMMAND test_board)
+add_test(NAME test_board_v2     COMMAND test_board_v2 ${CMAKE_SOURCE_DIR}/tests/data)
 add_test(NAME test_wac          COMMAND test_wac)
 add_test(NAME test_invariants   COMMAND test_invariants)
 add_test(NAME test_threats      COMMAND test_threats)
@@ -607,7 +611,7 @@ endif()
 set(_ALL_TARGETS
     basilisk_board basilisk_engine basilisk_launcher basilisk_version
     basilisk board_performance_test
-    test_board test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
+    test_board test_board_v2 test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics test_threats
     test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch test_b5_root
     basilisk_engine_child_log test_search_path test_kernel_pins
