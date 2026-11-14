@@ -564,6 +564,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S61](experiments/BAS-S61.md) — B.6.7: the literal screen and the relevance read, the curvature sweep, then the joint search SPSA — reads done 2026-11-13 (42 of 74 coordinates and 60 of 118 literals pass; two flat dropped); the SPSA run 2026-11-13 to 14 over 170 coordinates (amendment 2): STOP_QUIET at 2,000, 60,000 games, no fault; baked, `bench 13` 4,278,307; B.6's SPRT owed
 
+- [BAS-S62](experiments/BAS-S62.md) — B.6's gate: the B.6.7 bake against the head before it, SPRT `[0,3]` — registered
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |

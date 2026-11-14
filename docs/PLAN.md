@@ -3550,6 +3550,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           registered on its own before its first game. The fingerprint
           record and `CHANGELOG.md` move when it accepts; a rejection
           reverts the bake.
+        - Registered 2026-11-14 as BAS-S62: the baked release build at
+          `6a9f81f` against the release build of `0f30bf1`, the commit
+          before the bake (both final PGO, manifests clean), SPRT `[0,3]`
+          at `3+0.03`, cap 6,400 pairs for an expected +8 Elo. Dry run
+          accepted. The maintainer runs `python tools/run_b67_sprt.py`.
 - [ ] **B.7** Board review and rebuild
   Added 2026-11-03 (maintainer): Basilisk's board is reviewed against
   Stockfish's (`Position` and `StateInfo`, the modern donor's form) and
@@ -4359,7 +4364,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.6.7 | GAME_GATE | V | Was B.6.2; the SPSA (BAS-S61) stopped quiet at 2,000 and baked 2026-11-14 (`bench 13` 4,278,307); B.6's SPRT `[0,3]` owed |
+| B.6.7 | GAME_GATE | V | Was B.6.2; the SPSA (BAS-S61) stopped quiet at 2,000 and baked 2026-11-14 (`bench 13` 4,278,307); B.6's SPRT (BAS-S62) prepared, maintainer-run |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
 | B.7.2 | RESEARCH | R2 | Was B.15.2; after B.7.1 |
 | B.7.3 | RESEARCH | I2 | Was B.15.3; on B.7.2's frozen handoff |
