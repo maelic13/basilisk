@@ -5,6 +5,7 @@
 #include "move.h"
 #include "attacks.h"
 #include "zobrist.h"
+#include "constants.h"
 #include <memory>
 #include <vector>
 #include <expected>
@@ -70,6 +71,10 @@ private:
 
 public:
     static constexpr size_t HISTORY_RESERVE = 2048;
+    // Room past the game history for the longest search line (MAX_PLY plies
+    // of moves and null moves, with margin). Every copy reserves it, so no
+    // node of a search grows the history.
+    static constexpr size_t SEARCH_HISTORY_HEADROOM = 2 * MAX_PLY;
 
     // Compact, opaque image of one coherent position. It deliberately omits
     // undo history and diagnostic counters: restoring it produces the same
@@ -146,6 +151,7 @@ public:
     [[nodiscard]] Bitboard checking_pieces() const noexcept { return checkers; }
     [[nodiscard]] size_t history_size() const noexcept { return history.size(); }
     [[nodiscard]] bool history_empty() const noexcept { return history.empty(); }
+    [[nodiscard]] size_t history_capacity() const noexcept { return history.capacity(); }
     // The piece the last move captured (NO_PIECE after a quiet or null move,
     // or at a position with no move history).
     [[nodiscard]] Piece captured_piece() const noexcept {

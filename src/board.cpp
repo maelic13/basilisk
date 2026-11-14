@@ -265,7 +265,11 @@ Board& Board::operator=(const Board& other) {
     plies_from_null = other.plies_from_null;
     checkers = other.checkers;
 
-    history = other.history;   // vector copy-assign; capacity is retained
+    // Reserve the search line's headroom first: copy-assignment keeps a
+    // sufficient capacity, so a search on this copy never grows it.
+    history.reserve(std::max(HISTORY_RESERVE,
+                             other.history.size() + SEARCH_HISTORY_HEADROOM));
+    history = other.history;
 
     return *this;
 }
