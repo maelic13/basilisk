@@ -48,7 +48,7 @@ adopted, and no open leaf reads it.
 | `b4_qs_delta` 0 | `:438` | the delta rule before Cluster 3; B.6.4: dead. B.8.6 kept it "to restore the old rule", which nothing asks for |
 | `b4_gain_values` 0 | `:516` | the two-vector card, not adopted |
 | `b4_quiet_checks` 0 | `:580`, `:585` | B.6.4: dead. With it go `Board::gen_quiet_checks` (the engine's only caller), its checks in `test_board_v2` and `test_search_path`, the microbenchmark's `quiet_check_gen` column and the trace's `GEN_QUIET_CHECKS` op |
-| `b5_window` 1 | `search_worker.cpp:647`, `:818` | the older aspiration loop; B.6.4: dead |
+| `b5_window` 1 | `search_worker.cpp:647`, `:818` | the switch goes. The older aspiration loop does not: it still serves a root record left empty while legal moves exist (a helper whose root filter leaves it no move), so B.6.4's "dead" was wrong for it |
 | `b5_root_lmr` 1, `b5_lmr_window_units` 1 | `search_kernel_core.cpp:1806`, `:72` | Cluster 4's gate kept them; row 27 is a unit conversion |
 
 ## 3. Switches whose other form a later leaf tests: delete and record
@@ -62,7 +62,7 @@ Each leaf rebuilds its form from `55e3010` at the place named.
 | `corr_nonpawn_kings` 0 | kings in the non-pawn correction keys (row 33) | `search_history_core.cpp:281`, `:307` | H.6 |
 | `tt_key50` 0 | the donor's `adjust_key50` (row 32) | `search_worker.h:305` | H.6 |
 | `b3_probcut_tt` 0 | the small TT ProbCut (row 3) | `search_kernel_core.cpp:1288` | H.6 |
-| `core_history_fills` 0 | the donor's fill values after a clear (row 2) | `:2156` | H.6 |
+| `core_history_fills` 0 | the donor's fill values after a clear (row 2); `CoreHistoryTables::clear(true)` stays, since the microbenchmark seeds its histories with it | `:2156` | H.6 |
 | `b3_ext_budget` 1 | the donor's form, no budget (row 4); Basilisk's guard stays | `:838`, `:1650` | H.6 |
 | `b4_see_values` 0 | the one-vector SEE (row 13); a Tune-only switch | `search_worker.cpp:408`, `Board::set_see_vector` | H.6 |
 | `b4_rfp_seek_mate` 0 | reverse futility's seek-mate cap (row 16) | `search_kernel_core.cpp:1108` | H.2, on the network |
