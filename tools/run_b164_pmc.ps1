@@ -12,18 +12,33 @@
    about ten minutes.
    -DryRun needs neither: it checks the inputs, makes the copy, runs every
    binary's `bench 13` untraced (its node count must be 19,470,325) and
-   parses the B.16.4 probe trace through the same calls. #>
-param([switch]$DryRun)
+   parses the B.16.4 probe trace through the same calls.
+   The defaults are BAS-P28's frozen arms. Another pair of four-build pools
+   is read the same way with -BasePool, -CandPool, -ExpectNodes, -Name (the
+   contrast and the archive tools/results/<Name>-pmc) and -Label. #>
+param(
+    [switch]$DryRun,
+    [string]$BasePool = '',
+    [string]$CandPool = '',
+    [long]$ExpectNodes = 19470325,
+    [string]$Name = 'b164',
+    [string]$Contrast = 'p25',
+    [string]$Label = 'BAS-P28 counters'
+)
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot '..\harness_common.ps1')
 $xperf = 'C:\Program Files (x86)\Windows Kits\10\Windows Performance Toolkit\xperf.exe'
 $reader = Join-Path $PSScriptRoot 'diag\pmc_read.py'
 $engines = Join-Path $PSScriptRoot 'test_engines'
-$expectNodes = 19470325
+$expectNodes = $ExpectNodes
+if (-not $BasePool) { $BasePool = Join-Path $engines 'b164-p25-base.pool.json' }
+if (-not $CandPool) { $CandPool = Join-Path $engines 'b164-p25-cand.pool.json' }
+$baseArm = "$Contrast-base"
+$candArm = "$Contrast-cand"
 $pools = @(
-    @{ Arm = 'p25-base'; Pool = Join-Path $engines 'b164-p25-base.pool.json' }
-    @{ Arm = 'p25-cand'; Pool = Join-Path $engines 'b164-p25-cand.pool.json' }
+    @{ Arm = $baseArm; Pool = $BasePool }
+    @{ Arm = $candArm; Pool = $CandPool }
 )
 
 if (-not $DryRun) {
@@ -49,14 +64,14 @@ Copy-Item $source.Path $copyPath -Force
 if ((Get-HarnessSha256 $copyPath) -ne $source.Sha) { throw 'the null copy is not byte-identical' }
 $items += @{ Arm = 'copy'; Build = "$($source.Build)-copy"; Path = (Resolve-Path $copyPath).Path; Sha = $source.Sha }
 
-$out = Join-Path $PSScriptRoot $(if ($DryRun) { 'results\b164-pmc-dryrun' } else { 'results\b164-pmc' })
+$out = Join-Path $PSScriptRoot $(if ($DryRun) { "results\$Name-pmc-dryrun" } else { "results\$Name-pmc" })
 if (Test-Path (Join-Path $out 'runs.jsonl')) {
     if ($DryRun) { Remove-Item -Recurse -Force $out } else { throw "$out already holds a read; move it aside first." }
 }
 New-Item -ItemType Directory -Force $out | Out-Null
-@{ label = 'BAS-P28 counters'; contrasts = @(
-        @{ name = 'p25'; base = 'p25-base'; cand = 'p25-cand' }
-        @{ name = 'null'; base = 'p25-base'; base_build = $source.Build; cand = 'copy' }) } |
+@{ label = $Label; contrasts = @(
+        @{ name = $Contrast; base = $baseArm; cand = $candArm }
+        @{ name = 'null'; base = $baseArm; base_build = $source.Build; cand = 'copy' }) } |
     ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 (Join-Path $out 'config.json')
 
 $before = Assert-HarnessHostIdle -Allow:$DryRun
