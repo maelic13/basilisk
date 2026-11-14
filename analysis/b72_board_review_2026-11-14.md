@@ -7,7 +7,7 @@
   each proposal by the condition stated before them: the microbenchmark
   beside Rarog's and Reckless's boards (§1.1), and the head's profile at
   `bench 13` (§1.2).
-- **What B.7.3 gets:** seven components to rebuild, each behaviour-neutral
+- **What B.7.3 gets:** six components to rebuild, each behaviour-neutral
   (§6). B.7.4 then prices them on pooled-PGO NPS.
 
 Inputs: Stockfish 19 at `edb0d9db` (`position.cpp`, `position.h`,
@@ -63,10 +63,16 @@ Two limits carry over:
   takes a `CheckInfo`, is crate-private. Its make is the hinted make, as in
   its search.
 - **SEE ≥ 0 holds on 325 of the 927 tactical moves for Basilisk and
-  Reckless, and on 361 for Rarog.** The legal exchange tree (B.7.1's
-  `see_oracle.py`) gives 325, and so does its least-valuable-legal-attacker
-  chain. Rarog's SEE disagrees with the tree on at least 36 game positions.
-  That is Rarog's finding, reported to the maintainer.
+  Reckless, and on 361 for Rarog and both Stockfishes.** The legal exchange
+  tree (B.7.1's `see_oracle.py`) gives 325, and so does its
+  least-valuable-legal-attacker chain.
+  - The 36 are exactly the promotions and en-passant captures whose exchange
+    loses.
+  - Stockfish's `see_ge` passes every move that is not a normal move without
+    an exchange, and Rarog follows it.
+  - It is the donor's deliberate rule, not a defect. Basilisk's exact
+    treatment of those moves is BAS-C09's departure.
+  - It also makes Stockfish's SEE column cheaper on those moves.
 
 **Static reads of the release engine** (`basilisk-b71-fix-pext-pgo.exe`, the
 head's code):
@@ -106,7 +112,8 @@ range between runs.
 † Rarog and Reckless generate 885 of the 927 tactical moves, so the
 column is not comparable.
 
-‡ Rarog's SEE disagrees with the exchange tree (§1).
+‡ Rarog's SEE passes promotions and en passant unexamined, as Stockfish's
+does (§1).
 
 § Rarog's full form, not its search's fast form.
 
@@ -127,8 +134,8 @@ Read against the ranges:
   and perft by 25% to 61%.
 - **Rarog's make/unmake is 15.4% faster**, against ranges of 1%. That is
   the one resolved gap against Basilisk, and §1.2 explains it.
-- **Rarog's SEE column is not a lead:** it computes a different answer on
-  36 of the moves.
+- **Rarog's SEE column is not quite the same work:** like Stockfish's, it
+  passes 36 of the moves without an exchange.
 - **Quiet-check generation costs four times a full legal generation**
   (229 against 57 ns for the staged pair).
 
@@ -159,6 +166,111 @@ samples.
 | `is_legal` | 0.54% | |
 | `is_draw` and `upcoming_repetition` | 0.81% | |
 | `check_squares` | 0.38% | |
+
+### 1.3 Both Stockfishes, and the cost per search node
+
+The maintainer asked for the donor's board in both of its forms:
+
+- **Stockfish 19** (`edb0d9db`): its `do_move` writes the network's
+  dirty-piece, threat and pawn-pair records.
+- **Classical Stockfish** (`9587eeeb`, tag `SF_classical`): its `do_move`
+  keeps the evaluation's incremental piece-square score.
+
+How the Stockfish arms were built:
+
+- **Build:** each is built by its own Makefile with Basilisk's compiler
+  (Clang 23.1.5), COMP=clang ARCH=x86-64-bmi2, no PGO. The adapters are
+  patches in `tools/board_compare/`, rebuilt by `build.py`.
+- **SEE values:** both take the contract's values by a constant swap under
+  a bench-only define.
+- **Make:** both are given `givesCheck` precomputed, as their searches
+  pass it. Stockfish 19's TT and history prefetch pointers are null.
+  Classical Stockfish's `do_move` always prefetches its TT entry, which
+  cannot be switched off without changing its code.
+- **Generation:** both generate pseudo-legal moves. Their `capture_gen` is
+  pseudo-legal and unfiltered (1,150 and 1,104 moves against 927), so it is
+  not comparable. Their legality test is paid at delivery, which no column
+  times.
+
+All five arms ran in one session, `tools/results/b72-micro5/`:
+
+- **Conditions:** five alternating rounds, 15 samples of 200 ms per
+  column, one logical CPU.
+- **Host load:** 3.7% busy before, 1.6% after; no competing process.
+
+**Median ns per operation, and each engine's time as a percentage of
+Basilisk's** (above 100% is slower):
+
+| Column | Basilisk | Stockfish 19 | Stockfish classical | Rarog | Reckless |
+|---|---:|---:|---:|---:|---:|
+| `legal_gen` | **48.1** | 76.6 (159%) | 89.4 (186%) | 62.0 (129%) | 51.1 (106%) |
+| `make_unmake` | 17.3 | 52.7 (305%) | 35.5 (205%) | **14.7 (85%)** | 40.4 (234%) |
+| `see_captures` | 15.3 | **6.6 (43%)** | 6.6 (43%) | 13.8 (91%) | 18.2 (119%) |
+| `gives_check` | 6.5 | **3.2 (49%)** | 3.2 (49%) | 7.6 (116%) | — |
+| `board_perft` (per leaf) | **3.35** | 6.19 (185%) | 5.14 (154%) | 4.18 (125%) | 5.41 (162%) |
+| `capture_gen` (not comparable) | 17.4 | 10.2 | 13.4 | 19.8 | 16.3 |
+
+The spread between rounds was 0.3–3.5% per column, except Basilisk's
+`capture_gen` (5.9%) and classical Stockfish's SEE (4.7%).
+
+**Calls per search node.** The search's mix was counted by a throwaway
+build (counters at the entry of each board function, `bench 13`
+unchanged at 4,247,965):
+
+| Operation | Calls per node |
+|---|---:|
+| make, and the matching unmake | 0.92 |
+| null move | 0.04 |
+| capture-stage generation | 0.53 |
+| quiet-stage generation | 0.20 |
+| SEE | 1.42 |
+| `gives_check` | 1.44 |
+| `check_squares` | 4.19 |
+| repetition test | 1.00 |
+| cuckoo repetition test | 0.50 |
+| TT-move legality | 0.14 |
+| full legal generation | 0.004 |
+| quiet-check generation | **0** |
+
+Quiet checks in quiescence are off at the defaults
+(`b4_quiet_checks` 0), so quiet-check generation is never called.
+
+**Board cost per search node under Basilisk's call mix.** Each engine's
+time per operation is weighted by these rates:
+
+    0.92 make_unmake + 0.53 capture_gen + 0.20 legal_gen + 1.42 see + 1.44 gives_check
+
+`legal_gen` stands in for the quiet stage, an overestimate for every arm.
+
+| | Basilisk | Stockfish 19 | Stockfish classical | Rarog | Reckless |
+|---|---:|---:|---:|---:|---:|
+| ns per node | **65.8** | 83.2 | 71.7 | 67.0 | — |
+| against Basilisk | 100% | 126% | 109% | 102% | — |
+| ns per node, without `gives_check` | 56.4 | 78.6 | 67.1 | **56.1** | 82.0 |
+| against Basilisk | 100% | 139% | 119% | 99% | 145% |
+
+How to read it:
+
+- **On the work Basilisk's search does, its board is the fastest of the
+  five.** Rarog is within 2%, inside the composite's resolution.
+- **Classical Stockfish costs 9% more and Stockfish 19 26% more.**
+  Stockfish 19's make pays for the network's records.
+- **Stockfish's design moves cost from the queries into make.**
+  `set_check_info` stores blockers, pinners and check squares at every
+  make, so `gives_check` and SEE are half Basilisk's cost, and make is two
+  to three times dearer.
+  - At Basilisk's mix, about 0.9 makes against 2.9 queries per node, the
+    trade loses: Basilisk's composite is 9% below classical Stockfish's.
+  - That is BAS-P04's −1.8% to −2.7% seen from the other side, and it
+    confirms keeping the lazy check information.
+- **What remains to take from Stockfish is the queries' cheapness without
+  its make cost.** That is C2 and C3: a bit test before the discovered-check
+  lookups, and a pin pre-test before `see_pins`. Stockfish's SEE gap also
+  includes the 36 promotions and en-passant moves it does not examine.
+- **The limit, as before:** these are primitives on real positions, not
+  search speed. The composite favours the pseudo-legal generators, whose
+  legality test at delivery is not timed. Pooled NPS (B.7.4) decides any
+  change to Basilisk.
 
 ## 2. Scope
 
@@ -361,11 +473,11 @@ means the bench fingerprint and the microbenchmark checksums are unchanged.
   - **Stage as a template parameter:** a candidate measured alone, never
     bundled. Rarog's colour-templated, force-inlined bundle measured −0.55%.
   - **Pin sharing between the stages: refused.** It is BAS-P04's −0.16%.
-- **Verdict: quiet checks accepted as component C4.** They cost 229 ns per
-  position against 57 for the whole staged pair. The out-of-line
-  generator's callers are not resolved in the profile, so its weight is
-  inside generation's 3.28%. The stage template stays a candidate outside
-  B.7.3.
+- **Verdict: quiet checks withdrawn from the handoff.** They cost 229 ns
+  per position against 57 for the staged pair, but the search never calls
+  them: quiet checks are off at the defaults (§1.3's counts). The change
+  waits for a leaf that turns quiet checks on. The stage template stays a
+  candidate outside B.7.3.
 
 ### 3.8 Chess960 (TB-9)
 
@@ -411,9 +523,10 @@ means the bench fingerprint and the microbenchmark checksums are unchanged.
 
 ## 5. Findings outside B.7.2
 
-- **Rarog's SEE:** with the cross-engine values it holds SEE ≥ 0 on 36 more
-  of the 927 game moves than the legal exchange tree does. Rarog's session
-  can check it with the adapter.
+- **Rarog's SEE:** it passes promotions and en passant without an
+  exchange, as Stockfish does (36 of the 927 game moves lose their
+  exchange). It is a policy choice for Rarog's own board review, not a
+  defect.
 - **Inventory row:** `analysis/b7_board_speed_inputs_2026-11-14.md` §8 still
   lists F1 as "for the maintainer". It was repaired and gated (BAS-S63)
   after the inventory was written.
@@ -443,15 +556,14 @@ means the bench fingerprint and the microbenchmark checksums are unchanged.
 | C1 | Unmake without key work | `put_piece`, `remove_piece` and `move_piece` gain a board-only form; unmake uses it and restores every key from `UndoInfo` | `make_unmake`, `board_perft`, `search_perft` | Triumviratus −0.61% cycles/node; 1.25% of samples in the helpers |
 | C2 | `gives_check` discovered pre-test | the two slider lookups only when the origin is on a line from the enemy king that holds one of our sliders of that line's kind | `gives_check` | 1.03% of samples in its lookups |
 | C3 | SEE pin pre-test | `see_pins` skipped for a colour with no enemy slider on its king's empty-board lines (new 1 KB tables) | `see_captures`, `see_quiets` | 1.71% of samples in pin work |
-| C4 | Quiet checks from the quiets | `gen_quiet_checks` generates with `gen_legal_quiets`; same order | `quiet_check_gen` | 4× the staged pair |
 | C5 | Repetition scan from distance 4 | `is_repetition` and `is_draw` | none | cleanup |
 | C6 | Hinted make | `make_move` takes the parent's `gives_check` when the search computed it: checkers are 0 when false, `attackers_to` when true, unchanged when unknown | `make_unmake` (hinted column added) | 0.39–0.64% of samples; Rarog's 15% |
 | C7 | Castling squares from tables | rook origins and destinations, paths and rights masks filled at `set_fen`; standard chess only | none | representability (TB-9) |
 
 **B.7.4's floor:**
 
-- C1–C4 and C6 are each held to PLAN's +0.5% pooled-PGO floor. C2, C3 and
-  C4 may not clear it alone. Their pooled read is still per component, and
+- C1–C3 and C6 are each held to PLAN's +0.5% pooled-PGO floor. C2 and C3
+  may not clear it alone. Their pooled read is still per component, and
   one that falls short returns to Basilisk's form.
 - C5 and C7 are held to cost-neutral: no loss beyond the read's
   resolution.

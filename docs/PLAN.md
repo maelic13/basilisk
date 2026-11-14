@@ -3715,19 +3715,27 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - Microbenchmark, five alternating rounds:
         - Basilisk leads legal generation by 7–29% and perft by 25–61%.
         - Rarog's make/unmake is 15% faster (its make is hinted).
-        - Rarog's SEE disagrees with the legal exchange tree on 36 of 927
-          game moves; Basilisk's and Reckless's agree.
         - Quiet-check generation costs four times the staged pair.
+      - Added the same day, at the maintainer's request: both Stockfishes,
+        19 and classical, in one five-engine session. Weighted by the
+        search's counted call mix, Basilisk's board costs 65.8 ns per node.
+        - Rarog is within 2%.
+        - Classical Stockfish is 9% dearer and Stockfish 19 26% dearer.
+          Stockfish's stored check information halves `gives_check` and SEE
+          and doubles or triples make.
+        - Rarog's and Stockfish's SEE pass promotions and en passant
+          unexamined (36 moves), the donor's rule, not a defect.
+        - Quiet-check generation is never called (quiet checks are off at
+          the defaults), so C4 was withdrawn.
       - Profile at `bench 13`: board 24.0% of samples. By entry point: SEE
         6.13% (pins 1.71), `make_move` 3.48%, `gives_check` 3.33%,
         `unmake_move` 2.68%, generation 6.4%.
       - Disassembly: every slider lookup is inlined, and no hot function
         probes its stack (TB-11 closed).
-      - Handoff, seven behaviour-neutral components, one commit each:
+      - Handoff, six behaviour-neutral components, one commit each:
         - C1: unmake without the key work it discards;
         - C2: a discovered-check pre-test in `gives_check`;
         - C3: a pin pre-test in SEE;
-        - C4: quiet checks generated from the quiets;
         - C5: the repetition scan from distance 4;
         - C6: the hinted make, BAS-P04's untested half; its trigger is met
           by reuse;
@@ -4489,7 +4497,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.7.3 | READY_FOR_IMPLEMENTATION | I2 | B.7.2's handoff, C1–C7 |
+| B.7.3 | READY_FOR_IMPLEMENTATION | I2 | B.7.2's handoff, C1–C3 and C5–C7 |
 | B.7.4 | RESEARCH | V | Was B.15.4; after B.7.3, before B.8 |
 | B.8.2 | RESEARCH | I1 | After the clusters and the board |
 | B.8.3 | READY_FOR_IMPLEMENTATION | I1 | Was B.7.1; before the speed pass, no engine change |
