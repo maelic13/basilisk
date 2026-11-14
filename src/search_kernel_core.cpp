@@ -21,7 +21,7 @@
 #include <cstdlib>
 #include <utility>
 
-// ---- LMR table -------------------------------------------------------------
+// ---- Flavour hooks: the child log, the trace, ablation and pricing ----------
 
 #ifdef BASILISK_CHILD_LOG
 ChildLog& child_log() {
@@ -31,7 +31,7 @@ ChildLog& child_log() {
 #endif
 
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
-#define TRACE_DECISION(...) state_.trace.record(__VA_ARGS__)
+#define TRACE_DECISION(...) state_.trace.record(TraceDecision{__VA_ARGS__})
 #else
 #define TRACE_DECISION(...) ((void)0)
 #endif
@@ -138,9 +138,8 @@ int Searcher::isolated_probe(SearchStack* ss, int ply, int64_t& nodes, Probe&& p
 
 // ---- Move loop bookkeeping ----------------------------------------------
 
-// The quiets and captures searched before a node's best move, which its
-// update punishes: at most this many of each, from its first this-many moves.
-static constexpr int SEARCHED_LIST_CAPACITY = 32;
+// The quiets and captures searched before a node's best move are remembered
+// from its first SearchedMoves::CAPACITY moves only.
 
 // Per depth (1..16, deeper reads the last), the history that adds one ply to
 // a quiet move's reduced depth for move-loop pruning.
@@ -200,9 +199,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         // test for a node it hands here).
         if (alpha < 0 && state_.board->upcoming_repetition(ply)) {
             DIAG_COUNT(++state_.diag.cuckoo_draws);
-            TRACE_DECISION(TraceEvent::CuckooDraw, ply, 0, MOVE_NONE,
-                           alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
-                           0, 0, 0, 0);
+            TRACE_DECISION(.event = TraceEvent::CuckooDraw, .ply = ply, .depth = 0,
+                           .move = MOVE_NONE, .alpha = alpha, .beta = beta,
+                           .estimated_score = VALUE_NONE, .improving = -1, .correction = VALUE_NONE,
+                           .history = VALUE_NONE, .move_count = 0, .reduction = 0, .margin = 0,
+                           .result = 0);
             alpha = 0;
             if (alpha >= beta) return alpha;
         }
@@ -230,9 +231,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         tt_flag = tte.bound();
         if (!is_pv && tt_score != VALUE_NONE
             && (tt_score >= beta ? proves_lower(tt_flag) : proves_upper(tt_flag))) {
-            TRACE_DECISION(TraceEvent::QsTtCutoff, ply, 0, tt_move,
-                           alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
-                           0, 0, VALUE_NONE, tt_score);
+            TRACE_DECISION(.event = TraceEvent::QsTtCutoff, .ply = ply, .depth = 0, .move = tt_move,
+                           .alpha = alpha, .beta = beta, .estimated_score = tt_score,
+                           .improving = -1, .correction = VALUE_NONE, .history = VALUE_NONE,
+                           .move_count = 0, .reduction = 0, .margin = VALUE_NONE,
+                           .result = tt_score);
             DIAG_COUNT(++state_.diag.qs_tt_cutoffs);
             return tt_score;
         }
@@ -292,9 +295,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                        += picker.last_source() == CoreMovePicker::Src::TT);
             const bool holds = best > -tablebaseWinInMaxPly;
             if (holds && !state_.board->see_ge(m, kp.b4_qs_see_margin)) {
-                TRACE_DECISION(TraceEvent::QsEvasionPrune, ply, 0, m,
-                               alpha, beta, best, -1, VALUE_NONE, VALUE_NONE,
-                               evasions_searched, 0, kp.b4_qs_see_margin, alpha);
+                TRACE_DECISION(.event = TraceEvent::QsEvasionPrune, .ply = ply, .depth = 0,
+                               .move = m, .alpha = alpha, .beta = beta, .estimated_score = best,
+                               .improving = -1, .correction = VALUE_NONE, .history = VALUE_NONE,
+                               .move_count = evasions_searched, .reduction = 0,
+                               .margin = kp.b4_qs_see_margin, .result = alpha);
                 PRICE(price_move(PriceRule::QsEvasion, m, evasions_searched + 1,
                                  price_class(capture_victim(*state_.board, m),
                                              b4::is_recapture(m, (ss - 1)->move))));
@@ -317,9 +322,10 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                 best_move = m;
             }
             if (alpha >= beta) {
-                TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
-                               alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
-                               0, 0, VALUE_NONE, s);
+                TRACE_DECISION(.event = TraceEvent::QsBetaCutoff, .ply = ply, .depth = 0, .move = m,
+                               .alpha = alpha, .beta = beta, .estimated_score = VALUE_NONE,
+                               .improving = -1, .correction = VALUE_NONE, .history = VALUE_NONE,
+                               .move_count = 0, .reduction = 0, .margin = VALUE_NONE, .result = s);
                 DIAG_COUNT(++state_.diag.qs_evasion_fail_highs);
                 DIAG_COUNT(state_.diag.qs_evasion_fail_high_first += evasions_searched == 1);
                 DIAG_COUNT(state_.diag.qs_evasion_fail_high_index_sum += evasions_searched - 1);
@@ -350,9 +356,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             state_.board->gen_legal_quiets(quiets);
             DIAG_COUNT(state_.diag.qs_evasion_quiets_pruned
                        += static_cast<int>(quiets.size()) - quiets_searched);
-            TRACE_DECISION(TraceEvent::QsEvasionPrune, ply, 0, MOVE_NONE,
-                           alpha, beta, best, -1, VALUE_NONE, VALUE_NONE,
-                           evasions_searched, 0, VALUE_NONE, alpha);
+            TRACE_DECISION(.event = TraceEvent::QsEvasionPrune, .ply = ply, .depth = 0,
+                           .move = MOVE_NONE, .alpha = alpha, .beta = beta, .estimated_score = best,
+                           .improving = -1, .correction = VALUE_NONE, .history = VALUE_NONE,
+                           .move_count = evasions_searched, .reduction = 0, .margin = VALUE_NONE,
+                           .result = alpha);
 #ifdef BASILISK_PRICING
             int move_number = evasions_searched;
             for (Move m : quiets)
@@ -400,9 +408,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         // The value returned lies near the bound it proved, so the main
         // search's margins read a leaf's value and not its excess.
         const int value = b4::fail_high_value(stand_pat, beta, kp.b4_qs_stand_pat_blend);
-        TRACE_DECISION(TraceEvent::QsStandPatCutoff, ply, 0, MOVE_NONE,
-                       alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                       0, 0, 0, value);
+        TRACE_DECISION(.event = TraceEvent::QsStandPatCutoff, .ply = ply, .depth = 0,
+                       .move = MOVE_NONE, .alpha = alpha, .beta = beta,
+                       .estimated_score = stand_pat, .improving = -1, .correction = correction,
+                       .history = VALUE_NONE, .move_count = 0, .reduction = 0, .margin = 0,
+                       .result = value);
         tt_store(hash, 0, value, TT_BETA, MOVE_NONE, ply, tt_eval, pv_hit);
         return value;
     }
@@ -465,9 +475,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         if (prune_by_gain && !is_promo && !recapture && !move_gives_check()) {
             DIAG_COUNT(++state_.diag.qs_gain_tested);
             if (move_count > kp.b4_qs_move_count) {
-                TRACE_DECISION(TraceEvent::QsCountPrune, ply, 0, m,
-                               alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                               i, 0, kp.b4_qs_move_count, alpha);
+                TRACE_DECISION(.event = TraceEvent::QsCountPrune, .ply = ply, .depth = 0, .move = m,
+                               .alpha = alpha, .beta = beta, .estimated_score = stand_pat,
+                               .improving = -1, .correction = correction, .history = VALUE_NONE,
+                               .move_count = i, .reduction = 0, .margin = kp.b4_qs_move_count,
+                               .result = alpha);
                 PRICE(price_move(PriceRule::QsCount, m, i + 1, move_class));
                 DIAG_COUNT(++state_.diag.qs_count_pruned);
                 continue;
@@ -475,18 +487,22 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             const int gain = PIECE_VALUE[capture_victim(*state_.board, m)];
             const int futility_value = futility_base + gain;
             if (futility_value <= alpha) {
-                TRACE_DECISION(TraceEvent::QsFutilityPrune, ply, 0, m,
-                               alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                               i, 0, kp.b4_qs_fut_base + gain, alpha);
+                TRACE_DECISION(.event = TraceEvent::QsFutilityPrune, .ply = ply, .depth = 0,
+                               .move = m, .alpha = alpha, .beta = beta,
+                               .estimated_score = stand_pat, .improving = -1,
+                               .correction = correction, .history = VALUE_NONE, .move_count = i,
+                               .reduction = 0, .margin = kp.b4_qs_fut_base + gain, .result = alpha);
                 PRICE(price_move(PriceRule::QsFutility, m, i + 1, move_class));
                 DIAG_COUNT(++state_.diag.qs_futility_pruned);
                 best = std::max(best, futility_value);
                 continue;
             }
             if (!state_.board->see_ge(m, alpha - futility_base)) {
-                TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
-                               alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                               i, 0, alpha - futility_base, alpha);
+                TRACE_DECISION(.event = TraceEvent::QsSeePrune, .ply = ply, .depth = 0, .move = m,
+                               .alpha = alpha, .beta = beta, .estimated_score = stand_pat,
+                               .improving = -1, .correction = correction, .history = VALUE_NONE,
+                               .move_count = i, .reduction = 0, .margin = alpha - futility_base,
+                               .result = alpha);
                 PRICE(price_move(PriceRule::QsSee, m, i + 1, move_class));
                 DIAG_COUNT(++state_.diag.qs_see_pruned);
                 best = std::max(best, std::min(alpha, futility_base));
@@ -494,9 +510,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             }
         }
         if (!state_.board->see_ge(m, kp.b4_qs_see_margin)) {
-            TRACE_DECISION(TraceEvent::QsSeePrune, ply, 0, m,
-                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                           i, 0, kp.b4_qs_see_margin, alpha);
+            TRACE_DECISION(.event = TraceEvent::QsSeePrune, .ply = ply, .depth = 0, .move = m,
+                           .alpha = alpha, .beta = beta, .estimated_score = stand_pat,
+                           .improving = -1, .correction = correction, .history = VALUE_NONE,
+                           .move_count = i, .reduction = 0, .margin = kp.b4_qs_see_margin,
+                           .result = alpha);
             PRICE(price_move(PriceRule::QsSee, m, i + 1, move_class));
             DIAG_COUNT(++state_.diag.qs_see_pruned);
             continue;
@@ -519,9 +537,10 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             DIAG_COUNT(state_.diag.qs_fail_high_first += captures_searched == 1);
             DIAG_COUNT(state_.diag.qs_fail_high_index_sum += captures_searched - 1);
             DIAG_COUNT(state_.diag.qs_fail_high_excess += is_decisive(s) ? 0 : s - beta);
-            TRACE_DECISION(TraceEvent::QsBetaCutoff, ply, 0, m,
-                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                           i, 0, VALUE_NONE, s);
+            TRACE_DECISION(.event = TraceEvent::QsBetaCutoff, .ply = ply, .depth = 0, .move = m,
+                           .alpha = alpha, .beta = beta, .estimated_score = stand_pat,
+                           .improving = -1, .correction = correction, .history = VALUE_NONE,
+                           .move_count = i, .reduction = 0, .margin = VALUE_NONE, .result = s);
             PRICE(settle(s));
             const int value = b4::fail_high_value(s, beta, kp.b4_qs_fail_high_blend);
             tt_store(hash, 0, value, TT_BETA, m, ply, tt_eval, pv_hit);
@@ -538,9 +557,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         state_.board->gen_legal(legal);
         if (legal.empty()) {
             DIAG_COUNT(++state_.diag.qs_stalemates);
-            TRACE_DECISION(TraceEvent::QsStalemate, ply, 0, MOVE_NONE,
-                           alpha, beta, stand_pat, -1, correction, VALUE_NONE,
-                           0, 0, VALUE_NONE, 0);
+            TRACE_DECISION(.event = TraceEvent::QsStalemate, .ply = ply, .depth = 0,
+                           .move = MOVE_NONE, .alpha = alpha, .beta = beta,
+                           .estimated_score = stand_pat, .improving = -1, .correction = correction,
+                           .history = VALUE_NONE, .move_count = 0, .reduction = 0,
+                           .margin = VALUE_NONE, .result = 0);
             best = 0;
         }
     }
@@ -604,9 +625,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // node is worth at least the draw (never when alpha is already at it).
     if (!is_root && alpha < 0 && state_.board->upcoming_repetition(ply)) {
         DIAG_COUNT(++state_.diag.cuckoo_draws);
-        TRACE_DECISION(TraceEvent::CuckooDraw, ply, depth, MOVE_NONE,
-                       alpha, beta, VALUE_NONE, -1, VALUE_NONE, VALUE_NONE,
-                       0, 0, 0, 0);
+        TRACE_DECISION(.event = TraceEvent::CuckooDraw, .ply = ply, .depth = depth,
+                       .move = MOVE_NONE, .alpha = alpha, .beta = beta,
+                       .estimated_score = VALUE_NONE, .improving = -1, .correction = VALUE_NONE,
+                       .history = VALUE_NONE, .move_count = 0, .reduction = 0, .margin = 0,
+                       .result = 0);
         alpha = 0;
         if (alpha >= beta) return alpha;
     }
@@ -867,9 +890,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
         if (cut) {
             DIAG_COUNT(state_.diag.tt_cutoffs++);
-            TRACE_DECISION(TraceEvent::TtCutoff, ply, depth, tt_move,
-                           alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
-                           0, 0, tt_depth, tt_score);
+            TRACE_DECISION(.event = TraceEvent::TtCutoff, .ply = ply, .depth = depth,
+                           .move = tt_move, .alpha = alpha, .beta = beta,
+                           .estimated_score = tt_score, .improving = -1, .correction = VALUE_NONE,
+                           .history = VALUE_NONE, .move_count = 0, .reduction = 0,
+                           .margin = tt_depth, .result = tt_score);
             return tt_score;
         }
     } else if (!is_pv && ss->excluded == MOVE_NONE
@@ -881,9 +906,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         if (!PRICE_PROBING())
             shared_.tt.penalize(hash);
         DIAG_COUNT(++state_.diag.tt_penalized);
-        TRACE_DECISION(TraceEvent::TtPenalty, ply, depth, tt_move,
-                       alpha, beta, tt_score, -1, VALUE_NONE, VALUE_NONE,
-                       0, 0, tt_depth, tt_score);
+        TRACE_DECISION(.event = TraceEvent::TtPenalty, .ply = ply, .depth = depth, .move = tt_move,
+                       .alpha = alpha, .beta = beta, .estimated_score = tt_score, .improving = -1,
+                       .correction = VALUE_NONE, .history = VALUE_NONE, .move_count = 0,
+                       .reduction = 0, .margin = tt_depth, .result = tt_score);
     }
 
     // ---- In-search tablebase probe ------------------------------------------
@@ -932,7 +958,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (!in_check && (ss - 1)->move != MOVE_NONE && (ss - 1)->move != MOVE_NULL
         && !(ss - 1)->in_check && state_.board->captured_piece() == NO_PIECE) {
         // The sum in the donor's evaluation units, under its clamp and offset.
-        const int eval_diff = std::clamp(-((ss - 1)->eval + ss->eval) * 1000 / 282, KLIT(eval_diff_lo), KLIT(eval_diff_hi))
+        const int eval_diff = std::clamp(to_donor_units(-((ss - 1)->eval + ss->eval)), KLIT(eval_diff_lo), KLIT(eval_diff_hi))
                             + KLIT(eval_diff_offset);
         update_parent_by_eval_difference(ss, eval_diff, tt_found);
     }
@@ -961,10 +987,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             DIAG_COUNT(++(depth <= 3 ? state_.diag.razor_cuts_d1_3
                           : depth <= 7 ? state_.diag.razor_cuts_d4_7
                                        : state_.diag.razor_cuts_d8p));
-            TRACE_DECISION(TraceEvent::RazorPrune, ply, depth, MOVE_NONE,
-                           alpha, beta, eval, improving, correction, VALUE_NONE,
-                           0, 0, razor_bar, q,
-                           -1, VALUE_NONE, -1, TraceFamily::Razor);
+            TRACE_DECISION(.event = TraceEvent::RazorPrune, .ply = ply, .depth = depth,
+                           .move = MOVE_NONE, .alpha = alpha, .beta = beta, .estimated_score = eval,
+                           .improving = improving, .correction = correction, .history = VALUE_NONE,
+                           .move_count = 0, .reduction = 0, .margin = razor_bar, .result = q,
+                           .cutoff_count = -1, .lmr_depth = VALUE_NONE, .skip_quiets = -1,
+                           .family = TraceFamily::Razor);
             return q;
         }
 
@@ -995,10 +1023,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 DIAG_COUNT(++(depth <= 3 ? state_.diag.rfp_cuts_d1_3
                               : depth <= 7 ? state_.diag.rfp_cuts_d4_7
                                            : state_.diag.rfp_cuts_d8p));
-                TRACE_DECISION(TraceEvent::RfpPrune, ply, depth, MOVE_NONE,
-                               alpha, beta, eval, improving, correction, VALUE_NONE,
-                               0, 0, margin, value,
-                               -1, VALUE_NONE, -1, TraceFamily::Rfp);
+                TRACE_DECISION(.event = TraceEvent::RfpPrune, .ply = ply, .depth = depth,
+                               .move = MOVE_NONE, .alpha = alpha, .beta = beta,
+                               .estimated_score = eval, .improving = improving,
+                               .correction = correction, .history = VALUE_NONE, .move_count = 0,
+                               .reduction = 0, .margin = margin, .result = value,
+                               .cutoff_count = -1, .lmr_depth = VALUE_NONE, .skip_quiets = -1,
+                               .family = TraceFamily::Rfp);
                 PRICE(price_node(PriceRule::Rfp, value));
                 return value;
             }
@@ -1019,9 +1050,11 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                         + std::max((static_eval - beta) / kp.b3_nmp_red_eval_div, 0);
             if (ply < nmp_min_ply_) {
                 DIAG_COUNT(++state_.diag.null_region_refusals);
-                TRACE_DECISION(TraceEvent::NullRegionRefused, ply, depth, MOVE_NULL,
-                               alpha, beta, static_eval, improving, correction, VALUE_NONE,
-                               0, r, nmp_min_ply_, VALUE_NONE);
+                TRACE_DECISION(.event = TraceEvent::NullRegionRefused, .ply = ply, .depth = depth,
+                               .move = MOVE_NULL, .alpha = alpha, .beta = beta,
+                               .estimated_score = static_eval, .improving = improving,
+                               .correction = correction, .history = VALUE_NONE, .move_count = 0,
+                               .reduction = r, .margin = nmp_min_ply_, .result = VALUE_NONE);
             } else {
                 DIAG_COUNT(state_.diag.null_tries++);
                 DIAG_COUNT(++(depth <= 3 ? state_.diag.null_tries_d1_3
@@ -1057,18 +1090,24 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                         verified = v >= beta;
                         DIAG_COUNT(++state_.diag.null_verifications);
                         if (!verified) DIAG_COUNT(++state_.diag.null_verify_failed);
-                        TRACE_DECISION(TraceEvent::NullVerify, ply, depth, MOVE_NULL,
-                                       alpha, beta, static_eval, improving, correction,
-                                       VALUE_NONE, 0, r, null_score, v);
+                        TRACE_DECISION(.event = TraceEvent::NullVerify, .ply = ply, .depth = depth,
+                                       .move = MOVE_NULL, .alpha = alpha, .beta = beta,
+                                       .estimated_score = static_eval, .improving = improving,
+                                       .correction = correction, .history = VALUE_NONE,
+                                       .move_count = 0, .reduction = r, .margin = null_score,
+                                       .result = v);
                     }
                     if (verified) {
                         DIAG_COUNT(state_.diag.null_cuts++);
                         DIAG_COUNT(++(depth <= 3 ? state_.diag.null_cuts_d1_3
                                       : depth <= 7 ? state_.diag.null_cuts_d4_7
                                                    : state_.diag.null_cuts_d8p));
-                        TRACE_DECISION(TraceEvent::NullCutoff, ply, depth, MOVE_NULL,
-                                       alpha, beta, static_eval, improving, correction,
-                                       VALUE_NONE, 0, r, VALUE_NONE, null_score);
+                        TRACE_DECISION(.event = TraceEvent::NullCutoff, .ply = ply, .depth = depth,
+                                       .move = MOVE_NULL, .alpha = alpha, .beta = beta,
+                                       .estimated_score = static_eval, .improving = improving,
+                                       .correction = correction, .history = VALUE_NONE,
+                                       .move_count = 0, .reduction = r, .margin = VALUE_NONE,
+                                       .result = null_score);
                         PRICE(price_node(PriceRule::NullMove, null_score));
                         return null_score;
                     }
@@ -1086,9 +1125,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (!ABLATED(4)
         && b3::iir_applies(is_pv, cut_node, in_check, ss->follow_pv, depth, kp.b3_iir_min_depth,
                            tt_move != MOVE_NONE)) {
-        TRACE_DECISION(TraceEvent::IirReduction, ply, depth, tt_move,
-                       alpha, beta, eval, improving, correction, VALUE_NONE,
-                       0, 1, depth - 3, depth - 1);
+        TRACE_DECISION(.event = TraceEvent::IirReduction, .ply = ply, .depth = depth,
+                       .move = tt_move, .alpha = alpha, .beta = beta, .estimated_score = eval,
+                       .improving = improving, .correction = correction, .history = VALUE_NONE,
+                       .move_count = 0, .reduction = 1, .margin = depth - 3, .result = depth - 1);
         DIAG_COUNT(++state_.diag.iir_reductions);
         if (hindsight_reduced)    DIAG_COUNT(++state_.diag.iir_after_hindsight);
         if (is_pv)                DIAG_COUNT(++state_.diag.iir_pv_nodes);
@@ -1135,10 +1175,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 tt_store(hash, pc_depth + 1, val, TT_BETA, m, ply, store_eval, ss->tt_pv);
                 if (!is_decisive(val)) {
                     DIAG_COUNT(state_.diag.probcut_cuts++);
-                    TRACE_DECISION(TraceEvent::ProbcutCutoff, ply, depth, m,
-                                   alpha, beta, eval, improving, correction, VALUE_NONE,
-                                   0, depth - pc_depth, pc_beta - static_eval,
-                                   val - (pc_beta - beta));
+                    TRACE_DECISION(.event = TraceEvent::ProbcutCutoff, .ply = ply, .depth = depth,
+                                   .move = m, .alpha = alpha, .beta = beta, .estimated_score = eval,
+                                   .improving = improving, .correction = correction,
+                                   .history = VALUE_NONE, .move_count = 0,
+                                   .reduction = depth - pc_depth, .margin = pc_beta - static_eval,
+                                   .result = val - (pc_beta - beta));
                     return val - (pc_beta - beta);
                 }
             }
@@ -1162,10 +1204,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // The move that last raised alpha (none after a fail low), and the moves
     // searched before it that did not.
     Move alpha_move = MOVE_NONE;
-    Move quiets_searched[SEARCHED_LIST_CAPACITY];
-    Move captures_searched[SEARCHED_LIST_CAPACITY];
-    int quiets_count = 0;
-    int captures_count = 0;
+    SearchedMoves quiets_searched;
+    SearchedMoves captures_searched;
 
     bool immediate_return = false;
     int immediate_score = 0;
@@ -1297,10 +1337,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 picker.skip_quiets();
                 DIAG_COUNT(++state_.diag.skip_quiets_nodes);
                 if (in_check) DIAG_COUNT(++state_.diag.in_check_skip_quiets);
-                TRACE_DECISION(TraceEvent::SkipQuiets, ply, depth, m,
-                               alpha, beta, eval, improving, correction, VALUE_NONE,
-                               move_count, 0, VALUE_NONE, alpha,
-                               -1, VALUE_NONE, 1, TraceFamily::SkipQuiets);
+                TRACE_DECISION(.event = TraceEvent::SkipQuiets, .ply = ply, .depth = depth,
+                               .move = m, .alpha = alpha, .beta = beta, .estimated_score = eval,
+                               .improving = improving, .correction = correction,
+                               .history = VALUE_NONE, .move_count = move_count, .reduction = 0,
+                               .margin = VALUE_NONE, .result = alpha, .cutoff_count = -1,
+                               .lmr_depth = VALUE_NONE, .skip_quiets = 1,
+                               .family = TraceFamily::SkipQuiets);
                 PRICE(price_skip());
             }
 
@@ -1322,12 +1365,15 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                            + PIECE_VALUE[captured] + capt_hist / kp.capt_fut_hist_div <= alpha) {
                     DIAG_COUNT(++state_.diag.capture_futility_pruned);
                     if (in_check) DIAG_COUNT(++state_.diag.in_check_capt_fut);
-                    TRACE_DECISION(TraceEvent::CaptureFutilityPrune, ply, depth, m,
-                                   alpha, beta, eval, improving, correction, capt_hist,
-                                   move_count, 0,
-                                   kp.capt_fut_base + kp.capt_fut_slope * lmr_depth, alpha,
-                                   -1, lmr_depth, picker.quiets_skipped(),
-                                   TraceFamily::CaptureFutility);
+                    TRACE_DECISION(.event = TraceEvent::CaptureFutilityPrune, .ply = ply,
+                                   .depth = depth, .move = m, .alpha = alpha, .beta = beta,
+                                   .estimated_score = eval, .improving = improving,
+                                   .correction = correction, .history = capt_hist,
+                                   .move_count = move_count, .reduction = 0,
+                                   .margin = kp.capt_fut_base + kp.capt_fut_slope * lmr_depth,
+                                   .result = alpha, .cutoff_count = -1, .lmr_depth = lmr_depth,
+                                   .skip_quiets = picker.quiets_skipped(),
+                                   .family = TraceFamily::CaptureFutility);
                     PRICE(price_move(PriceRule::CaptureFutility, m));
                     return false;
                 }
@@ -1344,11 +1390,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 if ((alpha >= 0 || !last_piece) && !state_.board->see_ge(m, -margin)) {
                     DIAG_COUNT(++state_.diag.capture_see_pruned);
                     if (in_check) DIAG_COUNT(++state_.diag.in_check_capt_see);
-                    TRACE_DECISION(TraceEvent::CaptureSeePrune, ply, depth, m,
-                                   alpha, beta, eval, improving, correction, capt_hist,
-                                   move_count, 0, -margin, alpha,
-                                   -1, lmr_depth, picker.quiets_skipped(),
-                                   TraceFamily::CaptureSee);
+                    TRACE_DECISION(.event = TraceEvent::CaptureSeePrune, .ply = ply, .depth = depth,
+                                   .move = m, .alpha = alpha, .beta = beta, .estimated_score = eval,
+                                   .improving = improving, .correction = correction,
+                                   .history = capt_hist, .move_count = move_count, .reduction = 0,
+                                   .margin = -margin, .result = alpha, .cutoff_count = -1,
+                                   .lmr_depth = lmr_depth, .skip_quiets = picker.quiets_skipped(),
+                                   .family = TraceFamily::CaptureSee);
                     PRICE(price_move(PriceRule::CaptureSee, m));
                     return false;
                 }
@@ -1370,11 +1418,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     DIAG_COUNT(++state_.diag.cont_hist_pruned);
                     if (in_check) DIAG_COUNT(++state_.diag.in_check_cont_hist);
                     if (is_pv)    DIAG_COUNT(++state_.diag.pv_quiet_pruned);
-                    TRACE_DECISION(TraceEvent::HistoryPrune, ply, depth, m,
-                                   alpha, beta, eval, improving, correction, history,
-                                   move_count, 0, -kp.cont_hist_prune_slope * depth, alpha,
-                                   -1, lmr_depth, picker.quiets_skipped(),
-                                   TraceFamily::ContHist);
+                    TRACE_DECISION(.event = TraceEvent::HistoryPrune, .ply = ply, .depth = depth,
+                                   .move = m, .alpha = alpha, .beta = beta, .estimated_score = eval,
+                                   .improving = improving, .correction = correction,
+                                   .history = history, .move_count = move_count, .reduction = 0,
+                                   .margin = -kp.cont_hist_prune_slope * depth, .result = alpha,
+                                   .cutoff_count = -1, .lmr_depth = lmr_depth,
+                                   .skip_quiets = picker.quiets_skipped(),
+                                   .family = TraceFamily::ContHist);
                     PRICE(price_move(PriceRule::ContHist, m));
                     return false;
                 }
@@ -1395,11 +1446,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                         best_score = futility;
                     DIAG_COUNT(state_.diag.fut_prunes++);
                     if (is_pv) DIAG_COUNT(++state_.diag.pv_quiet_pruned);
-                    TRACE_DECISION(TraceEvent::FutilityPrune, ply, depth, m,
-                                   alpha, beta, eval, improving, correction, history,
-                                   move_count, 0, futility - ss->eval, alpha,
-                                   -1, lmr_depth, picker.quiets_skipped(),
-                                   TraceFamily::QuietFutility);
+                    TRACE_DECISION(.event = TraceEvent::FutilityPrune, .ply = ply, .depth = depth,
+                                   .move = m, .alpha = alpha, .beta = beta, .estimated_score = eval,
+                                   .improving = improving, .correction = correction,
+                                   .history = history, .move_count = move_count, .reduction = 0,
+                                   .margin = futility - ss->eval, .result = alpha,
+                                   .cutoff_count = -1, .lmr_depth = lmr_depth,
+                                   .skip_quiets = picker.quiets_skipped(),
+                                   .family = TraceFamily::QuietFutility);
                     PRICE(price_move(PriceRule::QuietFutility, m));
                     return false;
                 }
@@ -1411,11 +1465,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     DIAG_COUNT(++state_.diag.quiet_see_pruned);
                     if (in_check) DIAG_COUNT(++state_.diag.in_check_quiet_see);
                     if (is_pv)    DIAG_COUNT(++state_.diag.pv_quiet_pruned);
-                    TRACE_DECISION(TraceEvent::QuietSeePrune, ply, depth, m,
-                                   alpha, beta, eval, improving, correction, history,
-                                   move_count, 0, -kp.quiet_see_coeff * lmr_depth * lmr_depth,
-                                   alpha, -1, lmr_depth, picker.quiets_skipped(),
-                                   TraceFamily::QuietSee);
+                    TRACE_DECISION(.event = TraceEvent::QuietSeePrune, .ply = ply, .depth = depth,
+                                   .move = m, .alpha = alpha, .beta = beta, .estimated_score = eval,
+                                   .improving = improving, .correction = correction,
+                                   .history = history, .move_count = move_count, .reduction = 0,
+                                   .margin = -kp.quiet_see_coeff * lmr_depth * lmr_depth,
+                                   .result = alpha, .cutoff_count = -1, .lmr_depth = lmr_depth,
+                                   .skip_quiets = picker.quiets_skipped(),
+                                   .family = TraceFamily::QuietSee);
                     PRICE(price_move(PriceRule::QuietSee, m));
                     return false;
                 }
@@ -1486,16 +1543,22 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                                          truncated);
                         if (truncated) {
                             DIAG_COUNT(++state_.diag.ext_budget_bound);
-                            TRACE_DECISION(TraceEvent::ExtBudgetTruncate, ply, depth, m,
-                                           alpha, beta, eval, improving, correction, VALUE_NONE,
-                                           searched, extension, ss->ext_plies, ext_budget());
+                            TRACE_DECISION(.event = TraceEvent::ExtBudgetTruncate, .ply = ply,
+                                           .depth = depth, .move = m, .alpha = alpha, .beta = beta,
+                                           .estimated_score = eval, .improving = improving,
+                                           .correction = correction, .history = VALUE_NONE,
+                                           .move_count = searched, .reduction = extension,
+                                           .margin = ss->ext_plies, .result = ext_budget());
                         }
                     }
                     ++depth;
                     depth_bump = 1;
-                    TRACE_DECISION(TraceEvent::SingularExtension, ply, depth, m,
-                                   alpha, beta, eval, improving, correction, trace_history,
-                                   searched, extension, s_beta, s_val);
+                    TRACE_DECISION(.event = TraceEvent::SingularExtension, .ply = ply,
+                                   .depth = depth, .move = m, .alpha = alpha, .beta = beta,
+                                   .estimated_score = eval, .improving = improving,
+                                   .correction = correction, .history = trace_history,
+                                   .move_count = searched, .reduction = extension, .margin = s_beta,
+                                   .result = s_val);
                     DIAG_COUNT(++state_.diag.sing_fired);
                     if (graded >= 2) DIAG_COUNT(++state_.diag.sing_double);
                     if (graded == 3) DIAG_COUNT(++state_.diag.sing_ext3);
@@ -1515,9 +1578,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                                               kp.b3_sing_mc_corr));
                     }
                     DIAG_COUNT(++state_.diag.sing_multicut);
-                    TRACE_DECISION(TraceEvent::SingularMulticut, ply, depth, m,
-                                   alpha, beta, eval, improving, correction, trace_history,
-                                   searched, 0, s_beta, s_val);
+                    TRACE_DECISION(.event = TraceEvent::SingularMulticut, .ply = ply,
+                                   .depth = depth, .move = m, .alpha = alpha, .beta = beta,
+                                   .estimated_score = eval, .improving = improving,
+                                   .correction = correction, .history = trace_history,
+                                   .move_count = searched, .reduction = 0, .margin = s_beta,
+                                   .result = s_val);
                     immediate_return = true;
                     immediate_score = s_val;
                     return true;
@@ -1525,9 +1591,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     extension = -kp.b3_sing_negative;
                     DIAG_COUNT(++state_.diag.sing_ttbeta);
                     if (tt_score < beta) DIAG_COUNT(++state_.diag.sing_negative_cut);
-                    TRACE_DECISION(TraceEvent::SingularNegative, ply, depth, m,
-                                   alpha, beta, eval, improving, correction, trace_history,
-                                   searched, extension, s_beta, s_val);
+                    TRACE_DECISION(.event = TraceEvent::SingularNegative, .ply = ply,
+                                   .depth = depth, .move = m, .alpha = alpha, .beta = beta,
+                                   .estimated_score = eval, .improving = improving,
+                                   .correction = correction, .history = trace_history,
+                                   .move_count = searched, .reduction = extension, .margin = s_beta,
+                                   .result = s_val);
                 }
             }
         }
@@ -1599,7 +1668,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         r -= stat_score * kp.lmr_stat_scale / 4096;
         if (!capture_stage && !is_decisive(alpha))
             // The difference in the donor's evaluation units, under its clamp.
-            r += kp.lmr_alpha_eval_scale * std::clamp((alpha - lmr_eval) * 1000 / 282,
+            r += kp.lmr_alpha_eval_scale * std::clamp(to_donor_units(alpha - lmr_eval),
                                                          KLIT(lmr_alpha_lo), KLIT(lmr_alpha_hi));
         if (all_node)
             r += r * kp.lmr_all_node_scale / (KLIT(lmr_all_slope) * depth + KLIT(lmr_all_offset));
@@ -1660,10 +1729,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     if (d > new_depth) DIAG_COUNT(++state_.diag.lmr_extended);
                 }
                 ss->reduction = new_depth - d;
-                TRACE_DECISION(TraceEvent::LmrReduction, ply, depth, m,
-                               alpha, beta, eval, improving, correction, stat_score,
-                               ss->move_count, new_depth - d, r, VALUE_NONE,
-                               (ss + 1)->cutoff_cnt);
+                TRACE_DECISION(.event = TraceEvent::LmrReduction, .ply = ply, .depth = depth,
+                               .move = m, .alpha = alpha, .beta = beta, .estimated_score = eval,
+                               .improving = improving, .correction = correction,
+                               .history = stat_score, .move_count = ss->move_count,
+                               .reduction = new_depth - d, .margin = r, .result = VALUE_NONE,
+                               .cutoff_count = (ss + 1)->cutoff_cnt);
                 CHILD_SITE(Reduced, is_pv, cut_node);
                 score = -negamax<NodeType::NonPV>(d, -alpha - 1, -alpha,
                                                   ply + 1, ss + 1, true);
@@ -1691,10 +1762,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                     if (new_depth > d) {
                         DIAG_COUNT(state_.diag.lmr_researched++);
                         DIAG_COUNT(state_.diag.root_lmr_researched += root_reduced);
-                        TRACE_DECISION(TraceEvent::LmrResearch, ply, depth, m,
-                                       alpha, beta, eval, improving, correction, stat_score,
-                                       ss->move_count, new_depth - d, VALUE_NONE, score,
-                                       (ss + 1)->cutoff_cnt);
+                        TRACE_DECISION(.event = TraceEvent::LmrResearch, .ply = ply, .depth = depth,
+                                       .move = m, .alpha = alpha, .beta = beta,
+                                       .estimated_score = eval, .improving = improving,
+                                       .correction = correction, .history = stat_score,
+                                       .move_count = ss->move_count, .reduction = new_depth - d,
+                                       .margin = VALUE_NONE, .result = score,
+                                       .cutoff_count = (ss + 1)->cutoff_cnt);
                         CHILD_SITE(ReducedResearch, is_pv, cut_node);
                         score = -negamax<NodeType::NonPV>(new_depth, -alpha - 1, -alpha,
                                                           ply + 1, ss + 1, !cut_node);
@@ -1725,9 +1799,12 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                         || tt_depth > KLIT(pv_tt_move_depth)))
                     new_depth = std::max(new_depth, 1);
                 if (is_root)
-                    TRACE_DECISION(TraceEvent::RootPvResearch, ply, new_depth, m, alpha, beta, eval,
-                                   improving, correction, stat_score, ss->move_count, 0, VALUE_NONE,
-                                   score);
+                    TRACE_DECISION(.event = TraceEvent::RootPvResearch, .ply = ply,
+                                   .depth = new_depth, .move = m, .alpha = alpha, .beta = beta,
+                                   .estimated_score = eval, .improving = improving,
+                                   .correction = correction, .history = stat_score,
+                                   .move_count = ss->move_count, .reduction = 0,
+                                   .margin = VALUE_NONE, .result = score);
                 CHILD_SITE(PvResearch, is_pv, cut_node);
                 score = -negamax<NodeType::PV>(new_depth, -beta, -alpha,
                                                ply + 1, ss + 1, false);
@@ -1809,21 +1886,16 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         }
 
         // A move that did not raise alpha is remembered for the update.
-        if (m != alpha_move && move_count <= SEARCHED_LIST_CAPACITY) {
-            if (is_cap || is_promo) {
-                if (captures_count < SEARCHED_LIST_CAPACITY)
-                    captures_searched[captures_count++] = m;
-            } else if (quiets_count < SEARCHED_LIST_CAPACITY) {
-                quiets_searched[quiets_count++] = m;
-            }
-        }
+        if (m != alpha_move && move_count <= SearchedMoves::CAPACITY)
+            (is_cap || is_promo ? captures_searched : quiets_searched).push(m);
 
         if (alpha >= beta) {
             ss->cutoff_cnt += (extension < 2) || is_pv;
-            TRACE_DECISION(TraceEvent::BetaCutoff, ply, depth, m,
-                           orig_alpha, beta, eval, improving, correction, stat_score,
-                           searched, ss->reduction, VALUE_NONE, score,
-                           ss->cutoff_cnt);
+            TRACE_DECISION(.event = TraceEvent::BetaCutoff, .ply = ply, .depth = depth, .move = m,
+                           .alpha = orig_alpha, .beta = beta, .estimated_score = eval,
+                           .improving = improving, .correction = correction, .history = stat_score,
+                           .move_count = searched, .reduction = ss->reduction, .margin = VALUE_NONE,
+                           .result = score, .cutoff_count = ss->cutoff_cnt);
             // Ordering quality (BAS-O03) at the point it costs something.
             // `searched` was incremented above, so the cutting move's index is
             // searched - 1. A cutoff on index 0 costs one move's search; on
@@ -1906,8 +1978,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     if (alpha_move != MOVE_NONE) {
         DIAG_COUNT(++(best_score >= beta ? state_.diag.hist_cutoff_updates
                                          : state_.diag.hist_reward_updates));
-        update_all_stats(ss, alpha_move, tt_move, quiets_searched, quiets_count,
-                         captures_searched, captures_count, depth, is_pv);
+        update_all_stats(ss, alpha_move, tt_move, quiets_searched, captures_searched,
+                         depth, is_pv);
         if (!is_pv && !PRICE_PROBING())
             TTMoveHistory::update(hist_.tt_move.value, alpha_move == tt_move ? KLIT(tt_move_bonus) : KLIT(tt_move_malus));
     } else if ((ss - 1)->move != MOVE_NONE && (ss - 1)->move != MOVE_NULL) {

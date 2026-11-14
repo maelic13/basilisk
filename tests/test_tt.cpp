@@ -39,7 +39,7 @@ static void test_store_probe() {
     end_section();
 
     begin_section("probe: flag == TT_EXACT");
-    EXPECT(found && (e.flag_age & 3) == TT_EXACT);
+    EXPECT(found && e.bound() == TT_EXACT);
     end_section();
 
     begin_section("probe: depth matches");
@@ -295,7 +295,7 @@ static void test_deeper_entry_preferred() {
     end_section();
 
     begin_section("deeper entry: flag == TT_EXACT");
-    EXPECT(found && (e.flag_age & 3) == TT_EXACT);
+    EXPECT(found && e.bound() == TT_EXACT);
     end_section();
 }
 
@@ -340,17 +340,17 @@ static void test_tt_flags() {
 
     begin_section("flag: TT_EXACT stored and retrieved");
     found = tt.probe_copy(key_ex, e);
-    EXPECT(found && (e.flag_age & 3) == TT_EXACT);
+    EXPECT(found && e.bound() == TT_EXACT);
     end_section();
 
     begin_section("flag: TT_ALPHA stored and retrieved");
     found = tt.probe_copy(key_al, e);
-    EXPECT(found && (e.flag_age & 3) == TT_ALPHA);
+    EXPECT(found && e.bound() == TT_ALPHA);
     end_section();
 
     begin_section("flag: TT_BETA stored and retrieved");
     found = tt.probe_copy(key_be, e);
-    EXPECT(found && (e.flag_age & 3) == TT_BETA);
+    EXPECT(found && e.bound() == TT_BETA);
     end_section();
 }
 

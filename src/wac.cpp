@@ -10,7 +10,7 @@
 #include "wac_epd.h"
 #include "search.h"
 #include "tt.h"
-#include "uci_output.h"
+#include "output_sink.h"
 
 // ---------------------------------------------------------------------------
 // EPD parsing (mirrors Rarog's src/wac.rs parse_epd_line)
@@ -275,12 +275,12 @@ void run_wac(const WacRequest& request, const SearchParams& params) {
     int64_t total_nodes = 0;
     int64_t total_ms    = 0;
 
-    uci_write_line("");
+    write_output_line("");
     for (size_t i = 0; i < positions.size(); ++i) {
         const WacPosition& pos = positions[i];
         Board board;
         if (!board.try_set_fen(pos.fen)) {
-            uci_write_line("info string wac " + pos.id + " failed to parse");
+            write_output_line("info string wac " + pos.id + " failed to parse");
             return;
         }
 
@@ -329,7 +329,7 @@ void run_wac(const WacRequest& request, const SearchParams& params) {
                 if (iteration_solved && first == 0)
                     first = iteration.depth;
 
-                uci_write_line(std::format("wac pv id {} depth {} bestmove {} solved {}",
+                write_output_line(std::format("wac pv id {} depth {} bestmove {} solved {}",
                                            pos.id, iteration.depth, iteration.pv1,
                                            iteration_solved ? 1 : 0));
             }
@@ -355,10 +355,10 @@ void run_wac(const WacRequest& request, const SearchParams& params) {
             joined_best_moves(pos.best_moves), position_solved ? 1 : 0);
         if (request.mode == WacMode::DepthPv)
             line += std::format(" first {} stable {}", first, stable);
-        uci_write_line(line);
+        write_output_line(line);
     }
 
-    uci_write_line(std::format(
+    write_output_line(std::format(
         "\n=========================\n"
         "WAC solved      : {}/{} in {} {}\n"
         "Nodes searched  : {}\n"
@@ -371,6 +371,6 @@ void run_wac(const WacRequest& request, const SearchParams& params) {
             if (!joined.empty()) joined += ", ";
             joined += f;
         }
-        uci_write_line("Failed: " + joined);
+        write_output_line("Failed: " + joined);
     }
 }

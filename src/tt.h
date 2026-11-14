@@ -10,11 +10,18 @@
 #include <cstdint>
 #include <memory>
 #include <new>
+#include <utility>
 #if defined(_MSC_VER)
 #include <xmmintrin.h>
 #endif
 
-enum TTFlag : uint8_t { TT_NONE=0, TT_EXACT=1, TT_ALPHA=2, TT_BETA=3 };
+// The bound a stored score holds. Scoped, so a bound never compares with an
+// integer by accident; the TT_* names stay as its values.
+enum class TTFlag : uint8_t { None = 0, Exact = 1, Alpha = 2, Beta = 3 };
+inline constexpr TTFlag TT_NONE  = TTFlag::None;
+inline constexpr TTFlag TT_EXACT = TTFlag::Exact;
+inline constexpr TTFlag TT_ALPHA = TTFlag::Alpha;
+inline constexpr TTFlag TT_BETA  = TTFlag::Beta;
 
 // The flag_age byte: bits 0-1 hold the bound, the rest the age (generation).
 // new_search() advances the age by TT_AGE_STEP, so the bound bits are never
@@ -254,7 +261,7 @@ public:
         const uint8_t pv_bit = pv ? TT_PV_MASK : uint8_t(0);
         const int stored_score = score == VALUE_NONE ? VALUE_NONE : score_to_tt(score, ply);
         const uint64_t data = pack_entry(stored_score, static_eval, m, depth,
-                                         static_cast<uint8_t>(age | pv_bit | uint8_t(flag)));
+                                         static_cast<uint8_t>(age | pv_bit | std::to_underlying(flag)));
 
         // Publish the payload before the key fragment so a concurrent reader
         // that matches key16 sees at least this store's payload. The release

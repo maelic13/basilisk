@@ -337,6 +337,29 @@ struct TraceRecord {
     TraceFamily family = TraceFamily::None;
 };
 
+// One decision as the kernel reports it, named field by field (designated
+// initialisers), so two of its many integers cannot be swapped unnoticed.
+struct TraceDecision {
+    TraceEvent event{};
+    int ply = 0;
+    int depth = 0;
+    Move move = MOVE_NONE;
+    int alpha = 0;
+    int beta = 0;
+    int estimated_score = 0;
+    int improving = 0;
+    int correction = 0;
+    int history = 0;
+    int move_count = 0;
+    int reduction = 0;
+    int margin = 0;
+    int result = 0;
+    int cutoff_count = -1;
+    int lmr_depth = VALUE_NONE;
+    int skip_quiets = -1;
+    TraceFamily family = TraceFamily::None;
+};
+
 // Decision records at plies 1-2 of a single-root search, bounded so a trace
 // cannot grow without limit.
 class DecisionTrace {
@@ -347,12 +370,7 @@ public:
     // `root_only` records the root's decisions instead of plies 1 and 2.
     void start(bool enabled, bool root_only = false);
     [[nodiscard]] bool enabled() const { return enabled_; }
-    void record(TraceEvent event, int ply, int depth, Move move,
-                int alpha, int beta, int estimated_score,
-                int improving, int correction, int history,
-                int move_count, int reduction, int margin, int result,
-                int cutoff_count = -1, int lmr_depth = VALUE_NONE,
-                int skip_quiets = -1, TraceFamily family = TraceFamily::None);
+    void record(const TraceDecision& d);
     // Prints the records; `root_moves` holds the one searched root move.
     void print(const InfoCallback& info, const std::vector<Move>& root_moves) const;
 

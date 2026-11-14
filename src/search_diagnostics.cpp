@@ -15,38 +15,33 @@ void DecisionTrace::start(bool enabled, bool root_only) {
         records_.reset();
 }
 
-void DecisionTrace::record(TraceEvent event, int ply, int depth, Move move,
-                           int alpha, int beta, int estimated_score,
-                           int improving, int correction, int history,
-                           int move_count, int reduction, int margin, int result,
-                           int cutoff_count, int lmr_depth, int skip_quiets,
-                           TraceFamily family) {
-    if (!enabled_ || (root_only_ ? ply != 0 : (ply < 1 || ply > 2)))
+void DecisionTrace::record(const TraceDecision& d) {
+    if (!enabled_ || (root_only_ ? d.ply != 0 : (d.ply < 1 || d.ply > 2)))
         return;
     if (count_ >= CAPACITY) {
         overflow_ = true;
         return;
     }
     TraceRecord& r = (*records_)[count_];
-    r.event = event;
-    r.move = move;
+    r.event = d.event;
+    r.move = d.move;
     r.sequence = static_cast<int>(count_);
-    r.ply = ply;
-    r.depth = depth;
-    r.alpha = alpha;
-    r.beta = beta;
-    r.estimated_score = estimated_score;
-    r.improving = improving;
-    r.correction = correction;
-    r.history = history;
-    r.move_count = move_count;
-    r.reduction = reduction;
-    r.cutoff_count = cutoff_count;
-    r.margin = margin;
-    r.result = result;
-    r.lmr_depth = lmr_depth;
-    r.skip_quiets = skip_quiets;
-    r.family = family;
+    r.ply = d.ply;
+    r.depth = d.depth;
+    r.alpha = d.alpha;
+    r.beta = d.beta;
+    r.estimated_score = d.estimated_score;
+    r.improving = d.improving;
+    r.correction = d.correction;
+    r.history = d.history;
+    r.move_count = d.move_count;
+    r.reduction = d.reduction;
+    r.cutoff_count = d.cutoff_count;
+    r.margin = d.margin;
+    r.result = d.result;
+    r.lmr_depth = d.lmr_depth;
+    r.skip_quiets = d.skip_quiets;
+    r.family = d.family;
     ++count_;
 }
 

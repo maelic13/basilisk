@@ -15,7 +15,7 @@
 #include "kernel_literals.h"
 #include "parameters.h"
 #include "physical_memory.h"
-#include "uci_output.h"
+#include "output_sink.h"
 
 namespace {
 
@@ -290,7 +290,7 @@ void Parameters::set_search_parameters(const std::string& args) {
                 if (parse_legal_move(board, move_token, move)) {
                     search_moves.push_back(move);
                 } else {
-                    uci_write_line("info string Invalid searchmoves move: " + move_token);
+                    write_output_line("info string Invalid searchmoves move: " + move_token);
                     break;
                 }
             }
@@ -301,7 +301,7 @@ void Parameters::set_search_parameters(const std::string& args) {
         if (std::find(params.begin(), params.end(), parameter) == params.end())
             continue;
         if (i + 1 >= tokens.size() || is_go_parameter(tokens[i + 1])) {
-            uci_write_line("info string Invalid " + parameter + " value.");
+            write_output_line("info string Invalid " + parameter + " value.");
             continue;
         }
 
@@ -369,7 +369,7 @@ void Parameters::set_option(const std::string& args) {
     else if (std::regex_search(args, matches, name_only_re))
         name = matches[1].str();
     else {
-        uci_write_line("info string Incorrect setoption format.");
+        write_output_line("info string Incorrect setoption format.");
         return;
     }
 
@@ -388,7 +388,7 @@ void Parameters::set_option(const std::string& args) {
 
     // Extract value
     if (!std::regex_search(args, matches, value_re)) {
-        uci_write_line("info string Option '" + name + "' requires a value.");
+        write_output_line("info string Option '" + name + "' requires a value.");
         return;
     }
     const std::string value = matches[1].str();
@@ -416,7 +416,7 @@ void Parameters::set_option(const std::string& args) {
         // and the go-receipt->search-start dispatch delta.
         tm_debug = parse_bool_option(value);
     } else if (!parse_int(value, parsed)) {
-        uci_write_line("info string Invalid value for option '" + name + "': " + value);
+        write_output_line("info string Invalid value for option '" + name + "': " + value);
     } else if (name_lower == "move overhead") {
         move_overhead = std::clamp(parsed, 0, 5000);
     } else if (name_lower == "multipv") {
@@ -428,7 +428,7 @@ void Parameters::set_option(const std::string& args) {
         // filling it.
         const int limit = max_hash_mb();
         if (parsed > limit)
-            uci_write_line("info string Hash value " + std::to_string(parsed) + " is above the "
+            write_output_line("info string Hash value " + std::to_string(parsed) + " is above the "
                            + std::to_string(limit)
                            + " MiB this machine can hold; the setting is unchanged.");
         else
@@ -477,7 +477,7 @@ void Parameters::set_option(const std::string& args) {
     // string` is the display-only channel, so a GUI offering options we do
     // not implement is unaffected beyond one log line.
     else {
-        uci_write_line("info string Unknown option: '" + name + "'");
+        write_output_line("info string Unknown option: '" + name + "'");
     }
 }
 
@@ -490,7 +490,7 @@ bool Parameters::set_position(const std::string& args) {
     std::string token;
 
     if (!(iss >> token)) {
-        uci_write_line("info string Incorrect position format.");
+        write_output_line("info string Incorrect position format.");
         return false;
     }
 
@@ -498,7 +498,7 @@ bool Parameters::set_position(const std::string& args) {
     if (token == "startpos") {
         if (iss >> token) {
             if (token != "moves") {
-                uci_write_line("info string Incorrect position format.");
+                write_output_line("info string Incorrect position format.");
                 return false;
             }
             moves_section = true;
@@ -515,23 +515,23 @@ bool Parameters::set_position(const std::string& args) {
         }
 
         if (fen.empty()) {
-            uci_write_line("info string Invalid FEN. Missing FEN fields.");
+            write_output_line("info string Invalid FEN. Missing FEN fields.");
             return false;
         }
 
         if (auto r = new_board.try_set_fen(fen, /*validate_legal_position=*/true); !r) {
-            uci_write_line("info string " + r.error());
+            write_output_line("info string " + r.error());
             return false;
         }
     } else {
-        uci_write_line("info string Incorrect position format.");
+        write_output_line("info string Incorrect position format.");
         return false;
     }
 
     if (moves_section) {
         while (iss >> token) {
             if (!apply_uci_move(new_board, token)) {
-                uci_write_line("info string Illegal move: " + token);
+                write_output_line("info string Illegal move: " + token);
                 return false;
             }
         }

@@ -21,12 +21,14 @@ using Bitboard = uint64_t;
 using Key      = uint64_t;
 
 // A measurement counted only in the flavours that print it (Tune, Diag, and
-// Pricing inside them); release builds compile the expression away.
+// Pricing inside them). Release builds discard it under `if constexpr`, so it
+// still type-checks there and a counter cannot rot in the build CI tests most.
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
-#define DIAG_COUNT(expression) (expression)
+inline constexpr bool kDiagBuild = true;
 #else
-#define DIAG_COUNT(expression) ((void)0)
+inline constexpr bool kDiagBuild = false;
 #endif
+#define DIAG_COUNT(expression) do { if constexpr (kDiagBuild) { (void)(expression); } } while (0)
 
 static constexpr Bitboard BB_EMPTY = 0ULL;
 static constexpr Bitboard BB_ALL   = ~0ULL;

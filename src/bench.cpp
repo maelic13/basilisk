@@ -12,7 +12,7 @@
 #include "bench.h"
 #include "search.h"
 #include "tt.h"
-#include "uci_output.h"
+#include "output_sink.h"
 
 // 40 positions covering openings, middlegames (quiet + tactical), a broad range
 // of endgames, mates, and fortresses. In single-thread mode the final "Nodes
@@ -102,7 +102,7 @@ void run_bench(int depth, int repeats, int threads) {
     std::vector<int64_t> nps_samples;
     nps_samples.reserve(static_cast<size_t>(repeats));
 
-    uci_write_line("");
+    write_output_line("");
     for (int repeat = 0; repeat < repeats; ++repeat) {
         // Clean, identical starting state each repeat (TT + histories) so every
         // run is the same deterministic workload — the only NPS variation is
@@ -143,7 +143,7 @@ void run_bench(int depth, int repeats, int threads) {
 
             if (detailed) {
                 const int64_t nps = r.nodes * 1000 / std::max<int64_t>(1, r.elapsed_ms);
-                uci_write_line(std::format(
+                write_output_line(std::format(
                     "bench {}/{}  depth {}  score {}  nodes {}  ebf {:.2f}  time {}ms  nps {}",
                     i + 1, BENCH_FENS.size(), r.depth, r.score, r.nodes, ebf,
                     r.elapsed_ms, nps));
@@ -165,7 +165,7 @@ void run_bench(int depth, int repeats, int threads) {
                 ? 0 : *std::max_element(per_position_nodes.begin(), per_position_nodes.end());
         }
         if (!detailed) {
-            uci_write_line(std::format("run {}/{}  nodes {}  time {}ms  nps {}",
+            write_output_line(std::format("run {}/{}  nodes {}  time {}ms  nps {}",
                                        repeat + 1, repeats, total_nodes, total_ms, run_nps));
         }
     }
@@ -196,5 +196,5 @@ void run_bench(int depth, int repeats, int threads) {
     else
         summary += std::format("Nodes/second    : {}   (best of {}; median {}, min {})\n",
                                best_nps, repeats, median_nps, min_nps);
-    uci_write(summary);
+    write_output(summary);
 }

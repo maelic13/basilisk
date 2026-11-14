@@ -11,7 +11,7 @@
 #include "engine_command.h"
 #include "engine_entry.h"
 #include "eval.h"
-#include "uci_output.h"
+#include "output_sink.h"
 #include "uci_protocol.h"
 #include "version.h"
 #include "zobrist.h"
@@ -38,10 +38,10 @@ int run_engine(int argc, char* argv[]) {
 
     // A universal binary's tier names itself: which one runs is the CPU's choice.
 #ifdef BASILISK_UNIVERSAL_TIER
-    uci_write_line(engine_version_info()
+    write_output_line(engine_version_info()
                    + " by " + std::string(engineAuthor) + " (" BASILISK_UNIVERSAL_TIER ")");
 #else
-    uci_write_line(engine_version_info()
+    write_output_line(engine_version_info()
                    + " by " + std::string(engineAuthor));
 #endif
 

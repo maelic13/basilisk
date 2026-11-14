@@ -14,6 +14,33 @@
 #include <string_view>
 #include <vector>
 
+// An evaluation difference in the donor's units: Basilisk's unit is 0.282 of
+// the donor's. The one place the conversion is written, so a product that
+// needs widening is widened by its argument's type (int64_t in, int64_t out);
+// the operations and their order are those of the three sites it replaces.
+template <typename T>
+[[nodiscard]] constexpr T to_donor_units(T v) noexcept {
+    return v * 1000 / 282;
+}
+
+// The quiets or the captures a node searched before its best move, which its
+// update punishes: at most CAPACITY, the first ones; a push past it is dropped.
+class SearchedMoves {
+public:
+    static constexpr int CAPACITY = 32;
+    void push(Move m) noexcept {
+        if (count_ < CAPACITY)
+            moves_[count_++] = m;
+    }
+    [[nodiscard]] int size() const noexcept { return count_; }
+    [[nodiscard]] const Move* begin() const noexcept { return moves_; }
+    [[nodiscard]] const Move* end() const noexcept { return moves_ + count_; }
+
+private:
+    Move moves_[CAPACITY];
+    int count_ = 0;
+};
+
 static constexpr int MAX_SEARCH_DEPTH = 100;
 
 // Material the search reasons with in ordering and pruning margins; the

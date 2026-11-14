@@ -11,7 +11,7 @@
 
 #include "constants.h"
 #include "engine.h"
-#include "uci_output.h"
+#include "output_sink.h"
 #include "bench.h"
 #include "wac.h"
 #include "syzygy.h"
@@ -56,7 +56,7 @@ Engine::Engine(EngineCommandQueue& commands,
     , tt_(64)
     , search_pool_(tt_, stop_requested_,
           [](const std::string& info) {
-              uci_write_line(info);
+              write_output_line(info);
           },
           &ponderhit_requested_)
 {
@@ -108,14 +108,14 @@ void Engine::configure_syzygy() {
     const bool ok = Syzygy::init(current_syzygy_path_);
 
     if (current_syzygy_path_.empty()) {
-        uci_write_line("info string Syzygy disabled");
+        write_output_line("info string Syzygy disabled");
     } else if (!ok) {
-        uci_write_line("info string Syzygy initialization failed for path: "
+        write_output_line("info string Syzygy initialization failed for path: "
                        + current_syzygy_path_);
     } else if (!Syzygy::enabled()) {
-        uci_write_line("info string Syzygy path set but no tablebase files were found");
+        write_output_line("info string Syzygy path set but no tablebase files were found");
     } else {
-        uci_write_line("info string Found "
+        write_output_line("info string Found "
                        + std::to_string(Syzygy::wdl_file_count()) + " WDL and "
                        + std::to_string(Syzygy::dtz_file_count())
                        + " DTZ tablebase files (up to "
@@ -129,7 +129,7 @@ void Engine::send_bestmove(const SearchResult& result, const Board& root_board) 
         std::string replacement = safe_result.bestmove == MOVE_NONE
             ? "0000"
             : move_to_uci(safe_result.bestmove);
-        uci_write_line("info string Replaced illegal bestmove "
+        write_output_line("info string Replaced illegal bestmove "
                        + move_to_uci(result.bestmove)
                        + " with " + replacement);
     }
@@ -138,9 +138,9 @@ void Engine::send_bestmove(const SearchResult& result, const Board& root_board) 
         std::string out = "bestmove " + move_to_uci(safe_result.bestmove);
         if (safe_result.pondermove != MOVE_NONE)
             out += " ponder " + move_to_uci(safe_result.pondermove);
-        uci_write_line(out);
+        write_output_line(out);
     } else {
-        uci_write_line("bestmove 0000");
+        write_output_line("bestmove 0000");
     }
 }
 
@@ -195,13 +195,13 @@ void Engine::publish_tablebase_pv(SearchResult& result, const Board& root_board,
                                                  limits.syzygy_50_move_rule,
                                                  limits.syzygy_probe_limit, time_abort);
     if (ext.timed_out)
-        uci_write_line("info string Syzygy based PV extension requires more time, "
+        write_output_line("info string Syzygy based PV extension requires more time, "
                        "increase Move Overhead as needed.");
     if (ext.pv == line && !ext.ends_in_draw)
         return;
 
     const int score = ext.ends_in_draw ? 0 : result.score;
-    uci_write_line(format_info_line(result.depth, result.seldepth, 1, score, {}, result.nodes,
+    write_output_line(format_info_line(result.depth, result.seldepth, 1, score, {}, result.nodes,
                                     static_cast<double>(result.elapsed_ms) / 1000.0,
                                     result.tbhits, tt_.hashfull(), ext.pv));
 
@@ -318,7 +318,7 @@ void Engine::run_wac_command(const EngineCommand& command) {
     WacRequest request;
     std::string error;
     if (!parse_wac_request(command.args, request, error)) {
-        uci_write_line("info string " + error);
+        write_output_line("info string " + error);
         return;
     }
 
@@ -378,7 +378,7 @@ void Engine::run_perft_command(uint64_t command_epoch) {
     stop_requested_.store(false, std::memory_order_release);
     searching_.store(true, std::memory_order_release);
     const uint64_t nodes = perft(board_copy, depth);
-    uci_write_line("Nodes searched: " + std::to_string(nodes));
+    write_output_line("Nodes searched: " + std::to_string(nodes));
     if (command_epoch == 0
         || control_epoch_.load(std::memory_order_acquire) == command_epoch)
         searching_.store(false, std::memory_order_release);
@@ -398,7 +398,7 @@ void Engine::apply_table_state() {
         if (tt_.resize(static_cast<size_t>(parameters_.hash_mb))) {
             current_hash_mb_ = parameters_.hash_mb;
         } else {
-            uci_write_line("info string Unable to allocate Hash value "
+            write_output_line("info string Unable to allocate Hash value "
                            + std::to_string(parameters_.hash_mb) + "; keeping "
                            + std::to_string(tt_.allocated_bytes() >> 20) + " MiB.");
             parameters_.hash_mb = current_hash_mb_;
@@ -422,7 +422,7 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
             if (parameters_.threads != old_threads) {
                 const int active_threads = search_pool_.resize_threads(parameters_.threads);
                 parameters_.threads = active_threads;
-                uci_write_line("info string Using "
+                write_output_line("info string Using "
                                + std::to_string(active_threads)
                                + (active_threads == 1 ? " thread" : " threads"));
             }
@@ -438,7 +438,7 @@ void Engine::handle_command(const EngineCommand& command, bool& quit) {
             if (!parameters_.set_position(command.args)) {
                 const std::string message = "info string CRITICAL ERROR: command `position "
                                           + command.args + "` was rejected; exiting.";
-                uci_write_line(message);
+                write_output_line(message);
                 if (fatal_handler_) {
                     fatal_handler_(message);
                 } else {

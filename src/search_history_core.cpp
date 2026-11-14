@@ -171,8 +171,7 @@ int Searcher::cont_hist_score(const SearchStack* ss, int piece, Square to) const
 // history, and every earlier capture loses. The parent's early quiet move
 // that this node refutes loses too.
 void Searcher::update_all_stats(SearchStack* ss, Move best, Move tt_move,
-                                const Move* quiets, int quiet_count,
-                                const Move* captures, int capture_count,
+                                const SearchedMoves& quiets, const SearchedMoves& captures,
                                 int depth, bool pv_node) {
     if (PRICE_PROBING()) return;
     const auto& p = config_.limits.params;
@@ -181,15 +180,15 @@ void Searcher::update_all_stats(SearchStack* ss, Move best, Move tt_move,
               + KLIT(quiet_bonus_tt) * (best == tt_move) + (ss - 1)->stat_score / KLIT(quiet_bonus_stat_den);
     const int malus = std::min(p.malus_slope * depth + KLIT(malus_offset), p.malus_cap);
     if (!pv_node)
-        bonus += int(int64_t(bonus) * (quiet_count + capture_count) / KLIT(bonus_count_den));
+        bonus += int(int64_t(bonus) * (quiets.size() + captures.size()) / KLIT(bonus_count_den));
 
     const bool best_capture_stage = is_capture_stage(b, best);
     if (!best_capture_stage) {
         update_quiet_histories(ss, best, bonus * KLIT(quiet_bonus_share) / 1024);
         int actual_malus = malus * KLIT(malus_share) / 1024;
-        for (int i = 0; i < quiet_count; ++i) {
+        for (const Move m : quiets) {
             actual_malus = actual_malus * p.malus_decay / 1024;
-            update_quiet_histories(ss, quiets[i], -actual_malus);
+            update_quiet_histories(ss, m, -actual_malus);
         }
     } else {
         update_capture_history(best, bonus * KLIT(capt_bonus_share) / 1024);
@@ -203,8 +202,8 @@ void Searcher::update_all_stats(SearchStack* ss, Move best, Move tt_move,
                                       -malus * KLIT(cont_malus_share) / 1024);
     }
 
-    for (int i = 0; i < capture_count; ++i)
-        update_capture_history(captures[i], -malus * KLIT(capt_malus_share) / 1024);
+    for (const Move m : captures)
+        update_capture_history(m, -malus * KLIT(capt_malus_share) / 1024);
 }
 
 // After a fail low: the parent's move caused it. A quiet one is rewarded by

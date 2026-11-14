@@ -105,7 +105,7 @@ struct SearchShared {
 // Stack records below the root. The kernel reads (ss - n) for n up to this
 // many plies; those records are sentinels, and the root is stack[STACK_SENTINELS].
 // Seven covers the deepest continuation read (six plies back from a child's
-// update) on either kernel.
+// update).
 inline constexpr int STACK_SENTINELS = 7;
 
 struct SearchState {
@@ -392,8 +392,7 @@ private:
     // quiets and captures searched before it, and the parent's move's reward
     // when the node failed low.
     void update_all_stats(SearchStack* ss, Move best, Move tt_move,
-                          const Move* quiets, int quiet_count,
-                          const Move* captures, int capture_count,
+                          const SearchedMoves& quiets, const SearchedMoves& captures,
                           int depth, bool pv_node);
     void update_fail_low_parent(SearchStack* ss, int depth, int best_score);
 

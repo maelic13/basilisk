@@ -762,6 +762,19 @@ int main() { return 0; }" _basilisk_default_is_baseline)
             endif()
         endforeach()
     endif()
+    # The standard library's own bounds checks where speed does not matter:
+    # libc++'s debug hardening and libstdc++'s assertions, in Debug and
+    # sanitizer builds. Neither changes the library's ABI.
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        if(SANITIZE)
+            target_compile_definitions(${_tgt} PRIVATE
+                _LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG _GLIBCXX_ASSERTIONS)
+        else()
+            target_compile_definitions(${_tgt} PRIVATE
+                $<$<CONFIG:Debug>:_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG>
+                $<$<CONFIG:Debug>:_GLIBCXX_ASSERTIONS>)
+        endif()
+    endforeach()
 
 endif()
 

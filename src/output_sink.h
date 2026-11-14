@@ -1,5 +1,10 @@
 #pragma once
 
+// The process's one stdout sink. The protocol, the engine, bench and the WAC
+// runner write through it, so lines from different threads never interleave.
+// It knows nothing of UCI: the engine layer may use it without depending on
+// the protocol above it.
+
 #include <cstdlib>
 #include <exception>
 #include <iostream>
@@ -7,19 +12,19 @@
 #include <string>
 #include <string_view>
 
-inline std::mutex& uci_output_mutex() {
+inline std::mutex& output_mutex() {
     static std::mutex mutex;
     return mutex;
 }
 
-inline void uci_write(std::string_view text) {
-    std::scoped_lock lock(uci_output_mutex());
+inline void write_output(std::string_view text) {
+    std::scoped_lock lock(output_mutex());
     std::cout << text;
     std::cout.flush();
 }
 
-inline void uci_write_line(std::string_view line) {
-    std::scoped_lock lock(uci_output_mutex());
+inline void write_output_line(std::string_view line) {
+    std::scoped_lock lock(output_mutex());
     std::cout << line << '\n';
     std::cout.flush();
 }
@@ -41,7 +46,7 @@ inline void uci_write_line(std::string_view line) {
         }
     }
     {
-        std::unique_lock lock(uci_output_mutex(), std::try_to_lock);
+        std::unique_lock lock(output_mutex(), std::try_to_lock);
         std::cout << "info string CRITICAL ERROR: " << what << "; exiting." << std::endl;
     }
     std::cerr << "CRITICAL ERROR: " << what << '\n';

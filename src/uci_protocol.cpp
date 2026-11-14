@@ -7,7 +7,7 @@
 #include <string>
 
 #include "constants.h"
-#include "uci_output.h"
+#include "output_sink.h"
 #include "uci_protocol.h"
 #include "version.h"
 #ifdef BASILISK_TUNE
@@ -31,7 +31,7 @@ UciProtocol::Dispatch UciProtocol::dispatch(const std::string& input) {
     const std::string args    = (sep != std::string::npos) ? input.substr(sep + 1) : "";
 
     if (debug_mode)
-        uci_write_line("info string received: " + input);
+        write_output_line("info string received: " + input);
 
     if      (command == "uci")        cmdUci();
     else if (command == "debug")      cmdDebug(args);
@@ -80,7 +80,7 @@ int UciProtocol::RunArguments(const std::string& command_line) {
     if (result == Dispatch::Quit)
         return 0;
     if (result == Dispatch::Unknown)
-        uci_write_line("Unknown command: '" + command_line
+        write_output_line("Unknown command: '" + command_line
                        + "'. Run `basilisk help` for the commands.");
     // Quit after the command, without raising stop: a `go depth N` or a bench
     // given on the command line runs to its end, as Stockfish runs it.
@@ -90,7 +90,7 @@ int UciProtocol::RunArguments(const std::string& command_line) {
 }
 
 void UciProtocol::cmdHelp() {
-    uci_write(engine_version_info()
+    write_output(engine_version_info()
         + " is a UCI chess engine by " + std::string(engineAuthor) + ".\n"
         "Use it from a chess GUI or harness that speaks UCI, or type its commands:\n"
         "  uci, isready, setoption name <name> value <value>, ucinewgame,\n"
@@ -120,7 +120,7 @@ void UciProtocol::cmdUci() {
                     + "id author " + std::string(engineAuthor) + "\n"
                     + Parameters::uci_options()
                     + "uciok\n";
-    uci_write(out);
+    write_output(out);
 }
 
 void UciProtocol::cmdIsReady() {
@@ -131,11 +131,11 @@ void UciProtocol::cmdIsReady() {
         ready.wait();
     }
 
-    uci_write_line("readyok");
+    write_output_line("readyok");
 }
 
 void UciProtocol::cmdRegister() {
-    uci_write_line("registration ok");
+    write_output_line("registration ok");
 }
 
 // ---------------------------------------------------------------------------

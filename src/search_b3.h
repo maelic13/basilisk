@@ -5,6 +5,7 @@
 
 #include "kernel_literals.h"
 #include "move.h"
+#include "search_types.h"
 #include <algorithm>
 #include <cstdint>
 
@@ -59,7 +60,7 @@ namespace b3 {
 }
 
 // The multi-cut's correction bonus: the gap by which the exclusion search
-// cleared the static eval, in the donor's units (`* 1000 / 282`), times the
+// cleared the static eval, in the donor's units (to_donor_units), times the
 // singular depth and `mult`, in 1/1024, clamped to the correction's +-256.
 // The products are 64-bit: the conversion widens them 3.55 times, and in
 // `int` they pass 2^31 from a singular depth of 54 and train the correction
@@ -67,7 +68,7 @@ namespace b3 {
 // 32-bit form's, so the two agree wherever that one is defined.
 [[nodiscard]] inline int multicut_correction_bonus(int value, int static_eval, int s_depth,
                                                    int mult) {
-    const int64_t product = int64_t(value - static_eval) * 1000 / 282 * s_depth * mult / 1024;
+    const int64_t product = to_donor_units(int64_t(value - static_eval)) * s_depth * mult / 1024;
     return int(std::clamp<int64_t>(product, -256, 256));
 }
 
