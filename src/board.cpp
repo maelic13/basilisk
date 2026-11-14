@@ -1572,8 +1572,11 @@ bool Board::is_repetition(int search_ply) const {
         if (history[static_cast<size_t>(i)].hash != hash)
             continue;
 
+        // Once is enough strictly after the root; the root itself, or a
+        // position before it, needs a second earlier occurrence. The same
+        // rule as upcoming_repetition's.
         const int distance = hist_size - i;
-        if (distance <= search_ply)
+        if (distance < search_ply)
             return true;
 
         if (++reps >= 2)

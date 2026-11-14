@@ -806,15 +806,43 @@ static void test_draw_detection() {
     EXPECT(b.is_draw());  // twofold
     end_section();
 
-    begin_section("search repetition distinguishes root and in-tree repeat");
+    // One occurrence counts strictly after the root; a return to the root
+    // itself needs the root to have occurred before it.
+    begin_section("search repetition: once after the root, twice at it");
     b.set_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     b.make_move(make_move(G1, F3));
     b.make_move(make_move(G8, F6));
     b.make_move(make_move(F3, G1));
     b.make_move(make_move(F6, G8));
     EXPECT(!b.is_repetition(0));
-    EXPECT(b.is_repetition(4));
-    EXPECT(b.is_draw(4));
+    EXPECT(!b.is_repetition(4));   // the repeated position is the root
+    EXPECT(!b.is_draw(4));
+    EXPECT(b.is_repetition(5));    // it lies after the root
+    EXPECT(b.is_draw(5));
+    b.make_move(make_move(G1, F3));
+    b.make_move(make_move(G8, F6));
+    b.make_move(make_move(F3, G1));
+    b.make_move(make_move(F6, G8));
+    EXPECT(b.is_repetition(4));    // the root had occurred once before it
+    end_section();
+
+    // The cuckoo test and the repetition test give one answer: a reversible
+    // move to the position i plies back is a draw exactly when the child
+    // scores it as one.
+    begin_section("upcoming repetition agrees with the child's repetition");
+    // Black to move, Nf6-g8 returns to the start, three plies back. At a
+    // node 2, 3 or 4 plies from the root the start lies before the root, is
+    // the root, or lies after it.
+    for (int ply = 2; ply <= 4; ++ply) {
+        Board c;
+        c.set_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        c.make_move(make_move(G1, F3));
+        c.make_move(make_move(G8, F6));
+        c.make_move(make_move(F3, G1));
+        const bool predicted = c.upcoming_repetition(ply);
+        c.make_move(make_move(F6, G8));
+        EXPECT_EQ(predicted, c.is_repetition(ply + 1));
+    }
     end_section();
 
     begin_section("null move limits repetition scan");

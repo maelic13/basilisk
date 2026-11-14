@@ -245,6 +245,9 @@ public:
     // Whether vacating `s` can pin a piece against either king: `s` shares a
     // line with the king and an enemy slider of that line's kind is on it.
     [[nodiscard]] bool see_departure_opens_line(Square s, Bitboard occ) const;
+    // A draw by repetition at search_ply plies from the root: the position
+    // occurred once since the root (strictly after it), or twice in the
+    // reversible history.
     [[nodiscard]] bool is_repetition(int search_ply) const;
     // Whether the side to move has a reversible move back to a position of
     // the key history, found by the cuckoo tables without generating moves
