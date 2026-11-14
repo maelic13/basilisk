@@ -31,13 +31,13 @@ index c3660a20..aed7acca 100644
  		ifeq ($(OS),Android)
 diff --git a/src/board_bench.cpp b/src/board_bench.cpp
 new file mode 100644
-index 00000000..c4960b3b
+index 00000000..0787d971
 --- /dev/null
 +++ b/src/board_bench.cpp
-@@ -0,0 +1,402 @@
-+// cross-engine-board-v2 adapter for classical Stockfish (SF_classical, 9587eeeb).
+@@ -0,0 +1,433 @@
++// cross-engine-board-v3 adapter for classical Stockfish (SF_classical, 9587eeeb).
 +//
-+// Replaces main() (build: make build BOARD_BENCH=yes, see Makefile). Six columns
++// Replaces main() (build: make build BOARD_BENCH=yes, see Makefile). Seven columns
 +// over the 512-position game file, in the output format of Basilisk's
 +// tests/board_micro.cpp that tools/diag/board_micro_run.py parses.
 +//
@@ -47,6 +47,8 @@ index 00000000..c4960b3b
 +//   legal_gen    generate<LEGAL>(pos, list)      pseudo-legal generation filtered by legal()
 +//   capture_gen  generate<CAPTURES> / generate<EVASIONS> when in check (what MovePicker
 +//                generates for search and qsearch), pseudo-legal, no legality filter
++//   quiet_gen    generate<QUIETS> on the positions not in check (MovePicker's QUIET_INIT),
++//                pseudo-legal, no legality filter
 +//   make_unmake  do_move(m, st, givesCheck) + undo_move, givesCheck precomputed in setup
 +//   see_captures see_ge(m, 0) on the legal captures and promotions
 +//   gives_check  gives_check(m)
@@ -123,6 +125,8 @@ index 00000000..c4960b3b
 +    std::unique_ptr<StateInfo[]> root_states;  // one per board, kept alive for st
 +    std::vector<MoveRec> all_moves;            // every legal move, with its givesCheck hint
 +    std::vector<std::pair<uint32_t, Move>> tactical;  // legal captures (incl. en passant) and promotions
++    std::vector<uint32_t> not_in_check;        // boards whose side to move is not in check
++    uint64_t quiet_legal = 0;                  // their legal moves that are not tactical
 +    ExtMove list[MAX_MOVES];                   // reused generation list
 +    StateInfo scratch;                         // reused by make_unmake
 +    std::unique_ptr<Position[]> perft_roots;
@@ -146,6 +150,20 @@ index 00000000..c4960b3b
 +    Pass p{0, 0};
 +    for (std::size_t i = 0; i < in.count; ++i) {
 +        ExtMove* end = generate<LEGAL>(in.boards[i], in.list);
++        keep(&in.list);
++        const uint64_t n = uint64_t(end - in.list);
++        p.ops += 1;
++        p.sum = p.sum * 31 + n + (n ? uint64_t(in.list[n - 1].move) : 0);
++    }
++    return p;
++}
++
++// MovePicker's quiet stage, which runs only when not in check (in check,
++// EVASIONS in capture_gen holds the quiet evasions).
++Pass quiet_generation(Inputs& in) {
++    Pass p{0, 0};
++    for (uint32_t i : in.not_in_check) {
++        ExtMove* end = generate<QUIETS>(in.boards[i], in.list);
 +        keep(&in.list);
 +        const uint64_t n = uint64_t(end - in.list);
 +        p.ops += 1;
@@ -290,11 +308,15 @@ index 00000000..c4960b3b
 +        in.boards[i].set(fens[i], false, &in.root_states[i], Threads.main());
 +    for (uint32_t i = 0; i < in.count; ++i) {
 +        ExtMove* end = generate<LEGAL>(in.boards[i], in.list);
++        const bool in_check = in.boards[i].checkers() != 0;
++        if (!in_check) in.not_in_check.push_back(i);
 +        for (ExtMove* e = in.list; e != end; ++e) {
 +            const Move m = e->move;
 +            in.all_moves.push_back(MoveRec{i, m, in.boards[i].gives_check(m)});
 +            if (in.boards[i].capture(m) || type_of(m) == PROMOTION)
 +                in.tactical.emplace_back(i, m);
++            else if (!in_check)
++                ++in.quiet_legal;
 +        }
 +    }
 +    in.perft_roots = std::unique_ptr<Position[]>(new Position[3]);
@@ -316,6 +338,7 @@ index 00000000..c4960b3b
 +    std::vector<Column> columns = {
 +        Column("legal_gen", "positions", [&] { return legal_generation(in); }),
 +        Column("capture_gen", "positions", [&] { return capture_generation(in); }),
++        Column("quiet_gen", "positions", [&] { return quiet_generation(in); }),
 +        Column("make_unmake", "moves", [&] { return make_unmake(in); }),
 +        Column("see_captures", "moves", [&] { return see_captures(in); }),
 +        Column("gives_check", "moves", [&] { return gives_check(in); }),
@@ -333,7 +356,7 @@ index 00000000..c4960b3b
 +        }
 +    }
 +
-+    std::printf("profile: cross-engine-board-v2\n");
++    std::printf("profile: cross-engine-board-v3\n");
 +    std::printf("positions: %zu (%zu legal moves, %zu tactical)\n", in.count, in.all_moves.size(),
 +                in.tactical.size());
 +
@@ -368,6 +391,14 @@ index 00000000..c4960b3b
 +    std::printf("semantic checking %llu\n", (unsigned long long)checking);
 +    std::printf("semantic see_ge0 %llu\n", (unsigned long long)see_true);
 +    std::printf("semantic perft %llu\n", (unsigned long long)perft_total);
++    uint64_t quiet_total = 0;
++    for (uint32_t i : in.not_in_check)
++        quiet_total += uint64_t(generate<QUIETS>(in.boards[i], in.list) - in.list);
++    std::printf("semantic quiet_positions %zu\n", in.not_in_check.size());
++    std::printf("semantic quiet %llu\n", (unsigned long long)in.quiet_legal);
++    if (quiet_total != in.quiet_legal)
++        std::printf("noncomparable quiet_gen %llu of %llu (pseudo-legal QUIETS, unfiltered)\n",
++                    (unsigned long long)quiet_total, (unsigned long long)in.quiet_legal);
 +    // gives_check() must agree with the check flag do_move would compute.
 +    uint64_t gc = 0;
 +    for (const MoveRec& m : in.all_moves) gc += in.boards[m.pos].gives_check(m.move);

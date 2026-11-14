@@ -99,7 +99,10 @@ SEMANTIC = re.compile(r"^semantic (\S+) (\d+)$")
 NONCOMPARABLE = re.compile(r"^noncomparable (\S+) (.*)$")
 # Engine-independent counts that must agree between engines; see_ge0 may
 # differ with the engines' exchange rules (tools/board_compare/CONTRACT.md).
-MUST_AGREE = ("positions", "legal", "checking", "perft")
+MUST_AGREE = ("positions", "legal", "checking", "perft", "quiet_positions", "quiet")
+# Counts a harness built before cross-engine-board-v3 does not print: they
+# must agree among the binaries that print them.
+ADDED_IN_V3 = ("quiet_positions", "quiet")
 
 
 def run_once(binary: Path, args: argparse.Namespace) -> tuple[str, dict, dict, dict]:
@@ -223,7 +226,8 @@ def main() -> int:
                                if c in work_seen[label]}) > 1)
     manifest["checksums_differ"] = differing
     disagree = sorted(k for k in MUST_AGREE
-                      if len({semantic_seen[label].get(k) for label in labels}) > 1)
+                      if len({semantic_seen[label].get(k) for label in labels} - (
+                          {None} if k in ADDED_IN_V3 else set())) > 1)
     manifest["semantic_disagree"] = disagree
     (args.out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 

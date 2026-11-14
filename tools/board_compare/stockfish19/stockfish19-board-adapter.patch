@@ -21,15 +21,15 @@ index e5c94df3..9cfe55f9 100644
  endif
 diff --git a/src/board_bench.cpp b/src/board_bench.cpp
 new file mode 100644
-index 00000000..82385182
+index 00000000..28120f14
 --- /dev/null
 +++ b/src/board_bench.cpp
-@@ -0,0 +1,487 @@
-+// cross-engine-board-v2 adapter for Stockfish 19 (tools/board_compare/CONTRACT.md
+@@ -0,0 +1,519 @@
++// cross-engine-board-v3 adapter for Stockfish 19 (tools/board_compare/CONTRACT.md
 +// in Basilisk). Replaces main(); built by `make BOARD_BENCH=1 ... all`.
 +//
-+// Six columns over the 512-position game file: legal_gen, capture_gen,
-+// make_unmake, see_captures, gives_check, board_perft. Every input is built
++// Seven columns over the 512-position game file: legal_gen, capture_gen,
++// quiet_gen, make_unmake, see_captures, gives_check, board_perft. Every input is built
 +// before timing; the timed loops reuse caller-owned lists and allocate
 +// nothing. Output is the format of Basilisk's tests/board_micro.cpp, which
 +// tools/diag/board_micro_run.py parses.
@@ -41,6 +41,8 @@ index 00000000..82385182
 +//                                              filtered by Position::legal(), into a reused Move[]
 +//   capture_gen  generate<CAPTURES> (generate<EVASIONS> when in check, as the
 +//                MovePicker's stages do), pseudo-legal, no legality filter
++//   quiet_gen    generate<QUIETS> on the positions not in check (MovePicker's
++//                QUIET_INIT), pseudo-legal, no legality filter
 +//   make_unmake  Position::do_move(m, st, givesCheck, dirties, nullptr, nullptr) + undo_move
 +//   see_captures Position::see_ge(m, 0) (piece values swapped by -DBOARD_BENCH in types.h)
 +//   gives_check  Position::gives_check(m)
@@ -92,6 +94,8 @@ index 00000000..82385182
 +    std::vector<std::unique_ptr<Slot>> boards;
 +    std::vector<Move1>                 all_moves;  // every legal move
 +    std::vector<Move1>                 tactical;   // legal captures (incl. en passant) and promotions
++    std::vector<uint32_t>              not_in_check;  // boards whose side to move is not in check
++    uint64_t                           quiet_legal = 0;  // their legal moves that are not tactical
 +    // Reused by the timed loops.
 +    Move      list[MAX_MOVES];
 +    StateInfo scratch_state;
@@ -145,12 +149,16 @@ index 00000000..82385182
 +    {
 +        Position& pos = in->boards[i]->pos;
 +        Move*     end = generate<LEGAL>(pos, in->list);
++        if (!pos.checkers())
++            in->not_in_check.push_back(i);
 +        for (Move* m = in->list; m != end; ++m)
 +        {
 +            const Move1 e{i, *m, pos.gives_check(*m)};
 +            in->all_moves.push_back(e);
 +            if (m->type_of() == PROMOTION || pos.capture(*m))
 +                in->tactical.push_back(e);
++            else if (!pos.checkers())
++                ++in->quiet_legal;
 +        }
 +    }
 +    return in;
@@ -173,6 +181,21 @@ index 00000000..82385182
 +    for (const auto& b : in.boards)
 +    {
 +        Move* end = generate<LEGAL>(b->pos, in.list);
++        keep(in.list);
++        keep(end);
++        p.ops += 1;
++        p.sum = fold_list(p.sum, in.list, end);
++    }
++    return p;
++}
++
++// The picker's quiet stage, which runs only when not in check (in check,
++// EVASIONS in capture_gen holds the quiet evasions).
++Pass quiet_gen(Inputs& in) {
++    Pass p{0, 0};
++    for (uint32_t i : in.not_in_check)
++    {
++        Move* end = generate<QUIETS>(in.boards[i]->pos, in.list);
 +        keep(in.list);
 +        keep(end);
 +        p.ops += 1;
@@ -369,6 +392,7 @@ index 00000000..82385182
 +    std::vector<Column> columns = {
 +      {"legal_gen", "positions", [&] { return legal_gen(in); }},
 +      {"capture_gen", "positions", [&] { return capture_gen(in); }},
++      {"quiet_gen", "positions", [&] { return quiet_gen(in); }},
 +      {"make_unmake", "moves", [&] { return make_unmake(in); }},
 +      {"see_captures", "moves", [&] { return see_captures(in); }},
 +      {"gives_check", "moves", [&] { return gives_check(in); }},
@@ -389,7 +413,7 @@ index 00000000..82385182
 +        }
 +    }
 +
-+    std::printf("profile: cross-engine-board-v2\n");
++    std::printf("profile: cross-engine-board-v3\n");
 +
 +    // Preflight: two passes of each column must agree on work and checksum.
 +    bool ok = true;
@@ -427,6 +451,14 @@ index 00000000..82385182
 +    std::printf("semantic checking %llu\n", (unsigned long long) checking);
 +    std::printf("semantic see_ge0 %llu\n", (unsigned long long) see_true);
 +    std::printf("semantic perft %llu\n", (unsigned long long) perft_total);
++    uint64_t quiet_total = 0;
++    for (uint32_t i : in.not_in_check)
++        quiet_total += uint64_t(generate<QUIETS>(in.boards[i]->pos, in.list) - in.list);
++    std::printf("semantic quiet_positions %zu\n", in.not_in_check.size());
++    std::printf("semantic quiet %llu\n", (unsigned long long) in.quiet_legal);
++    if (quiet_total != in.quiet_legal)
++        std::printf("noncomparable quiet_gen %llu of %llu (pseudo-legal QUIETS, unfiltered)\n",
++                    (unsigned long long) quiet_total, (unsigned long long) in.quiet_legal);
 +    // The tactical set is not the generator's set: the generator is
 +    // pseudo-legal (illegal moves are filtered at delivery), and in check it
 +    // is EVASIONS, which holds the quiet evasions too.

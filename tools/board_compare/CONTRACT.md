@@ -1,4 +1,4 @@
-# cross-engine-board-v2
+# cross-engine-board-v3
 
 The contract every engine's board harness meets, so that Basilisk's board
 can be timed beside Rarog's and Reckless's on the same work. Basilisk's
@@ -13,6 +13,12 @@ no legal en passant and no promotion, and its SEE column read each
 engine's own piece values, which Rarog's RAR-M29 showed is not
 comparable. v2 times 512 positions of
 real games and injects one value vector.
+
+v3 (2026-11-14) adds `quiet_gen`, each engine's quiet stage as its search
+calls it, so that a composite weighted by a search's call mix prices the
+quiet stage itself rather than standing `legal_gen` in for it; v2's columns
+are unchanged. The v3 harnesses are built as `<engine>-board-v3.exe`, beside
+v2's.
 
 ## Input
 
@@ -42,6 +48,7 @@ approximated.
 |---|---|---|
 | `legal_gen` | generate every legal move of one position into a reused list | 512 positions |
 | `capture_gen` | the engine's own tactical generator for one position: what its search uses for captures and promotions | 512 positions |
+| `quiet_gen` | the engine's quiet-stage generator for one position not in check, as its main search's picker calls it | 477 positions |
 | `make_unmake` | make one legal move, then unmake it | 14,085 moves |
 | `see_captures` | threshold SEE at 0 of one tactical move | 927 moves |
 | `gives_check` | whether one legal move gives check, without making it | 14,085 moves |
@@ -52,6 +59,15 @@ approximated.
   another set (say queen promotions only), the harness still times it and
   prints `noncomparable capture_gen <its count> of 927` so the reader
   knows. It never filters inside the timed loop.
+- `quiet_gen` runs on the positions whose side to move is not in check,
+  listed at setup: in check, engines split the evasions differently
+  (Stockfish generates them all in its capture stage), and `capture_gen`
+  already holds that work. Whatever the picker holds when its quiet stage
+  runs (Rarog's pinned set and threats) is computed at setup, untimed.
+  Pseudo-legal generators are timed unfiltered. The column is comparable
+  only when the generator yields exactly the legal moves that neither
+  capture nor promote (`quiet`); otherwise the harness prints
+  `noncomparable quiet_gen <its count> of <quiet>`.
 - `make_unmake` does all the work the engine's search make does to the
   board, keys and per-ply state, but no network accumulator work: an
   engine whose make takes an observer or accumulator hook gets its null
@@ -72,7 +88,7 @@ approximated.
 Before timing, the preflight runs every column twice and requires the same
 operation count and checksum, then prints, in this format:
 
-    profile: cross-engine-board-v2
+    profile: cross-engine-board-v3
     work <column> <operations> <unit> checksum <16 hex digits>
     semantic positions <n>
     semantic legal <n>
@@ -80,6 +96,8 @@ operation count and checksum, then prints, in this format:
     semantic checking <n>
     semantic see_ge0 <n>           (tactical moves whose SEE >= 0 holds)
     semantic perft <n>
+    semantic quiet_positions <n>   (positions not in check)
+    semantic quiet <n>             (their legal moves that neither capture nor promote)
     preflight: PASS
 
 `work` checksums fold the engine's own results and differ between engines;
@@ -114,6 +132,10 @@ no PGO on any arm, each engine's own release profile:
   profile (fat LTO, one codegen unit, panic abort);
 - Reckless: `RUSTFLAGS="-C target-cpu=native"`, its release profile,
   `--no-default-features` (no Syzygy), the network not loaded.
+
+The adapters change no engine code, with one exception: Rarog's quiet
+stage, `Board::generate_legal_quiets_staged_into`, is `pub(crate)`, and its
+adapter makes it `pub` so that the bench crate can call it.
 
 ## Reading it
 

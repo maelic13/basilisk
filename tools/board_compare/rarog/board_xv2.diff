@@ -12,23 +12,27 @@ index f33c7ce..28b0255 100644
 +harness = false
 diff --git a/benches/board_xv2.rs b/benches/board_xv2.rs
 new file mode 100644
-index 0000000..12d81f2
+index 0000000..73db1a8
 --- /dev/null
 +++ b/benches/board_xv2.rs
-@@ -0,0 +1,437 @@
-+//! `cross-engine-board-v2` adapter (tools/board_compare/CONTRACT.md in Basilisk).
+@@ -0,0 +1,489 @@
++//! `cross-engine-board-v3` adapter (tools/board_compare/CONTRACT.md in Basilisk).
 +//!
-+//! Six columns over the 512-position game file: legal_gen, capture_gen,
-+//! make_unmake, see_captures, gives_check, board_perft. Every input is built
++//! Seven columns over the 512-position game file: legal_gen, capture_gen,
++//! quiet_gen, make_unmake, see_captures, gives_check, board_perft. Every input is built
 +//! before timing; the timed loops reuse caller-owned lists and allocate
 +//! nothing. Output is the format of Basilisk's tests/board_micro.cpp, which
 +//! tools/diag/board_micro_run.py parses.
 +//!
 +//!   board_xv2 <positions.fen> [--samples N] [--sample-ms MS] [--columns a,b] [--preflight-only]
 +//!
-+//! Rarog functions used (all public Board API, no source change):
++//! Rarog functions used (public Board API; one visibility change, below):
 +//!   legal_gen    generate_legal_movelist_into   (the search's out-parameter form)
 +//!   capture_gen  generate_legal_noisy_into      (qsearch's tactical generator)
++//!   quiet_gen    generate_legal_quiets_staged_into on the positions not in check
++//!                (the main picker's quiet stage), given the node's pinned set and
++//!                threats computed at setup as the picker holds them; the
++//!                adapter makes this pub(crate) function pub, nothing else
 +//!   make_unmake  make_move_with_check + unmake_move (the search's make, hint known)
 +//!   see_captures see_ge_with_values(mv, 0, CROSS_ENGINE_SEE_VALUES)
 +//!   gives_check  gives_check                    (the public full form)
@@ -37,7 +41,7 @@ index 0000000..12d81f2
 +use std::hint::black_box;
 +use std::time::Instant;
 +
-+use rarog::board::{Board, CROSS_ENGINE_SEE_VALUES, Move, MoveList};
++use rarog::board::{Bitboard, Board, CROSS_ENGINE_SEE_VALUES, Move, MoveList, Threats};
 +
 +struct Oracle {
 +    positions: u64,
@@ -53,9 +57,10 @@ index 0000000..12d81f2
 +    sum: u64,
 +}
 +
-+const COLUMNS: [(&str, &str); 6] = [
++const COLUMNS: [(&str, &str); 7] = [
 +    ("legal_gen", "positions"),
 +    ("capture_gen", "positions"),
++    ("quiet_gen", "positions"),
 +    ("make_unmake", "moves"),
 +    ("see_captures", "moves"),
 +    ("gives_check", "moves"),
@@ -77,6 +82,9 @@ index 0000000..12d81f2
 +    all_moves: Vec<(u32, Move, bool)>,
 +    /// The tactical moves, filtered from the legal lists at setup.
 +    tactical: Vec<(u32, Move)>,
++    /// The positions not in check, with the pinned set and threats the
++    /// picker holds when its quiet stage runs.
++    quiet_inputs: Vec<(u32, Bitboard, Threats)>,
 +    list: MoveList,
 +    perft_roots: Vec<(Board, u32)>,
 +}
@@ -99,6 +107,19 @@ index 0000000..12d81f2
 +        let mut p = Pass { ops: 0, sum: 0 };
 +        for board in &mut self.boards {
 +            board.generate_legal_noisy_into(&mut self.list);
++            black_box(&self.list);
++            p.ops += 1;
++            let n = self.list.len();
++            let last = self.list.as_slice().last().map_or(0, |m| u64::from(m.0));
++            p.sum = p.sum.wrapping_mul(31).wrapping_add(n as u64 + last);
++        }
++        p
++    }
++
++    fn quiet_gen(&mut self) -> Pass {
++        let mut p = Pass { ops: 0, sum: 0 };
++        for &(i, pinned, ref threats) in &self.quiet_inputs {
++            self.boards[i as usize].generate_legal_quiets_staged_into(pinned, threats, &mut self.list);
 +            black_box(&self.list);
 +            p.ops += 1;
 +            let n = self.list.len();
@@ -157,9 +178,10 @@ index 0000000..12d81f2
 +        match column {
 +            0 => self.legal_gen(),
 +            1 => self.capture_gen(),
-+            2 => self.make_unmake(),
-+            3 => self.see_captures(),
-+            4 => self.gives_check(),
++            2 => self.quiet_gen(),
++            3 => self.make_unmake(),
++            4 => self.see_captures(),
++            5 => self.gives_check(),
 +            _ => self.board_perft(),
 +        }
 +    }
@@ -302,6 +324,25 @@ index 0000000..12d81f2
 +            }
 +        }
 +    }
++    // quiet_gen's inputs and population (untimed): the legal moves that are
++    // not tactical, on the positions not in check.
++    let mut quiet_inputs = Vec::new();
++    let mut quiet_legal = 0u64;
++    {
++        let mut scratch = boards.clone();
++        for (i, board) in scratch.iter_mut().enumerate() {
++            if board.is_in_check() {
++                continue;
++            }
++            let threats = board.threats();
++            let pinned = board.generate_legal_captures_pinned_into(&mut list);
++            quiet_inputs.push((i as u32, pinned, threats));
++            quiet_legal += all_moves
++                .iter()
++                .filter(|(j, mv, _)| *j as usize == i && !mv.is_noisy())
++                .count() as u64;
++        }
++    }
 +    let perft_roots: Vec<(Board, u32)> = PERFT_ROOTS
 +        .iter()
 +        .map(|(fen, d)| (Board::from_fen(fen).expect("perft root"), *d))
@@ -311,6 +352,7 @@ index 0000000..12d81f2
 +        boards,
 +        all_moves,
 +        tactical,
++        quiet_inputs,
 +        list,
 +        perft_roots,
 +    };
@@ -324,7 +366,7 @@ index 0000000..12d81f2
 +        }
 +    }
 +
-+    println!("profile: cross-engine-board-v2");
++    println!("profile: cross-engine-board-v3");
 +    println!(
 +        "positions: {} ({} legal moves, {} tactical)",
 +        st.boards.len(),
@@ -373,6 +415,16 @@ index 0000000..12d81f2
 +    println!("semantic checking {checking}");
 +    println!("semantic see_ge0 {see_true}");
 +    println!("semantic perft {perft_total}");
++    let mut quiet_total = 0u64;
++    for &(i, pinned, ref threats) in &st.quiet_inputs {
++        st.boards[i as usize].generate_legal_quiets_staged_into(pinned, threats, &mut st.list);
++        quiet_total += st.list.len() as u64;
++    }
++    println!("semantic quiet_positions {}", st.quiet_inputs.len());
++    println!("semantic quiet {quiet_legal}");
++    if quiet_total != quiet_legal {
++        println!("noncomparable quiet_gen {quiet_total} of {quiet_legal}");
++    }
 +    if perft_total != 197_281 + 97_862 + 674_624 {
 +        eprintln!("preflight: perft {perft_total} is not 969767");
 +        ok = false;
@@ -453,3 +505,16 @@ index 0000000..12d81f2
 +        );
 +    }
 +}
+diff --git a/src/board/board.rs b/src/board/board.rs
+index 87bf236..eb8c5d4 100644
+--- a/src/board/board.rs
++++ b/src/board/board.rs
+@@ -850,7 +850,7 @@ impl Board {
+ 
+     /// [`Board::generate_legal_quiets_pinned_into`] for a caller that holds
+     /// this node's [`Board::threats`]: its `all` decides every king move.
+-    pub(crate) fn generate_legal_quiets_staged_into(
++    pub fn generate_legal_quiets_staged_into(
+         &self,
+         pinned: Bitboard,
+         threats: &Threats,

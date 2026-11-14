@@ -40,16 +40,17 @@ index 09bb90c..1d37c2f 100644
  
 diff --git a/src/tools/board_bench.rs b/src/tools/board_bench.rs
 new file mode 100644
-index 0000000..280cf83
+index 0000000..ef2be16
 --- /dev/null
 +++ b/src/tools/board_bench.rs
-@@ -0,0 +1,371 @@
-+//! Board microbenchmark for the cross-engine contract `cross-engine-board-v2`
+@@ -0,0 +1,407 @@
++//! Board microbenchmark for the cross-engine contract `cross-engine-board-v3`
 +//! (tools/board_compare/CONTRACT.md in the Basilisk repository).
 +//!
 +//! Compiled only with the `board-bench` feature; it calls the board's own
 +//! crate-visible API and changes none of it. Moves are made with the null
-+//! observer, so no accumulator work is done.
++//! observer, so no accumulator work is done. quiet_gen is append_quiet_moves,
++//! the picker's quiet stage, on the positions not in check.
 +
 +use std::{
 +    hint::black_box,
@@ -61,7 +62,7 @@ index 0000000..280cf83
 +    types::{Move, MoveList},
 +};
 +
-+const PROFILE: &str = "cross-engine-board-v2";
++const PROFILE: &str = "cross-engine-board-v3";
 +
 +struct Oracle {
 +    positions: u64,
@@ -81,14 +82,16 @@ index 0000000..280cf83
 +enum Col {
 +    LegalGen,
 +    CaptureGen,
++    QuietGen,
 +    MakeUnmake,
 +    SeeCaptures,
 +    BoardPerft,
 +}
 +
-+const COLUMNS: [(Col, &str, &str); 5] = [
++const COLUMNS: [(Col, &str, &str); 6] = [
 +    (Col::LegalGen, "legal_gen", "positions"),
 +    (Col::CaptureGen, "capture_gen", "positions"),
++    (Col::QuietGen, "quiet_gen", "positions"),
 +    (Col::MakeUnmake, "make_unmake", "moves"),
 +    (Col::SeeCaptures, "see_captures", "moves"),
 +    (Col::BoardPerft, "board_perft", "leaves"),
@@ -107,6 +110,10 @@ index 0000000..280cf83
 +    boards: Vec<Board>,
 +    all_moves: Vec<(u32, Move)>,
 +    tactical: Vec<(u32, Move)>,
++    /// The boards whose side to move is not in check.
++    not_in_check: Vec<u32>,
++    /// Their legal moves that are not tactical.
++    quiet_legal: u64,
 +    roots: Vec<(Board, usize)>,
 +    list: MoveList,
 +    perft_lists: Vec<MoveList>,
@@ -147,14 +154,21 @@ index 0000000..280cf83
 +    }
 +    let mut all_moves = Vec::new();
 +    let mut tactical = Vec::new();
++    let mut not_in_check = Vec::new();
++    let mut quiet_legal = 0u64;
 +    let mut list = MoveList::new();
 +    for (i, b) in boards.iter().enumerate() {
 +        list.clear();
 +        b.append_all_moves(&mut list);
++        if !b.in_check() {
++            not_in_check.push(i as u32);
++        }
 +        for e in list.iter() {
 +            all_moves.push((i as u32, e.mv));
 +            if e.mv.is_capture() || e.mv.is_promotion() {
 +                tactical.push((i as u32, e.mv));
++            } else if !b.in_check() {
++                quiet_legal += 1;
 +            }
 +        }
 +    }
@@ -170,6 +184,8 @@ index 0000000..280cf83
 +        boards,
 +        all_moves,
 +        tactical,
++        not_in_check,
++        quiet_legal,
 +        roots,
 +        list: MoveList::new(),
 +        perft_lists: (0..8).map(|_| MoveList::new()).collect(),
@@ -208,6 +224,15 @@ index 0000000..280cf83
 +            for b in &inp.boards {
 +                inp.list.clear();
 +                b.append_noisy_moves(&mut inp.list);
++                black_box(&inp.list);
++                p.ops += 1;
++                p.sum = fold(p.sum, &inp.list);
++            }
++        }
++        Col::QuietGen => {
++            for &i in &inp.not_in_check {
++                inp.list.clear();
++                inp.boards[i as usize].append_quiet_moves(&mut inp.list);
 +                black_box(&inp.list);
 +                p.ops += 1;
 +                p.sum = fold(p.sum, &inp.list);
@@ -353,6 +378,17 @@ index 0000000..280cf83
 +    println!("semantic checking {checking}");
 +    println!("semantic see_ge0 {see_true}");
 +    println!("semantic perft {leaves}");
++    let mut quiet_total = 0u64;
++    for &i in &inp.not_in_check {
++        inp.list.clear();
++        inp.boards[i as usize].append_quiet_moves(&mut inp.list);
++        quiet_total += inp.list.len() as u64;
++    }
++    println!("semantic quiet_positions {}", inp.not_in_check.len());
++    println!("semantic quiet {}", inp.quiet_legal);
++    if quiet_total != inp.quiet_legal {
++        println!("noncomparable quiet_gen {} of {}", quiet_total, inp.quiet_legal);
++    }
 +    if !oracle.present {
 +        eprintln!("preflight: {} has no oracle line", args[1]);
 +        ok = false;

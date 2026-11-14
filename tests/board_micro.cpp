@@ -64,6 +64,7 @@ struct Inputs {
     std::vector<std::pair<uint32_t, Move>> captures;    // the capture stage's moves
     std::vector<std::pair<uint32_t, Move>> quiets;      // the quiet moves
     std::vector<std::pair<uint32_t, Move>> table_moves; // candidates for the table-move test
+    std::vector<uint32_t> not_in_check;                  // boards whose side to move is not in check
 };
 
 // The file's python-chess counts, which the board must reproduce.
@@ -104,6 +105,7 @@ Inputs build_inputs(const std::vector<std::string>& fens) {
     in.legal.resize(in.boards.size());
     for (uint32_t i = 0; i < in.boards.size(); ++i) {
         in.boards[i].gen_legal(in.legal[i]);
+        if (!in.boards[i].is_in_check()) in.not_in_check.push_back(i);
         for (Move m : in.legal[i]) {
             in.all_moves.emplace_back(i, m);
             (capture_stage(in.boards[i], m) ? in.captures : in.quiets).emplace_back(i, m);
@@ -145,6 +147,21 @@ Pass capture_generation(Inputs& in) {
     for (const Board& b : in.boards) {
         ml.reset();
         b.gen_legal_captures(ml);
+        keep(&ml);
+        p.ops += 1;
+        p.sum = p.sum * 31 + uint64_t(ml.size()) + (ml.size() ? ml.moves[ml.size() - 1] : 0);
+    }
+    return p;
+}
+
+// The quiet stage alone, as the main picker calls it, on the positions not in
+// check: the cross-engine contract's quiet_gen (tools/board_compare/CONTRACT.md).
+Pass quiet_generation(Inputs& in) {
+    Pass p{0, 0};
+    MoveList ml;
+    for (uint32_t i : in.not_in_check) {
+        ml.reset();
+        in.boards[i].gen_legal_quiets(ml);
         keep(&ml);
         p.ops += 1;
         p.sum = p.sum * 31 + uint64_t(ml.size()) + (ml.size() ? ml.moves[ml.size() - 1] : 0);
@@ -405,6 +422,7 @@ int main(int argc, char** argv) {
     std::vector<Column> columns = {
         {"legal_gen", "positions", [&] { return legal_generation(in); }},
         {"capture_gen", "positions", [&] { return capture_generation(in); }},
+        {"quiet_gen", "positions", [&] { return quiet_generation(in); }},
         {"staged_gen", "positions", [&] { return staged_generation(in); }},
         {"quiet_check_gen", "positions", [&] { return quiet_check_generation(in); }},
         {"make_unmake", "moves", [&] { return make_unmake(in); }},
@@ -461,6 +479,20 @@ int main(int argc, char** argv) {
     std::printf("semantic checking %llu\n", (unsigned long long)checking);
     std::printf("semantic see_ge0 %llu\n", (unsigned long long)see_true);
     std::printf("semantic perft %llu\n", (unsigned long long)bp_pass.ops);
+    // quiet_gen's population: the legal moves that are neither captures nor
+    // promotions, on the positions not in check; and the generator's total.
+    uint64_t quiet_legal = 0, quiet_generated = 0;
+    for (uint32_t i : in.not_in_check) {
+        for (Move m : in.legal[i]) quiet_legal += capture_stage(in.boards[i], m) ? 0u : 1u;
+        MoveList ml;
+        in.boards[i].gen_legal_quiets(ml);
+        quiet_generated += uint64_t(ml.size());
+    }
+    std::printf("semantic quiet_positions %zu\n", in.not_in_check.size());
+    std::printf("semantic quiet %llu\n", (unsigned long long)quiet_legal);
+    if (quiet_generated != quiet_legal)
+        std::printf("noncomparable quiet_gen %llu of %llu\n", (unsigned long long)quiet_generated,
+                    (unsigned long long)quiet_legal);
     if (!oracle.present) {
         std::fprintf(stderr, "preflight: %s has no oracle line\n", argv[1]);
         ok = false;

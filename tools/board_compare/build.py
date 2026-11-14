@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Build the other engines' cross-engine-board-v2 harnesses from pinned commits.
+"""Build the other engines' cross-engine-board-v3 harnesses from pinned commits.
 
 Each engine is cloned from its local checkout into tools/results/board-compare/
 (never built in place: the checkouts are other people's working trees), checked
 out at the pinned commit, patched with the adapter recorded beside this file,
 and built with the contract's flags (CONTRACT.md, *Builds*). The bench binary
-is copied to tools/results/board-compare/bin/<engine>-board-v2.exe beside a
+is copied to tools/results/board-compare/bin/<engine>-board-v3.exe beside a
 manifest of its source, toolchain, flags and hash, and its preflight is run.
 
     python tools/board_compare/build.py [--engine rarog] [--engine reckless]
@@ -133,7 +133,7 @@ def build(name: str, spec: dict) -> None:
         exe, toolchain = make_build(spec, src)
     else:
         exe, toolchain = cargo_build(name, spec, src)
-    out = WORK / "bin" / f"{name}-board-v2.exe"
+    out = WORK / "bin" / f"{name}-board-v3.exe"
     out.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(exe, out)
 
