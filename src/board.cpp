@@ -108,22 +108,6 @@ void Board::move_piece(Square from, Square to) {
     if (pt == KING) king_sq[c] = to;
 }
 
-Key Board::compute_hash() const {
-    Key h = 0;
-    for (int c = 0; c < NCOLORS; c++)
-        for (int pt = PAWN; pt <= KING; pt++) {
-            Bitboard bb = pieces[c][pt];
-            while (bb) {
-                int sq = pop_lsb(bb);
-                h ^= Zobrist::PieceKeys[c][pt][sq];
-            }
-        }
-    if (side_to_move == BLACK) h ^= Zobrist::SideKey;
-    h ^= Zobrist::CastlingKeys[castling_rights];
-    if (ep_sq != SQ_NONE) h ^= Zobrist::EpKeys[file_of(ep_sq)];
-    return h;
-}
-
 static bool has_piece_on(const Board& b, Square sq, Color color, PieceType pt);
 
 bool Board::assert_ok() const {
@@ -787,16 +771,6 @@ void Board::BT(make_move)(Move m) {
 }
 
 void Board::BT(unmake_move)(Move m) {
-#ifdef BASILISK_BOARD_CROSSCHECK
-    // The original unmake runs first on the same state; the state is put
-    // back, the rebuilt one runs, and the two results must be identical.
-    const PositionSnapshot before = snapshot_position();
-    const UndoInfo undo = history.back();
-    unmake_move_reference(m);
-    const PositionSnapshot expected = snapshot_position();
-    restore_fields(before);
-    history.push_back(undo);
-#endif
     assert(!history.empty());
     const UndoInfo ui = history.back();
     history.pop_back();
@@ -849,77 +823,7 @@ void Board::BT(unmake_move)(Move m) {
     nonpawn_key[WHITE] = ui.nonpawn_key[WHITE];
     nonpawn_key[BLACK] = ui.nonpawn_key[BLACK];
     checkers = ui.checkers;
-#ifdef BASILISK_BOARD_CROSSCHECK
-    if (!(snapshot_position() == expected)) {
-        std::fprintf(stderr, "board cross-check: unmake_move %s differs from the original\n",
-                     move_to_uci(m).c_str());
-        std::abort();
-    }
-#endif
 }
-
-#ifdef BASILISK_BOARD_CROSSCHECK
-// The original unmake, which updated every key incrementally and then
-// overwrote them from the undo record.
-void Board::unmake_move_reference(Move m) {
-    assert(!history.empty());
-    UndoInfo ui = history.back();
-    history.pop_back();
-
-    // Restore most state from undo info
-    // (hash/checkers must be restored AFTER piece movements, since put_piece/
-    //  move_piece update hash incrementally — we override them at the end)
-    ep_sq           = ui.ep_sq;
-    castling_rights = ui.castling;
-    halfmove_clock  = ui.halfmove;
-    plies_from_null = ui.plies_from_null;
-
-    ply--;
-    if (side_to_move == WHITE) fullmove_number--;
-    side_to_move = ~side_to_move;
-    Color us   = side_to_move;
-    Color them = ~us;
-
-    Square from = from_sq(m);
-    Square to   = to_sq(m);
-    MoveType mt = move_type(m);
-
-    if (mt == EN_PASSANT) {
-        move_piece(to, from);
-        Square ep_pawn = make_square(file_of(to), rank_of(from));
-        put_piece(them, PAWN, ep_pawn);
-    }
-    else if (mt == CASTLING) {
-        bool king_side = (to > from);
-        Square rook_from = king_side ? make_square(FILE_H, rank_of(from))
-                                     : make_square(FILE_A, rank_of(from));
-        Square rook_to   = king_side ? make_square(FILE_F, rank_of(from))
-                                     : make_square(FILE_D, rank_of(from));
-        move_piece(to, from);
-        move_piece(rook_to, rook_from);
-    }
-    else if (mt == PROMOTION) {
-        remove_piece(to);
-        put_piece(us, PAWN, from);
-        if (ui.captured != NO_PIECE)
-            put_piece(them, type_of(ui.captured), to);
-    }
-    else {
-        move_piece(to, from);
-        if (ui.captured != NO_PIECE)
-            put_piece(them, type_of(ui.captured), to);
-    }
-
-    // Restore hash and checkers from undo info (overrides incremental updates
-    // that were applied by put_piece/move_piece/remove_piece above)
-    hash     = ui.hash;
-    pawn_key = ui.pawn_key;
-    minor_key = ui.minor_key;
-    nonpawn_key[WHITE] = ui.nonpawn_key[WHITE];
-    nonpawn_key[BLACK] = ui.nonpawn_key[BLACK];
-    checkers = ui.checkers;
-}
-#endif
 
 void Board::BT(make_null_move)() {
     UndoInfo ui;
@@ -1022,7 +926,6 @@ bool Board::BT(is_in_check)() const {
 #endif
 
 // ---- Move generation -------------------------------------------------------
-
 
 bool Board::BT(is_legal)(Move m) const {
     Color us   = side_to_move;
@@ -1603,19 +1506,6 @@ bool Board::BT(gives_check)(Move m) const {
     return false;
 }
 
-void Board::BT(gen_quiet_checks)(MoveList& ml) const {
-    // Generate all legal moves, keep only quiet moves that give check.
-    MoveList all;
-    gen_legal(all);
-    for (Move m : all) {
-        // Skip captures and promotions (handled by gen_legal_captures)
-        bool is_cap   = (board_sq[to_sq(m)] != NO_PIECE) || (move_type(m) == EN_PASSANT);
-        bool is_promo = (move_type(m) == PROMOTION);
-        if (is_cap || is_promo) continue;
-        if (gives_check(m)) ml.push(m);
-    }
-}
-
 // ---- Draw detection --------------------------------------------------------
 
 // Single-capture core of the EP legality test: is `from` x ep en passant
@@ -1663,21 +1553,7 @@ bool Board::rule50_draw() const {
     return !ml.empty();
 }
 
-#ifdef BASILISK_BOARD_CROSSCHECK
 bool Board::is_draw() const {
-    const bool result = is_draw_rebuilt();
-    if (result != is_draw_reference()) {
-        std::fprintf(stderr, "board cross-check: is_draw differs from the original in %s\n",
-                     get_fen().c_str());
-        std::abort();
-    }
-    return result;
-}
-
-bool Board::is_draw_rebuilt() const {
-#else
-bool Board::is_draw() const {
-#endif
     if (is_insufficient_material()) return true;
 
     // 50-move rule (with mate precedence at the boundary)
@@ -1700,44 +1576,7 @@ bool Board::is_draw() const {
     return false;
 }
 
-#ifdef BASILISK_BOARD_CROSSCHECK
-// The original is_draw, scanning from two plies back.
-bool Board::is_draw_reference() const {
-    if (is_insufficient_material()) return true;
-
-    // 50-move rule (with mate precedence at the boundary)
-    if (rule50_draw()) return true;
-    if (halfmove_clock < 4) return false;
-
-    // 2-fold repetition (search back through history)
-    int reps = 0;
-    const int hist_size = static_cast<int>(history.size());
-    int stop = std::max(0, hist_size - halfmove_clock);
-    for (int i = hist_size - 2; i >= stop; i -= 2) {
-        if (history[static_cast<size_t>(i)].hash == hash) {
-            reps++;
-            if (reps >= 1) return true; // 2-fold (current + one prior)
-        }
-    }
-    return false;
-}
-#endif
-
-#ifdef BASILISK_BOARD_CROSSCHECK
 bool Board::BT(is_repetition)(int search_ply) const {
-    const bool result = is_repetition_rebuilt(search_ply);
-    if (result != is_repetition_reference(search_ply)) {
-        std::fprintf(stderr, "board cross-check: is_repetition %d differs from the original in %s\n",
-                     search_ply, get_fen().c_str());
-        std::abort();
-    }
-    return result;
-}
-
-bool Board::is_repetition_rebuilt(int search_ply) const {
-#else
-bool Board::BT(is_repetition)(int search_ply) const {
-#endif
     if (halfmove_clock < 4)
         return false;
 
@@ -1766,36 +1605,6 @@ bool Board::BT(is_repetition)(int search_ply) const {
 
     return false;
 }
-
-#ifdef BASILISK_BOARD_CROSSCHECK
-// The original is_repetition, scanning from two plies back.
-bool Board::is_repetition_reference(int search_ply) const {
-    if (halfmove_clock < 4)
-        return false;
-
-    int reps = 0;
-    const int reversible = std::min(halfmove_clock, plies_from_null);
-    const int hist_size = static_cast<int>(history.size());
-    const int stop = std::max(0, hist_size - reversible);
-
-    for (int i = hist_size - 2; i >= stop; i -= 2) {
-        if (history[static_cast<size_t>(i)].hash != hash)
-            continue;
-
-        // Once is enough strictly after the root; the root itself, or a
-        // position before it, needs a second earlier occurrence. The same
-        // rule as upcoming_repetition's.
-        const int distance = hist_size - i;
-        if (distance < search_ply)
-            return true;
-
-        if (++reps >= 2)
-            return true;
-    }
-
-    return false;
-}
-#endif
 
 bool Board::BT(upcoming_repetition)(int search_ply) const {
     const int hist_size = static_cast<int>(history.size());
@@ -1874,200 +1683,6 @@ bool Board::BT(has_non_pawn_material)(Color c) const {
 
 // ---- SEE -------------------------------------------------------------------
 
-void Board::see_pins(Bitboard occ, Bitboard pinned[NCOLORS], Square pinner_of[SQUARE_NB]) const {
-    // `occ` is the exchange occupancy (initial mover and capture target
-    // already removed), NOT all_occ: a piece standing on the pin ray -- the
-    // mover itself included -- masks the pin until it departs, and a pin
-    // revealed by the very capture being scored must still be respected.
-    for (int ci = 0; ci < NCOLORS; ++ci) {
-        const Color c = Color(ci);
-        const Color them = ~c;
-        const Square ksq = king_sq[c];
-        const Bitboard own = occupancy[c] & occ;
-        pinned[c] = 0;
-
-        const Bitboard bv  = bishop_attacks(ksq, occ);
-        const Bitboard xrb = bishop_attacks(ksq, occ ^ (bv & own));
-        Bitboard dp = (pieces[them][BISHOP] | pieces[them][QUEEN]) & occ & xrb;
-        while (dp) {
-            const Square   pinner  = Square(pop_lsb(dp));
-            const Bitboard blocker = BB_BETWEEN[ksq][pinner] & own;
-            if (blocker && !more_than_one(blocker)) {
-                pinned[c] |= blocker;
-                pinner_of[lsb(blocker)] = pinner;
-            }
-        }
-        const Bitboard rv  = rook_attacks(ksq, occ);
-        const Bitboard xrr = rook_attacks(ksq, occ ^ (rv & own));
-        Bitboard op = (pieces[them][ROOK] | pieces[them][QUEEN]) & occ & xrr;
-        while (op) {
-            const Square   pinner  = Square(pop_lsb(op));
-            const Bitboard blocker = BB_BETWEEN[ksq][pinner] & own;
-            if (blocker && !more_than_one(blocker)) {
-                pinned[c] |= blocker;
-                pinner_of[lsb(blocker)] = pinner;
-            }
-        }
-    }
-}
-
-bool Board::see_departure_opens_line(Square s, Bitboard occ) const {
-    // A superset test, cheap and rarely true: a pin needs a king, the vacated
-    // square and an enemy slider of the line's kind on one line.
-    for (int ci = 0; ci < NCOLORS; ++ci) {
-        const Color c = Color(ci);
-        const Square ksq = king_sq[c];
-        const Bitboard line = BB_LINE[ksq][s];
-        if (!line)
-            continue;
-        const bool straight = rank_of(ksq) == rank_of(s) || file_of(ksq) == file_of(s);
-        const Bitboard sliders = pieces[~c][QUEEN]
-                               | (straight ? pieces[~c][ROOK] : pieces[~c][BISHOP]);
-        if (line & sliders & occ)
-            return true;
-    }
-    return false;
-}
-
-int Board::see(Move m) const {
-#ifdef BASILISK_TUNE
-    const int* const SEE_VALUES = see_values_;
-#else
-    static constexpr int SEE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
-#endif
-
-    Square from = from_sq(m);
-    Square to   = to_sq(m);
-    MoveType mt = move_type(m);
-
-    int gain0;
-    Piece target = board_sq[to];
-
-    if (mt == EN_PASSANT) {
-        gain0 = SEE_VALUES[PAWN];
-    } else if (target != NO_PIECE) {
-        gain0 = SEE_VALUES[type_of(target)];
-    } else {
-        gain0 = 0;
-    }
-
-    if (mt == PROMOTION)
-        gain0 += SEE_VALUES[promo_type(m)] - SEE_VALUES[PAWN];
-
-    int gain[32];
-    gain[0] = gain0;
-    int depth = 0;
-
-    PieceType piece_on_sq = type_of(board_sq[from]);
-    if (mt == PROMOTION) piece_on_sq = promo_type(m);
-
-    Bitboard occ = all_occ ^ sq_bb(from);
-    if (mt == EN_PASSANT) {
-        Square ep_pawn = make_square(file_of(to), rank_of(from));
-        occ ^= sq_bb(ep_pawn);
-    } else if (target != NO_PIECE) {
-        occ ^= sq_bb(to);
-    }
-
-    Color side = ~side_to_move; // first recapture is by opponent
-    const bool promo_sq = (sq_bb(to) & (BB_RANKS[RANK_1] | BB_RANKS[RANK_8])) != 0;
-
-    // Absolutely pinned pieces cannot recapture while their pinner is
-    // still on the board, unless the exchange square lies on the pin line.
-    // Pins are computed on the exchange occupancy, so the mover's departure
-    // counts; a pinner that is captured or moves during the exchange leaves
-    // `occ`, releasing the pin, and a later departure that opens a king's
-    // line recomputes them, since it can pin a piece that was free.
-    Bitboard pinned[NCOLORS];
-    Square pinner_of[SQUARE_NB];
-    see_pins(occ, pinned, pinner_of);
-    auto pin_filtered = [&](Bitboard bb, Color c) {
-        Bitboard p = bb & pinned[c];
-        while (p) {
-            const Square s = Square(pop_lsb(p));
-            if ((occ & sq_bb(pinner_of[s]))
-                && !(BB_LINE[king_sq[c]][s] & sq_bb(to)))
-                bb ^= sq_bb(s);
-        }
-        return bb;
-    };
-
-    Bitboard attackers = attackers_to(to, occ) & occ;
-
-    while (true) {
-        Bitboard side_att = attackers & occupancy[side];
-        if (!side_att) break;
-
-        // Find least valuable attacker that is not pin-excluded (selection
-        // happens BEFORE the gain write: pin filtering can empty a nonempty
-        // attacker set, and no attacker must mean no exchange ply).
-        PieceType attacker_type = NO_PIECE_TYPE;
-        Bitboard attacker_bb = 0;
-        for (int pt = PAWN; pt <= KING; pt++) {
-            attacker_bb = side_att & pieces[side][pt] & occ;
-            if (pt != KING) attacker_bb = pin_filtered(attacker_bb, side);
-            if (attacker_bb) { attacker_type = PieceType(pt); break; }
-        }
-        if (attacker_type == NO_PIECE_TYPE) break;
-
-        // King legality. The LVA loop tries KING last, so the king is
-        // only ever selected when it is the side's sole remaining attacker. It
-        // may capture only if the opponent has no attacker left on the target
-        // under the current exchange occupancy; otherwise the exchange ends
-        // BEFORE the king move.
-        //
-        // The opponent set here is deliberately NOT pin-filtered. A piece
-        // pinned against its own king still controls squares against the enemy
-        // king, so it forbids the king recapture even though it could not
-        // legally recapture itself. That distinction is exactly what the
-        // KING=20000 sentinel got wrong: the sentinel relied on the opponent
-        // producing a recapture on the next ply, and the pin filter had
-        // already removed the pinned defender from that set. Do NOT "tidy"
-        // this by reusing pin_filtered() -- see tests/test_board.cpp,
-        // "king legality: pinned defender still forbids Kxf6".
-        if (attacker_type == KING && (attackers & occupancy[~side] & occ))
-            break;
-
-        // A pawn capturing onto a back rank promotes: it wins the queen's
-        // surplus over the pawn and leaves a queen on the square.
-        const bool promotes = attacker_type == PAWN && promo_sq;
-        depth++;
-        gain[depth] = SEE_VALUES[piece_on_sq] - gain[depth-1]
-                    + (promotes ? SEE_VALUES[QUEEN] - SEE_VALUES[PAWN] : 0);
-
-        // Early exit: even capturing for free doesn't help. This standard
-        // gain-array prune is NOT exact — a slider X-ray revealed deep in the
-        // exchange (e.g. a queen uncovered when a pawn vacates its diagonal)
-        // can make the truncated result differ from the true LVA-swap value,
-        // so see() disagrees with see_ge() on such chains. That is INTENTIONAL:
-        // see() only feeds move ordering (see_ge, used for pruning, is exact
-        // and pin-aware), and removing this prune to make see() exact cost
-        // -3.80 +/- 2.63 Elo (H0 accepted, 25.4k games, 2026-07-15) -- the full
-        // swap on every ordering call is a net NPS loss for zero decision
-        // benefit. Keep the fast prune; do NOT "fix" this to match see_ge.
-        if (std::max(-gain[depth-1], gain[depth]) < 0) break;
-
-        // Remove attacker (reveals X-ray)
-        Bitboard lva_bit = attacker_bb & (-attacker_bb); // lowest set bit
-        occ ^= lva_bit;
-        if (see_departure_opens_line(Square(lsb(lva_bit)), occ))
-            see_pins(occ, pinned, pinner_of);
-        piece_on_sq = promotes ? QUEEN : attacker_type;
-        side = ~side;
-
-        // Recompute attackers (X-ray sliders revealed)
-        attackers = attackers_to(to, occ) & occ;
-    }
-
-    // Minimax fold
-    while (depth > 0) {
-        gain[depth - 1] = -std::max(-gain[depth - 1], gain[depth]);
-        --depth;
-    }
-
-    return gain[0];
-}
-
 // Empty-board slider attacks, for the SEE's pin snipers.
 namespace {
 struct EmptyBoardAttacks {
@@ -2087,27 +1702,9 @@ struct EmptyBoardAttacks {
 constexpr EmptyBoardAttacks EMPTY_BOARD;
 }  // namespace
 
-#ifdef BASILISK_BOARD_CROSSCHECK
 bool Board::BT(see_ge)(Move m, int threshold) const {
-    const bool result = see_ge_rebuilt(m, threshold);
-    if (result != see_ge_reference(m, threshold)) {
-        std::fprintf(stderr, "board cross-check: see_ge %s %d differs from the original in %s\n",
-                     move_to_uci(m).c_str(), threshold, get_fen().c_str());
-        std::abort();
-    }
-    return result;
-}
-
-bool Board::see_ge_rebuilt(Move m, int threshold) const {
-#else
-bool Board::BT(see_ge)(Move m, int threshold) const {
-#endif
     ++diag_see_ge_calls;
-#ifdef BASILISK_TUNE
-    const int* const SEE_VALUES = see_values_;
-#else
     static constexpr int SEE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
-#endif
 
     const Square from = from_sq(m);
     const Square to   = to_sq(m);
@@ -2171,8 +1768,7 @@ bool Board::BT(see_ge)(Move m, int threshold) const {
     // used: a piece of `c` is pinned when it alone stands between c's king
     // and a sniper still in the exchange, an enemy slider on an empty-board
     // line of its kind from that king; it may still capture along that line.
-    // This is the set see_pins computes, and reading it at each use replaces
-    // both its recomputation after a departure and the pinner test.
+    // Read at each use, the set needs no recomputation after a departure.
     Bitboard snipers[NCOLORS];
     for (int ci = 0; ci < NCOLORS; ++ci) {
         const Color c = Color(ci);
@@ -2257,151 +1853,3 @@ bool Board::BT(see_ge)(Move m, int threshold) const {
     return result != 0;
 }
 
-#ifdef BASILISK_BOARD_CROSSCHECK
-// The original see_ge, with pins computed up front by see_pins and
-// recomputed after a departure that may open a line.
-bool Board::see_ge_reference(Move m, int threshold) const {
-#ifdef BASILISK_TUNE
-    const int* const SEE_VALUES = see_values_;
-#else
-    static constexpr int SEE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
-#endif
-
-    const Square from = from_sq(m);
-    const Square to   = to_sq(m);
-    const MoveType mt = move_type(m);
-    const Piece target = board_sq[to];
-
-    int swap = 0;
-    if (mt == EN_PASSANT)
-        swap = SEE_VALUES[PAWN];
-    else if (target != NO_PIECE)
-        swap = SEE_VALUES[type_of(target)];
-
-    if (mt == PROMOTION)
-        swap += SEE_VALUES[promo_type(m)] - SEE_VALUES[PAWN];
-
-    // A quiet move is an exchange that starts with nothing won: the moved
-    // piece is the first one at risk on `to`, so it goes through the same
-    // loop. Castling alone answers from the gain: its king lands on an
-    // unattacked square and never enters an exchange.
-    if (mt == CASTLING)
-        return swap >= threshold;
-
-    swap -= threshold;
-    if (swap < 0)
-        return false;
-
-    PieceType attacker_type = type_of(board_sq[from]);
-    if (mt == PROMOTION)
-        attacker_type = promo_type(m);
-
-    // A pawn capturing onto a back rank promotes. In the swap form that leaves
-    // `swap` unchanged (the queen's surplus is won and the queen left on the
-    // square is worth as much more), but it moves both "already safe even if
-    // my piece is taken" exits below: losing the piece to a promoting pawn
-    // costs the surplus as well.
-    const bool promo_sq = (sq_bb(to) & (BB_RANKS[RANK_1] | BB_RANKS[RANK_8])) != 0;
-    const int PROMO_SURPLUS = SEE_VALUES[QUEEN] - SEE_VALUES[PAWN];
-
-    swap = SEE_VALUES[attacker_type] - swap;
-    if (swap <= 0 && !promo_sq)
-        return true;
-
-    Bitboard occ = all_occ ^ sq_bb(from);
-    if (mt == EN_PASSANT) {
-        Square ep_pawn = make_square(file_of(to), rank_of(from));
-        occ ^= sq_bb(ep_pawn);
-    } else if (target != NO_PIECE) {
-        occ ^= sq_bb(to);
-    }
-
-    Color stm = side_to_move;
-
-    // Nobody of the other side attacks `to`: the loop would stop at its first
-    // step with the move standing. The pin filter only removes attackers, so
-    // answering here is exact and skips the pin computation.
-    Bitboard attackers = attackers_to(to, occ) & occ;
-    if (!(attackers & occupancy[~stm]))
-        return true;
-
-    // Same pin exclusion as see() (see the comment there).
-    Bitboard pinned[NCOLORS];
-    Square pinner_of[SQUARE_NB];
-    see_pins(occ, pinned, pinner_of);
-    auto pin_filtered = [&](Bitboard bb, Color c) {
-        Bitboard p = bb & pinned[c];
-        while (p) {
-            const Square s = Square(pop_lsb(p));
-            if ((occ & sq_bb(pinner_of[s]))
-                && !(BB_LINE[king_sq[c]][s] & sq_bb(to)))
-                bb ^= sq_bb(s);
-        }
-        return bb;
-    };
-
-    // The surplus `c` would add by recapturing now: its least valuable
-    // attacker is a pawn whenever it has one the pins allow.
-    auto promo_threat = [&](Color c) {
-        return promo_sq && pin_filtered(attackers & pieces[c][PAWN], c)
-             ? PROMO_SURPLUS : 0;
-    };
-    if (swap + promo_threat(~stm) <= 0)
-        return true;
-
-    int result = 1;
-
-    while (true) {
-        stm = ~stm;
-        attackers &= occ;
-        Bitboard side_att = attackers & occupancy[stm] & occ;
-        if (!side_att)
-            break;
-
-        PieceType next_attacker = NO_PIECE_TYPE;
-        Bitboard attacker_bb = 0;
-        for (int pt = PAWN; pt <= KING; ++pt) {
-            attacker_bb = side_att & pieces[stm][pt];
-            if (pt != KING) attacker_bb = pin_filtered(attacker_bb, stm);
-            if (attacker_bb) {
-                next_attacker = PieceType(pt);
-                break;
-            }
-        }
-        if (next_attacker == NO_PIECE_TYPE)
-            break;
-
-        // King legality. Identical rule to see(), including the
-        // deliberately unfiltered opponent set -- see the comment there for
-        // why the pin filter must not be applied to it.
-        if (next_attacker == KING && (attackers & occupancy[~stm] & occ))
-            break;
-
-        result ^= 1;
-        swap = SEE_VALUES[next_attacker] - swap;
-        if (swap < result && !promo_sq)
-            break;
-
-        Bitboard lva_bit = attacker_bb & (0ULL - attacker_bb);
-        occ ^= lva_bit;
-        if (see_departure_opens_line(Square(lsb(lva_bit)), occ))
-            see_pins(occ, pinned, pinner_of);
-        // A piece attacking `to` stands on one of its lines, so taking it away
-        // opens that kind of line alone: pawns and bishops the diagonals, rooks
-        // the files and ranks, queens both.
-        attackers &= occ;
-        if (next_attacker == PAWN || next_attacker == BISHOP || next_attacker == QUEEN)
-            attackers |= bishop_attacks(to, occ) & occ
-                       & (pieces[WHITE][BISHOP] | pieces[WHITE][QUEEN]
-                          | pieces[BLACK][BISHOP] | pieces[BLACK][QUEEN]);
-        if (next_attacker == ROOK || next_attacker == QUEEN)
-            attackers |= rook_attacks(to, occ) & occ
-                       & (pieces[WHITE][ROOK] | pieces[WHITE][QUEEN]
-                          | pieces[BLACK][ROOK] | pieces[BLACK][QUEEN]);
-        if (promo_sq && swap + promo_threat(~stm) < result)
-            break;
-    }
-
-    return result != 0;
-}
-#endif

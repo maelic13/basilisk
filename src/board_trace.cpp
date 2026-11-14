@@ -148,11 +148,6 @@ void Board::gen_legal_quiets(MoveList& ml) const {
     gen_legal_quiets_untraced(ml);
     if (s.rec) put(GEN_QUIETS, 0, 0, ml.size());
 }
-void Board::gen_quiet_checks(MoveList& ml) const {
-    Scope s(this);
-    gen_quiet_checks_untraced(ml);
-    if (s.rec) put(GEN_QUIET_CHECKS, 0, 0, ml.size());
-}
 bool Board::see_ge(Move m, int threshold) const {
     Scope s(this);
     const bool r = see_ge_untraced(m, threshold);

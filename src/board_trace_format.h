@@ -14,7 +14,7 @@ enum Op : uint8_t {
     GEN_LEGAL,           // arg = moves generated
     GEN_CAPS,
     GEN_QUIETS,
-    GEN_QUIET_CHECKS,
+    GEN_QUIET_CHECKS,    // reserved, never recorded: kept so the later codes do not move
     SEE,                 // move; arg = threshold; aux = result
     GIVES_CHECK,         // move; aux = result
     CHECK_SQUARES,       // aux: bits 0-2 piece type, bit 6 = called inside Evaluator, bit 7 = us; arg = lo ^ hi of result

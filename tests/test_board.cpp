@@ -928,43 +928,46 @@ static void test_null_move() {
 // 11. SEE (Static Exchange Evaluation)
 // ---------------------------------------------------------------------------
 
+// The exact exchange through legal moves, the reference see_ge is read against (below).
+static int oracle_see(Board& b, Move m);
+
 static void test_see() {
     Board b;
 
     begin_section("pawn captures undefended pawn: +100");
     // White pawn d4 × black pawn e5, no defenders
     b.set_fen("4k3/8/8/4p3/3P4/8/8/4K3 w - - 0 1");
-    EXPECT_EQ(b.see(make_move(D4, E5)), 100);
+    EXPECT(b.see_ge(make_move(D4, E5), 100) && !b.see_ge(make_move(D4, E5), 100 + 1));
     end_section();
 
     begin_section("rook captures undefended pawn: +100");
     b.set_fen("4k3/8/8/4p3/4R3/8/8/4K3 w - - 0 1");
-    EXPECT_EQ(b.see(make_move(E4, E5)), 100);
+    EXPECT(b.see_ge(make_move(E4, E5), 100) && !b.see_ge(make_move(E4, E5), 100 + 1));
     end_section();
 
     begin_section("pawn captures undefended knight: +300");
     b.set_fen("4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1");
-    EXPECT_EQ(b.see(make_move(E4, D5)), 300);
+    EXPECT(b.see_ge(make_move(E4, D5), 300) && !b.see_ge(make_move(E4, D5), 300 + 1));
     end_section();
 
     begin_section("pawn captures undefended queen: +900");
     b.set_fen("7k/8/8/3q4/4P3/8/8/K7 w - - 0 1");
-    EXPECT_EQ(b.see(make_move(E4, D5)), 900);
+    EXPECT(b.see_ge(make_move(E4, D5), 900) && !b.see_ge(make_move(E4, D5), 900 + 1));
     end_section();
 
     begin_section("rook captures undefended rook: +500");
     // No king recapture: kings are on a1 and h8
     b.set_fen("7k/4r3/8/8/4R3/8/8/K7 w - - 0 1");
-    EXPECT_EQ(b.see(make_move(E4, E7)), 500);
+    EXPECT(b.see_ge(make_move(E4, E7), 500) && !b.see_ge(make_move(E4, E7), 500 + 1));
     end_section();
 
     begin_section("SEE detects defended losing capture");
     b.set_fen(
         "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
-    EXPECT_EQ(b.see(make_move(E5, G6)), -200);
+    EXPECT(b.see_ge(make_move(E5, G6), -200) && !b.see_ge(make_move(E5, G6), -200 + 1));
     end_section();
 
-    begin_section("threshold SEE matches full SEE");
+    begin_section("threshold SEE matches the legal exchange");
     const char* fens[] = {
         "4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1",
         "4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1",
@@ -983,7 +986,7 @@ static void test_see() {
                                || b.piece_on(to_sq(m)) != NO_PIECE;
             if (!tactical)
                 continue;
-            const int see = b.see(m);
+            const int see = oracle_see(b, m);
             for (int threshold : thresholds) {
                 if (b.see_ge(m, threshold) != (see >= threshold)) {
                     matches = false;
@@ -1219,73 +1222,10 @@ static void check_see_case(const char* label, const char* fen,
     begin_section(label);
     EXPECT(m != MOVE_NONE);
     if (m != MOVE_NONE) {
-        EXPECT_EQ(b.see(m), expected);
-        EXPECT_EQ(b.see(m), oracle_see(b, m));           // oracle agreement
+        EXPECT_EQ(oracle_see(b, m), expected);
         EXPECT(b.see_ge(m, expected) && !b.see_ge(m, expected + 1));
     }
     end_section();
-}
-
-// The evaluation's vector, on the seam's own values: a bishop for a knight is
-// no longer an even trade, and the oracle agrees capture by capture.
-static void test_see_on_the_second_vector() {
-#ifdef BASILISK_TUNE
-    struct Case { const char* label; const char* fen; Square from, to; int expected; };
-    const Case cases[] = {
-        {"second vector: pawn takes a loose pawn", "4k3/8/8/4p3/3P4/8/8/4K3 w - - 0 1", D4, E5, 88},
-        {"second vector: pawn takes a loose knight", "4k3/8/8/3n4/4P3/8/8/4K3 w - - 0 1", E4, D5, 316},
-        {"second vector: pawn takes a loose queen", "7k/8/8/3q4/4P3/8/8/K7 w - - 0 1", E4, D5, 1041},
-        {"second vector: rook takes a loose rook", "7k/4r3/8/8/4R3/8/8/K7 w - - 0 1", E4, E7, 538},
-        {"second vector: bishop for a knight loses 27", "4k3/2p5/3n4/8/1B6/8/8/K7 w - - 0 1", B4, D6, -27},
-    };
-    ORACLE_VALUES = HCE_PIECE_VALUE;
-    for (const Case& c : cases) {
-        Board b;
-        b.set_fen(c.fen);
-        b.set_see_vector(1);
-        const Move m = find_capture(b, c.from, c.to);
-        begin_section(c.label);
-        EXPECT(m != MOVE_NONE);
-        EXPECT_EQ(b.see(m), c.expected);
-        EXPECT_EQ(oracle_see(b, m), c.expected);
-        EXPECT(b.see_ge(m, c.expected) && !b.see_ge(m, c.expected + 1));
-        end_section();
-    }
-
-    begin_section("second vector: see_ge's boundary is the oracle's on every capture");
-    const char* const fens[] = {
-        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
-        "r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 1",
-        "4k2r/6P1/8/8/8/8/8/4K3 w - - 0 1",
-    };
-    int captures = 0, disagreements = 0;
-    for (const char* fen : fens) {
-        Board b;
-        b.set_fen(fen);
-        b.set_see_vector(1);
-        MoveList legal;
-        b.gen_legal(legal);
-        for (Move m : legal) {
-            if (b.piece_on(to_sq(m)) == NO_PIECE)
-                continue;
-            ++captures;
-            const int truth = oracle_see(b, m);
-            disagreements += !(b.see_ge(m, truth) && !b.see_ge(m, truth + 1));
-        }
-    }
-    EXPECT(captures > 0);
-    EXPECT_EQ(disagreements, 0);
-    end_section();
-
-    begin_section("second vector: back on the first, the fixtures read as ever");
-    Board b;
-    b.set_fen("4k3/2p5/3n4/8/1B6/8/8/K7 w - - 0 1");
-    b.set_see_vector(1);
-    b.set_see_vector(0);
-    EXPECT_EQ(b.see(find_capture(b, B4, D6)), 0);
-    end_section();
-    ORACLE_VALUES = ORACLE_SEARCH_VALUES;
-#endif
 }
 
 static void test_see_pin_legality() {
@@ -1397,7 +1337,7 @@ static int see_ge_boundary(const Board& b, Move m) {
 // 100/300/300/500/900 vector. Both kernels score them exactly.
 static void test_see_created_pins_and_promotions() {
     // --- Created pins -------------------------------------------------------
-    // `see_pins` is computed on the exchange occupancy with the MOVER already
+    // Pins are read on the exchange occupancy with the MOVER already
     // removed, so a pin opened by the mover's own departure is honoured.
     check_see_case("created pin: opened by the mover's departure",
                    "2k5/2n5/2B5/3p4/8/8/8/2R1K3 w - - 0 1", C6, D5, 100);
@@ -1626,7 +1566,6 @@ int main() {
 
     std::printf("\nHistory-capacity release guard\n");
     test_history_growth_and_exact_unwind();
-    test_see_on_the_second_vector();
     test_see_pin_legality();
     test_see_king_legality();
     test_see_created_pins_and_promotions();

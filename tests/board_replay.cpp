@@ -170,7 +170,6 @@ uint64_t run(const Rec* recs, size_t n, const std::vector<Fen>& fens, Board& b, 
         GEN_CASE(GEN_LEGAL, gen_legal)
         GEN_CASE(GEN_CAPS, gen_legal_captures)
         GEN_CASE(GEN_QUIETS, gen_legal_quiets)
-        GEN_CASE(GEN_QUIET_CHECKS, gen_quiet_checks)
 #define BOOL_CASE(OP, EXPR) \
         case OP: { \
             if (!en[OP]) break; \
@@ -301,7 +300,7 @@ int main(int argc, char** argv) {
             p = q + 1;
         }
         const bool all = has[0];
-        if (all || has[2]) en[GEN_LEGAL] = en[GEN_CAPS] = en[GEN_QUIETS] = en[GEN_QUIET_CHECKS] = true;
+        if (all || has[2]) en[GEN_LEGAL] = en[GEN_CAPS] = en[GEN_QUIETS] = true;
         if (all || has[3]) en[SEE] = true;
         if (all || has[4]) en[GIVES_CHECK] = true;
         if (all || has[5]) en[CHECK_SQUARES] = true;

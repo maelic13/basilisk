@@ -92,7 +92,7 @@ struct Walk {
     uint64_t tt_offered[3] = {};
     uint64_t evasion_nodes = 0;
     uint64_t rechecks = 0, rechecks_legal = 0;
-    uint64_t qs_nodes = 0, qs_captures = 0, qs_checks = 0, qs_evasion_cuts = 0;
+    uint64_t qs_nodes = 0, qs_captures = 0, qs_evasion_cuts = 0;
     uint64_t probcut_nodes = 0, probcut_moves = 0, probcut_refused = 0;
     int failures = 0;
 };
@@ -197,24 +197,6 @@ void check_quiescence(Walk& w, Board& b, const Sorted& legal, Move tt, int ply) 
     if (!same_set(got, want))
         fail(w, b, "quiescence's captures are not the captures and promotions");
     w.qs_captures += uint64_t(got.count);
-
-    // The quiet moves that give check, by playing each.
-    MoveList checks;
-    b.gen_quiet_checks(checks);
-    Sorted want_checks;
-    for (int i = 0; i < legal.count; ++i) {
-        const Move m = legal.moves[i];
-        if (takes_or_promotes(b, m))
-            continue;
-        b.make_move(m);
-        const bool check = b.is_in_check();
-        b.unmake_move(m);
-        if (check)
-            want_checks.moves[want_checks.count++] = m;
-    }
-    if (!same_set(sorted(checks.begin(), checks.end()), want_checks))
-        fail(w, b, "quiescence's quiet checks are not the quiet moves that check");
-    w.qs_checks += uint64_t(want_checks.count);
 }
 
 // ProbCut's set at a node not in check (ProbCut never runs in check).
@@ -372,10 +354,9 @@ void test_search_path_perft() {
                 static_cast<unsigned long long>(w.evasion_nodes),
                 static_cast<unsigned long long>(w.rechecks),
                 static_cast<unsigned long long>(w.rechecks_legal));
-    std::printf("\n    quiescence nodes %llu: captures %llu, quiet checks %llu, evasion cuts %llu",
+    std::printf("\n    quiescence nodes %llu: captures %llu, evasion cuts %llu",
                 static_cast<unsigned long long>(w.qs_nodes),
                 static_cast<unsigned long long>(w.qs_captures),
-                static_cast<unsigned long long>(w.qs_checks),
                 static_cast<unsigned long long>(w.qs_evasion_cuts));
     std::printf("\n    ProbCut nodes %llu: delivered %llu, refused by SEE %llu\n  ",
                 static_cast<unsigned long long>(w.probcut_nodes),
@@ -386,7 +367,6 @@ void test_search_path_perft() {
     EXPECT(w.evasion_nodes > 0);
     EXPECT(w.rechecks_legal > 0 && w.rechecks_legal < w.rechecks);
     EXPECT(w.qs_captures > 0);
-    EXPECT(w.qs_checks > 0);
     EXPECT(w.qs_evasion_cuts > 0);
     EXPECT(w.probcut_moves > 0);
     EXPECT(w.probcut_refused > 0);
