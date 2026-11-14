@@ -477,6 +477,72 @@
     A(b3_sing_margin,        B3SingMargin,          201)                \
     A(b3_iir_min_depth,      B3IirMinDepth,           7)
 
+// B.6.7's joint fit (BAS-S61, theta at iteration 2,000) where it differs from the
+// value the clusters left, in the same form and applied after them. The
+// kernel's literals the fit moved are baked in src/kernel_literals.h.
+#define BASILISK_B67_DEFAULTS(A)                                         \
+    A(razor_margin,          CoreRazorMargin,           258)                \
+    A(rfp_per_ply,           CoreRfpPerPly,             101)                \
+    A(rfp_improving,         CoreRfpImproving,           93)                \
+    A(rfp_worsening,         CoreRfpWorsening,           12)                \
+    A(rfp_corr_mult,         CoreRfpCorrMult,           504)                \
+    A(rfp_depth_cap,         CoreRfpDepthCap,             9)                \
+    A(rfp_beta_weight,       CoreRfpBetaWeight,         646)                \
+    A(quiet_fut_base,        CoreQuietFutBase,          171)                \
+    A(quiet_fut_slope,       CoreQuietFutSlope,         110)                \
+    A(quiet_fut_alpha_term,  CoreQuietFutAlphaTerm,      32)                \
+    A(capt_fut_base,         CoreCaptFutBase,            68)                \
+    A(capt_fut_slope,        CoreCaptFutSlope,           92)                \
+    A(cont_hist_prune_slope, CoreContHistPruneSlope,   3594)                \
+    A(capt_see_coeff,        CoreCaptSeeCoeff,           65)                \
+    A(capt_see_hist_div,     CoreCaptSeeHistDiv,         75)                \
+    A(lmr_table_scale,       CoreLmrTableScale,        3119)                \
+    A(lmr_offset,            CoreLmrOffset,             947)                \
+    A(lmr_not_improving,     CoreLmrNotImproving,       224)                \
+    A(lmr_tt_pv,             CoreLmrTtPv,               978)                \
+    A(lmr_tt_pv_base,        CoreLmrTtPvBase,          3025)                \
+    A(lmr_tt_pv_pv_node,     CoreLmrTtPvPvNode,         964)                \
+    A(lmr_tt_pv_above_alpha, CoreLmrTtPvAboveAlpha,     763)                \
+    A(lmr_tt_pv_depth_ok,    CoreLmrTtPvDepthOk,        838)                \
+    A(lmr_cut_node,          CoreLmrCutNode,           3782)                \
+    A(lmr_cut_node_no_tt,    CoreLmrCutNodeNoTt,        762)                \
+    A(lmr_tt_capture,        CoreLmrTtCapture,          969)                \
+    A(lmr_cutoff_cnt,        CoreLmrCutoffCnt,          253)                \
+    A(lmr_cutoff_cnt2,       CoreLmrCutoffCnt2,        1006)                \
+    A(lmr_cutoff_cnt_all,    CoreLmrCutoffCntAll,       874)                \
+    A(lmr_stat_scale,        CoreLmrStatScale,          573)                \
+    A(lmr_all_node_scale,    CoreLmrAllNodeScale,       242)                \
+    A(research_deeper,       CoreResearchDeeper,         14)                \
+    A(quiet_bonus_cap,       CoreQuietBonusCap,        1459)                \
+    A(quiet_bonus_slope,     CoreQuietBonusSlope,       144)                \
+    A(malus_cap,             CoreMalusCap,             2410)                \
+    A(malus_slope,           CoreMalusSlope,            931)                \
+    A(malus_decay,           CoreMalusDecay,            937)                \
+    A(main_hist_decay,       CoreMainHistDecay,         776)                \
+    A(tt_cutoff_bonus_slope, CoreTtCutoffBonusSlope,    139)                \
+    A(corr_update_scale,     CoreCorrUpdateScale,        20)                \
+    A(corr_cont_weight,      CoreCorrContWeight,      10045)                \
+    A(b3_nmp_base,           B3NmpBase,                 180)                \
+    A(b3_nmp_red_base,       B3NmpRedBase,                5)                \
+    A(b3_nmp_red_eval_div,   B3NmpRedEvalDiv,            75)                \
+    A(b3_iir_min_depth,      B3IirMinDepth,               8)                \
+    A(b3_probcut_base,       B3ProbCutBase,              70)                \
+    A(b3_probcut_improving,  B3ProbCutImproving,         20)                \
+    A(b3_sing_margin,        B3SingMargin,              160)                \
+    A(b3_sing_double_base,   B3SingDoubleBase,            0)                \
+    A(b3_sing_double_pv,     B3SingDoublePv,             58)                \
+    A(b3_sing_double_quiet,  B3SingDoubleQuiet,         -44)                \
+    A(b3_sing_triple_base,   B3SingTripleBase,           23)                \
+    A(b3_sing_triple_pv,     B3SingTriplePv,             82)                \
+    A(b3_sing_triple_ttpv,   B3SingTripleTtPv,           19)                \
+    A(b3_sing_triple_deep,   B3SingTripleDeep,          -11)                \
+    A(b4_qs_fut_base,        B4QsFutBase,                87)                \
+    A(b4_qs_stand_pat_blend, B4QsStandPatBlend,         436)                \
+    A(b4_qs_fail_high_blend, B4QsFailHighBlend,         469)                \
+    A(b5_asp_base,           B5AspBase,                2139)                \
+    A(b5_asp_msq_div,        B5AspMsqDiv,              3260)                \
+    A(b5_asp_growth,         B5AspGrowth,                47)
+
 // B.6.6's adoptions, the B6_DONOR_FORMS arm, in the same form and applied
 // last: the donor's razoring and the kings in the non-pawn correction keys,
 // each adopted by its paired run and gated together. Empty on the OFF arm.
@@ -511,6 +577,7 @@ struct SearchParams {
         BASILISK_B3_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
         BASILISK_B4_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
         BASILISK_B5_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
+        BASILISK_B67_DEFAULTS(BASILISK_ARM_DEFAULT)
         BASILISK_B6_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
 #undef BASILISK_ARM_DEFAULT
     }

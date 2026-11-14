@@ -15,143 +15,143 @@
 
 #define BASILISK_KERNEL_LITERALS(L)                                         \
     /* LMR and the move loop */                                             \
-    L(lmr_window_pv,          LitLmrWindowPv,            577)               \
-    L(lmr_window_null,        LitLmrWindowNull,          163)               \
-    L(lmr_hist_div_scale,     LitLmrHistDivScale,       1024)               \
-    L(prune_main_hist,        LitPruneMainHist,           69)               \
-    L(lmr_tt_pv_cut,          LitLmrTtPvCut,             940)               \
-    L(lmr_base,               LitLmrBase,                697)               \
-    L(lmr_move_count,         LitLmrMoveCount,            65)               \
-    L(lmr_corr_div,           LitLmrCorrDiv,            7419)               \
-    L(lmr_corr_cap,           LitLmrCorrCap,            2695)               \
-    L(lmr_bias,               LitLmrBias,               2179)               \
-    L(stat_capture,           LitStatCapture,            873)               \
-    L(stat_main,              LitStatMain,              2252)               \
-    L(stat_cont1,             LitStatCont1,             1126)               \
-    L(stat_cont2,             LitStatCont2,             1093)               \
-    L(lmr_alpha_lo,           LitLmrAlphaLo,             -64)               \
-    L(lmr_alpha_hi,           LitLmrAlphaHi,              96)               \
+    L(lmr_window_pv,          LitLmrWindowPv,            611)               \
+    L(lmr_window_null,        LitLmrWindowNull,          164)               \
+    L(lmr_hist_div_scale,     LitLmrHistDivScale,        988)               \
+    L(prune_main_hist,        LitPruneMainHist,           73)               \
+    L(lmr_tt_pv_cut,          LitLmrTtPvCut,             914)               \
+    L(lmr_base,               LitLmrBase,                695)               \
+    L(lmr_move_count,         LitLmrMoveCount,            64)               \
+    L(lmr_corr_div,           LitLmrCorrDiv,            7235)               \
+    L(lmr_corr_cap,           LitLmrCorrCap,            2649)               \
+    L(lmr_bias,               LitLmrBias,               2244)               \
+    L(stat_capture,           LitStatCapture,            883)               \
+    L(stat_main,              LitStatMain,              1940)               \
+    L(stat_cont1,             LitStatCont1,             1182)               \
+    L(stat_cont2,             LitStatCont2,             1096)               \
+    L(lmr_alpha_lo,           LitLmrAlphaLo,             -67)               \
+    L(lmr_alpha_hi,           LitLmrAlphaHi,              85)               \
     L(lmr_all_slope,          LitLmrAllSlope,            256)               \
-    L(lmr_all_offset,         LitLmrAllOffset,           268)               \
-    L(lmr_no_tt_step,         LitLmrNoTtStep,           1127)               \
-    L(lmr_step1,              LitLmrStep1,              5234)               \
-    L(lmr_step2,              LitLmrStep2,              5487)               \
+    L(lmr_all_offset,         LitLmrAllOffset,           283)               \
+    L(lmr_no_tt_step,         LitLmrNoTtStep,           1105)               \
+    L(lmr_step1,              LitLmrStep1,              5073)               \
+    L(lmr_step2,              LitLmrStep2,              5559)               \
     L(lmr_step2_depth,        LitLmrStep2Depth,            2)               \
     L(lmr_min_depth,          LitLmrMinDepth,              2)               \
     L(pv_tt_move_depth,       LitPvTtMoveDepth,            1)               \
-    L(research_cont_bonus,    LitResearchContBonus,     1334)               \
+    L(research_cont_bonus,    LitResearchContBonus,     1323)               \
     L(root_underpromo,        LitRootUnderpromo,         200)               \
     L(tie_promo_plies,        LitTiePromoPlies,            2)               \
     /* Hindsight depth adjustment */                                        \
     L(hind_up_reduction,      LitHindUpReduction,          3)               \
     L(hind_down_reduction,    LitHindDownReduction,        2)               \
     L(hind_down_depth,        LitHindDownDepth,            2)               \
-    L(hind_down_eval,         LitHindDownEval,            47)               \
+    L(hind_down_eval,         LitHindDownEval,            49)               \
     /* The table's cutoff and its neighbours */                             \
     L(tt_node_typed_depth,    LitTtNodeTypedDepth,         4)               \
     L(tt_prev_move_count,     LitTtPrevMoveCount,          5)               \
-    L(tt_prev_malus,          LitTtPrevMalus,          -2210)               \
+    L(tt_prev_malus,          LitTtPrevMalus,          -2325)               \
     L(tt_graph_depth,         LitTtGraphDepth,             7)               \
     L(tt_rule50,              LitTtRule50,                96)               \
     L(tt_penalty_depth,       LitTtPenaltyDepth,           5)               \
     /* The parent's eval difference */                                      \
-    L(eval_diff_lo,           LitEvalDiffLo,            -189)               \
-    L(eval_diff_hi,           LitEvalDiffHi,             194)               \
-    L(eval_diff_offset,       LitEvalDiffOffset,          60)               \
+    L(eval_diff_lo,           LitEvalDiffLo,            -184)               \
+    L(eval_diff_hi,           LitEvalDiffHi,             185)               \
+    L(eval_diff_offset,       LitEvalDiffOffset,          57)               \
     L(eval_diff_main,         LitEvalDiffMain,            11)               \
-    L(eval_diff_pawn,         LitEvalDiffPawn,            13)               \
+    L(eval_diff_pawn,         LitEvalDiffPawn,            11)               \
     /* Null move, singular extension, the fail-high depth cut */            \
     L(nmp_min_ply_num,        LitNmpMinPlyNum,             3)               \
     L(sing_tt_depth,          LitSingTtDepth,              3)               \
     L(sing_beta_den,          LitSingBetaDen,             63)               \
-    L(sing_tmh_den,           LitSingTmhDen,          114178)               \
+    L(sing_tmh_den,           LitSingTmhDen,          116906)               \
     L(shuffle_rule50,         LitShuffleRule50,           10)               \
     L(shuffle_null_plies,     LitShuffleNullPlies,         6)               \
     L(shuffle_ply,            LitShufflePly,              20)               \
     L(fh_red_min,             LitFhRedMin,                 3)               \
-    L(fh_red_max,             LitFhRedMax,                12)               \
+    L(fh_red_max,             LitFhRedMax,                11)               \
     L(fh_red_by,              LitFhRedBy,                  3)               \
     /* The TT-move history */                                               \
-    L(tt_move_bonus,          LitTtMoveBonus,            918)               \
-    L(tt_move_malus,          LitTtMoveMalus,           -747)               \
+    L(tt_move_bonus,          LitTtMoveBonus,            919)               \
+    L(tt_move_malus,          LitTtMoveMalus,           -767)               \
     /* Correction history: its value, its update */                        \
-    L(corr_no_move_scale,     LitCorrNoMoveScale,       1024)               \
+    L(corr_no_move_scale,     LitCorrNoMoveScale,       1066)               \
     L(corr_share,             LitCorrShare,             1061)               \
-    L(corr_pawn_w,            LitCorrPawnW,            15341)               \
-    L(corr_minor_w,           LitCorrMinorW,           10569)               \
-    L(corr_nonpawn_w,         LitCorrNonPawnW,         12906)               \
-    L(corr_cont_none,         LitCorrContNone,         64049)               \
-    L(corr_minor_share,       LitCorrMinorShare,         150)               \
-    L(corr_nonpawn_share,     LitCorrNonPawnShare,       186)               \
-    L(corr_cont2_share,       LitCorrCont2Share,         130)               \
-    L(corr_cont4_share,       LitCorrCont4Share,          70)               \
+    L(corr_pawn_w,            LitCorrPawnW,            15909)               \
+    L(corr_minor_w,           LitCorrMinorW,           10327)               \
+    L(corr_nonpawn_w,         LitCorrNonPawnW,         12143)               \
+    L(corr_cont_none,         LitCorrContNone,         69413)               \
+    L(corr_minor_share,       LitCorrMinorShare,         151)               \
+    L(corr_nonpawn_share,     LitCorrNonPawnShare,       188)               \
+    L(corr_cont2_share,       LitCorrCont2Share,         141)               \
+    L(corr_cont4_share,       LitCorrCont4Share,          72)               \
     /* Continuation-history update */                                      \
-    L(cont_w1,                LitContW1,                 520)               \
-    L(cont_w2,                LitContW2,                 390)               \
-    L(cont_w3,                LitContW3,                 145)               \
+    L(cont_w1,                LitContW1,                 499)               \
+    L(cont_w2,                LitContW2,                 396)               \
+    L(cont_w3,                LitContW3,                 156)               \
     L(cont_w4,                LitContW4,                 251)               \
     L(cont_w5,                LitContW5,                  66)               \
-    L(cont_w6,                LitContW6,                 209)               \
+    L(cont_w6,                LitContW6,                 208)               \
     L(cont_consistency_scale, LitContConsistencyScale,  1024)               \
-    L(cont_near_bonus,        LitContNearBonus,           73)               \
+    L(cont_near_bonus,        LitContNearBonus,           75)               \
     /* Quiet, capture and low-ply updates after a best move */              \
-    L(low_ply_share,          LitLowPlyShare,            712)               \
-    L(cont_share,             LitContShare,              750)               \
-    L(pawn_share_up,          LitPawnShareUp,           1104)               \
-    L(pawn_share_down,        LitPawnShareDown,          459)               \
+    L(low_ply_share,          LitLowPlyShare,            710)               \
+    L(cont_share,             LitContShare,              756)               \
+    L(pawn_share_up,          LitPawnShareUp,           1031)               \
+    L(pawn_share_down,        LitPawnShareDown,          435)               \
     L(pawn_share_threshold,   LitPawnShareThreshold,      -4)               \
-    L(quiet_bonus_offset,     LitQuietBonusOffset,       -81)               \
-    L(quiet_bonus_tt,         LitQuietBonusTt,           364)               \
+    L(quiet_bonus_offset,     LitQuietBonusOffset,       -87)               \
+    L(quiet_bonus_tt,         LitQuietBonusTt,           357)               \
     L(quiet_bonus_stat_den,   LitQuietBonusStatDen,       28)               \
-    L(malus_offset,           LitMalusOffset,           -235)               \
-    L(bonus_count_den,        LitBonusCountDen,          256)               \
-    L(quiet_bonus_share,      LitQuietBonusShare,        899)               \
-    L(malus_share,            LitMalusShare,            1159)               \
-    L(capt_bonus_share,       LitCaptBonusShare,        1427)               \
-    L(cont_malus_share,       LitContMalusShare,         713)               \
-    L(capt_malus_share,       LitCaptMalusShare,        1489)               \
+    L(malus_offset,           LitMalusOffset,           -230)               \
+    L(bonus_count_den,        LitBonusCountDen,          263)               \
+    L(quiet_bonus_share,      LitQuietBonusShare,        919)               \
+    L(malus_share,            LitMalusShare,            1335)               \
+    L(capt_bonus_share,       LitCaptBonusShare,        1340)               \
+    L(cont_malus_share,       LitContMalusShare,         749)               \
+    L(capt_malus_share,       LitCaptMalusShare,        1536)               \
     /* The parent's update after a fail low */                              \
-    L(fl_capture,             LitFlCapture,              892)               \
-    L(fl_base,                LitFlBase,                -241)               \
-    L(fl_stat_div,            LitFlStatDiv,               98)               \
+    L(fl_capture,             LitFlCapture,              917)               \
+    L(fl_base,                LitFlBase,                -240)               \
+    L(fl_stat_div,            LitFlStatDiv,               95)               \
     L(fl_depth_slope,         LitFlDepthSlope,            59)               \
-    L(fl_depth_cap,           LitFlDepthCap,             420)               \
-    L(fl_late_move,           LitFlLateMove,             186)               \
+    L(fl_depth_cap,           LitFlDepthCap,             404)               \
+    L(fl_late_move,           LitFlLateMove,             181)               \
     L(fl_late_count,          LitFlLateCount,              9)               \
-    L(fl_below_own,           LitFlBelowOwn,             142)               \
-    L(fl_own_margin,          LitFlOwnMargin,             30)               \
-    L(fl_below_parent,        LitFlBelowParent,          159)               \
-    L(fl_parent_margin,       LitFlParentMargin,          19)               \
-    L(fl_size_slope,          LitFlSizeSlope,            150)               \
-    L(fl_size_offset,         LitFlSizeOffset,            85)               \
-    L(fl_size_cap,            LitFlSizeCap,             1337)               \
-    L(fl_cont_num,            LitFlContNum,              263)               \
-    L(fl_main_share,          LitFlMainShare,            215)               \
-    L(fl_pawn_share,          LitFlPawnShare,            324)               \
+    L(fl_below_own,           LitFlBelowOwn,             134)               \
+    L(fl_own_margin,          LitFlOwnMargin,             29)               \
+    L(fl_below_parent,        LitFlBelowParent,          166)               \
+    L(fl_parent_margin,       LitFlParentMargin,          20)               \
+    L(fl_size_slope,          LitFlSizeSlope,            152)               \
+    L(fl_size_offset,         LitFlSizeOffset,            88)               \
+    L(fl_size_cap,            LitFlSizeCap,             1220)               \
+    L(fl_cont_num,            LitFlContNum,              266)               \
+    L(fl_main_share,          LitFlMainShare,            226)               \
+    L(fl_pawn_share,          LitFlPawnShare,            320)               \
     /* History bounds (gravity) and the low-ply refill */                   \
-    L(bound_main,             LitBoundMain,             7183)               \
-    L(bound_low_ply,          LitBoundLowPly,           7183)               \
-    L(bound_capture,          LitBoundCapture,         10692)               \
-    L(bound_cont,             LitBoundCont,            30000)               \
-    L(bound_pawn,             LitBoundPawn,             8192)               \
-    L(bound_tt_move,          LitBoundTtMove,           8192)               \
-    L(bound_corr,             LitBoundCorr,             1024)               \
-    L(bound_cont_corr,        LitBoundContCorr,         1024)               \
-    L(low_ply_refill,         LitLowPlyRefill,           102)               \
+    L(bound_main,             LitBoundMain,             6837)               \
+    L(bound_low_ply,          LitBoundLowPly,           7746)               \
+    L(bound_capture,          LitBoundCapture,         10685)               \
+    L(bound_cont,             LitBoundCont,            30169)               \
+    L(bound_pawn,             LitBoundPawn,             7558)               \
+    L(bound_tt_move,          LitBoundTtMove,           8021)               \
+    L(bound_corr,             LitBoundCorr,             1019)               \
+    L(bound_cont_corr,        LitBoundContCorr,         1052)               \
+    L(low_ply_refill,         LitLowPlyRefill,           111)               \
     /* The move picker's ordering (move_picker_core.cpp) */                  \
-    L(pick_main_scale,        LitPickMainScale,         1024)               \
-    L(pick_pawn_scale,        LitPickPawnScale,         1024)               \
-    L(pick_cont_far_scale,    LitPickContFarScale,      1024)               \
-    L(pick_check_bonus,       LitPickCheckBonus,       16384)               \
-    L(pick_threat_scale,      LitPickThreatScale,       1024)               \
-    L(pick_low_ply_scale,     LitPickLowPlyScale,       1024)               \
-    L(pick_good_quiet,        LitPickGoodQuiet,       -14000)               \
-    L(pick_sort_limit,        LitPickSortLimit,        -3560)               \
-    L(pick_capture_scale,     LitPickCaptureScale,      1024)               \
-    L(pick_good_capture_div,  LitPickGoodCaptureDiv,      47)               \
+    L(pick_main_scale,        LitPickMainScale,         1089)               \
+    L(pick_pawn_scale,        LitPickPawnScale,         1003)               \
+    L(pick_cont_far_scale,    LitPickContFarScale,       986)               \
+    L(pick_check_bonus,       LitPickCheckBonus,       17113)               \
+    L(pick_threat_scale,      LitPickThreatScale,        971)               \
+    L(pick_low_ply_scale,     LitPickLowPlyScale,       1023)               \
+    L(pick_good_quiet,        LitPickGoodQuiet,       -12781)               \
+    L(pick_sort_limit,        LitPickSortLimit,        -3612)               \
+    L(pick_capture_scale,     LitPickCaptureScale,      1043)               \
+    L(pick_good_capture_div,  LitPickGoodCaptureDiv,      44)               \
     /* The root record and the full-window iterations */                    \
     L(ema_min,                LitEmaMin,                  12)               \
-    L(ema_max,                LitEmaMax,                  24)               \
+    L(ema_max,                LitEmaMax,                  23)               \
     L(ema_msq_max,            LitEmaMsqMax,               16)               \
     L(ema_chi,                LitEmaChi,                   3)               \
     L(asp_min_depth,          LitAspMinDepth,              3)

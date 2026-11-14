@@ -199,13 +199,17 @@ static void test_arm_defaults() {
         std::string_view field;
         std::string_view uci;
         int value;
+        bool joint;  // B.6.7's fit: off the value the clusters left, not the line's
     };
     static constexpr ArmDefault arm[] = {
-#define ARM_DEFAULT_ROW(field, uci, value) {#field, #uci, value},
+#define ARM_DEFAULT_ROW(field, uci, value) {#field, #uci, value, false},
+#define ARM_JOINT_ROW(field, uci, value) {#field, #uci, value, true},
         BASILISK_B3_CORE_DEFAULTS(ARM_DEFAULT_ROW)
         BASILISK_B4_CORE_DEFAULTS(ARM_DEFAULT_ROW)
         BASILISK_B5_CORE_DEFAULTS(ARM_DEFAULT_ROW)
+        BASILISK_B67_DEFAULTS(ARM_JOINT_ROW)
         BASILISK_B6_CORE_DEFAULTS(ARM_DEFAULT_ROW)
+#undef ARM_JOINT_ROW
 #undef ARM_DEFAULT_ROW
     };
     const auto find = [](std::string_view field) -> const ArmDefault* {
@@ -222,15 +226,20 @@ static void test_arm_defaults() {
 
     begin_section("arm defaults: each override names a field, in range, off its default");
 #define ARM_DEFAULT_RANGE(field, uci, def, lo, hi)                       \
-    for (const ArmDefault& a : arm)                                      \
-        if (names(a, #field)) {                                          \
-            ++matched;                                                   \
-            EXPECT(lo <= a.value && a.value <= hi);                      \
-            EXPECT(a.value != def);                                      \
-        }
+    {                                                                    \
+        int earlier = def;                                               \
+        for (const ArmDefault& a : arm)                                  \
+            if (names(a, #field)) {                                      \
+                ++matched;                                               \
+                EXPECT(lo <= a.value && a.value <= hi);                  \
+                EXPECT(a.value != (a.joint ? earlier : def));            \
+                if (!a.joint) earlier = a.value;                         \
+            }                                                            \
+    }
     BASILISK_SEARCH_PARAMS(ARM_DEFAULT_RANGE)
     BASILISK_KERNEL_SWITCHES(ARM_DEFAULT_RANGE)
     BASILISK_B3_PARAMS(ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE)
+    BASILISK_B4_PARAMS(ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE)
     BASILISK_B5_PARAMS(ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE)
     EXPECT_EQ(matched, int(std::size(arm)));
     end_section();

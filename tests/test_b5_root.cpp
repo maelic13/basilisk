@@ -220,8 +220,9 @@ static void test_a_search_under_a_low_cap() {
 
 static void test_the_record_arithmetic() {
     begin_section("the record's weights and blends");
-    // The share of this search in the move's effort, in 32nds, between 12 and 24.
-    EXPECT_EQ(b5::ema_weights(1000, 0).average, 24);       // the first search: 64000/2003, clamped
+    // The share of this search in the move's effort, in 32nds, between the
+    // record's least and greatest weights (12 and, since B.6.7's fit, 23).
+    EXPECT_EQ(b5::ema_weights(1000, 0).average, KLIT(ema_max)); // the first search: 64000/2003, clamped
     EXPECT_EQ(b5::ema_weights(1, 1000).average, 12);       // a sliver: clamped from below
     EXPECT_EQ(b5::ema_weights(1000, 1000).average, 12);    // 64000/5000
     EXPECT_EQ(b5::ema_weights(1000, 500).average, 18);     // 64000/3500
@@ -356,16 +357,18 @@ static void test_the_window_arithmetic() {
     EXPECT_EQ(b5::after_fail_high(first, 80, 100).alpha, 45);   // alpha never falls
     EXPECT_EQ(b5::after_fail_high(first, INF_SCORE - 3, 7).beta, INF_SCORE);
 
-    // LMR's term: at a PV node 577 per unit of the root's width, whatever the
-    // node's window; at a non-PV node, whose window is one unit, the donor's unit
-    // in ours.
-    EXPECT_EQ(b5::lmr_window_term(true, 38, 38), 577);
-    EXPECT_EQ(b5::lmr_window_term(true, 2, 2), 577);
-    EXPECT_EQ(b5::lmr_window_term(true, 1, 1), 577);
-    EXPECT_EQ(b5::lmr_window_term(true, 1, 4), 144);
-    EXPECT_EQ(b5::lmr_window_term(false, 1, 1), 163);
-    EXPECT_EQ(b5::lmr_window_term(false, 1, 2), 81);
-    EXPECT_EQ(b5::lmr_window_term(false, 1, 38), 4);
+    // LMR's term: at a PV node `LitLmrWindowPv` per unit of the root's width,
+    // whatever the node's window; at a non-PV node, whose window is one unit,
+    // `LitLmrWindowNull`, the donor's unit in ours (the donor's 577 and 163,
+    // 611 and 164 since B.6.7's fit).
+    const int pv = KLIT(lmr_window_pv), null_window = KLIT(lmr_window_null);
+    EXPECT_EQ(b5::lmr_window_term(true, 38, 38), pv);
+    EXPECT_EQ(b5::lmr_window_term(true, 2, 2), pv);
+    EXPECT_EQ(b5::lmr_window_term(true, 1, 1), pv);
+    EXPECT_EQ(b5::lmr_window_term(true, 1, 4), pv / 4);
+    EXPECT_EQ(b5::lmr_window_term(false, 1, 1), null_window);
+    EXPECT_EQ(b5::lmr_window_term(false, 1, 2), null_window / 2);
+    EXPECT_EQ(b5::lmr_window_term(false, 1, 38), null_window / 38);
     end_section();
 }
 
@@ -597,21 +600,25 @@ static void test_a_proven_mate_stands() {
     EXPECT(b5::forgotten_mate(mate_in_8, 2607));
     EXPECT(b5::forgotten_mate(mate_in_8, MATE_SCORE - 19));   // a longer one
     EXPECT(b5::forgotten_mate(-mate_in_8, -2607));      // being mated, likewise
-    // At depth 15 the search proves this mate, and at depth 16 it reads 2607.
+    // The search proves this mate at depth 17 and keeps it to depth 18. Before
+    // B.6.7's fit it proved it at depth 15 and read 2607 at depth 16, which the
+    // rule kept; the fitted tree loses it at no depth to 26 (nor any WAC mate to
+    // depth 18), so this checks the proof's lines, not the rule's rescue.
     SearchLimits lim;
-    lim.depth = 16;
+    lim.depth = 18;
     const Run run = search_limits("r1bq1r2/pp4k1/4p2p/3pPp1Q/3N1R1P/2PB4/6P1/6K1 w - - 0 1", lim);
     EXPECT_EQ(run.result.score, mate_in_8);
     EXPECT_STR(move_to_uci(run.result.bestmove), "f4g4");
     // Every line from the proof on says so.
     int after_the_proof = 0;
     for (const std::string& line : run.lines) {
-        if (line.rfind("info depth 16 ", 0) == 0 && line.find("bound") == std::string::npos) {
+        if ((line.rfind("info depth 17 ", 0) == 0 || line.rfind("info depth 18 ", 0) == 0)
+            && line.find("bound") == std::string::npos) {
             ++after_the_proof;
             EXPECT(line.find(" score mate 8 ") != std::string::npos);
         }
     }
-    EXPECT_EQ(after_the_proof, 1);
+    EXPECT_EQ(after_the_proof, 2);
     end_section();
 }
 

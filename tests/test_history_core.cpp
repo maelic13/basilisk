@@ -61,15 +61,17 @@ static void test_bounds() {
     check_bound_and_gravity<CorrectionBound>("correction");
     check_bound_and_gravity<PieceToCorrection>("continuation correction");
 
-    begin_section("bounds are the cluster's");
-    EXPECT_EQ(MainHistory::LIMIT, 7183);
-    EXPECT_EQ(CaptureHistory::LIMIT, 10692);
-    EXPECT_EQ(PieceToHistory::LIMIT, 30000);
-    EXPECT_EQ(PawnHistoryBucket::LIMIT, 8192);
-    EXPECT_EQ(LowPlyHistory::LIMIT, 7183);
-    EXPECT_EQ(TTMoveHistory::LIMIT, 8192);
-    EXPECT_EQ(CorrectionBound::LIMIT, 1024);
-    EXPECT_EQ(PieceToCorrection::LIMIT, 1024);
+    // B.6.7's joint fit moved every bound off the donor's (7183, 10692, 30000,
+    // 8192, 7183, 8192, 1024, 1024); each table reads its own literal.
+    begin_section("bounds are the fit's, one literal per table");
+    EXPECT_EQ(MainHistory::LIMIT, 6837);
+    EXPECT_EQ(CaptureHistory::LIMIT, 10685);
+    EXPECT_EQ(PieceToHistory::LIMIT, 30169);
+    EXPECT_EQ(PawnHistoryBucket::LIMIT, 7558);
+    EXPECT_EQ(LowPlyHistory::LIMIT, 7746);
+    EXPECT_EQ(TTMoveHistory::LIMIT, 8021);
+    EXPECT_EQ(CorrectionBound::LIMIT, 1019);
+    EXPECT_EQ(PieceToCorrection::LIMIT, 1052);
     EXPECT_EQ(LowPlyHistory::PLIES, 5);
     EXPECT_EQ(PawnHistory::MAX_BUCKETS, 8192);
     end_section();
@@ -107,12 +109,12 @@ static void test_clear_and_halve() {
     EXPECT(h->sentinel_corr_row() == &h->cont_corr->row[NO_PIECE_TYPE][0]);
     end_section();
 
-    begin_section("age: the main history keeps 729/1024, the low-ply history restarts at 102");
+    begin_section("age: the main history keeps 729/1024, the low-ply history restarts at its refill");
     fill_some(*h, 1000);
     h->age(729);
     EXPECT_EQ(h->main.entry[BLACK][C3][F6], 711);             // 1000 * 729 / 1024
     EXPECT_EQ(h->low_ply.entry[4][G1][F3], CoreHistoryTables::LOW_PLY_REFILL);
-    EXPECT_EQ(h->low_ply.entry[0][A1][A1], 102);
+    EXPECT_EQ(h->low_ply.entry[0][A1][A1], 111);              // B.6.7's fit (the donor's 102)
     EXPECT_EQ(h->capture.entry[KNIGHT][E5][QUEEN], 1000);
     EXPECT_EQ(h->continuation->row[1][0][BISHOP][B5].entry[ROOK][D1], 1000);
     EXPECT_EQ(h->pawn->bucket[PawnHistory::MAX_BUCKETS - 1].entry[QUEEN][H8], 1000);
