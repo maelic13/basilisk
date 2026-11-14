@@ -115,11 +115,11 @@ class SurfaceTests(unittest.TestCase):
         generated = json.loads(surface.B5_CONFIG.read_text(encoding="utf-8"))
         self.assertEqual([item[0] for item in parameters], list(generated))
         self.assertEqual(list(generated), ["B5AspBase", "B5AspMsqDiv", "B5AspGrowth"])
-        # The base counts thousandths of a unit: seeded at the donor's 5 x 282 and
-        # fitted to 2202 (B.5.4), on a range whose every point the window's growth
-        # can leave.
+        # The base counts thousandths of a unit: seeded at the donor's 5 x 282,
+        # fitted to 2202 (B.5.4) and 2139 (B.6.7), on a range whose every point
+        # the window's growth can leave.
         base = generated["B5AspBase"]
-        self.assertEqual((base["value"], base["min_value"], base["max_value"]), (2202, 500, 40000))
+        self.assertEqual((base["value"], base["min_value"], base["max_value"]), (2139, 500, 40000))
         # Its table stays off every other surface.
         for other in (surface.parse_parameters(text), surface.parse_parameters(text, core=True),
                       surface.parse_parameters(text, b3=True), surface.parse_parameters(text, b4=True)):
@@ -160,34 +160,11 @@ class SurfaceTests(unittest.TestCase):
         self.assertEqual(list(generated),
                          b3 + list(surface.B33_ADMITTED_CORE))
         self.assertEqual(len(generated), 29)
-        # The core coordinates keep the core table's ranges and steps and
-        # start from Cluster 2's refit where it has one.
+        # The core coordinates are the core surface's: its lines' defaults,
+        # ranges and steps.
         core = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
-        overrides = surface.b3_core_defaults(text)
-        self.assertTrue(overrides)
         for name in surface.B33_ADMITTED_CORE:
-            wanted = dict(core[name], value=overrides.get(name, core[name]["value"]))
-            self.assertEqual(generated[name], wanted)
-
-    def test_b3_core_defaults_are_checked_against_the_core_table(self):
-        head = (
-            "#define BASILISK_CORE_KERNEL_PARAMS(X, F) \\\n"
-            "    X(b_field, Beta, 5, 0, 10) \\\n"
-            "    F(e_field, Epsilon, 5, 0, 10)\n"
-            "#define BASILISK_B3_CORE_DEFAULTS(A) \\\n"
-        )
-        self.assertEqual(surface.b3_core_defaults(head + "    A(b_field, Beta, 7)\n"),
-                         {"Beta": 7})
-        # The core surface is the X lines' values, not the refit's.
-        text = head + "    A(b_field, Beta, 7)\n"
-        self.assertEqual(surface.parse_parameters(text, core=True), [("Beta", 5, 0, 10)])
-        for body in ("    A(e_field, Epsilon, 7)\n",          # an F line
-                     "    A(z_field, Zeta, 7)\n",             # no line
-                     "    A(b_field, Beta, 5)\n",             # the default
-                     "    A(b_field, Beta, 11)\n",            # out of range
-                     "    A(b_field, Beta, 7) \\\n    A(b_field, Beta, 8)\n"):  # twice
-            with self.assertRaises(ValueError):
-                surface.b3_core_defaults(head + body)
+            self.assertEqual(generated[name], core[name])
 
     def test_b33_surface_rejects_a_name_with_no_x_line(self):
         text = surface.HEADER.read_text(encoding="utf-8")
@@ -205,39 +182,12 @@ class SurfaceTests(unittest.TestCase):
         generated = json.loads(surface.B46_CONFIG.read_text(encoding="utf-8"))
         self.assertEqual(list(generated), b4 + list(surface.B46_ADMITTED))
         self.assertEqual(len(generated), 15)
-        # The admitted coordinates keep their tables' ranges and steps and
-        # start from the value the engine runs: Cluster 3's refit where it
-        # has one, over Cluster 2's and the line's.
-        self.assertEqual(generated["CoreRfpPerPly"]["value"], 107)
-        self.assertEqual(generated["CoreRfpCorrMult"]["value"], 457)
-        self.assertEqual(generated["B3NmpBase"]["value"], 172)
-        self.assertEqual(generated["CoreRfpDepthCap"]["value"], 10)
+        # The admitted coordinates are their own surfaces': the lines'
+        # defaults, ranges and steps.
         core = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
         b3 = json.loads(surface.B3_CONFIG.read_text(encoding="utf-8"))
         for name in surface.B46_ADMITTED:
-            source = core[name] if name in core else b3[name]
-            self.assertEqual({k: generated[name][k] for k in ("min_value", "max_value", "step")},
-                             {k: source[k] for k in ("min_value", "max_value", "step")})
-
-    def test_b4_core_defaults_are_checked_against_the_earlier_tables(self):
-        head = (
-            "#define BASILISK_CORE_KERNEL_PARAMS(X, F) \\\n"
-            "    X(b_field, Beta, 5, 0, 10) \\\n"
-            "    F(e_field, Epsilon, 5, 0, 10)\n"
-            "#define BASILISK_B3_PARAMS(X, F, S) \\\n"
-            "    X(c_field, Gamma, 5, 0, 10) \\\n"
-            "    S(s_field, Sigma, 0, 0, 1)\n"
-            "#define BASILISK_B4_CORE_DEFAULTS(A) \\\n"
-        )
-        body = "    A(s_field, Sigma, 1) \\\n    A(b_field, Beta, 7) \\\n    A(c_field, Gamma, 8)\n"
-        self.assertEqual(surface.b4_core_defaults(head + body), {"Beta": 7, "Gamma": 8})
-        for body in ("    A(e_field, Epsilon, 7)\n",          # an F line
-                     "    A(z_field, Zeta, 7)\n",             # no line
-                     "    A(b_field, Beta, 5)\n",             # the default
-                     "    A(c_field, Gamma, 11)\n",           # out of range
-                     "    A(b_field, Beta, 7) \\\n    A(b_field, Beta, 8)\n"):  # twice
-            with self.assertRaises(ValueError):
-                surface.b4_core_defaults(head + body)
+            self.assertEqual(generated[name], core[name] if name in core else b3[name])
 
     def test_b46_surface_rejects_a_name_with_no_x_line(self):
         text = surface.HEADER.read_text(encoding="utf-8")
@@ -251,38 +201,20 @@ class SurfaceTests(unittest.TestCase):
 
     def test_b54_surface_is_the_b5_lines_and_the_joiners(self):
         # BAS-S54: Cluster 4's X lines, then the five coordinates section 5.8's
-        # median rule admitted (analysis/b54_sweep_2026-11-10.md), each from the
-        # value the arm runs: Cluster 4's refit, then Cluster 3's, Cluster 2's and
-        # the line. Since the bake the arm runs B.5.4's theta.
+        # median rule admitted (analysis/b54_sweep_2026-11-10.md), each at its
+        # line's default, range and step.
         text = surface.HEADER.read_text(encoding="utf-8")
         b5 = [item[0] for item in surface.parse_parameters(text, b5=True)]
         generated = json.loads(surface.B54_CONFIG.read_text(encoding="utf-8"))
         self.assertEqual(list(generated), b5 + ["CoreContHistPruneSlope", "CoreCorrUpdateScale",
                                                 "B3NmpPerPly", "B3SingMargin", "B3IirMinDepth"])
-        self.assertEqual({name: spec["value"] for name, spec in generated.items()},
-                         {"B5AspBase": 2202, "B5AspMsqDiv": 2907, "B5AspGrowth": 46,
-                          "CoreContHistPruneSlope": 3783, "CoreCorrUpdateScale": 18,
-                          "B3NmpPerPly": 11, "B3SingMargin": 201, "B3IirMinDepth": 7})
-        self.assertEqual(generated["B5AspBase"]["step"], 1101)
         core = json.loads(surface.CORE_CONFIG.read_text(encoding="utf-8"))
         b3 = json.loads(surface.B3_CONFIG.read_text(encoding="utf-8"))
+        b5_config = json.loads(surface.B5_CONFIG.read_text(encoding="utf-8"))
+        for name in b5:
+            self.assertEqual(generated[name], b5_config[name])
         for name in surface.B54_ADMITTED:
-            source = core[name] if name in core else b3[name]
-            self.assertEqual({k: generated[name][k] for k in ("min_value", "max_value", "step")},
-                             {k: source[k] for k in ("min_value", "max_value", "step")})
-
-    def test_b5_core_defaults_are_the_fitted_joiners_without_the_switch(self):
-        # The B5 table holds the arm's stop (a switch, never on a surface) and
-        # Cluster 4's refit of the five joiners.
-        text = surface.HEADER.read_text(encoding="utf-8")
-        self.assertEqual(surface.b5_core_defaults(text),
-                         {"CoreContHistPruneSlope": 3783, "CoreCorrUpdateScale": 18,
-                          "B3NmpPerPly": 11, "B3SingMargin": 201, "B3IirMinDepth": 7})
-        head = text.split(surface.B5_CORE_DEFAULTS_TABLE)[0] + surface.B5_CORE_DEFAULTS_TABLE + "A) \\\n"
-        for body in ("    A(b3_nmp_per_ply, B3NmpPerPly, 99)\n",      # out of range
-                     "    A(z_field, CoreNoSuchCoordinate, 7)\n"):    # no line
-            with self.assertRaises(ValueError):
-                surface.b5_core_defaults(head + body)
+            self.assertEqual(generated[name], core[name] if name in core else b3[name])
 
     def test_b54_surface_rejects_a_name_with_no_x_line(self):
         text = surface.HEADER.read_text(encoding="utf-8")
@@ -299,7 +231,7 @@ class SurfaceTests(unittest.TestCase):
         # the smaller of the generator's and half the start value, so the low
         # perturbation does not clamp at the seed. The other two keep theirs.
         generated = json.loads(surface.B5_CONFIG.read_text(encoding="utf-8"))
-        self.assertEqual(generated["B5AspBase"]["step"], 1101)
+        self.assertEqual(generated["B5AspBase"]["step"], 1070)
         self.assertEqual(generated["B5AspMsqDiv"]["step"], surface.perturbation(1000, 12000))
         self.assertEqual(generated["B5AspGrowth"]["step"], surface.perturbation(32, 96))
         for start, step in ((1410, 705), (2820, 1410), (4938, 2469), (19000, 2469), (1411, 706)):
@@ -395,14 +327,11 @@ class SurfaceTests(unittest.TestCase):
         self.assertEqual(names, {"CoreCaptFutHistDiv", "CoreLmrAlphaEvalScale", "B3SingTripleQuiet"})
 
     def test_rule7c_seeds_are_the_values_the_head_runs(self):
+        # The head's seeds are its tables' lines, whose defaults the engine runs.
         text = surface.HEADER.read_text(encoding="utf-8")
-        overrides = {**surface.b3_core_defaults(text), **surface.b4_core_defaults(text),
-                     **surface.b5_core_defaults(text)}
-        overrides.update(surface.b67_defaults(text, overrides))
-        seeds = {name: start for name, start, _, _ in surface.head_parameters(text)}
-        for name, value in overrides.items():
-            if name in seeds:
-                self.assertEqual(seeds[name], value, name)
+        lines = [*surface.parse_parameters(text, core=True), *surface.parse_parameters(text, b3=True),
+                 *surface.parse_parameters(text, b4=True), *surface.parse_parameters(text, b5=True)]
+        self.assertEqual(surface.head_parameters(text), lines)
 
 
 if __name__ == "__main__":

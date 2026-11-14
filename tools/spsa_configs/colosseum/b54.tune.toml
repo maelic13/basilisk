@@ -5,35 +5,35 @@
 
 [[parameters]]
 name = "B5AspBase"
-initial = 2202
+initial = 2139
 min = 500
 max = 40000
-c_end = 507.0867
+c_end = 492.8091
 
 [[parameters]]
 name = "B5AspMsqDiv"
-initial = 2907
+initial = 3260
 min = 1000
 max = 12000
 c_end = 316.8716
 
 [[parameters]]
 name = "B5AspGrowth"
-initial = 46
+initial = 47
 min = 32
 max = 96
 c_end = 1.8423
 
 [[parameters]]
 name = "CoreContHistPruneSlope"
-initial = 3783
+initial = 3594
 min = 1500
 max = 8000
 c_end = 186.9911
 
 [[parameters]]
 name = "CoreCorrUpdateScale"
-initial = 18
+initial = 20
 min = 4
 max = 64
 c_end = 1.8423
@@ -47,14 +47,14 @@ c_end = 0.9211
 
 [[parameters]]
 name = "B3SingMargin"
-initial = 201
+initial = 160
 min = 13
 max = 378
 c_end = 10.5931
 
 [[parameters]]
 name = "B3IirMinDepth"
-initial = 7
+initial = 8
 min = 3
 max = 11
 c_end = 0.9211

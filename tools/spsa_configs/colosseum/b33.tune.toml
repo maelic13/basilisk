@@ -5,7 +5,7 @@
 
 [[parameters]]
 name = "B3NmpPerPly"
-initial = 16
+initial = 11
 min = 2
 max = 32
 c_end = 0.9211
@@ -19,49 +19,49 @@ c_end = 1.3817
 
 [[parameters]]
 name = "B3NmpBase"
-initial = 163
+initial = 180
 min = 50
 max = 300
 c_end = 7.3691
 
 [[parameters]]
 name = "B3NmpRedBase"
-initial = 4
+initial = 5
 min = 1
 max = 10
 c_end = 0.9211
 
 [[parameters]]
 name = "B3NmpRedEvalDiv"
-initial = 80
+initial = 75
 min = 36
 max = 256
 c_end = 6.4480
 
 [[parameters]]
 name = "B3IirMinDepth"
-initial = 5
+initial = 8
 min = 3
 max = 11
 c_end = 0.9211
 
 [[parameters]]
 name = "B3ProbCutBase"
-initial = 73
+initial = 70
 min = 34
 max = 240
 c_end = 5.9874
 
 [[parameters]]
 name = "B3ProbCutImproving"
-initial = 19
+initial = 20
 min = 0
 max = 48
 c_end = 1.3817
 
 [[parameters]]
 name = "B3SingMargin"
-initial = 232
+initial = 160
 min = 13
 max = 378
 c_end = 10.5931
@@ -75,21 +75,21 @@ c_end = 3.6846
 
 [[parameters]]
 name = "B3SingDoubleBase"
-initial = -1
+initial = 0
 min = -40
 max = 40
 c_end = 2.3028
 
 [[parameters]]
 name = "B3SingDoublePv"
-initial = 60
+initial = 58
 min = 0
 max = 120
 c_end = 3.6846
 
 [[parameters]]
 name = "B3SingDoubleQuiet"
-initial = -41
+initial = -44
 min = -90
 max = 0
 c_end = 2.7634
@@ -103,14 +103,14 @@ c_end = 0.9211
 
 [[parameters]]
 name = "B3SingTripleBase"
-initial = 20
+initial = 23
 min = -20
 max = 60
 c_end = 2.3028
 
 [[parameters]]
 name = "B3SingTriplePv"
-initial = 77
+initial = 82
 min = 0
 max = 160
 c_end = 4.6057
@@ -124,14 +124,14 @@ c_end = 3.2240
 
 [[parameters]]
 name = "B3SingTripleTtPv"
-initial = 22
+initial = 19
 min = 0
 max = 60
 c_end = 1.8423
 
 [[parameters]]
 name = "B3SingTripleDeep"
-initial = -12
+initial = -11
 min = -30
 max = 0
 c_end = 0.9211
@@ -145,63 +145,63 @@ c_end = 0.9211
 
 [[parameters]]
 name = "CoreQuietFutBase"
-initial = 167
+initial = 171
 min = 80
 max = 300
 c_end = 6.4480
 
 [[parameters]]
 name = "CoreCaptFutBase"
-initial = 74
+initial = 68
 min = 40
 max = 270
 c_end = 6.4480
 
 [[parameters]]
 name = "CoreCaptSeeCoeff"
-initial = 68
+initial = 65
 min = 30
 max = 200
 c_end = 5.0663
 
 [[parameters]]
 name = "CoreContHistPruneSlope"
-initial = 3832
+initial = 3594
 min = 1500
 max = 8000
 c_end = 186.9911
 
 [[parameters]]
 name = "CoreRfpCorrMult"
-initial = 498
+initial = 504
 min = 0
 max = 2048
 c_end = 58.9529
 
 [[parameters]]
 name = "CoreCorrUpdateScale"
-initial = 17
+initial = 20
 min = 4
 max = 64
 c_end = 1.8423
 
 [[parameters]]
 name = "CoreRfpPerPly"
-initial = 99
+initial = 101
 min = 40
 max = 227
 c_end = 5.5268
 
 [[parameters]]
 name = "CoreRfpImproving"
-initial = 98
+initial = 93
 min = 35
 max = 160
 c_end = 3.6846
 
 [[parameters]]
 name = "CoreRfpDepthCap"
-initial = 10
+initial = 9
 min = 6
 max = 19
 c_end = 0.9211

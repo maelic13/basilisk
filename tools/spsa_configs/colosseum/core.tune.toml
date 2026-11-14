@@ -4,7 +4,7 @@
 
 [[parameters]]
 name = "CoreRazorMargin"
-initial = 269
+initial = 258
 min = 128
 max = 527
 c_end = 11.5142
@@ -18,42 +18,42 @@ c_end = 5.5268
 
 [[parameters]]
 name = "CoreRfpImproving"
-initial = 98
+initial = 93
 min = 35
 max = 160
 c_end = 3.6846
 
 [[parameters]]
 name = "CoreRfpWorsening"
-initial = 13
+initial = 12
 min = 0
 max = 60
 c_end = 1.8423
 
 [[parameters]]
 name = "CoreRfpCorrMult"
-initial = 538
+initial = 504
 min = 0
 max = 2048
 c_end = 58.9529
 
 [[parameters]]
 name = "CoreRfpDepthCap"
-initial = 10
+initial = 9
 min = 6
 max = 19
 c_end = 0.9211
 
 [[parameters]]
 name = "CoreRfpBetaWeight"
-initial = 660
+initial = 646
 min = 512
 max = 1024
 c_end = 14.7382
 
 [[parameters]]
 name = "CoreLmpBase"
-initial = 3
+initial = 4
 min = 0
 max = 8
 c_end = 0.9211
@@ -67,21 +67,21 @@ c_end = 0.9211
 
 [[parameters]]
 name = "CoreQuietFutBase"
-initial = 166
+initial = 171
 min = 80
 max = 300
 c_end = 6.4480
 
 [[parameters]]
 name = "CoreQuietFutSlope"
-initial = 107
+initial = 110
 min = 34
 max = 190
 c_end = 4.6057
 
 [[parameters]]
 name = "CoreQuietFutAlphaTerm"
-initial = 29
+initial = 32
 min = 0
 max = 90
 c_end = 2.7634
@@ -95,14 +95,14 @@ c_end = 0.9211
 
 [[parameters]]
 name = "CoreCaptFutBase"
-initial = 79
+initial = 68
 min = 40
 max = 270
 c_end = 6.4480
 
 [[parameters]]
 name = "CoreCaptFutSlope"
-initial = 105
+initial = 92
 min = 60
 max = 390
 c_end = 9.6720
@@ -123,126 +123,126 @@ c_end = 0.9211
 
 [[parameters]]
 name = "CoreContHistPruneSlope"
-initial = 3825
+initial = 3594
 min = 1500
 max = 8000
 c_end = 186.9911
 
 [[parameters]]
 name = "CoreCaptSeeCoeff"
-initial = 68
+initial = 65
 min = 30
 max = 200
 c_end = 5.0663
 
 [[parameters]]
 name = "CoreCaptSeeHistDiv"
-initial = 76
+initial = 75
 min = 20
 max = 200
 c_end = 5.0663
 
 [[parameters]]
 name = "CoreLmrTableScale"
-initial = 2862
+initial = 3119
 min = 1500
 max = 4500
 c_end = 86.5870
 
 [[parameters]]
 name = "CoreLmrOffset"
-initial = 1000
+initial = 947
 min = 0
 max = 2000
 c_end = 57.5712
 
 [[parameters]]
 name = "CoreLmrNotImproving"
-initial = 201
+initial = 224
 min = 0
 max = 500
 c_end = 14.2776
 
 [[parameters]]
 name = "CoreLmrTtPv"
-initial = 879
+initial = 978
 min = 0
 max = 2000
 c_end = 57.5712
 
 [[parameters]]
 name = "CoreLmrTtPvBase"
-initial = 3105
+initial = 3025
 min = 0
 max = 6000
 c_end = 172.7135
 
 [[parameters]]
 name = "CoreLmrTtPvPvNode"
-initial = 915
-min = 0
-max = 2500
-c_end = 71.8488
-
-[[parameters]]
-name = "CoreLmrTtPvAboveAlpha"
-initial = 775
-min = 0
-max = 2000
-c_end = 57.5712
-
-[[parameters]]
-name = "CoreLmrTtPvDepthOk"
-initial = 841
-min = 0
-max = 2000
-c_end = 57.5712
-
-[[parameters]]
-name = "CoreLmrCutNode"
-initial = 3997
-min = 1500
-max = 7000
-c_end = 158.4358
-
-[[parameters]]
-name = "CoreLmrCutNodeNoTt"
-initial = 864
-min = 0
-max = 2500
-c_end = 71.8488
-
-[[parameters]]
-name = "CoreLmrTtCapture"
 initial = 964
 min = 0
 max = 2500
 c_end = 71.8488
 
 [[parameters]]
+name = "CoreLmrTtPvAboveAlpha"
+initial = 763
+min = 0
+max = 2000
+c_end = 57.5712
+
+[[parameters]]
+name = "CoreLmrTtPvDepthOk"
+initial = 838
+min = 0
+max = 2000
+c_end = 57.5712
+
+[[parameters]]
+name = "CoreLmrCutNode"
+initial = 3782
+min = 1500
+max = 7000
+c_end = 158.4358
+
+[[parameters]]
+name = "CoreLmrCutNodeNoTt"
+initial = 762
+min = 0
+max = 2500
+c_end = 71.8488
+
+[[parameters]]
+name = "CoreLmrTtCapture"
+initial = 969
+min = 0
+max = 2500
+c_end = 71.8488
+
+[[parameters]]
 name = "CoreLmrCutoffCnt"
-initial = 241
+initial = 253
 min = 0
 max = 1000
 c_end = 29.0159
 
 [[parameters]]
 name = "CoreLmrCutoffCnt2"
-initial = 996
+initial = 1006
 min = 0
 max = 2500
 c_end = 71.8488
 
 [[parameters]]
 name = "CoreLmrCutoffCntAll"
-initial = 910
+initial = 874
 min = 0
 max = 2500
 c_end = 71.8488
 
 [[parameters]]
 name = "CoreLmrStatScale"
-initial = 526
+initial = 573
 min = 100
 max = 1200
 c_end = 31.7793
@@ -256,77 +256,77 @@ c_end = 0.9211
 
 [[parameters]]
 name = "CoreLmrAllNodeScale"
-initial = 247
+initial = 242
 min = 0
 max = 800
 c_end = 23.0285
 
 [[parameters]]
 name = "CoreResearchDeeper"
-initial = 13
+initial = 14
 min = 4
 max = 40
 c_end = 0.9211
 
 [[parameters]]
 name = "CoreQuietBonusCap"
-initial = 1394
+initial = 1459
 min = 600
 max = 3000
 c_end = 69.0854
 
 [[parameters]]
 name = "CoreQuietBonusSlope"
-initial = 151
+initial = 144
 min = 60
 max = 300
 c_end = 6.9085
 
 [[parameters]]
 name = "CoreMalusCap"
-initial = 2253
+initial = 2410
 min = 900
 max = 4500
 c_end = 103.6281
 
 [[parameters]]
 name = "CoreMalusSlope"
-initial = 829
+initial = 931
 min = 400
 max = 2000
 c_end = 46.0569
 
 [[parameters]]
 name = "CoreMalusDecay"
-initial = 916
+initial = 937
 min = 700
 max = 1024
 c_end = 9.2114
 
 [[parameters]]
 name = "CoreMainHistDecay"
-initial = 749
+initial = 776
 min = 400
 max = 1024
 c_end = 17.9622
 
 [[parameters]]
 name = "CoreTtCutoffBonusSlope"
-initial = 151
+initial = 139
 min = 0
 max = 300
 c_end = 8.7508
 
 [[parameters]]
 name = "CoreCorrUpdateScale"
-initial = 16
+initial = 20
 min = 4
 max = 64
 c_end = 1.8423
 
 [[parameters]]
 name = "CoreCorrContWeight"
-initial = 9649
+initial = 10045
 min = 2000
 max = 16000
 c_end = 402.9981
