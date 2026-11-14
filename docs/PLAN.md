@@ -3654,7 +3654,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         cap rule, confirmed by the maintainer) and the fingerprint record
         moves to **4,247,965**. CLOSED 2026-11-14.
       - For B.8.2 (F4): `Board::see` has no caller left in `src/`.
-    - [ ] **B.7.2** `[R2]` Board review against Stockfish and Triumviratus
+    - [x] **B.7.2** `[R2]` Board review against Stockfish and Triumviratus
       A packet that reads each component against the donor's form and
       Triumviratus's, measures Basilisk's (its share in A.9.5's profile at
       `bench 13`, a microbenchmark per component), and decides keep,
@@ -3704,6 +3704,40 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         the SEE kernel, representation).
       - Chess960 representable without a second rewrite (TB-9); the
         feature itself is G.2's.
+      Done 2026-11-14 (`analysis/b72_board_review_2026-11-14.md`, its §6 the
+      frozen handoff):
+      - Instruments: `board_micro_bench` (`tests/board_micro.cpp`), each
+        primitive alone on 512 positions of BAS-S63's games, with a
+        python-chess oracle line and a checksum per column. Rarog's and
+        Reckless's boards are timed under one contract
+        (`tools/board_compare/`, adapters as patches on pinned commits).
+        `tools/diag/board_micro_run.py` alternates the binaries on one CPU.
+      - Microbenchmark, five alternating rounds:
+        - Basilisk leads legal generation by 7–29% and perft by 25–61%.
+        - Rarog's make/unmake is 15% faster (its make is hinted).
+        - Rarog's SEE disagrees with the legal exchange tree on 36 of 927
+          game moves; Basilisk's and Reckless's agree.
+        - Quiet-check generation costs four times the staged pair.
+      - Profile at `bench 13`: board 24.0% of samples. By entry point: SEE
+        6.13% (pins 1.71), `make_move` 3.48%, `gives_check` 3.33%,
+        `unmake_move` 2.68%, generation 6.4%.
+      - Disassembly: every slider lookup is inlined, and no hot function
+        probes its stack (TB-11 closed).
+      - Handoff, seven behaviour-neutral components, one commit each:
+        - C1: unmake without the key work it discards;
+        - C2: a discovered-check pre-test in `gives_check`;
+        - C3: a pin pre-test in SEE;
+        - C4: quiet checks generated from the quiets;
+        - C5: the repetition scan from distance 4;
+        - C6: the hinted make, BAS-P04's untested half; its trigger is met
+          by reuse;
+        - C7: castling squares from tables (TB-9).
+      - Kept: lazy check information, legal generation, the exact SEE
+        pins, flat PEXT tables, repetition on demand, the representation.
+      - Deferred: to B.8.5, G.2 and F.1 (the dirty-piece record, its
+        contract fixed here).
+      - Maintainer's decision: whether C7, which buys representability,
+        is held to cost-neutral rather than +0.5%.
     - [ ] **B.7.3** `[I2]` Rebuild behind the board contract
       B.7.2's accepted components, one commit each, each passing B.7.1's
       corpus and B.6.3's search-path perft and keeping the exact `bench 13`
@@ -4455,8 +4489,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.7.2 | RESEARCH | R2 | Instruments built; reads wait for an idle host |
-| B.7.3 | RESEARCH | I2 | Was B.15.3; on B.7.2's frozen handoff |
+| B.7.3 | READY_FOR_IMPLEMENTATION | I2 | B.7.2's handoff, C1–C7 |
 | B.7.4 | RESEARCH | V | Was B.15.4; after B.7.3, before B.8 |
 | B.8.2 | RESEARCH | I1 | After the clusters and the board |
 | B.8.3 | READY_FOR_IMPLEMENTATION | I1 | Was B.7.1; before the speed pass, no engine change |

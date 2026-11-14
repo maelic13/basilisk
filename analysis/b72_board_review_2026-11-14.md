@@ -1,11 +1,14 @@
 # B.7.2 — board review against Stockfish 19 and Triumviratus (2026-11-14)
 
-**Status: draft.** The instruments are built and the components are read
-against both donors. The decisions below are proposals, each with what
-would confirm or refute it. They wait for the idle-host reads
-(`python tools/run_b72_reads.py`): the microbenchmark beside Rarog's and
-Reckless's boards, and the head's profile at `bench 13`. The frozen handoff
-to B.7.3 is written after those reads, not before.
+**Status: done; handoff frozen (§6).**
+
+- **What it rests on:** each component was read against both donors. The
+  idle-host reads of 2026-11-14 (`python tools/run_b72_reads.py`) decided
+  each proposal by the condition stated before them: the microbenchmark
+  beside Rarog's and Reckless's boards (§1.1), and the head's profile at
+  `bench 13` (§1.2).
+- **What B.7.3 gets:** seven components to rebuild, each behaviour-neutral
+  (§6). B.7.4 then prices them on pooled-PGO NPS.
 
 Inputs: Stockfish 19 at `edb0d9db` (`position.cpp`, `position.h`,
 `movegen.cpp`, `attacks.h`), the Triumviratus snapshot
@@ -75,6 +78,88 @@ head's code):
   evaluation function calls `___chkstk_ms`, which settles TB-11 (B.8.5's
   item).
 
+### 1.1 The microbenchmark, three engines
+
+`tools/results/b72-micro/` (manifest and 15 raw outputs), 2026-11-14:
+
+- **Conditions:** five alternating rounds, 15 samples of 200 ms per
+  column, one logical CPU.
+- **Host load:** 3.8% busy before, 0.3% after; no competing process.
+- **Arms:**
+  - Basilisk `board_micro_bench` at `e2e762a` (the board's source as at
+    `9ed7043`);
+  - Rarog `611307e`, `bin/rarog-board-v2.exe` SHA-256 `F8F115D9…`;
+  - Reckless `8d7d1dd`, `53B1FEEA…`.
+
+The table gives the median ns per operation over the five runs, with the
+range between runs.
+
+| Column | Basilisk | Rarog | Reckless | Rarog / Basilisk | Reckless / Basilisk |
+|---|---:|---:|---:|---:|---:|
+| `legal_gen` | 48.09 (2.8%) | 61.85 (0.8%) | 51.35 (0.5%) | 1.286 | 1.068 |
+| `capture_gen` † | 17.68 (7.1%) | 19.81 (4.2%) | 16.31 (1.8%) | 1.121 | 0.923 |
+| `make_unmake` | 17.34 (0.6%) | **14.66** (1.0%) | 40.37 (2.0%) | **0.846** | 2.327 |
+| `see_captures` ‡ | 15.50 (1.9%) | 13.60 (2.9%) | 18.31 (3.0%) | 0.878 | 1.181 |
+| `gives_check` § | 6.53 (0.6%) | 7.55 (0.4%) | — | 1.155 | — |
+| `board_perft` | 3.34 (2.8%) | 4.18 (4.4%) | 5.39 (1.4%) | 1.252 | 1.613 |
+
+† Rarog and Reckless generate 885 of the 927 tactical moves, so the
+column is not comparable.
+
+‡ Rarog's SEE disagrees with the exchange tree (§1).
+
+§ Rarog's full form, not its search's fast form.
+
+Basilisk-only columns:
+
+| Column | Median ns/op | Range between runs |
+|---|---:|---:|
+| `staged_gen` | 56.91 | 2.9% |
+| `quiet_check_gen` | **229.49** | 1.7% |
+| `see_quiets` | 18.35 | 0.5% |
+| `check_info` | 5.91 | 3.1% |
+| `table_move_test` | 5.20 | 3.2% |
+| `search_perft` | 21.24 | 0.6% |
+
+Read against the ranges:
+
+- **Basilisk leads where it has a lead:** legal generation by 7% to 29%,
+  and perft by 25% to 61%.
+- **Rarog's make/unmake is 15.4% faster**, against ranges of 1%. That is
+  the one resolved gap against Basilisk, and §1.2 explains it.
+- **Rarog's SEE column is not a lead:** it computes a different answer on
+  36 of the moves.
+- **Quiet-check generation costs four times a full legal generation**
+  (229 against 57 ns for the staged pair).
+
+### 1.2 The profile, by board entry point
+
+`tools/results/b72-profile/`:
+
+- **Conditions:** the Profile build at `9ed7043`, `bench 13` × 5;
+  9,185 samples, 67.4% with an inline chain, nothing unresolved.
+- **Region shares:** board 24.0% [23.2%, 24.9%] (27.9% inline-inclusive),
+  attacks 5.8%, ordering 23.2%, evaluation 20.4%, search 15.3%, TT 5.6%.
+- **The map:** `search_b5.h` was added to `tools/diag/profile_regions.json`.
+  The region tool had refused the profile for it, and it was re-attributed
+  from the kept samples.
+
+Each board sample was then charged to the outermost board frame of its
+inline chain: the entry point the search called. Shares are of all
+samples.
+
+| Entry point | Share | Inside it |
+|---|---:|---|
+| `see_ge` | **6.13%** | own 2.22; `attackers_to` 1.21; `see_pins` 1.12; `see_departure_opens_line` 0.59; slider lookups 0.58 |
+| generation, out of line (`gen_legal_impl`) | 3.28% | own 1.12; `is_attacked_by` (king targets, castling) 0.85; push 0.33; lookups 0.33 |
+| `gen_legal_captures` | 3.12% | generator 1.51; lookups 0.61 |
+| `make_move` | 3.48% | `move_piece` 1.20; own 1.19; `attackers_to` (the checkers) 0.39; `remove_piece` 0.35; lookups 0.25 |
+| `gives_check` | **3.33%** | own 2.23; slider lookups 1.03 |
+| `unmake_move` | 2.68% | own 1.07; `move_piece` 0.90; `put_piece` 0.35 |
+| `is_legal` | 0.54% | |
+| `is_draw` and `upcoming_repetition` | 0.81% | |
+| `check_squares` | 0.38% | |
+
 ## 2. Scope
 
 PLAN moved the board-speed items that are not the board's to B.8.5 on
@@ -115,6 +200,16 @@ means the bench fingerprint and the microbenchmark checksums are unchanged.
   - The profile's share of `make_move`'s `attackers_to` decides whether it
     is a candidate. Below 0.5% of samples, it is refused.
   - It would be neutral: checkers would be identical.
+- **Verdict: accepted as component C6, measured alone.** Make's checkers
+  computation is 0.39% of samples, and 0.39–0.64% with its lookups.
+  - Its result duplicates `gives_check`, which the search computes before
+    the make for most moves (3.33% of samples).
+  - That is the changed reuse BAS-P04's trigger asks for: the hint adds no
+    computation, where P04's eager `CheckInfo` did.
+  - Where the search has not computed `gives_check`, make computes the
+    checkers as now.
+  - It also accounts for most of Rarog's 15% `make_unmake` lead (Rarog's
+    make is hinted).
 
 ### 3.2 Make and unmake (TB-5, TB-10)
 
@@ -144,6 +239,9 @@ means the bench fingerprint and the microbenchmark checksums are unchanged.
   - Expected: `make_unmake` faster on the microbenchmark (unmake is about
     half of the column), and 0.3–0.6% of search.
   - The falsifier is `make_unmake` not moving by more than its run spread.
+- **Verdict: accepted as component C1.** The helpers inside unmake are
+  1.25% of samples (`move_piece` 0.90, `put_piece` 0.35), and about half of
+  their work is the discarded key updates.
 - **Dirty-piece record (TB-10): fix the contract here, build it in F.1 with
   its consumer.**
   - The record holds the moved piece, from, to, the captured piece and its
@@ -171,6 +269,7 @@ means the bench fingerprint and the microbenchmark checksums are unchanged.
 - **Proposal: keep.** It is called less than once per node, and the
   microbenchmark prices it. Revisit only if `table_move_test` is above 2% of
   a node in the profile.
+- **Verdict: kept.** `is_legal` is 0.54%.
 
 ### 3.4 `gives_check`
 
@@ -189,6 +288,9 @@ means the bench fingerprint and the microbenchmark checksums are unchanged.
   - It is neutral; B.7.1's differential (9,498 checks against play) guards
     it.
   - Expected: most calls skip both lookups, at 1.43 calls per node.
+- **Verdict: accepted as component C2.** `gives_check` is 3.33%, and its
+  slider lookups 1.03%. Basilisk's form is already 13% faster than Rarog's
+  full form; the pre-test removes most of the lookups.
 
 ### 3.5 SEE (TB-6)
 
@@ -212,6 +314,13 @@ means the bench fingerprint and the microbenchmark checksums are unchanged.
     a candidate only if `see_ge` is above 3% in the profile.
   - The quiet-SEE skip: priors conflict (Rarog's member read −0.58% inside
     its bundle), so it is deferred.
+- **Verdict: the pin pre-test is accepted as component C3.** `see_pins` and
+  its line test are 1.71% of samples, inside SEE's 6.13%.
+  - The pre-test: an enemy slider on an empty-board line of a king. It
+    needs the empty-board bishop and rook tables (TB-7), 1 KB.
+  - Next attacker by index: SEE is above its 3% condition, but the prior is
+    0.14–0.38%, under B.7.4's +0.5% floor alone. It is deferred to B.8.5's
+    pass, where small gains are read together.
 
 ### 3.6 Attack tables (TB-7)
 
@@ -227,6 +336,10 @@ means the bench fingerprint and the microbenchmark checksums are unchanged.
   measured compression −0.98%). For the AVX2 tier only, the dual hyperbola
   quintessence is a candidate, read on an AVX2-tier build of the
   microbenchmark. Low priority: the release's fast hosts take the PEXT tier.
+- **Verdict: kept;** the AVX2-tier read is deferred. Every lookup is
+  inlined, and the attacks region is 5.8%. A rewrite for a tier the
+  maintainer's hosts do not run is not worth a B.7.3 component now. It is
+  recorded for G.2's platform work.
 
 ### 3.7 Generation (TB-8, archived 7.2–7.8)
 
@@ -248,6 +361,11 @@ means the bench fingerprint and the microbenchmark checksums are unchanged.
   - **Stage as a template parameter:** a candidate measured alone, never
     bundled. Rarog's colour-templated, force-inlined bundle measured −0.55%.
   - **Pin sharing between the stages: refused.** It is BAS-P04's −0.16%.
+- **Verdict: quiet checks accepted as component C4.** They cost 229 ns per
+  position against 57 for the whole staged pair. The out-of-line
+  generator's callers are not resolved in the profile, so its weight is
+  inside generation's 3.28%. The stage template stays a candidate outside
+  B.7.3.
 
 ### 3.8 Chess960 (TB-9)
 
@@ -262,12 +380,16 @@ means the bench fingerprint and the microbenchmark checksums are unchanged.
 - **Proposal:** B.7.3 replaces the hard-coded squares by tables filled at
   `set_fen`, still for standard chess alone. It is neutral, and the feature
   (X-FEN, king takes rook) is G.2's.
+- **Verdict: accepted as component C7, held to cost-neutral rather than
+  +0.5%.** It buys representability, not speed (§6).
 
 ### 3.9 Repetition
 
 - **Proposal: keep the scan on demand.** Its one measured share is 0.30%.
 - **Cleanup:** `is_repetition` and `is_draw` start their scan at distance 2,
   which can never match. The loop starts at distance 4, which is neutral.
+- **Verdict: accepted as component C5,** as its own commit. It is too small
+  to price (0.81% for both draw tests).
 
 ### 3.10 Representation
 
@@ -296,14 +418,52 @@ means the bench fingerprint and the microbenchmark checksums are unchanged.
   lists F1 as "for the maintainer". It was repaired and gated (BAS-S63)
   after the inventory was written.
 
-## 6. To complete after the reads
+## 6. Handoff to B.7.3 (frozen 2026-11-14)
 
-1. Record the microbenchmark per column and the three-engine table, with
-   the round spread.
-2. Record the profile's board shares: `make_move`, `unmake_move`,
-   `attackers_to`, `gives_check`, `see_ge`, `see_pins`, generation,
-   `gen_quiet_checks`, `is_legal`.
-3. Confirm or refuse each proposal by its stated condition.
-4. Freeze the B.7.3 handoff: one commit per accepted component, the
-   microbenchmark checksums and fingerprint unchanged, a TM-10 old-beside-new
-   check per replaced component.
+**Rules for every component:**
+
+- **One commit each**, in this order.
+- **Neutral:** `bench 13` stays 4,247,965, and every checksum of
+  `board_micro_bench` stays as the reads recorded it:
+  `tools/results/b72-micro/manifest.json`, `work`.
+- **Tests pass:** B.7.1's corpus (`test_board_v2`) and B.6.3's search-path
+  perft (`test_search_path`).
+- **An old-beside-new check (TM-10):** each replaced form keeps, behind a
+  build switch, a run of the old form beside the new at every call that
+  aborts on the first difference. It is run once under `test_search_path`
+  and `bench 13`.
+- **Nothing rides along:** no search, evaluation or parameter change.
+- **Each component's microbenchmark column** is read before and after, with
+  `board_micro_run.py` alternating the two builds. A column that does not
+  move by more than its range between runs is reported as unmoved.
+  B.7.4's pooled read decides.
+
+| # | Component | Change | Columns it should move | Prior |
+|---|---|---|---|---|
+| C1 | Unmake without key work | `put_piece`, `remove_piece` and `move_piece` gain a board-only form; unmake uses it and restores every key from `UndoInfo` | `make_unmake`, `board_perft`, `search_perft` | Triumviratus −0.61% cycles/node; 1.25% of samples in the helpers |
+| C2 | `gives_check` discovered pre-test | the two slider lookups only when the origin is on a line from the enemy king that holds one of our sliders of that line's kind | `gives_check` | 1.03% of samples in its lookups |
+| C3 | SEE pin pre-test | `see_pins` skipped for a colour with no enemy slider on its king's empty-board lines (new 1 KB tables) | `see_captures`, `see_quiets` | 1.71% of samples in pin work |
+| C4 | Quiet checks from the quiets | `gen_quiet_checks` generates with `gen_legal_quiets`; same order | `quiet_check_gen` | 4× the staged pair |
+| C5 | Repetition scan from distance 4 | `is_repetition` and `is_draw` | none | cleanup |
+| C6 | Hinted make | `make_move` takes the parent's `gives_check` when the search computed it: checkers are 0 when false, `attackers_to` when true, unchanged when unknown | `make_unmake` (hinted column added) | 0.39–0.64% of samples; Rarog's 15% |
+| C7 | Castling squares from tables | rook origins and destinations, paths and rights masks filled at `set_fen`; standard chess only | none | representability (TB-9) |
+
+**B.7.4's floor:**
+
+- C1–C4 and C6 are each held to PLAN's +0.5% pooled-PGO floor. C2, C3 and
+  C4 may not clear it alone. Their pooled read is still per component, and
+  one that falls short returns to Basilisk's form.
+- C5 and C7 are held to cost-neutral: no loss beyond the read's
+  resolution.
+- **Maintainer's decision: C7's floor.** PLAN asks +0.5% of every
+  component, and C7 buys representability, not speed.
+
+**Not handed over:**
+
+- **To B.8.5:** next attacker by index, the stage template parameter, the
+  quiet-SEE skip.
+- **To G.2:** the AVX2 tier's dual hyperbola quintessence.
+- **To F.1:** the dirty-piece record, with its consumer (§3.2 fixes its
+  contract).
+- **Refused:** eager check information, and pin sharing between stages
+  (BAS-P04).
