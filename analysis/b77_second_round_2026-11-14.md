@@ -87,8 +87,90 @@ recorded in §4 against its row.
 
 ## 4. Reads
 
-Waiting for the idle host.
+Idle host, CPU 2, 2026-11-14. Every arm passed `--verify` on the trace
+before timing.
 
-## 5. Handoff
+**Replay** (`tools/results/b77/replay`, B.7.6's `bench 13` trace, three
+rounds of five passes, no stub: an A/B on one trace needs none). Timed
+difference to p0, ns per node; the class each arm changes in bold:
 
-Waiting for the reads.
+| List | null | p1 | p2 | p12 | p3 | p4 | p5 | p6 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `none` (make, unmake, null moves) | +0.19 | **+4.69** | **+1.39** | **+25.50** | **+0.46** | +0.27 | **+0.11** | −0.05 |
+| `gen` | +0.05 | +4.20 | +1.62 | +26.22 | −0.18 | −0.06 | −0.14 | **−0.37** |
+| `see` | −0.07 | +3.87 | +1.03 | +25.75 | −0.21 | **+1.60** | −0.40 | **+3.16** |
+| `gives_check` | −0.18 | +3.27 | +1.03 | +24.76 | −0.57 | −0.23 | −0.06 | −0.71 |
+| `check_squares` | −0.64 | +3.86 | +0.28 | +25.53 | −2.07 | −0.58 | −1.88 | +0.40 |
+| `all` | +0.49 | +3.34 | −2.57 | +21.41 | −1.86 | +0.79 | −1.57 | +6.89 |
+
+The null copy spans −0.64 to +0.49, so twice the null spread is about
+1.3 ns. Make and unmake run in every list, so p1, p2 and p12's costs
+appear in each row. p5's row is the unhinted make only (§2).
+
+**Engine screen** (`tools/results/b77/screen`, plain release builds,
+`bench 13`, 16 rounds, the order reversed on odd rounds):
+
+| Arm | NPS against p0, median (range) | Rounds faster | Prediction (80%) | Verdict |
+|---|---|---:|---|---|
+| null | −0.30% (−0.86 to +0.76) | 3/16 | | the screen's resolution |
+| p1 undo as one block | **−2.52%** (−3.37 to −1.54) | 0/16 | +0.3% [−0.3, +1.0] | refused |
+| p2 byte mailbox | **−0.57%** (−1.56 to +0.05) | 1/16 | 0.0% [−0.3, +0.3] | refused |
+| p12 both | **−7.27%** (−8.43 to −6.40) | 0/16 | +0.4% [−0.3, +1.1] | refused |
+| p3 keys by table | +0.22% (−0.43 to +1.20) | 10/16 | +0.1% [−0.3, +0.5] | reported, not kept |
+| p4 next attacker by index | **−0.76%** (−1.56 to +0.27) | 1/16 | +0.2% [−0.3, +0.6] | refused |
+| p5 hinted make | **−0.49%** (−1.71 to −0.05) | 0/16 | 0.0% [−0.5, +0.4] | refused |
+| p6 enemy attack map | **−1.32%** (−1.87 to −0.43) | 0/16 | −0.3% [−0.9, +0.2] | refused |
+
+The rule (PLAN B.7.7): kept at +0.3% or more with at least 13 of 16
+rounds faster. None is. p3 lies inside the null's resolution and removes
+no code, so it is reported, not kept. Nothing was kept, so there is no
+read against a kept set and no second pass.
+
+**Calibration** against §3: p3 and p5 landed inside their intervals. The
+rest missed:
+
+- p1, p2, p12 and p4 missed in sign.
+- p6 missed in magnitude.
+
+The shared error: each was priced by the branches it removes, and each
+costs more in what it adds.
+
+- **The undo image** writes 136 bytes more per make, and its record is
+  three times the size. Make and unmake cost 4.7 ns more per node on the
+  replay. C1 already restores the keys from the record, and its remaining
+  incremental unmake is cheaper than copying the image back.
+- **The byte mailbox** costs on its own (−0.57%; byte loads widened on
+  every read), and copying it in the image is the worst arm (−7.27%).
+- **The index form** builds the whole kinds mask and the pin filter of the
+  side's set at every step, where the early-exit loop usually stops at
+  the pawns.
+- **The hint** reaches 43% of makes and saves 0.67% of samples there, but
+  adds a second make and a branch in `do_move`.
+- **The attack map** is built at nodes whose consumers would have
+  answered with fewer lookups. It also makes SEE 3.2 ns per node dearer
+  on the replay, though the map was built for SEE's exit.
+
+This is the review's lesson again: on this host the cost is the code
+around the work, and a candidate pays only when it removes a whole path.
+
+## 5. Handoff: NO_CHANGE
+
+B.7.7 keeps nothing, so B.7.8 closes NO_CHANGE and B.7.9 reads B.7.6's
+board as B.7's final one. Retry triggers:
+
+- **p1, p2, p12:** a board whose unmake must restore state that make
+  cannot recompute cheaply (the network's accumulators are F.1's and
+  belong to the search, review §5), or a future make without C1's
+  restore-from-record.
+- **p3:** re-read only with Phase H's small-gain pass (a +0.22% screen is
+  inside the null's resolution).
+- **p4:** none on this SEE; a SEE whose attacker sets are already
+  resolved per kind.
+- **p5:** a search that asks `gives_check` for nearly every move it makes
+  (Rarog's LMR form), so the hint costs no extra call.
+- **p6:** a search that already builds an enemy attack map at every node
+  for another consumer (the network's threat inputs, F.1), so the board's
+  readers would pay nothing for it.
+
+The scratch worktree is removed; the patch (§2) and every binary and read
+stay in `tools/results/b77/`.

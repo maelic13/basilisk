@@ -3961,7 +3961,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         at `0c978c2`): +3.21%, 95% interval [+2.90%, +3.52%], ACCEPT at
         step 1. Above the floor, just above the frozen prediction's 80%
         interval ([+0.8%, +3.2%]).
-    - [ ] **B.7.7** `[R2]` Second round: candidates on the instruments
+    - [x] **B.7.7** `[R2]` Second round: candidates on the instruments
       Added 2026-11-14 (maintainer: the fastest board possible at the end
       of B.7). Bounded research on B.7.6's head. Each candidate below is
       prototyped behind a macro in a scratch worktree, as the review's
@@ -4036,6 +4036,23 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         only for a candidate that a kept one changed.
       A premise found false goes back to the maintainer with its
       evidence (R3), not into a wider prototype.
+      Done 2026-11-14, NO_CHANGE (`analysis/b77_second_round_2026-11-14.md`,
+      BAS-P31):
+      - Profile of B.7.6's head by entry point: `see_ge` 5.51%,
+        `gives_check` 4.12%, capture generation 3.68%, `make_move` 3.37%,
+        `unmake_move` 1.46%. Every candidate's target cleared 0.5%.
+        `gives_check`'s own code (2.60%) has no unmeasured mechanism, so
+        nothing was prototyped for it.
+      - Six candidates and one pairing, each exact, each read against
+        the head built from the same tree. Engine screen, the null at
+        −0.30%: undo as one block −2.52%, byte mailbox −0.57%, both
+        −7.27%, keys by table +0.22% (10 of 16 rounds), next attacker by
+        index −0.76%, hinted make −0.49%, enemy attack map −1.32%.
+      - Nothing reaches +0.3% with 13 of 16 rounds. Keys by table is
+        reported, not kept. B.7.8 closes NO_CHANGE.
+      - Calibration: four arms missed their frozen predictions in sign
+        and one in magnitude. Each candidate costs more in what it adds
+        than in the branches it removes.
     - [ ] **B.7.8** `[I2]` Second rebuild: the candidates that cleared
       B.7.7's handoff under B.7.6's rules, one commit each, each read
       again on both instruments against the commit before it, then the
@@ -4816,8 +4833,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.7.7 | RESEARCH | R2 | Second round on B.7.6's head; the rule is frozen in the leaf |
-| B.7.8 | RESEARCH | I2 | B.7.7's handoff, or NO_CHANGE |
+| B.7.8 | RESEARCH | I2 | B.7.7 kept nothing (BAS-P31): it closes NO_CHANGE |
 | B.7.9 | RESEARCH | V | Was B.7.4 (B.15.4); after B.7.8, before B.8 |
 | B.8.2 | RESEARCH | I1 | After the clusters and the board |
 | B.8.3 | READY_FOR_IMPLEMENTATION | I1 | Was B.7.1; before the speed pass, no engine change |
