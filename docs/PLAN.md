@@ -4162,6 +4162,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - Kept (§5): the measurement flavours, compiled out of release and
         each read by an open leaf; numeric parameters; the ablation build
         until B.11's closing leaf removes it.
+      - Every deletion is ledgered in the inventory's §7 (maintainer
+        2026-11-14: nothing needed later may be lost): what went, its file
+        and line at `55e3010`, and when a later leaf would rebuild it.
+        B-13's floor stays: it counted 0 but is reachable at a depth-1 PV
+        node whose TT move is not searched first.
       - `bench 13` stays 4,247,965 through every deletion. One pooled NPS
         read after them decides the speed, with the B-63 deletions below.
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
