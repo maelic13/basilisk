@@ -68,5 +68,6 @@ WAC maxima on the less-pruning side (55%).
   scale literal could not be baked (`0f30bf1`).
 - **The bake** (`25c570f`): 61 X lines and 93 literals; `bench 13` **4,278,307**,
   equal to theta's replay; release and sanitizer CTest 30/30; the floors pass.
-- **Disposition:** baked, pending B.6's SPRT `[0,3]` against the B.6.6 head,
-  registered on its own.
+- **Disposition:** baked, and accepted by B.6's SPRT `[0,3]` (BAS-S62, 2026-11-14:
+  H1 at 2,620 games, first-crossing +28.2 ± 7.9 Elo). `bench 13` 4,278,307 is the
+  fingerprint.

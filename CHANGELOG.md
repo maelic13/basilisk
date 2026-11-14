@@ -16,6 +16,17 @@ and next step).
 
 ### Changed
 
+- **Tuned the whole search together.** Each part of the search had been
+  tuned on its own as it was rebuilt. This time 170 of its numbers were
+  tuned at once over a night of self-play: 69 settings and 101 constants
+  that had been fixed in the code, most of them Stockfish's own values
+  carried over unchanged. The biggest changes: a move the transposition
+  table suggests is extended more readily when the alternatives fall
+  short, quiet moves that fail are penalised harder in the move-ordering
+  history, and ordinary late moves are searched a little shallower.
+  Measured against the search before it at `3+0.03`, it gained **+28 ± 8
+  Elo** (2,620 games, a sequential test stopped when it was sure, which
+  tends to overstate the gain). `bench 13` is now 4,278,307.
 - **Rebuilt the search at the root.** The engine's first move of each line
   and its aspiration windows now follow modern Stockfish:
   - it keeps a record of every move at the root: its last score, its average

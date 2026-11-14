@@ -63,3 +63,20 @@
   mostly its own noise and selection.
 
 #### RESULT — append after exposure
+
+- **The games** (maintainer-run 2026-11-14, `python tools/run_b67_sprt.py`, 26 min):
+  **H1 accepted** at game 2,620, LLR +2.95. First-crossing estimate **+28.2 ± 7.9 Elo**,
+  +47.9 ± 13.3 nElo; W/D/L 781/1270/569; pentanomial [23, 242, 597, 396, 52]. No
+  fault and no time loss (0 of 13 allowed). The PGN recount agrees. 30 post-terminal
+  games are kept as evidence and excluded from the sample. Run record
+  `tools/results/b67-sprt/`; PGN SHA-256
+  `762ABAE63206AAC0F67E3D93E6453F6D07B9BB88B52BDAE933FE72C2CA7FE9B4`.
+- **Disposition: the bake is accepted.** The fingerprint record moves to 4,278,307,
+  `CHANGELOG.md` gains the entry, and B.6.7 and B.6 close.
+- **Diagnostics (not the verdict).** Mean depth without mate scores: the bake 16.35,
+  the head 16.27. Nodes per move 135,447 against 138,653; 1.93M against 1.96M nodes
+  per second (−1.5%), read from the games' own clocks; no speed read was run.
+- **Calibration.** G1 (H1, 50%) hit. G4 (+7, 80% interval [+1, +14]) missed: the
+  estimate at the stop is +28.2, a first-crossing estimate selected at the boundary,
+  so it is not the effect size. It sits beside the tune's own gain read, +22.9 ±
+  11.6, which the registration shrank by too much after BAS-S60.

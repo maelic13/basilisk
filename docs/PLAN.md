@@ -3044,7 +3044,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           - Left as built for B.6.7's preparation: `--rule7c` writes
             whole tables only, where B.6.7's surface is a chosen
             subset.
-- [ ] **B.6** Engine audit, reconciliation, then joint search SPSA
+- [x] **B.6** Engine audit, reconciliation, then joint search SPSA
   Joint search SPSA over the coordinates the four clusters left live;
   registered surface; PGO bake; SPRT `[0,3]`. It runs (maintainer
   2026-11-05: for the assurance that nothing larger was missed); the
@@ -3416,7 +3416,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           off, for H.6.
         - The census reads no conversion cost from the fixed-depth mate
           delay: ON left 145 games unconverted at +300, the head 199.
-    - [ ] **B.6.7** `[V]` Joint search SPSA
+    - [x] **B.6.7** `[V]` Joint search SPSA
       It was B.6.2 until 2026-11-11.
       The joint SPSA above, on the reconciled head.
       Horizon (maintainer 2026-11-12): one night, 2,000 iterations (about
@@ -3555,6 +3555,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           before the bake (both final PGO, manifests clean), SPRT `[0,3]`
           at `3+0.03`, cap 6,400 pairs for an expected +8 Elo. Dry run
           accepted. The maintainer runs `python tools/run_b67_sprt.py`.
+      - Closed 2026-11-14 (BAS-S62 *RESULT*): H1 accepted at game 2,620,
+        LLR +2.95, first-crossing +28.2 ± 7.9 Elo (+47.9 nElo), no fault,
+        the PGN recount agreeing. The bake stands: the fingerprint record
+        is `bench 13` **4,278,307** and `CHANGELOG.md` has the entry. B.6
+        closes with it. The analysis's findings keep their owners: the
+        singular family and the drifting correction scale and IIR depth
+        to C.10, the forgotten-mate witness to B.9, the literal census
+        to B.11.3.
 - [ ] **B.7** Board review and rebuild
   Added 2026-11-03 (maintainer): Basilisk's board is reviewed against
   Stockfish's (`Position` and `StateInfo`, the modern donor's form) and
@@ -4364,7 +4372,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.6.7 | GAME_GATE | V | Was B.6.2; the SPSA (BAS-S61) stopped quiet at 2,000 and baked 2026-11-14 (`bench 13` 4,278,307); B.6's SPRT (BAS-S62) prepared, maintainer-run |
 | B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
 | B.7.2 | RESEARCH | R2 | Was B.15.2; after B.7.1 |
 | B.7.3 | RESEARCH | I2 | Was B.15.3; on B.7.2's frozen handoff |
