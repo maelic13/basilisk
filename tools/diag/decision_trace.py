@@ -36,14 +36,14 @@ FAMILIES = {
 # null_verify, Cluster 3 the next three, Cluster 4 the last, which only a test's
 # root trace prints.
 EVENTS = {
-    "check_extension", "tt_cutoff", "rfp_prune", "razor_prune",
+    "tt_cutoff", "rfp_prune", "razor_prune",
     "null_cutoff", "probcut_cutoff", "iir_reduction", "futility_prune",
-    "lmp_prune", "history_prune", "quiet_see_prune", "capture_futility_prune",
+    "history_prune", "quiet_see_prune", "capture_futility_prune",
     "capture_see_prune", "singular_extension", "singular_multicut",
     "singular_negative", "lmr_reduction", "lmr_research", "beta_cutoff",
-    "qs_tt_cutoff", "qs_stand_pat_cutoff", "qs_delta_prune",
-    "qs_futility_prune", "qs_see_prune", "qs_late_prune", "qs_beta_cutoff",
-    "skip_quiets", "null_verify", "null_region_refused", "probcut_tt_cutoff",
+    "qs_tt_cutoff", "qs_stand_pat_cutoff",
+    "qs_futility_prune", "qs_see_prune", "qs_beta_cutoff",
+    "skip_quiets", "null_verify", "null_region_refused",
     "ext_budget_truncate", "cuckoo_draw", "tt_penalty",
     "qs_count_prune", "qs_evasion_prune", "qs_stalemate", "root_pv_research",
 }

@@ -16,7 +16,7 @@ SPEC.loader.exec_module(run_suite)
 
 class FixedBudgetRecordTests(unittest.TestCase):
     def test_counter_schema_is_complete_and_units_are_named(self):
-        self.assertEqual(len(run_suite.CORE_COUNTER_UNITS), 57)
+        self.assertEqual(len(run_suite.CORE_COUNTER_UNITS), 43)
         self.assertNotIn(None, run_suite.CORE_COUNTER_UNITS.values())
         counters = {name: 0 for name in run_suite.CORE_COUNTER_UNITS}
         checks = run_suite.validate_diag(counters)
@@ -35,7 +35,7 @@ class FixedBudgetRecordTests(unittest.TestCase):
             run_suite.validate_diag(counters)
 
     def test_cluster_two_counters_are_all_or_none_and_bounded(self):
-        self.assertEqual(len(run_suite.B3_COUNTER_UNITS), 22)
+        self.assertEqual(len(run_suite.B3_COUNTER_UNITS), 21)
         counters = {name: 0 for name in run_suite.CORE_COUNTER_UNITS}
         counters.update({name: 0 for name in run_suite.B2_COUNTER_UNITS})
         counters.update({name: 0 for name in run_suite.B3_COUNTER_UNITS})
@@ -79,7 +79,7 @@ class FixedBudgetRecordTests(unittest.TestCase):
             run_suite.validate_diag(counters)
 
     def test_quiescence_counters_are_all_or_none_and_bounded(self):
-        self.assertEqual(len(run_suite.B4_COUNTER_UNITS), 41)
+        self.assertEqual(len(run_suite.B4_COUNTER_UNITS), 36)
         counters = {name: 0 for name in run_suite.CORE_COUNTER_UNITS}
         counters.update({name: 0 for name in run_suite.B4_COUNTER_UNITS})
         counters.update({"qs_nodes": 10, "qs_moves": 6, "qs_searched": 4,
@@ -115,25 +115,18 @@ class FixedBudgetRecordTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "partial quiescence"):
             run_suite.validate_diag(counters)
 
-    def test_a_quiet_check_is_searched_but_not_delivered(self):
-        # Three captures delivered, two searched and one pruned, and two quiet
-        # checks searched after them: qs_searched holds four, qs_moves three.
+    def test_the_oracles_counters_are_all_or_none_and_checked(self):
         counters = {name: 0 for name in run_suite.CORE_COUNTER_UNITS}
-        counters.update({name: 0 for name in run_suite.B4_COUNTER_UNITS})
-        counters.update({"qs_nodes": 10, "qs_moves": 3, "qs_searched": 4,
-                         "qs_quiet_checks": 2, "qs_count_pruned": 1,
-                         "qs_gain_tested": 2, "qs_recapture_exempt": 1})
+        counters.update({name: 0 for name in run_suite.ORACLE_COUNTER_UNITS})
+        counters.update({"lmr_eligible": 5, "lmr_applied": 2,
+                         "lmr_blocked_depth": 1, "lmr_blocked_in_check": 2})
         self.assertTrue(all(run_suite.validate_diag(counters).values()))
-        counters["qs_searched"] = 5
-        with self.assertRaisesRegex(ValueError, "quiescence move rules"):
+        counters["hist_below_half"] = 1
+        with self.assertRaisesRegex(ValueError, "history thresholds"):
             run_suite.validate_diag(counters)
-        counters["qs_searched"] = 4
-        counters["qs_gain_tested"] = 3
-        with self.assertRaisesRegex(ValueError, "gains tested"):
-            run_suite.validate_diag(counters)
-        counters["qs_gain_tested"] = 2
-        counters["qs_quiet_checks"] = 5
-        with self.assertRaisesRegex(ValueError, "rare exits"):
+        counters["hist_below_half"] = 0
+        del counters["sing_triple"]
+        with self.assertRaisesRegex(ValueError, "partial oracle"):
             run_suite.validate_diag(counters)
 
     def test_counter_parser_rejects_duplicates_and_broken_identity(self):

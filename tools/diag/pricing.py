@@ -57,11 +57,11 @@ SHARED_WORK = {"see_ge_calls", "gives_check_calls", "eval_calls", "pawn_probes",
                "pawn_hits"}
 SHARED_PREFIX = ("xc_",)
 
-RULE_ORDER = ["razor", "rfp", "null_move", "probcut", "probcut_tt", "multicut",
-              "qs_delta", "capture_futility", "capture_see", "cont_hist",
+RULE_ORDER = ["razor", "rfp", "null_move", "probcut", "multicut",
+              "capture_futility", "capture_see", "cont_hist",
               "quiet_futility", "quiet_see", "skip_quiets", "qs_futility", "qs_see",
-              "qs_late", "qs_count", "qs_evasion", "lmr_fail_low"]
-NODE_RULES = {"razor", "rfp", "null_move", "probcut", "probcut_tt", "multicut", "qs_delta"}
+              "qs_count", "qs_evasion", "lmr_fail_low"]
+NODE_RULES = {"razor", "rfp", "null_move", "probcut", "multicut"}
 
 # The rules whose cells carry a move's class in the depth slot: the piece it
 # takes (price_class in src/search_pricing.h) plus 6 for a recapture.

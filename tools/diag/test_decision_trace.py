@@ -77,7 +77,7 @@ class DecisionTraceTests(unittest.TestCase):
             decision_trace.parse_trace(lines)
 
     def test_cluster_two_events_are_known_and_others_rejected(self):
-        for event in ("null_verify", "null_region_refused", "probcut_tt_cutoff",
+        for event in ("null_verify", "null_region_refused",
                       "ext_budget_truncate", "cuckoo_draw", "tt_penalty",
                       "qs_count_prune", "qs_evasion_prune", "qs_stalemate"):
             lines = [line.replace("event=rfp_prune", f"event={event}")
