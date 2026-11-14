@@ -3587,6 +3587,23 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   same day): the board is built for standard chess, C7 and TB-9 are
   withdrawn, and a later decision for Chess960 would rework the board
   then.
+  Speed is read in the whole engine after every leaf that changes the
+  board (maintainer, 2026-11-14): the board is made fast so that the
+  engine is, and a board change that does not show in NPS has not
+  delivered. Each such leaf ends with a pooled-PGO NPS read (PROCESS
+  *NPS*, gain form) of its head against the commit before its first
+  component, floor +0.5%; the agent builds the pools, then asks for the
+  idle host.
+  - A set under its floor has its members read alone (D-16), and a
+    member that does not pay returns to Basilisk's form.
+  - A set or member that reads below zero is a red flag. The leaf
+    returns to research (R3) and the next leaf waits. The research reads
+    the search as well as the board: a board change can move cost into
+    its callers (the picker, the search, the evaluation) through
+    inlining, PGO's layout or a changed call pattern. It profiles both
+    arms by region (A.9.5), the board's callers included, counts the
+    search's board calls on both (the trace's census), and names where
+    the time went before anything is kept or reverted.
     - [x] **B.7.1** `[R2]` Board contract audit and instruments
       Was D.3.1, then B.15.1 (HISTORY's number map): the defect
       hunt, and the safety net B.7.6 rebuilds behind (archived 7.1, 7.7,
@@ -3912,6 +3929,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       than twice the spread of the untouched classes and the engine
       screen is faster in at least 13 of 16 rounds. A component that
       fails returns the leaf to research with its numbers.
+      Then the set's pooled read (B.7's rule), its head against the
+      commit before C1. The review's frozen prediction is +2.0%, 80%
+      interval [+0.8%, +3.2%]; under +0.5% falsifies the engine screen as
+      a predictor, and the leaf returns to research (R3) instead of
+      choosing members by the screen.
       Not built (review §3): C2, C3's pre-test and C6 (no gain
       measured), C7 (withdrawn). `UndoInfo` gains no field for the
       network (F.1).
@@ -3992,8 +4014,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       evidence (R3), not into a wider prototype.
     - [ ] **B.7.8** `[I2]` Second rebuild: the candidates that cleared
       B.7.7's handoff under B.7.6's rules, one commit each, each read
-      again on both instruments against the commit before it. It closes
-      as NO_CHANGE if B.7.7 kept nothing.
+      again on both instruments against the commit before it, then the
+      set's pooled read (B.7's rule) against B.7.6's head. It closes as
+      NO_CHANGE if B.7.7 kept nothing.
     - [ ] **B.7.9** `[V]` Board speed read and gate
       It was B.7.4 until 2026-11-14.
       First, B.16.4's counter read is validated: BAS-P28, registered
@@ -4001,14 +4024,10 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       minutes; its P25 pools rebuilt by `tools/nps_pool.ps1` if gone, the
       new pool hashes recorded). Then it reads beside the pooled read.
       Then, maintainer-run on the idle host:
-      - Pooled-PGO NPS (A.9.4), three arms: the head before B.7.6, after
-        B.7.6, after B.7.8. Each step's set is held to +0.5%. The
-        review's frozen prediction for B.7.6's set is +2.0%, 80%
-        interval [+0.8%, +3.2%]; under +0.5% falsifies the engine screen
-        as a predictor, and the leaf returns to research (R3) instead of
-        choosing members by the screen.
-      - A set that misses its floor has its members read alone (D-16),
-        and a member that does not pay returns to Basilisk's form.
+      - The steps' pooled reads are B.7.6's and B.7.8's (B.7's rule).
+        If B.7.8 changed the board, one two-pool read of the head before
+        B.7.6 against the final head gives B.7's total; if B.7.8 closed
+        NO_CHANGE, B.7.6's read is the total.
       - The profile of the final head by board entry point (A.9.5),
         beside B.7.2's table.
       - The five-engine read on contract v3, and the composite
@@ -4773,7 +4792,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.7.6 | READY_FOR_IMPLEMENTATION | I2 | Was B.7.3; the amended handoff: C1, C3′, C5, C8 |
+| B.7.6 | READY_FOR_IMPLEMENTATION | I2 | Was B.7.3; the amended handoff: C1, C3′, C5, C8; ends with its pooled NPS read |
 | B.7.7 | RESEARCH | R2 | Second round on B.7.6's head; the rule is frozen in the leaf |
 | B.7.8 | RESEARCH | I2 | B.7.7's handoff, or NO_CHANGE |
 | B.7.9 | RESEARCH | V | Was B.7.4 (B.15.4); after B.7.8, before B.8 |
