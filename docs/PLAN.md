@@ -3578,7 +3578,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   own: phase letters are identifiers, and a phase between B and C would
   re-letter C–G. Inputs: `analysis/triumviratus_review_2026-11-03.md` (TB
   items) and the archived board leaves 7.1–7.12 (HISTORY's number map).
-    - [x] **B.7.1** `[R2]` Board contract audit and instruments
+    - [ ] **B.7.1** `[R2]` Board contract audit and instruments
       Was D.3.1, then B.15.1 (HISTORY's number map): the defect
       hunt, and the safety net B.7.3 rebuilds behind (archived 7.1, 7.7,
       7.9–7.12). Port the snapshot's board-v2 corpus and oracle
@@ -3611,9 +3611,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - FEN robustness (TB-3): an en-passant square inconsistent with the
         side to move, castling rights that do not match the board, a side
         not to move in check; one position must never get two keys.
-      Closed 2026-11-14 (`analysis/b71_board_contract_2026-11-14.md`):
-      instruments built, one defect repaired, one policy finding for the
-      maintainer. `bench 13` unchanged at **4,278,307**.
+      Audit done 2026-11-14 (`analysis/b71_board_contract_2026-11-14.md`):
+      instruments built, two defects repaired; the second moves the tree
+      and waits for its gate. `bench 13` **4,278,307** through the first.
       - The corpus: 26 tagged positions checked by python-chess
         (`tools/diag/board_v2_oracle.py`), and 192 SEE cases with the
         legal exchange tree (`tools/diag/see_oracle.py`, every
@@ -3638,9 +3638,18 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         test that fails on the old code. Also repaired: `test_board`'s
         SEE fixture "pinner stays" was an illegal position; its bishop
         moves to f3.
-      - For the maintainer (F1): `is_repetition` scores one return to the
-        root as a draw; the cuckoo test (donor form) and Stockfish do not.
-        A policy repair that moves the tree, through the repair path.
+      - F1, repaired at the maintainer's word (2026-11-14): `is_repetition`
+        scored one return to the root as a draw, where the cuckoo test
+        (donor form) and Stockfish do not. It now needs a second
+        occurrence at or before the root, and a test holds the two
+        predicates to one answer (it fails on the head). `bench 13`
+        **4,247,965**. The proven-mate fixture of `test_b5_root` moves
+        with the tree (proved in 9 from depth 19, in 8 from depth 24, where
+        the head proved it in 8 from depth 17).
+      - Gate: BAS-S63, `[-5,5]` at `3+0.03`, cap 4,000 pairs (12.1% of
+        3,000 game positions choose another move at 50k nodes, by the new
+        `tools/diag/decision_diff.py`), `python tools/run_b71_gate.py`,
+        dry run accepted. `GAME_GATE`; the maintainer runs it.
       - For B.8.2 (F4): `Board::see` has no caller left in `src/`.
     - [ ] **B.7.2** `[R2]` Board review against Stockfish and Triumviratus
       A packet that reads each component against the donor's form and
@@ -3648,7 +3657,28 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       `bench 13`, a microbenchmark per component), and decides keep,
       replace or adapt, each with its reason and expected cost; a
       departures table records every kept Basilisk form. Its frozen handoff
-      is B.7.3's contract. Components:
+      is B.7.3's contract.
+      Added 2026-11-14 (maintainer: the board's speed is the point of B.7):
+      - Its first deliverable is the board microbenchmark, so that every
+        component is read on it before B.7.3 changes it and again after.
+        It times each primitive alone, as Rarog's board-v2 bench did: legal
+        generation, capture generation, staged generation, make and unmake
+        alone, SEE alone. It adds `gives_check`, the check information, the
+        legality test of a TT or killer move, and a perft through the
+        search's generator.
+      - Its inputs are built before timing, every sample is printed, and a
+        checksum keeps the compiler from eliding the work. The timed binary
+        is a pinned release build, read on an idle host (the maintainer
+        says when).
+      - `tests/board_performance.cpp` (cross-engine-board-v1) stays as it
+        is, for its cross-engine comparability.
+      - Donor techniques, with what each source measured, are inventoried in
+        `analysis/b7_board_speed_inputs_2026-11-14.md`: Stockfish 19's
+        board, Triumviratus's TB items and Rarog's measured board work.
+        B.7.2 reads each against Basilisk's component. A technique no
+        source measured is a candidate to measure, not to adopt, and a
+        donor result measured as a loss counts as much as a gain.
+      Components:
       - Check information computed once per node at make: checkers, pins
         and blockers, check squares, as `StateInfo` holds them (Basilisk
         computes `check_squares` and pins per call), shared by the
@@ -3679,8 +3709,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       keeps, behind a build switch, a check that runs the old form beside
       the new at every node and aborts on the first disagreement (TM-10).
     - [ ] **B.7.4** `[V]` Board speed read and gate
-      Pooled-PGO NPS of the rebuilt board against the head (A.9.4) and
-      each component's share in the profiler (A.9.5); a component that
+      Pooled-PGO NPS of the rebuilt board against the head (A.9.4),
+      B.7.2's microbenchmark per component beside it, and each
+      component's share in the profiler (A.9.5); a component that
       does not pay its +0.5% returns to Basilisk's form. A component that
       changes the generation order, and so the tree, takes a `[-5,0]`
       SPRT at `3+0.03`.
@@ -4152,6 +4183,24 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   the 1.11.0 release (B.11 until 2026-11-05, B.11.2 until 2026-11-11).
     - [ ] **B.11.1** `[V]` Search programme checkpoint
       Checkpoint: re-measure every deficit meter.
+      G(0) is read twice (maintainer, 2026-11-14), so that the gain compares
+      both with Basilisk's own baseline and with Rarog's reads:
+      - BAS-O05's protocol unchanged. The oracle package is rebuilt with
+        the head's HCE by `tools/oracle/build_oracle.ps1`; 3,000 paired
+        games at `3+0.03`, 1T, Hash 64, UHO, no adjudication. Its
+        difference from +312.6 is the programme's recovery.
+      - RAR-O08's conditions (Rarog, 2026-11-13). The bridge's share of
+        the oracle's time per node is measured first, by Rarog's
+        bridge-price method, and returned to the oracle as time odds:
+        Rarog's classical oracle paid 8.5%, ×1.093, a 3.279+0.033 clock.
+        Rarog found that RAR-O03 and O04 read their oracle through a FEN
+        round trip at 0.56 of its own speed, Basilisk's at 0.83, so only
+        this read compares with Rarog's O08 and later reads. The method is
+        read from Rarog at the time, with its commit cited.
+      - Optional arms, chosen when the checkpoint is prepared: RAR-O08's
+        Stockfish-dev and Reckless hybrids on Basilisk's HCE.
+      - The sign: Basilisk states G(0) as the oracle over Basilisk, Rarog
+        as its head over the oracle.
       The meters are G(0) against the oracle, fixed-node depth and
       branching, pooled NPS, the conversion instrument and the endgame truth
       cohort, plus a 1T pool gauntlet against the four targets and Rarog (400
@@ -4403,6 +4452,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
+| B.7.1 | GAME_GATE | R2 | F1's repair gate, BAS-S63, maintainer-run |
 | B.7.2 | RESEARCH | R2 | Was B.15.2; after B.7.1 |
 | B.7.3 | RESEARCH | I2 | Was B.15.3; on B.7.2's frozen handoff |
 | B.7.4 | RESEARCH | V | Was B.15.4; after B.7.3, before B.8 |
@@ -5885,7 +5935,7 @@ already repairing or a form it must choose anyway, and says so.
 | Meter | Protocol | Owner |
 |---|---|---|
 | Pool score | Colosseum, fixed pool with Houdini 3, `3+0.03`, UHO, no adjudication, 400 games per pair, 1T and 4T | A.7, B.11.1, C.11, E.2 |
-| Search deficit G(0) | Paired, head against the frozen classical-Stockfish search oracle rebuilt with the head's HCE, 3,000 games, equal time, no adjudication | A.7.3, B.11.1 |
+| Search deficit G(0) | Paired, head against the frozen classical-Stockfish search oracle rebuilt with the head's HCE, 3,000 games, no adjudication; at equal time (BAS-O05) and, from B.11.1, also with the bridge's price returned as time odds (RAR-O08) | A.7.3, B.11.1 |
 | Evaluation deficit | Hybrid at the head against the classical-Stockfish-HCE hybrid, same search | C.11 |
 | Cluster acceptance | Registered final-PGO SPRT, bracket per rule 5, `[0,10]` for B.2 | every cluster |
 | Neutral change | Exact fingerprint, release and sanitizer CTest, pooled-PGO NPS | B.1, B.8, C.1, C.12, F.1 |

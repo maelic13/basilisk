@@ -566,6 +566,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S62](experiments/BAS-S62.md) — B.6's gate: the B.6.7 bake against the head before it, SPRT `[0,3]` — CLOSED 2026-11-14: H1 at 2,620 games, first-crossing +28.2 ± 7.9 Elo; the bake accepted
 
+- [BAS-S63](experiments/BAS-S63.md) — B.7.1's repair gate: a return to the root counts as a repetition only when it recurs, `[-5,5]` — REGISTERED 2026-11-14, dry run accepted; not yet played
+
 | ID | Title | Disposition |
 |---|---|---|
 | [BAS-S17](experiments/BAS-S17.md) | Razoring depth reach in Elo (B.0.1, maintainer). | +2.4 ± 9.9; interval holds 0, the cluster decides the cap |

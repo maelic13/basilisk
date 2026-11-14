@@ -120,6 +120,17 @@ reused as the safety net. No second one was built.
     changes the tree, so it needs a gate.
   - Proposed owner: B.9.4 reads it and B.9.5 repairs and gates it with
     the release's other repairs.
+  - **Repaired 2026-11-14 at the maintainer's word, in B.7.1** (`83648bb`):
+    the donor's strict form, which the cuckoo test already assumed. A
+    `test_board` section holds the two predicates to one answer before,
+    at and after the root; it fails on the head at the root cycle.
+    `bench 13` 4,278,307 → **4,247,965**.
+    - The fixture `test_b5_root` "a proven mate stands" moves with the
+      tree (`d75bc21`): the head proves it in 8 from depth 17, the repair
+      in 9 from depth 19 and in 8 from depth 24.
+    - Exposure by `tools/diag/decision_diff.py`: 12.1% of 3,000 game
+      positions choose another move at 50k nodes (a self pair reads 0).
+    - Gate BAS-S63, `[-5,5]`, cap 4,000 pairs.
 - **F2 (defect, repaired here, behaviour-neutral).** `Board::operator=`
   copied the history with `history = other.history`. A game history
   longer than about 2,048 − `MAX_PLY` plies left a copy with capacity
