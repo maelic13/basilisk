@@ -189,86 +189,29 @@ static void init_test_syzygy() {
 // Tests
 // ---------------------------------------------------------------------------
 
-// Each cluster overrides a few earlier defaults from its own table. Each
-// override must name a field, lie in its line's range and differ from its
-// default; where two tables name a field the later one wins; every other field
-// keeps its line's default; and a tune build advertises the compiled value, not
-// the line's.
-static void test_arm_defaults() {
-    struct ArmDefault {
-        std::string_view field;
-        std::string_view uci;
-        int value;
-        bool joint;  // B.6.7's fit: off the value the clusters left, not the line's
-    };
-    static constexpr ArmDefault arm[] = {
-#define ARM_DEFAULT_ROW(field, uci, value) {#field, #uci, value, false},
-#define ARM_JOINT_ROW(field, uci, value) {#field, #uci, value, true},
-        BASILISK_B3_CORE_DEFAULTS(ARM_DEFAULT_ROW)
-        BASILISK_B4_CORE_DEFAULTS(ARM_DEFAULT_ROW)
-        BASILISK_B5_CORE_DEFAULTS(ARM_DEFAULT_ROW)
-        BASILISK_B67_DEFAULTS(ARM_JOINT_ROW)
-#undef ARM_JOINT_ROW
-#undef ARM_DEFAULT_ROW
-    };
-    const auto find = [](std::string_view field) -> const ArmDefault* {
-        const ArmDefault* found = nullptr;
-        for (const ArmDefault& a : arm)
-            if (a.field == field) found = &a;
-        return found;
-    };
-    const auto names = [](const ArmDefault& a, std::string_view field) {
-        return a.field == field;
-    };
+// Every line's default is the value in force (the clusters' refits and
+// B.6.7's fit are folded into the lines): it lies in its line's range, the
+// compiled parameters hold it, and a tune build advertises it.
+static void test_line_defaults() {
     const SearchParams compiled;
-    int matched = 0;
-
-    begin_section("arm defaults: each override names a field, in range, off its default");
-#define ARM_DEFAULT_RANGE(field, uci, def, lo, hi)                       \
-    {                                                                    \
-        int earlier = def;                                               \
-        for (const ArmDefault& a : arm)                                  \
-            if (names(a, #field)) {                                      \
-                ++matched;                                               \
-                EXPECT(lo <= a.value && a.value <= hi);                  \
-                EXPECT(a.value != (a.joint ? earlier : def));            \
-                if (!a.joint) earlier = a.value;                         \
-            }                                                            \
-    }
-    BASILISK_SEARCH_PARAMS(ARM_DEFAULT_RANGE)
-    BASILISK_KERNEL_SWITCHES(ARM_DEFAULT_RANGE)
-    BASILISK_B3_PARAMS(ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE)
-    BASILISK_B4_PARAMS(ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE)
-    BASILISK_B5_PARAMS(ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE, ARM_DEFAULT_RANGE)
-    EXPECT_EQ(matched, int(std::size(arm)));
-    end_section();
-
-    begin_section("arm defaults: the last override wins; the rest keep their line");
-#define ARM_DEFAULT_VALUE(field, uci, def, lo, hi)                       \
-    if (const ArmDefault* a = find(#field))                             \
-        EXPECT_EQ(compiled.field, a->value);                             \
-    else                                                                 \
-        EXPECT_EQ(compiled.field, def);
-    BASILISK_SEARCH_PARAMS(ARM_DEFAULT_VALUE)
-    BASILISK_KERNEL_SWITCHES(ARM_DEFAULT_VALUE)
-    BASILISK_B3_PARAMS(ARM_DEFAULT_VALUE, ARM_DEFAULT_VALUE, ARM_DEFAULT_VALUE)
-    BASILISK_B4_PARAMS(ARM_DEFAULT_VALUE, ARM_DEFAULT_VALUE, ARM_DEFAULT_VALUE)
-    BASILISK_B5_PARAMS(ARM_DEFAULT_VALUE, ARM_DEFAULT_VALUE, ARM_DEFAULT_VALUE)
-#undef ARM_DEFAULT_VALUE
-#undef ARM_DEFAULT_RANGE
+    begin_section("line defaults: each in its range and compiled as written");
+#define LINE_DEFAULT(field, uci, def, lo, hi)                                EXPECT(lo <= def && def <= hi);                                          EXPECT_EQ(compiled.field, def);
+    BASILISK_SEARCH_PARAMS(LINE_DEFAULT)
+    BASILISK_KERNEL_SWITCHES(LINE_DEFAULT)
+    BASILISK_B3_PARAMS(LINE_DEFAULT, LINE_DEFAULT, LINE_DEFAULT)
+    BASILISK_B4_PARAMS(LINE_DEFAULT, LINE_DEFAULT, LINE_DEFAULT)
+    BASILISK_B5_PARAMS(LINE_DEFAULT, LINE_DEFAULT, LINE_DEFAULT)
+#undef LINE_DEFAULT
     end_section();
 
 #ifdef BASILISK_TUNE
-    begin_section("arm defaults: a tune build advertises the compiled default");
+    begin_section("line defaults: a tune build advertises the compiled default");
     const std::string options = Parameters::uci_options();
-#define ARM_DEFAULT_ADVERTISED(field, uci, def, lo, hi)                  \
-    EXPECT(options.find("option name " #uci " type spin default "        \
-                        + std::to_string(compiled.field) + " min ")      \
-           != std::string::npos);
-    BASILISK_SEARCH_PARAMS(ARM_DEFAULT_ADVERTISED)
-    BASILISK_B5_PARAMS(ARM_DEFAULT_ADVERTISED, ARM_DEFAULT_ADVERTISED,
-                       ARM_DEFAULT_ADVERTISED)
-#undef ARM_DEFAULT_ADVERTISED
+#define LINE_DEFAULT_ADVERTISED(field, uci, def, lo, hi)                     EXPECT(options.find("option name " #uci " type spin default "                                + std::to_string(compiled.field) + " min ")                 != std::string::npos);
+    BASILISK_SEARCH_PARAMS(LINE_DEFAULT_ADVERTISED)
+    BASILISK_B5_PARAMS(LINE_DEFAULT_ADVERTISED, LINE_DEFAULT_ADVERTISED,
+                       LINE_DEFAULT_ADVERTISED)
+#undef LINE_DEFAULT_ADVERTISED
     end_section();
 #endif
 }
@@ -1671,7 +1614,7 @@ int main() {
 
     std::printf("\nParameters\n");
     test_default_go_depth_and_syzygy_options();
-    test_arm_defaults();
+    test_line_defaults();
 
     std::printf("\nHistory row decomposition (9.6)\n");
 
