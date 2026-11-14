@@ -141,13 +141,23 @@ def main() -> int:
     parser.add_argument("--sample-ms", type=float, default=200.0)
     parser.add_argument("--columns", default="")
     parser.add_argument("--cpu", type=int, default=2)
-    parser.add_argument("--max-busy", type=float, default=5.0)
+    parser.add_argument("--max-busy", type=float, default=10.0,
+                        help="percent; nps_read.ps1's quiet ceiling")
     parser.add_argument("--allow-busy", action="store_true", help="read anyway; recorded")
     args = parser.parse_args()
 
     if args.out.exists() and any(args.out.iterdir()):
         print(f"{args.out} is not empty; a read is never overwritten", file=sys.stderr)
         return 2
+    # The host is checked before anything is written, so a refusal leaves
+    # nothing behind to block the next attempt.
+    load = host_load()
+    busy = load["busy_percent"]
+    unfit = (busy is None or busy > args.max_busy) or bool(load["competitors"])
+    print(f"host: {busy if busy is None else round(busy, 1)}% busy; competitors {load['competitors'] or 'none'}")
+    if unfit and not args.allow_busy:
+        print("the host is not idle; stop the other work or pass --allow-busy (recorded)", file=sys.stderr)
+        return 3
     args.out.mkdir(parents=True, exist_ok=True)
 
     revisions = dict(r.split("=", 1) for r in args.revision)
@@ -162,13 +172,6 @@ def main() -> int:
         shutil.copy2(source, copy)
         binaries.append((label, copy))
 
-    load = host_load()
-    busy = load["busy_percent"]
-    unfit = (busy is None or busy > args.max_busy) or bool(load["competitors"])
-    print(f"host: {busy if busy is None else round(busy, 1)}% busy; competitors {load['competitors'] or 'none'}")
-    if unfit and not args.allow_busy:
-        print("the host is not idle; stop the other work or pass --allow-busy (recorded)", file=sys.stderr)
-        return 3
 
     manifest = {
         "profile": "basilisk-board-micro-v1",
