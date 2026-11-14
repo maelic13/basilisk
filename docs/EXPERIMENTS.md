@@ -666,6 +666,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P27](experiments/BAS-P27.md) | Clang for Microsoft's ABI from winget against the MSYS2 build. | COMPLETE: −5.10% [−5.28, −4.92], FAIL (Windows stays on MSYS2) |
 | [BAS-P28](experiments/BAS-P28.md) | Speed at an identical tree from hardware counters, validated on BAS-P25 (B.16.4). | Registered; the read runs at B.15.4 |
 | [BAS-P29](experiments/BAS-P29.md) | The evaluation's material, SEE's exchange and the quiet stage made cheaper (B.4.5). | COMPLETE: arm +3.99% [+3.84, +4.14], OFF +4.16% [+4.00, +4.33], kept |
+| [BAS-P30](experiments/BAS-P30.md) | The board rebuild's set in the whole engine, pooled-PGO NPS (B.7.6). | Registered; the read waits for the idle host |
 
 ## 7. Correctness and protocol lessons
 
