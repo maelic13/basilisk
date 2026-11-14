@@ -2,8 +2,8 @@
 
 The C++ table owns option names, defaults, and bounds.  This generator derives
 the registered integer perturbation as max(2, round((max - min) / 16)) and
-writes both weather-factory JSON and Colosseum TOML, for the root table and the
-line the kernel inherited and, separately, for each cluster's coordinates.
+writes both weather-factory JSON and Colosseum TOML, for the root table and,
+separately, for each cluster's coordinates.
 Generated files are checked into the tree so experiment registrations can name
 an exact surface; edit the X-macro and regenerate rather than editing them.
 
@@ -60,13 +60,11 @@ B3_SWEEP_COORDINATES = {
 B3_SWEEP_EXTRA_POINTS = {
     "B3SingMargin": (17, 126),
 }
-# B.3.3's fit surface (BAS-S42): the B3 table's X lines less the inert ones,
-# with the Cluster 1 coordinates whose consumer populations Cluster 2 moved
+# B.3.3's fit surface (BAS-S42): the B3 table's X lines, with the Cluster 1
+# coordinates whose consumer populations Cluster 2 moved
 # (packet section 5.12, read by B.3.2 in BAS-S41), on the same run file.
 B33_CONFIG = ROOT / "tools" / "spsa_configs" / "config_b33.json"
 B33_TUNE = COLOSSEUM / "b33.tune.toml"
-# Inert while its switch B3ProbCutTt stays 0 (BAS-S41: +0.9 +- 9.5).
-B33_EXCLUDED = ("B3ProbCutTtMargin",)
 B33_ADMITTED_CORE = (
     "CoreLmpBase", "CoreQuietFutBase", "CoreCaptFutBase", "CoreCaptSeeCoeff",
     "CoreContHistPruneSlope", "CoreRfpCorrMult", "CoreCorrUpdateScale",
@@ -308,19 +306,18 @@ def sweep_notes(text: str, coordinates: dict[str, tuple[int, ...]],
 
 
 def b33_parameters(text: str) -> list[tuple[str, int, int, int]]:
-    """B.3.3's fit surface: the B3 X lines less B33_EXCLUDED, then the core X
-    lines B33_ADMITTED_CORE names, in that order; every name is checked. The
+    """B.3.3's fit surface: the B3 X lines, then the core X lines
+    B33_ADMITTED_CORE names, in that order; every name is checked. The
     surface is Cluster 2's, so a core coordinate starts from its refit where
     it has one."""
     b3 = parse_parameters(text, b3=True)
     overrides = b3_core_defaults(text)
     core = {name: (name, overrides.get(name, default), minimum, maximum)
             for name, default, minimum, maximum in parse_parameters(text, core=True)}
-    missing = [name for name in B33_EXCLUDED if name not in {p[0] for p in b3}]
-    missing += [name for name in B33_ADMITTED_CORE if name not in core]
+    missing = [name for name in B33_ADMITTED_CORE if name not in core]
     if missing:
         raise ValueError(f"B.3.3 surface names no X line: {', '.join(missing)}")
-    return [p for p in b3 if p[0] not in B33_EXCLUDED] + [core[name] for name in B33_ADMITTED_CORE]
+    return b3 + [core[name] for name in B33_ADMITTED_CORE]
 
 
 def b46_parameters(text: str) -> list[tuple[str, int, int, int]]:
@@ -559,9 +556,8 @@ def render_all(text: str, iterations: int) -> dict[pathlib.Path, str]:
                                             B3_SWEEP_EXTRA_POINTS)))
     outputs.update(render(b33_parameters(text), iterations,
                           config=B33_CONFIG, tune=B33_TUNE, run=None,
-                          notes=["# B.3.3's fit surface (BAS-S42): the B3 X lines less "
-                                 + ", ".join(B33_EXCLUDED) + ", with section 5.12's "
-                                 "Cluster 1 admissions."]))
+                          notes=["# B.3.3's fit surface (BAS-S42): the B3 X lines with "
+                                 "section 5.12's Cluster 1 admissions."]))
     outputs.update(render(parse_parameters(text, b4=True), iterations,
                           config=B4_CONFIG, tune=B4_TUNE, run=None))
     outputs.update(render(b46_parameters(text), iterations,

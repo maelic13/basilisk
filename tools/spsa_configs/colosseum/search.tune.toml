@@ -78,10 +78,3 @@ initial = 35
 min = 0
 max = 100
 c_end = 2.7634
-
-[[parameters]]
-name = "LmrSingularQuiet"
-initial = 401
-min = 0
-max = 3072
-c_end = 88.4293

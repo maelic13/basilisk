@@ -26,9 +26,9 @@ class SurfaceTests(unittest.TestCase):
         parameters = surface.parse_parameters(surface.HEADER.read_text(encoding="utf-8"))
         generated = json.loads(surface.CONFIG.read_text(encoding="utf-8"))
         self.assertEqual([item[0] for item in parameters], list(generated))
-        # The root table and the one inherited line.
-        self.assertEqual(len(parameters), 12)
-        self.assertEqual(parameters[-1][0], "LmrSingularQuiet")
+        # The root table alone.
+        self.assertEqual(len(parameters), 11)
+        self.assertEqual(parameters[-1][0], "TmInstability")
 
     def test_core_arm_table_is_not_on_the_registered_surface(self):
         text = (
@@ -94,7 +94,7 @@ class SurfaceTests(unittest.TestCase):
         self.assertEqual([item[0] for item in parameters], list(generated))
         self.assertTrue(all(name.startswith("B3") for name in generated))
         # F lines and switches stay off it.
-        self.assertFalse(set(generated) & {"B3NmpBetaFloor", "B3NmpVerify", "B3CheckExt"})
+        self.assertFalse(set(generated) & {"B3NmpBetaFloor", "B3NmpVerifyDepth", "B3SeekMateDepth"})
 
     def test_b4_surface_is_the_clusters_coordinates(self):
         text = surface.HEADER.read_text(encoding="utf-8")
@@ -157,8 +157,7 @@ class SurfaceTests(unittest.TestCase):
         b3 = [item[0] for item in surface.parse_parameters(text, b3=True)]
         generated = json.loads(surface.B33_CONFIG.read_text(encoding="utf-8"))
         self.assertEqual(list(generated),
-                         [name for name in b3 if name != "B3ProbCutTtMargin"]
-                         + list(surface.B33_ADMITTED_CORE))
+                         b3 + list(surface.B33_ADMITTED_CORE))
         self.assertEqual(len(generated), 29)
         # The core coordinates keep the core table's ranges and steps and
         # start from Cluster 2's refit where it has one.
@@ -382,11 +381,12 @@ class SurfaceTests(unittest.TestCase):
         # room at their seeds, 3 of them of one. B.6.7's rails (BAS-S61 section 5)
         # widened four ranges and floored two at their switch boundaries: 7
         # short, 4 of them of one. Its bake moved the seeds: 9 short, the same 4
-        # of one.
+        # of one. B.8.2 removed B3ProbCutTtMargin, which only the deleted
+        # small ProbCut read: 73, the same 9 short.
         text = surface.HEADER.read_text(encoding="utf-8")
         parameters = surface.head_parameters(text)
         _, report = surface.render_rule7c(parameters, 6000, "head")
-        self.assertEqual(len(parameters), 74)
+        self.assertEqual(len(parameters), 73)
         self.assertEqual(len(report), 9)
         self.assertEqual(sum("under one step" in line for line in report), 4)
         names = {line.split(":")[0] for line in report if "under one step" in line}
