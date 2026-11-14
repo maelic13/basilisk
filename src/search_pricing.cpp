@@ -13,9 +13,9 @@ constexpr int NODES = static_cast<int>(PriceNode::Count);
 constexpr int CELLS = RULES * PruningPrice::DEPTHS * NODES * PruningPrice::MOVE_BUCKETS;
 
 constexpr std::array<const char*, RULES> RULE_NAMES = {
-    "razor", "rfp", "null_move", "probcut", "probcut_tt", "multicut", "qs_delta",
+    "razor", "rfp", "null_move", "probcut", "multicut",
     "capture_futility", "capture_see", "cont_hist", "quiet_futility", "quiet_see",
-    "skip_quiets", "qs_futility", "qs_see", "qs_late", "qs_count", "qs_evasion",
+    "skip_quiets", "qs_futility", "qs_see", "qs_count", "qs_evasion",
     "lmr_fail_low"};
 constexpr std::array<const char*, NODES> NODE_NAMES = {"pv", "cut", "all", "qs"};
 constexpr std::array<const char*, PruningPrice::MOVE_BUCKETS> MOVE_NAMES = {

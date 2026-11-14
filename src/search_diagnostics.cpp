@@ -55,7 +55,6 @@ void DecisionTrace::print(const InfoCallback& info, const std::vector<Move>& roo
         return;
     auto event_name = [](TraceEvent event) {
         switch (event) {
-            case TraceEvent::CheckExtension:       return "check_extension";
             case TraceEvent::TtCutoff:             return "tt_cutoff";
             case TraceEvent::RfpPrune:             return "rfp_prune";
             case TraceEvent::RazorPrune:           return "razor_prune";
@@ -63,7 +62,6 @@ void DecisionTrace::print(const InfoCallback& info, const std::vector<Move>& roo
             case TraceEvent::ProbcutCutoff:        return "probcut_cutoff";
             case TraceEvent::IirReduction:         return "iir_reduction";
             case TraceEvent::FutilityPrune:        return "futility_prune";
-            case TraceEvent::LmpPrune:             return "lmp_prune";
             case TraceEvent::HistoryPrune:         return "history_prune";
             case TraceEvent::QuietSeePrune:        return "quiet_see_prune";
             case TraceEvent::CaptureFutilityPrune: return "capture_futility_prune";
@@ -76,15 +74,12 @@ void DecisionTrace::print(const InfoCallback& info, const std::vector<Move>& roo
             case TraceEvent::BetaCutoff:           return "beta_cutoff";
             case TraceEvent::QsTtCutoff:           return "qs_tt_cutoff";
             case TraceEvent::QsStandPatCutoff:     return "qs_stand_pat_cutoff";
-            case TraceEvent::QsDeltaPrune:         return "qs_delta_prune";
             case TraceEvent::QsFutilityPrune:      return "qs_futility_prune";
             case TraceEvent::QsSeePrune:           return "qs_see_prune";
-            case TraceEvent::QsLatePrune:          return "qs_late_prune";
             case TraceEvent::QsBetaCutoff:         return "qs_beta_cutoff";
             case TraceEvent::SkipQuiets:           return "skip_quiets";
             case TraceEvent::NullVerify:           return "null_verify";
             case TraceEvent::NullRegionRefused:    return "null_region_refused";
-            case TraceEvent::ProbcutTtCutoff:      return "probcut_tt_cutoff";
             case TraceEvent::ExtBudgetTruncate:    return "ext_budget_truncate";
             case TraceEvent::CuckooDraw:           return "cuckoo_draw";
             case TraceEvent::TtPenalty:            return "tt_penalty";
@@ -158,22 +153,20 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
     // the tail field silently, corrupting the kv mirror.
     std::string buf;
     auto emit = [&](const std::string& text) { info(std::string("info string diag ") + text); };
-    buf = std::format("nodes interior {} qsearch {} | in_check {} ({:.2f}%) check_ext {} tt_pv {} ({:.2f}%)",
+    buf = std::format("nodes interior {} qsearch {} | in_check {} ({:.2f}%) tt_pv {} ({:.2f}%)",
         d.interior_nodes, d.qs_nodes,
         d.in_check_nodes, pct(d.in_check_nodes, d.interior_nodes),
-        d.check_exts,
         d.tt_pv_nodes, pct(d.tt_pv_nodes, d.interior_nodes));
     emit(buf);
     buf = std::format("tt probes {} hits {} ({:.2f}%) cutoffs {}",
         d.tt_probes, d.tt_hits, pct(d.tt_hits, d.tt_probes),
         d.tt_cutoffs);
     emit(buf);
-    buf = std::format("prune rfp {} razor {} null {}/{} probcut {}/{} fut {} lmp {} hist {} see {}",
+    buf = std::format("prune rfp {} razor {} null {}/{} probcut {}/{} fut {}",
         d.rfp_cuts, d.razor_cuts,
         d.null_cuts, d.null_tries,
         d.probcut_cuts, d.probcut_tries,
-        d.fut_prunes, d.lmp_prunes,
-        d.hist_prunes, d.see_prunes);
+        d.fut_prunes);
     emit(buf);
     buf = std::format("lmr applied {} researched {} ({:.2f}%) | hist updates cutoff {} reward {} | qs evasion {}",
         d.lmr_applied, d.lmr_researched,
@@ -196,10 +189,7 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
         d.lmr_applied > 0 ? double(d.lmr_reduction_plies) / double(d.lmr_applied) : 0.0,
         d.lmr_clamped_zero);
     emit(buf);
-    buf = std::format("lmrblock depth {} searched {} in_check {} movetype {} gives_check {}",
-        d.lmr_blocked_depth, d.lmr_blocked_searched,
-        d.lmr_blocked_in_check, d.lmr_blocked_movetype,
-        d.lmr_blocked_gives_check);
+    buf = std::format("lmrblock depth {}", d.lmr_blocked_depth);
     emit(buf);
     buf = std::format("moveloop tested {} conthist {} capfut {} quietsee {} capsee {} quietfut {} "
         "| skip_quiets nodes {} | lmr floor {} extended {} deeper {} shallower {} "
@@ -226,37 +216,27 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
         emit(buf);
         buf = std::format("kv lmr_eligible={} lmr_applied={} lmr_researched={} "
             "lmr_reduction_plies={} lmr_clamped_zero={} "
-            "lmr_blocked_depth={} lmr_blocked_searched={} "
-            "lmr_blocked_in_check={} lmr_blocked_movetype={} "
-            "lmr_blocked_gives_check={} lmr_clamped_high={}",
+            "lmr_blocked_depth={} lmr_clamped_high={}",
             d.lmr_eligible, d.lmr_applied,
             d.lmr_researched, d.lmr_reduction_plies,
             d.lmr_clamped_zero,
-            d.lmr_blocked_depth, d.lmr_blocked_searched,
-            d.lmr_blocked_in_check, d.lmr_blocked_movetype,
-            d.lmr_blocked_gives_check, d.lmr_clamped_high);
+            d.lmr_blocked_depth, d.lmr_clamped_high);
         emit(buf);
         buf = std::format("kv interior_nodes={} qs_nodes={} tt_probes={} tt_hits={} "
-            "tt_cutoffs={} in_check_nodes={} check_exts={} tt_pv_nodes={}",
+            "tt_cutoffs={} in_check_nodes={} tt_pv_nodes={}",
             d.interior_nodes, d.qs_nodes,
             d.tt_probes, d.tt_hits, d.tt_cutoffs,
-            d.in_check_nodes, d.check_exts,
-            d.tt_pv_nodes);
+            d.in_check_nodes, d.tt_pv_nodes);
         emit(buf);
         buf = std::format("kv rfp_cuts={} razor_cuts={} null_tries={} null_cuts={} "
-            "probcut_tries={} probcut_cuts={} fut_prunes={} lmp_prunes={} "
-            "hist_prunes={} see_prunes={}",
+            "probcut_tries={} probcut_cuts={} fut_prunes={}",
             d.rfp_cuts, d.razor_cuts,
             d.null_tries, d.null_cuts,
             d.probcut_tries, d.probcut_cuts,
-            d.fut_prunes, d.lmp_prunes,
-            d.hist_prunes, d.see_prunes);
+            d.fut_prunes);
         emit(buf);
-        buf = std::format("kv hist_prune_tested={} hist_below_half={} "
-            "hist_below_quarter={} hist_below_eighth={} "
-            "qs_evasion_nodes={} hist_cutoff_updates={} hist_reward_updates={}",
-            d.hist_prune_tested, d.hist_below_half,
-            d.hist_below_quarter, d.hist_below_eighth,
+        buf = std::format("kv qs_evasion_nodes={} hist_cutoff_updates={} "
+            "hist_reward_updates={}",
             d.qs_evasion_nodes, d.hist_cutoff_updates,
             d.hist_reward_updates);
         emit(buf);
@@ -268,16 +248,11 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.asp_fail_high, d.asp_researches,
             d.asp_giveup);
         emit(buf);
-        buf = std::format("kv sing_fired={} sing_double={} sing_in_check={} "
-            "sing_triple={} sing_ttbeta={}",
-            d.sing_fired, d.sing_double,
-            d.sing_in_check, d.sing_triple,
-            d.sing_ttbeta);
+        buf = std::format("kv sing_fired={} sing_double={} sing_ttbeta={}",
+            d.sing_fired, d.sing_double, d.sing_ttbeta);
         emit(buf);
-        buf = std::format("kv sing_cap_bound={} iir_reductions={} iir_stale={} "
-            "iir_after_hindsight={}",
-            d.sing_cap_bound, d.iir_reductions, d.iir_stale,
-            d.iir_after_hindsight);
+        buf = std::format("kv iir_reductions={} iir_after_hindsight={}",
+            d.iir_reductions, d.iir_after_hindsight);
         emit(buf);
         buf = std::format("kv sing_tries={} sing_multicut={} "
             "null_tries_d1_3={} null_tries_d4_7={} null_tries_d8p={} "
@@ -313,11 +288,11 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
         emit(buf);
         // Cluster 2's counters.
         buf = std::format("kv null_verifications={} null_verify_failed={} "
-            "null_region_refusals={} probcut_tt_cuts={} probcut_pv_tries={} "
+            "null_region_refusals={} probcut_pv_tries={} "
             "sing_ext3={} sing_negative_cut={} sing_shuffle_refused={} "
             "sing_seekmate_refused={} ext_budget_bound={} follow_pv_nodes={}",
             d.null_verifications, d.null_verify_failed, d.null_region_refusals,
-            d.probcut_tt_cuts, d.probcut_pv_tries,
+            d.probcut_pv_tries,
             d.sing_ext3, d.sing_negative_cut, d.sing_shuffle_refused,
             d.sing_seekmate_refused, d.ext_budget_bound, d.follow_pv_nodes);
         emit(buf);
@@ -343,12 +318,10 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
         // Quiescence's population, and what its depth-0 entries feed.
         buf = std::format("kv qs_pv_nodes={} qs_tt_cutoffs={} qs_standpat_cuts={} "
             "qs_standpat_excess={} qs_standpat_refined={} qs_standpat_refine_mass={} "
-            "qs_delta_pruned={} qs_cap_hits={} qs_moves={} qs_futility_pruned={} "
-            "qs_see_pruned={} qs_late_pruned={} qs_searched={}",
+            "qs_moves={} qs_futility_pruned={} qs_see_pruned={} qs_searched={}",
             d.qs_pv_nodes, d.qs_tt_cutoffs, d.qs_standpat_cuts, d.qs_standpat_excess,
-            d.qs_standpat_refined, d.qs_standpat_refine_mass, d.qs_delta_pruned,
-            d.qs_cap_hits, d.qs_moves, d.qs_futility_pruned, d.qs_see_pruned,
-            d.qs_late_pruned, d.qs_searched);
+            d.qs_standpat_refined, d.qs_standpat_refine_mass,
+            d.qs_moves, d.qs_futility_pruned, d.qs_see_pruned, d.qs_searched);
         emit(buf);
         buf = std::format("kv qs_fail_highs={} qs_fail_high_first={} "
             "qs_fail_high_index_sum={} qs_fail_high_excess={} qs_fail_lows={} "
@@ -370,10 +343,9 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
         // Cluster 3's quiescence.
         buf = std::format("kv qs_count_pruned={} qs_recapture_exempt={} "
             "qs_evasion_quiets_pruned={} qs_evasion_see_pruned={} qs_stalemates={} "
-            "qs_quiet_checks={} rfp_seekmate_capped={} qs_gain_tested={}",
+            "qs_gain_tested={}",
             d.qs_count_pruned, d.qs_recapture_exempt, d.qs_evasion_quiets_pruned,
-            d.qs_evasion_see_pruned, d.qs_stalemates, d.qs_quiet_checks,
-            d.rfp_seekmate_capped, d.qs_gain_tested);
+            d.qs_evasion_see_pruned, d.qs_stalemates, d.qs_gain_tested);
         emit(buf);
         // Cluster 4's root and aspiration.
         buf = std::format("kv ply_cap_hits={} ply_cap_in_check={} qs_ply_cap_hits={} "
@@ -452,11 +424,9 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
 
     {
         std::string b;
-        b = std::format("singular fired {} double {} in_check {} triple {} ttbeta {} lone_move {} ({:.2f}% of fired)",
+        b = std::format("singular fired {} double {} ttbeta {} lone_move {}",
             d.sing_fired, d.sing_double,
-            d.sing_in_check, d.sing_triple,
-            d.sing_ttbeta, d.singular_lone_move,
-            d.sing_fired ? 100.0 * double(d.sing_in_check) / double(d.sing_fired) : 0.0);
+            d.sing_ttbeta, d.singular_lone_move);
         emit(b);
     }
 

@@ -459,27 +459,6 @@ static void test_the_known_loss_band_stands_down() {
     end_section();
 }
 
-// The late rule and the ply cap are gone from the tree.
-static void test_the_rules_the_arm_removes() {
-    if constexpr (!kCounters)
-        return;
-    NodeRead tree;
-    tree.fen = std::string(bench_fens()[3]);
-    Board b;
-    b.set_fen(tree.fen);
-    MoveList legal;
-    b.gen_legal(legal);
-    tree.from = Square(from_sq(legal[0]));
-    tree.to = Square(to_sq(legal[0]));
-    tree.depth = 9;
-    const Run run = read_node(tree);
-    begin_section("gain rules: the arm's tree holds no late rule and no ply cap");
-    EXPECT(counter(run, "qs_nodes") > 0);
-    EXPECT_EQ(counter(run, "qs_late_pruned"), 0);
-    EXPECT_EQ(counter(run, "qs_cap_hits"), 0);
-    end_section();
-}
-
 // ---- The blends ---------------------------------------------------------------------
 
 static void test_blend_arithmetic() {
@@ -864,7 +843,6 @@ int main() {
     test_the_count_rule();
     test_en_passant_is_credited_a_pawn();
     test_the_known_loss_band_stands_down();
-    test_the_rules_the_arm_removes();
     test_blend_arithmetic();
     test_stand_pat_returns_and_stores_the_blend();
     test_stalemate();
