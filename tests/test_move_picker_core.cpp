@@ -57,16 +57,10 @@ struct Pick {
     std::vector<Move> moves;
 };
 
-// A quiet whose moved piece gives check from its destination.
-static bool direct_quiet_check(const Board& b, Move m) {
-    const PieceType pt = type_of(b.piece_on(from_sq(m)));
-    return pt != KING && (b.check_squares(pt, b.turn()) & sq_bb(to_sq(m))) != 0;
-}
-
 // Runs the picker to exhaustion. `skip_after_quiets` < 0 never skips; 0 skips
 // before the first call; n > 0 skips once n quiets were delivered.
 static Pick run(const Board& b, const CoreHistoryTables& h, Move tt, Move excluded,
-                int depth, int ply, int skip_after_quiets, bool keep_direct_checks = false) {
+                int depth, int ply, int skip_after_quiets) {
     static ScoredMove buffer[MoveList::CAPACITY];
     const PieceToHistory* cont[6];
     for (int k = 0; k < 6; ++k)
@@ -76,11 +70,11 @@ static Pick run(const Board& b, const CoreHistoryTables& h, Move tt, Move exclud
     Pick p;
     int quiets = 0;
     if (skip_after_quiets == 0)
-        picker.skip_quiets(keep_direct_checks);
+        picker.skip_quiets();
     for (Move m; (m = picker.next()) != MOVE_NONE; ) {
         p.moves.push_back(m);
         if (!capture_stage(b, m) && ++quiets == skip_after_quiets)
-            picker.skip_quiets(keep_direct_checks);
+            picker.skip_quiets();
     }
     return p;
 }
@@ -97,7 +91,6 @@ static void test_picker_contract() {
     randomise(*h, rng);
 
     int positions = 0, failures = 0, skipped_runs = 0, tt_runs = 0, foreign_runs = 0;
-    int check_runs = 0;
     Move foreign = make_move(A1, A1);
     while (positions < 3000 && failures < 10) {
         Board b;
@@ -153,16 +146,6 @@ static void test_picker_contract() {
         const Pick none = run(b, *h, MOVE_NONE, MOVE_NONE, depth, ply, 0);
         if (sorted(none.moves) != stage) fail("skip at start did not leave the capture stage");
 
-        // skip_quiets() at the start, direct checks kept: the capture stage
-        // and exactly the direct quiet checks.
-        std::vector<Move> stage_and_checks = stage;
-        for (Move m : legal)
-            if (!capture_stage(b, m) && direct_quiet_check(b, m)) stage_and_checks.push_back(m);
-        if (stage_and_checks.size() > stage.size()) ++check_runs;
-        const Pick checks = run(b, *h, MOVE_NONE, MOVE_NONE, depth, ply, 0, true);
-        if (sorted(checks.moves) != sorted(stage_and_checks))
-            fail("skip keeping direct checks did not leave the capture stage and the checks");
-
         // skip_quiets() after the first quiet: that quiet and the capture stage.
         const Pick one = run(b, *h, MOVE_NONE, MOVE_NONE, depth, ply, 1);
         int quiets = 0;
@@ -175,14 +158,12 @@ static void test_picker_contract() {
         if (quiets != (stage.size() == legal.size() ? 0 : 1)) fail("skip after a quiet delivered another quiet");
         if (quiets == 1) ++skipped_runs;
     }
-    std::printf("%d positions, %d TT runs, %d foreign-TT runs, %d skip-after-quiet runs, "
-                "%d with direct quiet checks ",
-                positions, tt_runs, foreign_runs, skipped_runs, check_runs);
+    std::printf("%d positions, %d TT runs, %d foreign-TT runs, %d skip-after-quiet runs ",
+                positions, tt_runs, foreign_runs, skipped_runs);
     EXPECT_EQ(failures, 0);
     EXPECT(positions == 3000);
     EXPECT(skipped_runs > 1000);
     EXPECT(foreign_runs > 1000);
-    EXPECT(check_runs > 300);
     end_section();
 }
 

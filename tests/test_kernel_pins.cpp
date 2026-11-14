@@ -84,12 +84,10 @@ void test_child_types() {
     log = ChildLog{};
     for (int i = 0; i < 12; ++i)
         search(std::string(bench_fens()[size_t(i)]), 12);
-    // Verification at the depths these searches reach, in both its forms.
-    for (int i = 0; i < 6; ++i) {
-        const std::string fen(bench_fens()[size_t(i)]);
-        search(fen, 12, [](SearchParams& p) { p.b3_nmp_verify_depth = 8; });
-        search(fen, 12, [](SearchParams& p) { p.b3_nmp_verify = 2; });
-    }
+    // Verification at the depths these searches reach.
+    for (int i = 0; i < 6; ++i)
+        search(std::string(bench_fens()[size_t(i)]), 12,
+               [](SearchParams& p) { p.b3_nmp_verify_depth = 8; });
 
     begin_section("child types: every negamax call names its site");
     EXPECT_EQ(log.unnamed, uint64_t(0));
@@ -202,27 +200,22 @@ void test_iir_condition() {
     struct Node {
         bool pv, cut, in_check, follow_pv;
         int depth;
-        bool has_tt_move, stale, tt_found;
-        int tt_depth;
+        bool has_tt_move;
         bool reduced;
     };
     // The minimum depth is 5 throughout.
     const Node cases[] = {
-        // pv     cut    check  follow depth  tt     stale  found  ttd  reduced
-        {true,  false, false, false,  5, false, false, false,  0, true},
-        {false, true,  false, false,  5, false, false, false,  0, true},
-        {false, false, false, false,  5, false, false, false,  0, false},  // an all node
-        {true,  false, false, false,  4, false, false, false,  0, false},  // too shallow
-        {true,  false, true,  false,  9, false, false, false,  0, false},  // in check
-        {false, true,  false, true,   9, false, false, false,  0, false},  // on the previous PV
-        {true,  false, false, false,  9, true,  false, true,   1, false},  // a table move
-        {true,  false, false, false,  9, true,  true,  true,   5, true},   // stale: 4 plies shallower
-        {true,  false, false, false,  9, true,  true,  true,   6, false},  // stale: 3 plies
-        {false, true,  false, false,  9, true,  true,  false,  0, false},  // stale, no entry
+        // pv     cut    check  follow depth  tt     reduced
+        {true,  false, false, false,  5, false, true},
+        {false, true,  false, false,  5, false, true},
+        {false, false, false, false,  5, false, false},  // an all node
+        {true,  false, false, false,  4, false, false},  // too shallow
+        {true,  false, true,  false,  9, false, false},  // in check
+        {false, true,  false, true,   9, false, false},  // on the previous PV
+        {true,  false, false, false,  9, true,  false},  // a table move
     };
     for (const Node& n : cases)
-        EXPECT_EQ(b3::iir_applies(n.pv, n.cut, n.in_check, n.follow_pv, n.depth, 5,
-                                  n.has_tt_move, n.stale, n.tt_found, n.tt_depth),
+        EXPECT_EQ(b3::iir_applies(n.pv, n.cut, n.in_check, n.follow_pv, n.depth, 5, n.has_tt_move),
                   n.reduced);
     end_section();
 }

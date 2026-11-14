@@ -15,8 +15,7 @@
 #include <string>
 #include <vector>
 
-#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC) \
-    || defined(BASILISK_RELEASE_DIAG_COUNTERS)
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
 #define DIAG_COUNT(expression) (expression)
 #else
 #define DIAG_COUNT(expression) ((void)0)
@@ -27,8 +26,7 @@ using InfoCallback = std::function<void(const std::string&)>;
 // The diagnostic counters, one X line each. The table generates the fields,
 // reset() and the pool aggregate add(), so a counter cannot be added without
 // being aggregated. Counted in diagnostic and tune builds and printed only
-// when SearchLimits.diag is set; production compiles the increments away (the
-// RELEASE_DIAG_COUNTERS arm exists to reproduce the cost measurement). Names
+// when SearchLimits.diag is set; production compiles the increments away. Names
 // and units are the cross-engine contract of tools/diag/run_suite.py and the
 // oracle's matching build: a renamed counter breaks the differential harness.
 // New counters go at the end of the table, each with the denominator it is
@@ -275,8 +273,7 @@ using InfoCallback = std::function<void(const std::string&)>;
 // The stack's negative-reduction fields are written where a counter or the
 // mechanism reads them.
 inline constexpr bool kDiagCountersCompiled =
-#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC) \
-    || defined(BASILISK_RELEASE_DIAG_COUNTERS)
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     true;
 #else
     false;

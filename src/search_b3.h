@@ -52,15 +52,10 @@ namespace b3 {
     return 1 + int(value < s_beta - double_margin) + int(value < s_beta - triple_margin);
 }
 
-// Multi-cut: the exclusion search failed high over the node's beta, so the
-// node is pruned. `bound_rule` 0 is the donor's (the searched value clears
-// beta), 1 the alternative (the singular bound itself clears beta); neither
-// admits a decisive value.
-[[nodiscard]] inline bool multicut_admits(int bound_rule, int value, int s_beta, int beta,
-                                          bool value_decisive) {
-    if (value_decisive)
-        return false;
-    return bound_rule == 0 ? value >= beta : s_beta >= beta;
+// Multi-cut, the donor's rule: the exclusion search's value clears the node's
+// beta, so the node is pruned; never on a decisive value.
+[[nodiscard]] inline bool multicut_admits(int value, int beta, bool value_decisive) {
+    return !value_decisive && value >= beta;
 }
 
 // The multi-cut's correction bonus: the gap by which the exclusion search
@@ -103,13 +98,10 @@ namespace b3 {
 
 // IIR, the donor's form: a PV or cut node off the previous iteration's PV,
 // not in check and at least `min_depth` deep, loses a ply when it has no
-// table move, or, with `stale`, when its table entry is more than three
-// plies shallower than the node.
+// table move.
 [[nodiscard]] inline bool iir_applies(bool is_pv, bool cut_node, bool in_check, bool follow_pv,
-                                      int depth, int min_depth, bool has_tt_move, bool stale,
-                                      bool tt_found, int tt_depth) {
-    return !in_check && !follow_pv && (is_pv || cut_node) && depth >= min_depth
-        && (!has_tt_move || (stale && tt_found && tt_depth < depth - 3));
+                                      int depth, int min_depth, bool has_tt_move) {
+    return !in_check && !follow_pv && (is_pv || cut_node) && depth >= min_depth && !has_tt_move;
 }
 
 // The main search takes a table cutoff only while the rule-50 count is below

@@ -97,17 +97,10 @@ struct RootWindow {
     return (pv ? delta * KLIT(lmr_window_pv) : KLIT(lmr_window_null)) / root_delta;
 }
 
-// The depth of a root search inside its window's loop: the iteration's, less one
-// for each fail high since the last fail low when that is on, at least one ply.
-[[nodiscard]] inline int adjusted_depth(int depth, int failed_high_cnt, bool on) {
-    return on ? std::max(1, depth - failed_high_cnt) : depth;
-}
-
-// How far past the full depth a reduced search may go: two plies, when negative
-// reductions are allowed and the line holds fewer of them than its limit, 0 being
-// no limit. A line of them is otherwise bounded only by the correction term.
-[[nodiscard]] inline int negext_ceiling(bool allowed, int new_depth, int path, int max) {
-    return allowed ? new_depth + (max == 0 || path < max ? 2 : 0) : new_depth;
+// How far past the full depth a reduced search may go: two plies while the line
+// holds no extension from a negative reduction yet, otherwise the full depth.
+[[nodiscard]] inline int negext_ceiling(int new_depth, int path) {
+    return new_depth + (path < 1 ? 2 : 0);
 }
 
 // A later iteration can lose a mate an earlier one proved: its window and its

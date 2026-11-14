@@ -49,10 +49,6 @@ Bitboard CoreMovePicker::checks_for(PieceType pt) {
     return check_squares_[pt];
 }
 
-bool CoreMovePicker::direct_check(Move m) {
-    return (checks_for(type_of(board_.piece_on(from_sq(m)))) & sq_bb(to_sq(m))) != 0;
-}
-
 int CoreMovePicker::fill(const MoveList& list, int at) {
     for (Move m : list) {
         if (m == excluded_ || (tt_delivered_ && m == tt_move_))
@@ -179,7 +175,7 @@ Move CoreMovePicker::next() {
 
             case Stage::QuietInit:
                 end_quiets_ = end_captures_;
-                if (!skip_quiets_ || keep_direct_checks_) {
+                if (!skip_quiets_) {
                     MoveList list;
                     board_.gen_legal_quiets(list);
                     end_quiets_ = fill(list, end_captures_);
@@ -192,9 +188,9 @@ Move CoreMovePicker::next() {
                 break;
 
             case Stage::GoodQuiet:
-                while ((!skip_quiets_ || keep_direct_checks_) && cur_ < end_quiets_) {
+                while (!skip_quiets_ && cur_ < end_quiets_) {
                     const ScoredMove sm = moves_[cur_++];
-                    if (sm.score > KLIT(pick_good_quiet) && deliverable_quiet(sm.move)) {
+                    if (sm.score > KLIT(pick_good_quiet)) {
                         last_src_ = Src::Quiet;
                         return sm.move;
                     }
@@ -213,9 +209,9 @@ Move CoreMovePicker::next() {
                 break;
 
             case Stage::BadQuiet:
-                while ((!skip_quiets_ || keep_direct_checks_) && cur_ < end_quiets_) {
+                while (!skip_quiets_ && cur_ < end_quiets_) {
                     const ScoredMove sm = moves_[cur_++];
-                    if (sm.score <= KLIT(pick_good_quiet) && deliverable_quiet(sm.move)) {
+                    if (sm.score <= KLIT(pick_good_quiet)) {
                         last_src_ = Src::Quiet;
                         return sm.move;
                     }
@@ -231,13 +227,11 @@ Move CoreMovePicker::next() {
 
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
 Move CoreMovePicker::first_denied_quiet(ScoredMove* scratch) {
-    // A direct check the skip still lets through is not denied.
-    const auto denied = [&](Move m) { return !(keep_direct_checks_ && direct_check(m)); };
     // The quiets above the threshold come from the cursor on, then the rest
     // from the start of the quiets, after the captures set aside.
     const auto first_bad = [&](int from) {
         for (int i = from; i < end_quiets_; ++i)
-            if (moves_[i].score <= KLIT(pick_good_quiet) && denied(moves_[i].move))
+            if (moves_[i].score <= KLIT(pick_good_quiet))
                 return moves_[i].move;
         return MOVE_NONE;
     };
@@ -251,14 +245,11 @@ Move CoreMovePicker::first_denied_quiet(ScoredMove* scratch) {
             quiets.skip_quiets_ = false;
             quiets.end_captures_ = quiets.end_bad_captures_ = 0;
             quiets.stage_ = Stage::QuietInit;
-            for (Move m = quiets.next(); m != MOVE_NONE; m = quiets.next())
-                if (denied(m))
-                    return m;
-            return MOVE_NONE;
+            return quiets.next();
         }
         case Stage::GoodQuiet:
             for (int i = cur_; i < end_quiets_; ++i)
-                if (moves_[i].score > KLIT(pick_good_quiet) && denied(moves_[i].move))
+                if (moves_[i].score > KLIT(pick_good_quiet))
                     return moves_[i].move;
             return first_bad(end_captures_);
         case Stage::BadCapture:

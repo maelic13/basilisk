@@ -1,8 +1,9 @@
 #pragma once
 
 // Search tuning parameters. Under the BASILISK_TUNE build flag each field is
-// exposed as a UCI spin option so an external SPSA tool can tune it. In release
-// builds the struct is a plain bag of compile-time constants.
+// exposed as a UCI spin option so an external SPSA tool can tune it. Every
+// build holds them as plain `int` fields of the search's limits, read at run
+// time, so a line here costs the release build a load wherever it is read.
 //
 // One X-macro line per tunable generates the three sites that used to be
 // hand-synced: the struct field with its compiled-in default (this header),
@@ -16,9 +17,7 @@
 // The lines are grouped into tables by owner:
 //
 //   BASILISK_ROOT_PARAMS            the driver's: aspiration and time management;
-//   BASILISK_CORE_KERNEL_PARAMS     the node kernel's, which includes the
-//                                   line it inherited from the kernel it
-//                                   replaced (BASILISK_LEGACY_LMR_SINGULAR);
+//   BASILISK_CORE_KERNEL_PARAMS     the node kernel's;
 //   BASILISK_B3_PARAMS, _B4_PARAMS, _B5_PARAMS  Clusters 2, 3 and 4's.
 //
 // BASILISK_SEARCH_PARAMS, the table every consumer expands, is the kernel
@@ -54,18 +53,9 @@
     X(tm_effort_lo_mult,     TmEffortLoMult,       120,  100,   200)     \
     X(tm_instability,        TmInstability,         35,    0,   100)
 
-// ---- The line inherited from the replaced kernel ----------------------------
-//
-// lmr_singular_quiet: the old relaxation of a singular node's quiet
-//   reductions, read only when B3SingularQuietLmr restores it. It keeps its
-//   old name.
-#define BASILISK_LEGACY_LMR_SINGULAR(X)                                  \
-    X(lmr_singular_quiet,    LmrSingularQuiet,     401,    0,  3072)
-
 // ---- The node kernel (Cluster 1, the selectivity core) ----------------------
 //
-// The kernel reads the inherited line above and its own coordinates at the
-// cluster's seeds. Units are evaluation units unless a line says otherwise.
+// The kernel reads its own coordinates at the cluster's seeds. Units are evaluation units unless a line says otherwise.
 //
 // Node margins: razoring at depth <= CoreRazorDepthCap returns quiescence
 //   when the estimate is below alpha - margin * depth. Reverse futility at
@@ -109,10 +99,8 @@
 // SPSA surface. quiet_see_coeff: SEE values here are multiples of 100, so
 // neighbouring coefficients prune the same quiets at every common lmrDepth.
 #define BASILISK_CORE_KERNEL_PARAMS(X, F)                                \
-    BASILISK_LEGACY_LMR_SINGULAR(X)                                      \
     /* Node margins */                                                   \
     X(razor_margin,          CoreRazorMargin,       269,  128,   527)    \
-    F(razor_quad_margin,     CoreRazorQuadMargin,   136,   60,   300)    \
     X(rfp_per_ply,           CoreRfpPerPly,         101,   40,   227)    \
     X(rfp_improving,         CoreRfpImproving,       98,   35,   160)    \
     X(rfp_worsening,         CoreRfpWorsening,       13,    0,    60)    \
@@ -163,92 +151,43 @@
     X(main_hist_decay,       CoreMainHistDecay,     749,  400,  1024)    \
     /* TT cutoff training */                                             \
     X(tt_cutoff_bonus_slope, CoreTtCutoffBonusSlope, 151,    0,   300)   \
-    F(tt_cutoff_bonus_max,   CoreTtCutoffBonusMax,  695,  200,  3000)   \
     /* Correction */                                                     \
     X(corr_update_scale,     CoreCorrUpdateScale,    16,    4,    64)     \
     X(corr_cont_weight,      CoreCorrContWeight,   9649, 2000, 16000)
 
-// Categorical switches of Cluster 1's kernel: S(field, UciName, default, min,
-// max). Tune builds advertise them as options so a paired run can settle each
-// on one binary; they are never SPSA coordinates, which is why they use S and
-// not X (tools/generate_spsa_surface.py reads X lines only).
+// Cluster 1's small-range lines: S(field, UciName, default, min, max). Tune
+// builds advertise them as options; they are never SPSA coordinates, which is
+// why they use S and not X (tools/generate_spsa_surface.py reads X lines only).
 //
-// tt_cutoff_node_typed: 1 admits a shallow TT cutoff only where the score
-//   agrees with the node's expected type (cut node and fail high, or all node
-//   and fail low); 0 admits it on bound and depth alone.
-// pawn_hist_buckets_log2: the pawn history's bucket count as a power of two
-//   (11 = 2,048, 13 = 8,192); a size, settled by speed, not by games.
 // razor_depth_cap: the deepest node razoring runs at (1 = the oracle's form,
 //   3 = the legacy reach).
-// lmp_exempt_checks: 1 keeps delivering quiet moves that give check from
-//   their destination after the move-count rule ends quiet delivery; 0,
-//   the default and the donor's form, delivers no quiet after it.
-// lmr_negative_allowed: 1 lets a negative reduction extend a reduced search
-//   up to two plies beyond the full depth; 0 caps it at the full depth.
-// The donor's forms where Basilisk keeps its own, each read by a paired run
-// against the default (0, Basilisk's form):
-// tt_cutoff_bonus_cap: 1 caps the TT-cutoff quiet bonus at
-//   CoreTtCutoffBonusMax (the donor's 695); 0 slope * depth uncapped.
-// razor_donor: 1 razors at any depth when the estimate is below alpha -
-//   CoreRazorQuadMargin * depth^2 (the donor's 482 in its units), with no
-//   table-move or bound guard; 0 the form above.
-// tt_key50: 1 the table's key carries the rule-50 count's eight-ply bucket
-//   from a count of 14, so a bound is not shared between positions with
-//   very different fifty-move horizons (repetition reads the raw key); 0
-//   the raw key.
-// corr_nonpawn_kings: 1 the non-pawn correction keys include each side's
-//   king; 0 leaves it out, so every bare king shares one entry.
-// corr_admission: 1 trains the correction where the error's sign agrees with
-//   the bound (above the static eval exactly when a move raised alpha); 0
-//   where the node failed high or raised alpha.
 #define BASILISK_CORE_KERNEL_SWITCHES(S)                                 \
-    S(tt_cutoff_node_typed,  CoreTtCutoffNodeTyped,  1,    0,     1)     \
-    S(pawn_hist_buckets_log2, CorePawnHistBucketsLog2, 13,  11,    13)   \
-    S(corr_admission,        CoreCorrAdmission,      1,    0,     1)     \
-    S(razor_depth_cap,       CoreRazorDepthCap,      1,    1,     3)     \
-    S(lmp_exempt_checks,     CoreLmpExemptChecks,    0,    0,     1)     \
-    S(lmr_negative_allowed,  CoreLmrNegativeAllowed, 1,    0,     1)     \
-    S(tt_cutoff_bonus_cap,   CoreTtCutoffBonusCap,   0,    0,     1)     \
-    S(razor_donor,           CoreRazorDonor,         0,    0,     1)     \
-    S(tt_key50,              CoreTtKey50,            0,    0,     1)     \
-    S(corr_nonpawn_kings,    CoreCorrNonPawnKings,   0,    0,     1)
+    S(razor_depth_cap,       CoreRazorDepthCap,      1,    1,     3)
 
 // ---- Cluster 2, the proof searches and extensions ---------------------------
 //
 // B(X, F, S): X the coordinates at the packet's seeds, F the donor's fixed
-// terms (read and advertised, never on a surface), S the categoricals and
-// attribution switches. Tune builds advertise them.
+// terms (read and advertised, never on a surface), S small-range lines. Tune
+// builds advertise them.
 //
-// b3_check_ext: 1 extends every in-check node by a ply (the legacy policy);
-//   0, the donor's, extends none.
-// b3_check_prune: 1 admits in-check nodes to LMR, the first-move step-down,
-//   the depth step after alpha rises and move-loop pruning (quiet futility
-//   excepted), as the donor does; 0 reduces and prunes none in check.
-// b3_pv_quiet_prune: 1 prunes quiets at PV nodes off the previous PV, as the
-//   donor does; 0 exempts every PV node (the legacy rule).
+// No in-check node is extended (the donor's policy); in-check nodes are
+// reduced and move-loop pruned as the donor's are (quiet futility excepted);
+// quiets are pruned at PV nodes off the previous PV, as the donor does.
 //
-// Null move: tried when the static eval is at least beta - per_ply * depth
+// Null move, at an expected cut node: tried when the static eval is at least beta - per_ply * depth
 //   - improving + base, and beta is above the floor; R = red_base + depth /
 //   red_depth_div + max((static eval - beta) / red_eval_div, 0) plies. A cut
 //   at depth >= verify_depth outside a verification is verified at the same
-//   ply with null moves barred for 3/4 of the remaining depth below it.
-//   b3_nmp_cut_only: 1 tries it at expected cut nodes only; 0 at any non-PV
-//   node. b3_nmp_verify: 1 the region; 0 no verification; 2 the legacy
-//   same-ply verification at depth >= 10, kept for the counter read.
-//   b3_nmp_eval_gate: 1 also requires the TT-refined estimate to reach beta
-//   (the oracle's and the legacy kernel's gate); 0 the donor's bare form.
+//   ply with null moves barred for 3/4 of the remaining depth below it. The
+//   donor's bare form: no gate on the TT-refined estimate.
 //
 // IIR: a ply off a PV or cut node off the previous PV, not in check, at
-//   depth >= min_depth without a TT move. b3_iir: 1 on; 0 off. b3_iir_stale:
-//   1 also reduces when the TT entry is shallower than depth - 3.
+//   depth >= min_depth without a TT move.
 //
-// ProbCut: at depth >= min_depth, with beta' = beta + base - improving, a
-//   capture or queen promotion whose SEE clears beta' - static eval, holding
-//   beta' in quiescence and at depth - (improving ? depth_improving : depth),
-//   returns its value less the margin. The small ProbCut returns beta +
-//   tt_margin from a lower bound at least depth - tt_depth deep that clears
-//   it. b3_probcut_pv: 1 admits PV nodes; 0 non-PV only. b3_probcut_tt: 1
-//   runs the small ProbCut (in check too, the donor's form); 0 none.
+// ProbCut, at PV nodes too: at depth >= min_depth, with beta' = beta + base -
+//   improving, a capture or queen promotion whose SEE clears beta' - static
+//   eval, holding beta' in quiescence and at depth - (improving ?
+//   depth_improving : depth), returns its value less the margin.
 //
 // Singular extension, at depth >= min_depth (+1 near a PV): the bound is the
 //   TT score less (margin + margin_ttpv at a non-PV node near a PV) * depth /
@@ -261,33 +200,19 @@
 //   (value - static eval) * 1000/282 * singular depth * mc_corr / 1024; the
 //   negative extension is -negative plies. At root depth >= seek_mate_depth
 //   with a root score of at least seek_mate_score either way, no singular
-//   search runs. b3_multi_cut: 0 the donor's rule (the value clears beta); 1
-//   the singular bound clears beta. b3_sing_tt_depth: 1 lowers the entry's
-//   required depth from depth - 3 to depth - 2. b3_singular_quiet_lmr: 1 keeps
-//   the legacy relaxation of a singular node's quiet reductions.
-//   b3_ext_budget: 1 bounds a line's positive singular plies by the root
-//   depth; 0 leaves them unbounded.
+//   search runs. The multi-cut is the donor's rule (the value clears beta). A
+//   line's positive singular plies are bounded by the root depth.
 //
-// Correction: b3_corr_decisive: 1 trains the correction on decisive scores;
-//   0 refuses them (the legacy rule). b3_corr_excluded: 1 trains it at
-//   singular-excluded nodes except where the node's raw static eval is 0
-//   (a recognised draw); 0 refuses them. core_history_fills: 1 fills
-//   fresh history tables with the donor's values at the first search after a
-//   clear; 0 leaves them at zero.
+// Correction is trained on decisive scores and at singular-excluded nodes,
+//   except where the node's raw static eval is 0 (a recognised draw).
 //
-// Upcoming repetition: b3_cuckoo: 1 raises alpha to the draw at a node
-//   (interior or quiescence) whose side to move has a reversible move to a
-//   repetition; 0 none.
+// Upcoming repetition: a node (interior or quiescence) whose side to move has
+//   a reversible move to a repetition raises alpha to the draw.
 //
-// TT: b3_fail_low_store: 1 stores no move after a fail low (the entry keeps
-//   its own; B-12's repair, the donor's form); 0 stores the best-scored move
-//   (the form before Cluster 2). b3_tt_penalty: 1 lowers by one
-//   ply the depth of an entry deep enough to cut at a non-PV node of depth
-//   6 or more whose bound lies on the wrong side of beta; 0 none.
+// TT: no move is stored after a fail low (the entry keeps its own; B-12's
+//   repair, the donor's form). An entry deep enough to cut at a non-PV node of
+//   depth 6 or more whose bound lies on the wrong side of beta loses a ply.
 #define BASILISK_B3_PARAMS(X, F, S)                                   \
-    S(b3_check_ext,          B3CheckExt,             0,    0,     1)     \
-    S(b3_check_prune,        B3CheckPrune,           1,    0,     1)     \
-    S(b3_pv_quiet_prune,     B3PvQuietPrune,         1,    0,     1)     \
     /* Null move */                                                    \
     X(b3_nmp_per_ply,        B3NmpPerPly,           16,    2,    32)     \
     X(b3_nmp_improving,      B3NmpImproving,        15,    0,    40)     \
@@ -297,23 +222,14 @@
     F(b3_nmp_red_depth_div,  B3NmpRedDepthDiv,       3,    2,     6)     \
     F(b3_nmp_beta_floor,     B3NmpBetaFloor,      -564, -2000,    0)     \
     F(b3_nmp_verify_depth,   B3NmpVerifyDepth,      16,    8,    32)     \
-    S(b3_nmp_cut_only,       B3NmpCutOnly,           1,    0,     1)     \
-    S(b3_nmp_verify,         B3NmpVerify,            1,    0,     2)     \
-    S(b3_nmp_eval_gate,      B3NmpEvalGate,          0,    0,     1)     \
     /* Internal iterative reduction */                                   \
     X(b3_iir_min_depth,      B3IirMinDepth,          5,    3,    11)     \
-    S(b3_iir,                B3Iir,                  1,    0,     1)     \
-    S(b3_iir_stale,          B3IirStale,             0,    0,     1)     \
     /* ProbCut */                                                        \
     X(b3_probcut_base,       B3ProbCutBase,         73,   34,   240)     \
     X(b3_probcut_improving,  B3ProbCutImproving,    19,    0,    48)     \
     F(b3_probcut_min_depth,  B3ProbCutMinDepth,      3,    2,     8)     \
     F(b3_probcut_depth,      B3ProbCutDepth,         3,    2,     6)     \
     F(b3_probcut_depth_improving, B3ProbCutDepthImproving, 5, 3,    8)     \
-    X(b3_probcut_tt_margin,  B3ProbCutTtMargin,    240,  100,   400)     \
-    F(b3_probcut_tt_depth,   B3ProbCutTtDepth,       4,    2,     8)     \
-    S(b3_probcut_pv,         B3ProbCutPv,            1,    0,     1)     \
-    S(b3_probcut_tt,         B3ProbCutTt,            0,    0,     1)     \
     /* Singular extension */                                             \
     F(b3_sing_min_depth,     B3SingMinDepth,         6,    4,    10)     \
     X(b3_sing_margin,        B3SingMargin,         232,   13,   378)     \
@@ -335,20 +251,7 @@
     F(b3_sing_mc_tmh_slope,  B3SingMcTmhSlope,     110,    0,   300)     \
     F(b3_sing_mc_corr,       B3SingMcCorr,         177,    0,   400)     \
     F(b3_seek_mate_depth,    B3SeekMateDepth,       12,    8,    64)     \
-    F(b3_seek_mate_score,    B3SeekMateScore,      564,  100,  2000)     \
-    S(b3_multi_cut,          B3MultiCut,             0,    0,     1)     \
-    S(b3_sing_tt_depth,      B3SingTtDepth,          0,    0,     1)     \
-    S(b3_singular_quiet_lmr, B3SingularQuietLmr,     0,    0,     1)     \
-    S(b3_ext_budget,         B3ExtBudget,            1,    0,     1)     \
-    /* Correction and the fresh tables */                                \
-    S(b3_corr_decisive,      B3CorrDecisive,         1,    0,     1)     \
-    S(b3_corr_excluded,      B3CorrExcluded,         1,    0,     1)     \
-    S(core_history_fills,    CoreHistoryFills,       0,    0,     1)     \
-    /* Upcoming repetition */                                            \
-    S(b3_cuckoo,             B3Cuckoo,               1,    0,     1)     \
-    /* TT */                                                             \
-    S(b3_fail_low_store,     B3FailLowStore,         0,    0,     1)     \
-    S(b3_tt_penalty,         B3TtPenalty,            1,    0,     1)
+    F(b3_seek_mate_score,    B3SeekMateScore,      564,  100,  2000)
 
 // Cluster 2's refit of Cluster 1 coordinates, fitted on its tree beside its
 // own: A(field, UciName, value). The X line keeps Cluster 1's own fit, which
@@ -378,51 +281,23 @@
 // b4_qs_see_margin: every capture, and an evasion capture once the node holds
 //   a value that is not a loss, must clear this SEE. An F line: on the
 //   default vector every value from -99 to 0 prunes the same captures.
-// b4_rfp_seek_mate_cap: reverse futility's deepest node in a mate drive.
-// b4_rfp_seek_mate_depth: the root depth from which that cap binds, with a
-//   root score of at least b3_seek_mate_score either way. Its own bar:
-//   b3_seek_mate_depth is the singular half's, set to bound a tree this cap
-//   would grow.
 //
-// b4_evasion_prune: 1 once an evasion holds a value that is not a loss,
-//   quiets and SEE-losing captures are skipped; 0 every evasion is searched.
-// b4_qs_recapture: 1 a recapture on the previous move's square is exempt from
-//   the count rule, futility and the alpha-relative SEE; 0 not exempt.
-// b4_stalemate: 1 tests for stalemate where quiescence's cheap conditions
-//   hold; 0 stands pat on it.
-// b4_rfp_seek_mate: 1 applies b4_rfp_seek_mate_cap; 0 no cap, reverse
-//   futility as at any root depth.
-// b4_qs_delta: 1 restores the delta rule quiescence ran before Cluster 3;
-//   0 none.
-// b4_gain_values: the captured value quiescence's gain rules read. 0 the
-//   search's PIECE_VALUE; 1 the evaluation's material.
-// b4_see_values: the vector every `see` and `see_ge` call reads, on the same
-//   two choices (tune builds; release builds keep the constants).
-// b4_quiet_checks: quiet checks searched at the first quiescence ply; 0 none.
+// Once an evasion holds a value that is not a loss, quiets and SEE-losing
+// captures are skipped. A recapture on the previous move's square is exempt
+// from the count rule, futility and the alpha-relative SEE. Stalemate is
+// tested where quiescence's cheap conditions hold. The gain rules credit the
+// search's PIECE_VALUE, and no quiet check is searched.
 #define BASILISK_B4_PARAMS(X, F, S)                                      \
     X(b4_qs_fut_base,        B4QsFutBase,           82,   40,   220)     \
     X(b4_qs_stand_pat_blend, B4QsStandPatBlend,    437,  256,  1024)     \
     X(b4_qs_fail_high_blend, B4QsFailHighBlend,    466,  256,  1024)     \
     F(b4_qs_move_count,      B4QsMoveCount,          2,    1,    64)     \
-    F(b4_qs_see_margin,      B4QsSeeMargin,        -28, -200,     0)     \
-    F(b4_rfp_seek_mate_cap,  B4RfpSeekMateCap,       5,    1,    19)     \
-    F(b4_rfp_seek_mate_depth, B4RfpSeekMateDepth,   16,    8,    64)     \
-    S(b4_evasion_prune,      B4EvasionPrune,         1,    0,     1)     \
-    S(b4_qs_recapture,       B4QsRecapture,          1,    0,     1)     \
-    S(b4_stalemate,          B4Stalemate,            1,    0,     1)     \
-    S(b4_rfp_seek_mate,      B4RfpSeekMate,          0,    0,     1)     \
-    S(b4_qs_delta,           B4QsDelta,              0,    0,     1)     \
-    S(b4_gain_values,        B4GainValues,           0,    0,     1)     \
-    S(b4_see_values,         B4SeeValues,            0,    0,     1)     \
-    S(b4_quiet_checks,       B4QuietChecks,          0,    0,     6)
+    F(b4_qs_see_margin,      B4QsSeeMargin,        -28, -200,     0)
 
 // Cluster 3's refit of earlier clusters' lines, in the form of
 // BASILISK_B3_CORE_DEFAULTS, applied after it, so a line here wins. The
-// coordinates are fitted on Cluster 3's tree beside its own. b3_fail_low_store:
-// one form of the fail-low store for both searches; 1 stores no move in
-// either, and 0 stores the best-scored searched move in both.
+// coordinates are fitted on Cluster 3's tree beside its own.
 #define BASILISK_B4_CORE_DEFAULTS(A)                                     \
-    A(b3_fail_low_store,     B3FailLowStore,          1)                \
     A(razor_margin,          CoreRazorMargin,       261)                \
     A(rfp_per_ply,           CoreRfpPerPly,         107)                \
     A(rfp_improving,         CoreRfpImproving,       94)                \
@@ -441,16 +316,11 @@
 // and 10193 in this engine's evaluation units (0.282 of the donor's), its 47
 // unchanged.
 //
-// S lines. Categoricals, each settled by a paired run:
-//   b5_fail_high_reduce: 1 the re-search after a fail high runs that many plies
-//     shallower, at least one deep; 0 full depth.
-//   b5_neg_ext_max: extensions from a negative reduction a line may hold before
-//     the ceiling stops granting them; 0 unbounded.
-// Attribution switches, whose defaults are the cluster's form:
-//   b5_window: 1 the loop above; 0 the driver's older loop on the record.
-//   b5_root_lmr: 1 root moves after the first are reduced at depth 2 or more.
-//   b5_lmr_window_units: 1 the LMR window term reads a non-PV node's window in
-//     the donor's units (577 * 0.282 = 163); 0 reads 577 at every node.
+// A fail high is re-searched at full depth. A line holds one extension from a
+// negative reduction at most. Root moves after the first are reduced at depth 2
+// or more, as at any PV node. The LMR window term reads a non-PV node's window
+// in the donor's units (577 * 0.282 = 163). The driver's older loop serves only
+// a root record left empty (a helper whose root filter leaves it no move).
 // b5_fail_high_stop: the percent of the optimum past which a fail high on the
 //   previous best ends the search; 0 never. The cluster's window fails high
 //   more often than the older loop's, and there the stop at the optimum itself
@@ -459,11 +329,6 @@
     X(b5_asp_base,           B5AspBase,           2202,  500, 40000)     \
     X(b5_asp_msq_div,        B5AspMsqDiv,         2907, 1000, 12000)     \
     X(b5_asp_growth,         B5AspGrowth,           46,   32,    96)     \
-    S(b5_fail_high_reduce,   B5FailHighReduce,       0,    0,     1)     \
-    S(b5_neg_ext_max,        B5NegExtMax,            1,    0,     2)     \
-    S(b5_window,             B5Window,               1,    0,     1)     \
-    S(b5_root_lmr,           B5RootLmr,              1,    0,     1)     \
-    S(b5_lmr_window_units,   B5LmrWindowUnits,       1,    0,     1)     \
     S(b5_fail_high_stop,     B5FailHighStop,       100,    0,   400)
 
 // Cluster 4's own defaults where they differ from a line's, in the form of
@@ -543,17 +408,6 @@
     A(b5_asp_msq_div,        B5AspMsqDiv,              3260)                \
     A(b5_asp_growth,         B5AspGrowth,                47)
 
-// B.6.6's adoptions, the B6_DONOR_FORMS arm, in the same form and applied
-// last: the donor's razoring and the kings in the non-pawn correction keys,
-// each adopted by its paired run and gated together. Empty on the OFF arm.
-#ifdef BASILISK_B6_DONOR_FORMS
-#define BASILISK_B6_CORE_DEFAULTS(A)                                     \
-    A(razor_donor,           CoreRazorDonor,          1)                \
-    A(corr_nonpawn_kings,    CoreCorrNonPawnKings,    1)
-#else
-#define BASILISK_B6_CORE_DEFAULTS(A)
-#endif
-
 #define BASILISK_KERNEL_PARAMS(X) BASILISK_CORE_KERNEL_PARAMS(X, X)
 #define BASILISK_KERNEL_SWITCHES(S) BASILISK_CORE_KERNEL_SWITCHES(S)
 
@@ -578,7 +432,6 @@ struct SearchParams {
         BASILISK_B4_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
         BASILISK_B5_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
         BASILISK_B67_DEFAULTS(BASILISK_ARM_DEFAULT)
-        BASILISK_B6_CORE_DEFAULTS(BASILISK_ARM_DEFAULT)
 #undef BASILISK_ARM_DEFAULT
     }
 };
