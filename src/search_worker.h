@@ -318,7 +318,7 @@ private:
 
     template<NodeType NT>
     int negamax(int depth, int alpha, int beta, int ply,
-                SearchStack* ss, bool allow_null, bool cut_node);
+                SearchStack* ss, bool cut_node);
     // `counted` marks negamax's own node handed to quiescence (the depth-0
     // drop, razoring): negamax already counted it and ran the stop, ply and
     // draw checks, so each node is counted once.
@@ -338,7 +338,6 @@ private:
         const bool capture_stage = is_capture_stage(*state_.board, m);
         ss->move        = m;
         const Piece piece = state_.board->piece_on(from_sq(m));
-        ss->moved_piece = type_of(piece);
         ss->cont_hist   = &hist_.continuation->row[ss->in_check][capture_stage][hist_piece(piece)][to];
         ss->cont_corr   = &hist_.cont_corr->row[hist_piece(piece)][to];
         state_.board->make_move(m);
@@ -349,7 +348,6 @@ private:
     }
     void do_null_move(SearchStack* ss) {
         ss->move        = MOVE_NULL;
-        ss->moved_piece = NO_PIECE_TYPE;
         ss->cont_hist   = hist_.sentinel_row();
         ss->cont_corr   = hist_.sentinel_corr_row();
         state_.board->make_null_move();

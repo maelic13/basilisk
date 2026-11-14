@@ -80,7 +80,7 @@
 //   per unit of (alpha - estimate) scaled to the donor's evaluation units
 //   (x 1000/282), clamped to -64..96 after scaling. A reduced search that
 //   fails high is re-searched a ply deeper above the best by
-//   `research_deeper`, a ply shallower below it plus `research_shallower`.
+//   `research_deeper`.
 // History updates: a move that raises alpha earns min(slope * depth - 81,
 //   cap) (more for the TT move and the parent's history score); the moves
 //   searched before it lose min(slope * depth - 235, cap), each earlier quiet
@@ -141,7 +141,6 @@
     X(lmr_alpha_eval_scale,  CoreLmrAlphaEvalScale,   2,    1,    10)    \
     X(lmr_all_node_scale,    CoreLmrAllNodeScale,   247,    0,   800)    \
     X(research_deeper,       CoreResearchDeeper,     13,    4,    40)    \
-    X(research_shallower,    CoreResearchShallower,   1,    1,    12)    \
     /* History update policy */                                          \
     X(quiet_bonus_cap,       CoreQuietBonusCap,    1394,  600,  3000)    \
     X(quiet_bonus_slope,     CoreQuietBonusSlope,   151,   60,   300)    \

@@ -15,11 +15,6 @@
 #include <string>
 #include <vector>
 
-#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
-#define DIAG_COUNT(expression) (expression)
-#else
-#define DIAG_COUNT(expression) ((void)0)
-#endif
 
 using InfoCallback = std::function<void(const std::string&)>;
 
@@ -81,10 +76,10 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(razor_cuts_d1_3) X(razor_cuts_d4_7) X(razor_cuts_d8p)                  \
     /* LMR: the reduced depth clamped up to one ply, a negative reduction    \
        taken as an extension, and the full-depth re-search after a reduced   \
-       fail high moved one ply deeper or shallower. Denominator: lmr_eligible \
-       for the first two, lmr_researched for the last two. */                \
+       fail high moved one ply deeper. Denominator: lmr_eligible for the     \
+       first two, lmr_researched for the last. */                            \
     X(lmr_floor_hits) X(lmr_extended)                                        \
-    X(lmr_research_deeper) X(lmr_research_shallower)                         \
+    X(lmr_research_deeper)                                                   \
     /* Hindsight depth adjustment at node entry. Denominator: interior_nodes. */ \
     X(hindsight_up) X(hindsight_down)                                        \
     /* Nodes whose quiet delivery the move-count rule ended. */              \
@@ -282,7 +277,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 174, "the counter contract has 174 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 173, "the counter contract has 173 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.

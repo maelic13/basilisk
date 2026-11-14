@@ -20,6 +20,14 @@ static_assert(sizeof(void*) >= 8, "Basilisk requires 64-bit pointers");
 using Bitboard = uint64_t;
 using Key      = uint64_t;
 
+// A measurement counted only in the flavours that print it (Tune, Diag, and
+// Pricing inside them); release builds compile the expression away.
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
+#define DIAG_COUNT(expression) (expression)
+#else
+#define DIAG_COUNT(expression) ((void)0)
+#endif
+
 static constexpr Bitboard BB_EMPTY = 0ULL;
 static constexpr Bitboard BB_ALL   = ~0ULL;
 

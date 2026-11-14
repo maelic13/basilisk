@@ -1444,7 +1444,7 @@ Bitboard Board::BT(check_squares)(PieceType pt, Color us) const {
 }
 
 bool Board::BT(gives_check)(Move m) const {
-    ++diag_gives_check_calls;
+    DIAG_COUNT(++diag_gives_check_calls);
     Square from      = from_sq(m);
     Square to        = to_sq(m);
     Color  us        = side_to_move;
@@ -1703,7 +1703,7 @@ constexpr EmptyBoardAttacks EMPTY_BOARD;
 }  // namespace
 
 bool Board::BT(see_ge)(Move m, int threshold) const {
-    ++diag_see_ge_calls;
+    DIAG_COUNT(++diag_see_ge_calls);
     static constexpr int SEE_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
 
     const Square from = from_sq(m);

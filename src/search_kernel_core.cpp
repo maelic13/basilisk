@@ -556,7 +556,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 
 template<NodeType NT>
 int Searcher::negamax(int depth, int alpha, int beta, int ply,
-                      SearchStack* ss, bool allow_null, bool cut_node) {
+                      SearchStack* ss, bool cut_node) {
     constexpr bool is_root = NT == NodeType::Root;
     constexpr bool is_pv   = NT != NodeType::NonPV;
     // A child of a PV node searched with the full window is PV; the root is
@@ -654,7 +654,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             (ss - 1)->reduction = prior_reduction;
             state_.price.set_bare();
             const int s = negamax<NT>(entry_depth, entry_alpha, entry_beta, ply, ss,
-                                      allow_null, cut_node);
+                                      cut_node);
             (ss - 1)->reduction = 0;
             return s;
         });
@@ -1009,7 +1009,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // is an all node, and a win is never returned unproven. A deep cut
         // outside a verification is verified at this ply with null moves
         // barred above a region of plies below it.
-        if (!bare && !ABLATED(2) && cut_node && allow_null
+        if (!bare && !ABLATED(2) && cut_node
             && (ss - 1)->move != MOVE_NULL
             && static_eval >= beta - kp.b3_nmp_per_ply * depth
                               - kp.b3_nmp_improving * improving + kp.b3_nmp_base
@@ -1034,7 +1034,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 CHILD_SITE(NullMove, is_pv, cut_node);
                 int null_score = -negamax<NodeType::NonPV>(std::max(0, depth - r), -beta,
                                                            -(beta - 1), ply + 1, ss + 1,
-                                                           false, false);
+                                                           false);
                 undo_null_move(ss);
                 if (state_.stopped) return 0;
                 if (null_score >= beta && !is_decisive(null_score)) {
@@ -1049,7 +1049,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                         nmp_min_ply_ = ply + KLIT(nmp_min_ply_num) * (depth - r) / 4;
                         CHILD_SITE(NullVerify, is_pv, cut_node);
                         const int v = negamax<NodeType::NonPV>(depth - r, beta - 1, beta,
-                                                               ply, ss, true, false);
+                                                               ply, ss, false);
                         nmp_min_ply_ = 0;
                         ss->move_count = saved_move_count;
                         ss->stat_score = saved_stat_score;
@@ -1123,7 +1123,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             if (val >= pc_beta && pc_depth > 0) {
                 CHILD_SITE(ProbCutSearch, is_pv, cut_node);
                 val = -negamax<NodeType::NonPV>(pc_depth, -pc_beta, -pc_beta + 1,
-                                                ply + 1, ss + 1, true, !cut_node);
+                                                ply + 1, ss + 1, !cut_node);
             }
             undo_move(ss, m);
             if (state_.stopped) return 0;
@@ -1204,7 +1204,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 set_negext(ss, 0);
                 do_move(ss, m);
             }
-            const int s = -negamax<PvChild>(child_depth, -beta, -alpha, ply + 1, ss + 1, true,
+            const int s = -negamax<PvChild>(child_depth, -beta, -alpha, ply + 1, ss + 1,
                                              !is_pv && !cut_node);
             if (!made)
                 undo_move(ss, m);
@@ -1456,7 +1456,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 ss->excluded = m;
                 CHILD_SITE(Exclusion, is_pv, cut_node);
                 const int s_val = negamax<NodeType::NonPV>(s_depth, s_beta - 1, s_beta, ply, ss,
-                                                           false, cut_node);
+                                                           cut_node);
                 ss->excluded = MOVE_NONE;
 
                 if (state_.stopped) {
@@ -1623,7 +1623,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             // At a non-PV node the first move's child is the opposite type:
             // the expected refutation of an all node's move is a cut node.
             CHILD_SITE(FirstMove, is_pv, cut_node);
-            score = -negamax<PvChild>(new_depth - step, -beta, -alpha, ply + 1, ss + 1, true,
+            score = -negamax<PvChild>(new_depth - step, -beta, -alpha, ply + 1, ss + 1,
                                       !is_pv && !cut_node);
         } else {
             // The root reduces as any PV node, and in-check nodes as the donor's.
@@ -1666,7 +1666,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                (ss + 1)->cutoff_cnt);
                 CHILD_SITE(Reduced, is_pv, cut_node);
                 score = -negamax<NodeType::NonPV>(d, -alpha - 1, -alpha,
-                                                  ply + 1, ss + 1, true, true);
+                                                  ply + 1, ss + 1, true);
                 ss->reduction = 0;
                 set_negext(ss, 0);
 #ifdef BASILISK_PRICING
@@ -1680,14 +1680,14 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 #endif
 
                 // A reduced search that fails high is searched again at full
-                // depth, a ply deeper when it beat the best by a margin and a
-                // ply shallower when it barely reached it.
+                // depth, a ply deeper when it beat the best by a margin. (The
+                // donor's ply shallower when it barely reached it is not
+                // kept: best_score <= alpha < score, so at Basilisk's margin
+                // of one it never fired.)
                 if (score > alpha && !state_.stopped) {
-                    const bool deeper    = d < new_depth && score > best_score + kp.research_deeper;
-                    const bool shallower = score < best_score + kp.research_shallower;
-                    if (deeper)    DIAG_COUNT(++state_.diag.lmr_research_deeper);
-                    if (shallower) DIAG_COUNT(++state_.diag.lmr_research_shallower);
-                    new_depth += int(deeper) - int(shallower);
+                    const bool deeper = d < new_depth && score > best_score + kp.research_deeper;
+                    if (deeper) DIAG_COUNT(++state_.diag.lmr_research_deeper);
+                    new_depth += int(deeper);
                     if (new_depth > d) {
                         DIAG_COUNT(state_.diag.lmr_researched++);
                         DIAG_COUNT(state_.diag.root_lmr_researched += root_reduced);
@@ -1697,7 +1697,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                        (ss + 1)->cutoff_cnt);
                         CHILD_SITE(ReducedResearch, is_pv, cut_node);
                         score = -negamax<NodeType::NonPV>(new_depth, -alpha - 1, -alpha,
-                                                          ply + 1, ss + 1, true, !cut_node);
+                                                          ply + 1, ss + 1, !cut_node);
                     }
                     // A reduced move that failed high trains its continuations.
                     // The move is still made, so its side is the one not to move.
@@ -1714,7 +1714,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 }
                 CHILD_SITE(ZeroWindow, is_pv, cut_node);
                 score = -negamax<NodeType::NonPV>(new_depth - step, -alpha - 1, -alpha,
-                                                  ply + 1, ss + 1, true, !cut_node);
+                                                  ply + 1, ss + 1, !cut_node);
             }
             // At PV nodes a move that raised alpha is searched again with the
             // full window; the TT move at least one ply deep when its entry
@@ -1730,7 +1730,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                    score);
                 CHILD_SITE(PvResearch, is_pv, cut_node);
                 score = -negamax<NodeType::PV>(new_depth, -beta, -alpha,
-                                               ply + 1, ss + 1, true, false);
+                                               ply + 1, ss + 1, false);
             }
         }
 
@@ -2019,7 +2019,7 @@ int Searcher::root_search(int depth, int alpha, int beta, int searched_depth) {
     root_score_ = state_.prev_root_score;
     CHILD_SITE(Root, true, false);
     const int score = negamax<NodeType::Root>(searched_depth, alpha, beta, 0, state_.stack + STACK_SENTINELS,
-                                              true, false);
+                                              false);
     const auto first = state_.root_moves.begin() + state_.root_line;
     std::stable_sort(first, state_.root_moves.end(), b5::root_move_before);
     // Inside its window the search's result is the record's first line.

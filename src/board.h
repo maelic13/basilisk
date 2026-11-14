@@ -185,8 +185,8 @@ public:
     void unmake_null_move();
 
     // ---- Speed telemetry --------------------------------------------------
-    // Counted unconditionally (DiagCounters class: NIL cost, no Diag
-    // branch), one increment at the top of each query. They live HERE rather
+    // Counted in Tune and Diag builds (DIAG_COUNT), one increment at the
+    // top of each query; release builds compile it away. They live HERE rather
     // than at the ~11 search call sites so every caller is captured, including
     // movegen's own gives_check use. `mutable` because both queries are const;
     // race-free because a Board is per-searcher (Searcher::search takes it BY

@@ -192,12 +192,12 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
     buf = std::format("lmrblock depth {}", d.lmr_blocked_depth);
     emit(buf);
     buf = std::format("moveloop tested {} conthist {} capfut {} quietsee {} capsee {} quietfut {} "
-        "| skip_quiets nodes {} | lmr floor {} extended {} deeper {} shallower {} "
+        "| skip_quiets nodes {} | lmr floor {} extended {} deeper {} "
         "| hindsight up {} down {}",
         d.moveloop_tested, d.cont_hist_pruned, d.capture_futility_pruned,
         d.quiet_see_pruned, d.capture_see_pruned, d.fut_prunes,
         d.skip_quiets_nodes, d.lmr_floor_hits, d.lmr_extended,
-        d.lmr_research_deeper, d.lmr_research_shallower,
+        d.lmr_research_deeper,
         d.hindsight_up, d.hindsight_down);
     emit(buf);
     // Machine-readable mirror. The lines above are shaped for a human reading
@@ -274,11 +274,11 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.tt_cutoff_quiet_bonus, d.tt_cutoff_graph_refused);
         emit(buf);
         buf = std::format("kv lmr_floor_hits={} lmr_extended={} "
-            "lmr_research_deeper={} lmr_research_shallower={} "
+            "lmr_research_deeper={} "
             "moveloop_tested={} cont_hist_pruned={} capture_futility_pruned={} "
             "quiet_see_pruned={} capture_see_pruned={} singular_lone_move={}",
             d.lmr_floor_hits, d.lmr_extended,
-            d.lmr_research_deeper, d.lmr_research_shallower,
+            d.lmr_research_deeper,
             d.moveloop_tested, d.cont_hist_pruned, d.capture_futility_pruned,
             d.quiet_see_pruned, d.capture_see_pruned, d.singular_lone_move);
         emit(buf);

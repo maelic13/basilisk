@@ -951,9 +951,9 @@ void Evaluator::eval_pawns(const Board& b,
     Key pkey = b.pawn_key_value();
     PawnEntry& pe = pawn_table_[pkey & (PAWN_TABLE_SIZE - 1)];
 
-    ++pawn_probes;
+    DIAG_COUNT(++pawn_probes);
     if (pe.key == pkey) {
-        ++pawn_hits;
+        DIAG_COUNT(++pawn_hits);
         mg_out = pe.mg;
         eg_out = pe.eg;
         passed[WHITE]  = pe.passed[WHITE];
@@ -1125,7 +1125,7 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
 #ifdef BASILISK_BOARD_TRACE
     board_trace::EvalScope trace_eval_scope;
 #endif
-    ++eval_calls;
+    DIAG_COUNT(++eval_calls);
 #ifdef BASILISK_TUNE
     if (diag_endgames && !query)
         record_endgame_occurrence(b, endgame_occurrence);
@@ -1303,19 +1303,26 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
     // scaling -- which still runs, so KBNK/KPK/draw-scaling survive the skip.
     // Disabled under TEXEL_TRACE so the tuner fits the full eval (--verify exact).
 #ifndef TEXEL_TRACE
-    // Under the lazy audit the skip does NOT return — the full tail
-    // runs for measurement and the final return serves the remembered lazy
-    // value, so the audit is behaviour-identical (bench-identical) when on.
+    // Under the lazy audit (Tune and Diag builds) the skip does NOT return —
+    // the full tail runs for measurement and the final return serves the
+    // remembered lazy value, so the audit is behaviour-identical
+    // (bench-identical) when on.
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     int lazy_served = VALUE_NONE_SENTINEL;
+#endif
     {
         int lazy = (mg * phase + eg * (TOTAL_PHASE - phase)) / TOTAL_PHASE;
         int lazy_abs = lazy < 0 ? -lazy : lazy;
         if (lazy_abs > LAZY_MARGIN) {
             const int score = apply_endgame(b, lazy, verdict);
             const int served = (b.turn() == WHITE) ? score : -score;
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
             if (!diag_lazy || query)
                 return served;
             lazy_served = served;
+#else
+            return served;
+#endif
         }
     }
 #endif
@@ -2001,7 +2008,7 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
     score = apply_endgame(b, score, verdict);
 
     const int full_served = (b.turn() == WHITE) ? score : -score;
-#ifndef TEXEL_TRACE
+#if !defined(TEXEL_TRACE) && (defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC))
     if (lazy_served != VALUE_NONE_SENTINEL) {
         // Lazy audit bookkeeping — the full tail ran only for measurement.
         lazy_fires++;

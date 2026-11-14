@@ -49,7 +49,6 @@ struct SearchStack {
     int       reduction   = 0;               // reduction applied to the move searched from here
     int       move_count  = 0;               // moves picked at this node, pruned ones included
     int       cutoff_cnt  = 0;               // fail highs at this ply among one parent's children
-    PieceType moved_piece = NO_PIECE_TYPE;   // piece type that made 'move'
     bool      tt_pv       = false;           // node lies near a TT/PV line
     bool      tt_hit      = false;           // the TT probe found this position
     bool      in_check    = false;           // side to move is in check

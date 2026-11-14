@@ -71,7 +71,7 @@ public:
     bool draw_verdict(const Board& b);
     void clear_pawn_table();
 
-    // ---- Lazy dual-eval audit ----------------------------------------------
+    // ---- Lazy dual-eval audit (Tune and Diag builds) ------------------------
     // When diag_lazy is set, a lazy-margin skip ALSO runs the full positional
     // tail on the side and records the divergence; the SERVED score is the
     // lazy value either way, so behaviour (and bench) is identical with the
@@ -82,7 +82,7 @@ public:
     int64_t lazy_fires = 0, lazy_sign_flips = 0, lazy_margin_crossings = 0;
     int64_t lazy_absdelta_sum = 0, lazy_absdelta_max = 0;
 
-    // ---- Speed telemetry (always counted, NIL-cost class) ------------------
+    // ---- Speed telemetry (counted in Tune and Diag builds) -----------------
     // eval_calls / nodes = the eval RATE: evaluate() is gated behind the TT
     // static_eval cache and skipped in check, so the share of nodes actually
     // paying for a full eval is a guess today. pawn_probes/hits size the
