@@ -286,6 +286,29 @@ public:
          7, 15, 15, 15,  3, 15, 15, 11  // rank 8
     };
 
+#ifdef BASILISK_BOARD_TRACE
+    // Search-replay trace: the public methods of the same names are defined in
+    // board_trace.cpp, record the call and forward to these (board.cpp).
+private:
+    void make_move_untraced(Move m);
+    void unmake_move_untraced(Move m);
+    void make_null_move_untraced();
+    void unmake_null_move_untraced();
+    void gen_legal_untraced(MoveList& moves) const;
+    void gen_legal_captures_untraced(MoveList& moves) const;
+    void gen_legal_quiets_untraced(MoveList& moves) const;
+    void gen_quiet_checks_untraced(MoveList& moves) const;
+    [[nodiscard]] bool see_ge_untraced(Move m, int threshold) const;
+    [[nodiscard]] bool gives_check_untraced(Move m) const;
+    [[nodiscard]] Bitboard check_squares_untraced(PieceType pt, Color us) const;
+    [[nodiscard]] bool is_legal_untraced(Move m) const;
+    [[nodiscard]] bool is_draw_untraced(int search_ply) const;
+    [[nodiscard]] bool is_repetition_untraced(int search_ply) const;
+    [[nodiscard]] bool upcoming_repetition_untraced(int search_ply) const;
+    [[nodiscard]] bool is_in_check_untraced() const;
+    [[nodiscard]] bool has_non_pawn_material_untraced(Color c) const;
+#endif
+
 private:
     void put_piece(Color c, PieceType pt, Square sq);
     void remove_piece(Square sq);

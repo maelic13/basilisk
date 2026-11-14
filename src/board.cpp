@@ -12,6 +12,12 @@
 #include <string>
 #include <utility>
 
+#ifdef BASILISK_BOARD_TRACE
+#define BT(name) name##_untraced
+#else
+#define BT(name) name
+#endif
+
 // ---- Internal helpers -------------------------------------------------------
 
 void Board::put_piece(Color c, PieceType pt, Square sq) {
@@ -647,7 +653,7 @@ std::string Board::get_fen() const {
 
 // ---- make_move / unmake_move ------------------------------------------------
 
-void Board::make_move(Move m) {
+void Board::BT(make_move)(Move m) {
     UndoInfo ui;
     ui.hash     = hash;
     ui.pawn_key = pawn_key;
@@ -741,7 +747,7 @@ void Board::make_move(Move m) {
     checkers = attackers_to(king_sq[side_to_move], all_occ, ~side_to_move);
 }
 
-void Board::unmake_move(Move m) {
+void Board::BT(unmake_move)(Move m) {
     assert(!history.empty());
     UndoInfo ui = history.back();
     history.pop_back();
@@ -800,7 +806,7 @@ void Board::unmake_move(Move m) {
     checkers = ui.checkers;
 }
 
-void Board::make_null_move() {
+void Board::BT(make_null_move)() {
     UndoInfo ui;
     ui.hash     = hash;
     ui.pawn_key = pawn_key;
@@ -832,7 +838,7 @@ void Board::make_null_move() {
     checkers = 0;
 }
 
-void Board::unmake_null_move() {
+void Board::BT(unmake_null_move)() {
     assert(!history.empty());
     UndoInfo ui = history.back();
     history.pop_back();
@@ -893,14 +899,14 @@ bool Board::is_attacked_by(Square sq, Bitboard occ, Color by) const {
     return (KingAttacks[sq] & pieces[by][KING]) != 0;
 }
 
-bool Board::is_in_check() const {
+bool Board::BT(is_in_check)() const {
     return checkers != 0;
 }
 
 // ---- Move generation -------------------------------------------------------
 
 
-bool Board::is_legal(Move m) const {
+bool Board::BT(is_legal)(Move m) const {
     Color us   = side_to_move;
     Color them = ~us;
     Square from = from_sq(m);
@@ -1389,22 +1395,22 @@ static void gen_legal_impl(const Board& b, MoveList& ml, bool caps_only, bool qu
     }
 }
 
-void Board::gen_legal(MoveList& ml) const {
+void Board::BT(gen_legal)(MoveList& ml) const {
     if (side_to_move == WHITE) gen_legal_impl<WHITE>(*this, ml, false, false);
     else                       gen_legal_impl<BLACK>(*this, ml, false, false);
 }
 
-void Board::gen_legal_captures(MoveList& ml) const {
+void Board::BT(gen_legal_captures)(MoveList& ml) const {
     if (side_to_move == WHITE) gen_legal_impl<WHITE>(*this, ml, true, false);
     else                       gen_legal_impl<BLACK>(*this, ml, true, false);
 }
 
-void Board::gen_legal_quiets(MoveList& ml) const {
+void Board::BT(gen_legal_quiets)(MoveList& ml) const {
     if (side_to_move == WHITE) gen_legal_impl<WHITE>(*this, ml, false, true);
     else                       gen_legal_impl<BLACK>(*this, ml, false, true);
 }
 
-Bitboard Board::check_squares(PieceType pt, Color us) const {
+Bitboard Board::BT(check_squares)(PieceType pt, Color us) const {
     const Square ksq = king_sq[~us];
     switch (pt) {
         case PAWN:   return PawnAttacks[~us][ksq];
@@ -1416,7 +1422,7 @@ Bitboard Board::check_squares(PieceType pt, Color us) const {
     }
 }
 
-bool Board::gives_check(Move m) const {
+bool Board::BT(gives_check)(Move m) const {
     ++diag_gives_check_calls;
     Square from      = from_sq(m);
     Square to        = to_sq(m);
@@ -1479,7 +1485,7 @@ bool Board::gives_check(Move m) const {
     return false;
 }
 
-void Board::gen_quiet_checks(MoveList& ml) const {
+void Board::BT(gen_quiet_checks)(MoveList& ml) const {
     // Generate all legal moves, keep only quiet moves that give check.
     MoveList all;
     gen_legal(all);
@@ -1559,7 +1565,7 @@ bool Board::is_draw() const {
     return false;
 }
 
-bool Board::is_repetition(int search_ply) const {
+bool Board::BT(is_repetition)(int search_ply) const {
     if (halfmove_clock < 4)
         return false;
 
@@ -1586,7 +1592,7 @@ bool Board::is_repetition(int search_ply) const {
     return false;
 }
 
-bool Board::upcoming_repetition(int search_ply) const {
+bool Board::BT(upcoming_repetition)(int search_ply) const {
     const int hist_size = static_cast<int>(history.size());
     const int end = std::min({halfmove_clock, plies_from_null, hist_size});
     if (end < 3)
@@ -1622,7 +1628,7 @@ bool Board::upcoming_repetition(int search_ply) const {
     return false;
 }
 
-bool Board::is_draw(int search_ply) const {
+bool Board::BT(is_draw)(int search_ply) const {
     if (is_insufficient_material()) return true;
     if (rule50_draw()) return true;
     return is_repetition(search_ply);
@@ -1654,7 +1660,7 @@ bool Board::is_insufficient_material() const {
     return false;
 }
 
-bool Board::has_non_pawn_material(Color c) const {
+bool Board::BT(has_non_pawn_material)(Color c) const {
     return (pieces[c][KNIGHT] | pieces[c][BISHOP] | pieces[c][ROOK] | pieces[c][QUEEN]) != 0;
 }
 
@@ -1854,7 +1860,7 @@ int Board::see(Move m) const {
     return gain[0];
 }
 
-bool Board::see_ge(Move m, int threshold) const {
+bool Board::BT(see_ge)(Move m, int threshold) const {
     ++diag_see_ge_calls;
 #ifdef BASILISK_TUNE
     const int* const SEE_VALUES = see_values_;

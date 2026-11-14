@@ -25,6 +25,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include "board_trace.h"
 
 // ---- Constructor -----------------------------------------------------------
 
@@ -400,6 +401,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     const SearchLimits& limits = config_.limits;
 
     state_.board        = &board;
+#ifdef BASILISK_BOARD_TRACE
+    board_trace::begin_search(board);
+#endif
 #ifdef BASILISK_TUNE
     board.set_see_vector(limits.params.b4_see_values);
 #endif
@@ -934,6 +938,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             d.xc_pawn_reads, d.xc_pawn_other_only, d.xc_pawn_mixed, d.xc_pawn_other_ppm);
     harvest(hist_.shadow->reads(ShadowTable::ContCorr),
             d.xc_corr_reads, d.xc_corr_other_only, d.xc_corr_mixed, d.xc_corr_other_ppm);
+#endif
+#ifdef BASILISK_BOARD_TRACE
+    board_trace::end_search();
 #endif
     state_.board = nullptr;
     shared_.pool = PoolResources{};
