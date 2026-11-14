@@ -3578,7 +3578,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   own: phase letters are identifiers, and a phase between B and C would
   re-letter C–G. Inputs: `analysis/triumviratus_review_2026-11-03.md` (TB
   items) and the archived board leaves 7.1–7.12 (HISTORY's number map).
-    - [ ] **B.7.1** `[R2]` Board contract audit and instruments
+    - [x] **B.7.1** `[R2]` Board contract audit and instruments
       Was D.3.1, then B.15.1 (HISTORY's number map): the defect
       hunt, and the safety net B.7.3 rebuilds behind (archived 7.1, 7.7,
       7.9–7.12). Port the snapshot's board-v2 corpus and oracle
@@ -3648,8 +3648,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         the head proved it in 8 from depth 17).
       - Gate: BAS-S63, `[-5,5]` at `3+0.03`, cap 4,000 pairs (12.1% of
         3,000 game positions choose another move at 50k nodes, by the new
-        `tools/diag/decision_diff.py`), `python tools/run_b71_gate.py`,
-        dry run accepted. `GAME_GATE`; the maintainer runs it.
+        `tools/diag/decision_diff.py`), `python tools/run_b71_gate.py`.
+        Maintainer-run 2026-11-14: the cap without a decision, 8,000
+        games, +1.9 ± 4.1 Elo, LLR +2.29, no faults. The repair stays (the
+        cap rule, confirmed by the maintainer) and the fingerprint record
+        moves to **4,247,965**. CLOSED 2026-11-14.
       - For B.8.2 (F4): `Board::see` has no caller left in `src/`.
     - [ ] **B.7.2** `[R2]` Board review against Stockfish and Triumviratus
       A packet that reads each component against the donor's form and
@@ -4452,8 +4455,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.7.1 | GAME_GATE | R2 | F1's repair gate, BAS-S63, maintainer-run |
-| B.7.2 | RESEARCH | R2 | Was B.15.2; after B.7.1 |
+| B.7.2 | RESEARCH | R2 | Was B.15.2; next |
 | B.7.3 | RESEARCH | I2 | Was B.15.3; on B.7.2's frozen handoff |
 | B.7.4 | RESEARCH | V | Was B.15.4; after B.7.3, before B.8 |
 | B.8.2 | RESEARCH | I1 | After the clusters and the board |

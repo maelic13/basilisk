@@ -16,6 +16,13 @@ and next step).
 
 ### Changed
 
+- **Repetitions at the root of the search follow Stockfish.** A line that
+  returns to the position the engine is thinking about was scored as a draw
+  at once, although the game had seen that position only once more and the
+  opponent could still go elsewhere. Now it takes a second return, the same
+  rule the engine's look-ahead for repetitions already used. Measured
+  against the engine before it at `3+0.03`: **+1.9 ± 4.1 Elo** over 8,000
+  games, no measured harm. `bench 13` is now 4,247,965.
 - **Tuned the whole search together.** Each part of the search had been
   tuned on its own as it was rebuilt. This time 170 of its numbers were
   tuned at once over a night of self-play: 69 settings and 101 constants

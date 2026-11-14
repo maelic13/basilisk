@@ -102,7 +102,7 @@ reused as the safety net. No second one was built.
 
 ## 3. Findings
 
-- **F1 (semantic, not repaired; correctness-repair path).** At the root
+- **F1 (semantic; repaired and gated, below).** At the root
   cycle Basilisk's two repetition predicates disagree. `is_repetition`
   scores a single return to the root position as a draw (`distance <=
   search_ply`, pinned by `test_board`'s "search repetition distinguishes
@@ -130,7 +130,8 @@ reused as the safety net. No second one was built.
       in 9 from depth 19 and in 8 from depth 24.
     - Exposure by `tools/diag/decision_diff.py`: 12.1% of 3,000 game
       positions choose another move at 50k nodes (a self pair reads 0).
-    - Gate BAS-S63, `[-5,5]`, cap 4,000 pairs.
+    - Gate BAS-S63, `[-5,5]`, cap 4,000 pairs: the cap without a decision,
+      +1.9 ± 4.1 Elo over 8,000 games; the repair stays.
 - **F2 (defect, repaired here, behaviour-neutral).** `Board::operator=`
   copied the history with `history = other.history`. A game history
   longer than about 2,048 − `MAX_PLY` plies left a copy with capacity

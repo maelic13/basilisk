@@ -90,3 +90,25 @@ The exposure is far above 2%, so the cap is the full one, as BAS-S40's.
 - No arm, bound, cap, book or adjudication changes after a game is observed.
 
 #### RESULT — append after exposure
+
+Maintainer-run 2026-11-14, 14:29–15:48 UTC, `colosseum-cli` 0.5.0, 15 games at
+a time, host busy 1.5% at the start; manifest
+`tools/results/colosseum_sprt_b71-gate_20261114_152902.manifest.txt`; the
+arms' hashes, revisions and benches as registered; the PGN recount agrees.
+
+- **The cap, no decision:** 4,000 pairs, 8,000 games, LLR **+2.29** in
+  [−2.94, 2.94]. **+1.9 ± 4.1 Elo** (95%), nElo +3.5 ± 7.6; 80% interval
+  [−0.8, +4.6] Elo; LOS 81%.
+- W/D/L 2,044 / 3,955 / 2,001, pentanomial [73, 847, 2,124, 876, 80]. No
+  faults, no time losses; every game ended naturally (4,045 mates, 3,184
+  threefolds, 668 insufficient material, 73 rule-50, 30 stalemates).
+- At 2,245 pairs it read +0.6 ± 5.6; the maintainer let it run to the cap.
+- **Predictions:** G1 (the cap) held; G4's estimate +1.9 sits inside its
+  80% interval [−4, +6].
+- **Verdict:** the cap rule. The repair stays as a correctness fix with no
+  measured harm, and the maintainer confirmed it. The harm bound at 95% is
+  −2.2 Elo. The fingerprint record moves to **4,247,965**. CLOSED 2026-11-14.
+- **The cap was oversized.** It was copied from BAS-S40 (12.1% exposure)
+  rather than sized from the drift model, against agents/measurement.md
+  *Gating*. About 2,500 pairs would have bounded harm near −3 Elo. No
+  rule changes: the rule already forbids the copy.
