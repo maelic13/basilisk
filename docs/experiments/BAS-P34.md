@@ -41,4 +41,25 @@
 
 #### RESULT
 
-Pending: the read waits for an idle host.
+Idle host, 2026-11-15. Pooled read (`tools/nps_read.ps1 -NoRegression`,
+`tools/results/b82-nps-20261115`), two cycles, host at 1.1% or less, no cycle
+disturbed; per-build medians `b76-head` 2.503M, 2.487M, 2.497M, 2.491M and
+`b82-head` 2.543M, 2.542M, 2.538M, 2.545M.
+
+| Contrast | Delta | 95% interval | Verdict |
+|---|---:|---|---|
+| `b82-head` over `b76-head` | +1.89% | [+1.47%, +2.31%] | PASS at step 1 |
+
+- **Disposition.** PASSED: every deletion and idiom stays, and B.8.2 closes. The read
+  is a gain as well as a pass: its lower bound clears the gain form's +0.5% step-2
+  bar, though only the no-regression form was registered.
+- **Calibration.** The prediction (a few tenths of a percent) was low by a factor of
+  about five; the result sits inside Rarog's +1–6% (D-18). The deleted switches were
+  branches the release build took at every node they guarded, and the release
+  telemetry's increments ran on every evaluation, SEE and check test; the read does
+  not apportion the gain between them.
+- **Note on the candidate.** The three commits after `01aa08e` (the profile-region map
+  and the records) change no engine source, so `b82-head` is the head's engine.
+- **Artifacts.** `tools/results/b82-nps-20261115` (`read.json`, `runs.jsonl`,
+  `verdict-2.json`); pools `tools/test_engines/b76-head.pool.json` and
+  `b82-head.pool.json`.

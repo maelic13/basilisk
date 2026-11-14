@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.8.2** `[I1]` Dead parameters, switches and diagnostics — Claude Sonnet
+**Next step:** **B.8.3** `[I1]` Allocation guard — Claude Sonnet
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -132,7 +132,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.7.9** `[V]` Board speed read and gate
 - [ ] **B.8** Cleanup and speed pass
     - [x] **B.8.1** `[I1]` Delete the legacy search kernel (ANY TIME) — before the A.11 gates
-    - [ ] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
+    - [x] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
     - [ ] **B.8.3** `[I1]` Allocation guard
     - [ ] **B.8.4** `[I1]` Large pages on every platform
     - [ ] **B.8.5** `[I1]` Speed pass

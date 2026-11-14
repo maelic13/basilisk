@@ -670,7 +670,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P31](experiments/BAS-P31.md) | The board's second round: six candidates on the replay and the engine screen (B.7.7). | COMPLETE: none kept (best +0.22%, keys by table; all six together −7.76%), NO_CHANGE |
 | [BAS-P32](experiments/BAS-P32.md) | The final board beside the donors (contract v3), and B.7.6's speed in hardware counters (B.7.9). | COMPLETE: Basilisk cheapest, 60.7 ns per node against classical Stockfish 61.9, Rarog 69.8, Stockfish 19 76.6; counter read not counted (BAS-P28, BAS-P33) |
 | [BAS-P33](experiments/BAS-P33.md) | The counter read's null redesigned: copies of every base build, decided over builds (B.7.9). | NOT ACCEPTED: identical builds read −0.56% [−1.10, −0.02] and +0.49%; the counters resolve about ±1% at three cycles |
-| [BAS-P34](experiments/BAS-P34.md) | B.8.2's deletions and idioms in the whole engine, pooled-PGO NPS, no-regression form (B.8.2). | REGISTERED: waits for an idle host |
+| [BAS-P34](experiments/BAS-P34.md) | B.8.2's deletions and idioms in the whole engine, pooled-PGO NPS, no-regression form (B.8.2). | COMPLETE: +1.89% [+1.47, +2.31], no-regression PASS; kept |
 
 ## 7. Correctness and protocol lessons
 

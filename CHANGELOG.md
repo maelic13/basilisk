@@ -16,6 +16,11 @@ and next step).
 
 ### Changed
 
+- **About 2% faster again.** The engine carried alternative versions of
+  many search rules, kept to measure them against each other, and checked
+  at every position which one to use; it also counted statistics nobody
+  read. Those are gone (BAS-P34: +1.89% nodes per second). It plays the
+  same moves: `bench 13` is unchanged at 4,247,965.
 - **About 3% faster.** Taking a move back no longer recomputes the
   position's keys only to throw them away, and the exchange evaluator works
   out pinned pieces when it needs them instead of in advance (BAS-P30:

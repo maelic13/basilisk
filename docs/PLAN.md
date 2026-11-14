@@ -4138,7 +4138,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         passes, and `--verify` reconstructs all seven positions; the
         `tools/diag` tests pass but `test_profile_regions`, which fails on
         master already (`version.cpp` and `version.h` are unmapped).
-    - [ ] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
+    - [x] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
       What B.8.1 and B.8.6 kept (their *Kept* lines). The thirteen zero
       counters leave the counter contract only with the oracle's side of it.
       Added 2026-11-14 (maintainer: simplify the engine now; the inventory
@@ -4215,6 +4215,37 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         futility returning `eval` directly and the "LMR table" heading
         above the child log; `search_worker.h` "on either kernel";
         `constants.h` "in search.cpp"; `search_types.h` "reads zeros".
+      - Closed 2026-11-15, behaviour-neutral (`bench 13` 4,247,965 throughout;
+        the record of what went and where it lives is the inventory's §7):
+        - Deleted: every runtime switch with its other arm (§2, §3), the B6
+          table and the parameter lines only those arms read; `Board::see`,
+          the cross-check build, `compute_hash` and `gen_quiet_checks`; 23
+          counters, five trace events and three price rules nothing wrote
+          (the counter table 196 to 173; `run_suite.py` reads the oracle's
+          fourteen extra counters when present); `allow_null`,
+          `moved_piece`; the shallower re-search with
+          `CoreResearchShallower` (B-63: 0 of 45,108 re-searches, and it
+          cannot fire at margin 1). The override tables are folded into
+          their lines: a Tune build's option list is identical, and every
+          surface starts from the values in force.
+        - Kept after reading: B-13's floor (counted 0 but reachable at a
+          depth-1 PV node whose TT move is not first) and the older
+          aspiration loop (an empty root record).
+        - Release telemetry is counted in Tune and Diag only.
+        - Idioms 1, 4, 5, 7 and 10 of B.6.4's list, with `DIAG_COUNT`
+          under `if constexpr` (item 3 for the counters); `uci_output.h` is
+          `output_sink.h`; the comments corrected. Not done: the trace and
+          price hooks under `if constexpr` (they would add members to the
+          release search state), `negamax`'s helpers (layout risk, B.8.5's
+          profile decides) and further width proofs (B.6.5 proved the
+          widest product; the multi-cut is 64-bit).
+        - Verified: Release, Diag, Tune, Ablate and Texel build with the
+          fingerprint; CTest on Release, Diag and Tune; ASan/UBSan with
+          libc++ hardening 30 of 30; the board trace byte-identical
+          (`4C6643CD9CB43460`) and the decision trace over 8,273 lines; the
+          surfaces, roadmap, citations and every `tools/diag` test.
+        - Speed (BAS-P34): +1.89% [+1.47%, +2.31%] pooled-PGO NPS over
+          master's engine, the no-regression form passed at step 1.
     - [ ] **B.8.3** `[I1]` Allocation guard
       Before the speed pass (B.7.1 until 2026-11-05): a test with a
       counting global `operator new` searches fixed positions at two depths at
@@ -4899,7 +4930,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.8.2 | READY_FOR_IMPLEMENTATION | I1 | Clusters and board done; the 2026-11-14 inventory decides every switch |
 | B.8.3 | READY_FOR_IMPLEMENTATION | I1 | Was B.7.1; before the speed pass, no engine change |
 | B.8.4 | RESEARCH | I1 | Split from the speed pass 2026-11-05; before it |
 | B.8.5 | RESEARCH | I1 | Was B.7.2; after B.8.3 and B.8.4, on the new modules |
