@@ -4141,6 +4141,29 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [ ] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
       What B.8.1 and B.8.6 kept (their *Kept* lines). The thirteen zero
       counters leave the counter contract only with the oracle's side of it.
+      Added 2026-11-14 (maintainer: simplify the engine now; the inventory
+      and its reasons are `analysis/b82_switch_inventory_2026-11-14.md`):
+      - Every runtime switch goes, keeping the form in force (§2). A
+        parameter is a run-time `int` in every build, so each switch is a
+        branch in the shipped engine.
+      - A switch whose other form a later leaf tests goes too (§3). Its form
+        is recorded as it stands at `55e3010`, with file and line, and
+        H.6, H.2 and D.1 rebuild it there. This includes `B6_DONOR_FORMS`
+        and its table.
+      - Also deleted (§4):
+        - `Board::see` with `see_pins` and the departure test;
+          `test_board`'s exact SEE values become `see_ge` boundary pairs;
+        - the cross-check build and its four reference forms;
+        - the B3, B4, B5 and B67 override tables, folded into their lines;
+        - `compute_hash`, `RELEASE_DIAG_COUNTERS`, and `gen_quiet_checks`
+          with `B4QuietChecks`.
+      - This settles B.8.6's kept `B4QsDelta` switch: it goes, since
+        nothing asks to restore the old delta rule.
+      - Kept (§5): the measurement flavours, compiled out of release and
+        each read by an open leaf; numeric parameters; the ablation build
+        until B.11's closing leaf removes it.
+      - `bench 13` stays 4,247,965 through every deletion. One pooled NPS
+        read after them decides the speed, with the B-63 deletions below.
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
       are its items):
       - Delete the dead shallower re-search (B-63) and the probably-dead PVS
@@ -4863,7 +4886,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.8.2 | RESEARCH | I1 | After the clusters and the board |
+| B.8.2 | READY_FOR_IMPLEMENTATION | I1 | Clusters and board done; the 2026-11-14 inventory decides every switch |
 | B.8.3 | READY_FOR_IMPLEMENTATION | I1 | Was B.7.1; before the speed pass, no engine change |
 | B.8.4 | RESEARCH | I1 | Split from the speed pass 2026-11-05; before it |
 | B.8.5 | RESEARCH | I1 | Was B.7.2; after B.8.3 and B.8.4, on the new modules |
@@ -5556,6 +5579,10 @@ has lost games in both engines (BAS-X02).
   instability extension, helper handling) audited against Stockfish's shape
   and against Manta's ADR-0065 checklist; SPRT `[0,3]` at STC, a `10+0.1`
   direction check and a 4T zero-forfeit run (archived 9.7).
+  The fail-high depth reduction (`B5FailHighReduce`, B.6.6 row 17) is
+  this leaf's. Its switch leaves in B.8.2 and is rebuilt here from
+  `55e3010` (`search_worker.cpp:608`; `analysis/b82_switch_inventory_2026-11-14.md`
+  §3).
   Stockfish's shape: optimum and maximum from clock and increment, with the
   total scaled by falling eval, best-move stability, best-move instability
   across threads and best-move node effort.
@@ -6173,6 +6200,10 @@ already repairing or a form it must choose anyway, and says so.
   a decision with no early stop on a lean (Triumviratus's stopped leans
   added up to nothing, TM-4); levers that tune together enter one SPSA
   rather than many SPRTs.
+  Reverse futility's seek-mate cap (`B4RfpSeekMate`, B.6.6 row 16) is
+  this leaf's, on the network. Its switch leaves in B.8.2 and is rebuilt
+  here from `55e3010` (`search_kernel_core.cpp:1108`;
+  `analysis/b82_switch_inventory_2026-11-14.md` §3).
   Triumviratus review inputs (2026-11-03,
   `analysis/triumviratus_review_2026-11-03.md`; IDs are its items):
   - Causal reduction: quiet siblings that touch none of a sibling's
@@ -6356,7 +6387,10 @@ already repairing or a form it must choose anyway, and says so.
     frame (R7, with H.2's frame item); razoring in the donor's form and
     the kings in the non-pawn key (+10.6 ± 9.4 and +11.6 ± 9.3 alone,
     +2.2 ± 4.2 together over 10,000 games, BAS-S60). Their switches
-    and `B6_DONOR_FORMS` are in the source, off.
+    and `B6_DONOR_FORMS` leave in B.8.2 (maintainer, 2026-11-14). Each
+    form is rebuilt here from `55e3010` at the place
+    `analysis/b82_switch_inventory_2026-11-14.md` §3 names, with
+    `B5NegExtMax`'s other two values.
 
 ## 4. Measurement protocols
 
