@@ -4455,7 +4455,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.7.2 | RESEARCH | R2 | Was B.15.2; next |
+| B.7.2 | RESEARCH | R2 | Instruments built; reads wait for an idle host |
 | B.7.3 | RESEARCH | I2 | Was B.15.3; on B.7.2's frozen handoff |
 | B.7.4 | RESEARCH | V | Was B.15.4; after B.7.3, before B.8 |
 | B.8.2 | RESEARCH | I1 | After the clusters and the board |
