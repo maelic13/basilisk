@@ -1,0 +1,455 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index f33c7ce..28b0255 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -124,3 +124,7 @@ harness = false
+ [[bench]]
+ name = "board_v2"
+ harness = false
++
++[[bench]]
++name = "board_xv2"
++harness = false
+diff --git a/benches/board_xv2.rs b/benches/board_xv2.rs
+new file mode 100644
+index 0000000..12d81f2
+--- /dev/null
++++ b/benches/board_xv2.rs
+@@ -0,0 +1,437 @@
++//! `cross-engine-board-v2` adapter (tools/board_compare/CONTRACT.md in Basilisk).
++//!
++//! Six columns over the 512-position game file: legal_gen, capture_gen,
++//! make_unmake, see_captures, gives_check, board_perft. Every input is built
++//! before timing; the timed loops reuse caller-owned lists and allocate
++//! nothing. Output is the format of Basilisk's tests/board_micro.cpp, which
++//! tools/diag/board_micro_run.py parses.
++//!
++//!   board_xv2 <positions.fen> [--samples N] [--sample-ms MS] [--columns a,b] [--preflight-only]
++//!
++//! Rarog functions used (all public Board API, no source change):
++//!   legal_gen    generate_legal_movelist_into   (the search's out-parameter form)
++//!   capture_gen  generate_legal_noisy_into      (qsearch's tactical generator)
++//!   make_unmake  make_move_with_check + unmake_move (the search's make, hint known)
++//!   see_captures see_ge_with_values(mv, 0, CROSS_ENGINE_SEE_VALUES)
++//!   gives_check  gives_check                    (the public full form)
++//!   board_perft  perft                          (generate_legal_into + make_move/unmake_move)
++
++use std::hint::black_box;
++use std::time::Instant;
++
++use rarog::board::{Board, CROSS_ENGINE_SEE_VALUES, Move, MoveList};
++
++struct Oracle {
++    positions: u64,
++    legal: u64,
++    tactical: u64,
++    checking: u64,
++    present: bool,
++}
++
++#[derive(Clone, Copy)]
++struct Pass {
++    ops: u64,
++    sum: u64,
++}
++
++const COLUMNS: [(&str, &str); 6] = [
++    ("legal_gen", "positions"),
++    ("capture_gen", "positions"),
++    ("make_unmake", "moves"),
++    ("see_captures", "moves"),
++    ("gives_check", "moves"),
++    ("board_perft", "leaves"),
++];
++
++const PERFT_ROOTS: [(&str, u32); 3] = [
++    ("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 4),
++    (
++        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
++        3,
++    ),
++    ("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", 5),
++];
++
++struct State {
++    boards: Vec<Board>,
++    /// Every legal move: (board index, move, whether it gives check).
++    all_moves: Vec<(u32, Move, bool)>,
++    /// The tactical moves, filtered from the legal lists at setup.
++    tactical: Vec<(u32, Move)>,
++    list: MoveList,
++    perft_roots: Vec<(Board, u32)>,
++}
++
++impl State {
++    fn legal_gen(&mut self) -> Pass {
++        let mut p = Pass { ops: 0, sum: 0 };
++        for board in &self.boards {
++            board.generate_legal_movelist_into(&mut self.list);
++            black_box(&self.list);
++            p.ops += 1;
++            let n = self.list.len();
++            let last = self.list.as_slice().last().map_or(0, |m| u64::from(m.0));
++            p.sum = p.sum.wrapping_mul(31).wrapping_add(n as u64 + last);
++        }
++        p
++    }
++
++    fn capture_gen(&mut self) -> Pass {
++        let mut p = Pass { ops: 0, sum: 0 };
++        for board in &mut self.boards {
++            board.generate_legal_noisy_into(&mut self.list);
++            black_box(&self.list);
++            p.ops += 1;
++            let n = self.list.len();
++            let last = self.list.as_slice().last().map_or(0, |m| u64::from(m.0));
++            p.sum = p.sum.wrapping_mul(31).wrapping_add(n as u64 + last);
++        }
++        p
++    }
++
++    fn make_unmake(&mut self) -> Pass {
++        let mut p = Pass { ops: 0, sum: 0 };
++        for &(i, mv, check) in &self.all_moves {
++            let board = &mut self.boards[i as usize];
++            board.make_move_with_check(mv, check);
++            black_box(&*board);
++            p.sum = p.sum.wrapping_add(board.hash() ^ board.checkers().0);
++            board.unmake_move(mv);
++            p.ops += 1;
++        }
++        p
++    }
++
++    fn see_captures(&mut self) -> Pass {
++        let mut p = Pass { ops: 0, sum: 0 };
++        for &(i, mv) in &self.tactical {
++            let r = self.boards[i as usize].see_ge_with_values(mv, 0, CROSS_ENGINE_SEE_VALUES);
++            black_box(r);
++            p.sum = p.sum.wrapping_mul(3).wrapping_add(u64::from(r));
++            p.ops += 1;
++        }
++        p
++    }
++
++    fn gives_check(&mut self) -> Pass {
++        let mut p = Pass { ops: 0, sum: 0 };
++        for &(i, mv, _) in &self.all_moves {
++            let r = self.boards[i as usize].gives_check(mv);
++            black_box(r);
++            p.sum = p.sum.wrapping_mul(3).wrapping_add(u64::from(r));
++            p.ops += 1;
++        }
++        p
++    }
++
++    fn board_perft(&mut self) -> Pass {
++        let mut p = Pass { ops: 0, sum: 0 };
++        for (board, depth) in &mut self.perft_roots {
++            let n = board.perft(*depth);
++            p.ops += n;
++            p.sum = p.sum.wrapping_mul(1_000_003).wrapping_add(n);
++        }
++        p
++    }
++
++    fn run(&mut self, column: usize) -> Pass {
++        match column {
++            0 => self.legal_gen(),
++            1 => self.capture_gen(),
++            2 => self.make_unmake(),
++            3 => self.see_captures(),
++            4 => self.gives_check(),
++            _ => self.board_perft(),
++        }
++    }
++}
++
++fn read_fens(path: &str) -> (Vec<String>, Oracle) {
++    let text = std::fs::read_to_string(path).unwrap_or_else(|e| {
++        eprintln!("cannot read {path}: {e}");
++        std::process::exit(2);
++    });
++    let mut oracle = Oracle {
++        positions: 0,
++        legal: 0,
++        tactical: 0,
++        checking: 0,
++        present: false,
++    };
++    let mut fens = Vec::new();
++    for line in text.lines() {
++        let line = line.trim_end_matches('\r');
++        if let Some(rest) = line.strip_prefix("# Oracle: positions ") {
++            let nums: Vec<u64> = rest
++                .split_whitespace()
++                .filter_map(|t| t.parse().ok())
++                .collect();
++            if nums.len() == 4 {
++                oracle = Oracle {
++                    positions: nums[0],
++                    legal: nums[1],
++                    tactical: nums[2],
++                    checking: nums[3],
++                    present: true,
++                };
++            }
++        }
++        if line.is_empty() || line.starts_with('#') {
++            continue;
++        }
++        fens.push(line.to_string());
++    }
++    (fens, oracle)
++}
++
++fn median(v: &[f64]) -> f64 {
++    let mut s = v.to_vec();
++    s.sort_by(f64::total_cmp);
++    let n = s.len();
++    if n % 2 == 1 {
++        s[n / 2]
++    } else {
++        0.5 * (s[n / 2 - 1] + s[n / 2])
++    }
++}
++
++fn main() {
++    let args: Vec<String> = std::env::args()
++        .skip(1)
++        .filter(|a| a != "--bench")
++        .collect();
++    if args.is_empty() {
++        eprintln!(
++            "usage: board_xv2 <positions.fen> [--samples N] [--sample-ms MS] [--columns a,b] [--preflight-only]"
++        );
++        std::process::exit(2);
++    }
++    let mut samples = 15usize;
++    let mut sample_ms = 200.0f64;
++    let mut preflight_only = false;
++    let mut only = String::new();
++    let mut a = 1;
++    while a < args.len() {
++        match args[a].as_str() {
++            "--samples" if a + 1 < args.len() => {
++                a += 1;
++                samples = args[a].parse().unwrap_or(0);
++            }
++            "--sample-ms" if a + 1 < args.len() => {
++                a += 1;
++                sample_ms = args[a].parse().unwrap_or(0.0);
++            }
++            "--columns" if a + 1 < args.len() => {
++                a += 1;
++                only = format!(",{},", args[a]);
++            }
++            "--preflight-only" => preflight_only = true,
++            other => {
++                eprintln!("unknown argument {other}");
++                std::process::exit(2);
++            }
++        }
++        a += 1;
++    }
++    if samples < 3 || sample_ms <= 0.0 {
++        eprintln!("need at least 3 samples and a positive sample time");
++        std::process::exit(2);
++    }
++
++    // ---- Setup (untimed) ----
++    let (fens, oracle) = read_fens(&args[0]);
++    let mut boards = Vec::with_capacity(fens.len());
++    for fen in &fens {
++        match Board::from_fen(fen) {
++            Ok(b) => boards.push(b),
++            Err(e) => {
++                eprintln!("bad FEN {fen}: {e}");
++                std::process::exit(2);
++            }
++        }
++    }
++    let mut all_moves = Vec::new();
++    let mut tactical = Vec::new();
++    let mut list = MoveList::new();
++    for (i, board) in boards.iter().enumerate() {
++        board.generate_legal_movelist_into(&mut list);
++        for &mv in list.as_slice() {
++            all_moves.push((i as u32, mv, board.gives_check(mv)));
++            if mv.is_noisy() {
++                tactical.push((i as u32, mv));
++            }
++        }
++    }
++    // Is the capture generator's output exactly the tactical set? (untimed)
++    let mut gen_total = 0usize;
++    let mut set_equal = true;
++    {
++        let mut scratch = boards.clone();
++        for (i, board) in scratch.iter_mut().enumerate() {
++            board.generate_legal_noisy_into(&mut list);
++            gen_total += list.len();
++            let mut got: Vec<u16> = list.as_slice().iter().map(|m| m.0).collect();
++            let mut want: Vec<u16> = tactical
++                .iter()
++                .filter(|(j, _)| *j as usize == i)
++                .map(|(_, m)| m.0)
++                .collect();
++            got.sort_unstable();
++            want.sort_unstable();
++            if got != want {
++                set_equal = false;
++            }
++        }
++    }
++    let perft_roots: Vec<(Board, u32)> = PERFT_ROOTS
++        .iter()
++        .map(|(fen, d)| (Board::from_fen(fen).expect("perft root"), *d))
++        .collect();
++
++    let mut st = State {
++        boards,
++        all_moves,
++        tactical,
++        list,
++        perft_roots,
++    };
++
++    let mut cols: Vec<usize> = (0..COLUMNS.len()).collect();
++    if !only.is_empty() {
++        cols.retain(|&c| only.contains(&format!(",{},", COLUMNS[c].0)));
++        if cols.is_empty() {
++            eprintln!("no column matches {only}");
++            std::process::exit(2);
++        }
++    }
++
++    println!("profile: cross-engine-board-v2");
++    println!(
++        "positions: {} ({} legal moves, {} tactical)",
++        st.boards.len(),
++        st.all_moves.len(),
++        st.tactical.len()
++    );
++
++    let mut ok = true;
++    let mut expected: Vec<Pass> = Vec::new();
++    for &c in &cols {
++        let first = st.run(c);
++        let again = st.run(c);
++        if first.ops != again.ops || first.sum != again.sum {
++            eprintln!("preflight: {} is not repeatable", COLUMNS[c].0);
++            ok = false;
++        }
++        println!(
++            "work {:<16} {:>10} {:<9} checksum {:016x}",
++            COLUMNS[c].0, first.ops, COLUMNS[c].1, first.sum
++        );
++        expected.push(first);
++    }
++    if !(set_equal && gen_total == st.tactical.len()) {
++        println!(
++            "noncomparable capture_gen {gen_total} of {}",
++            st.tactical.len()
++        );
++    }
++
++    let checking = st.all_moves.iter().filter(|m| m.2).count() as u64;
++    let mut see_true = 0u64;
++    for &(i, mv) in &st.tactical {
++        see_true += u64::from(st.boards[i as usize].see_ge_with_values(
++            mv,
++            0,
++            CROSS_ENGINE_SEE_VALUES,
++        ));
++    }
++    let mut perft_total = 0u64;
++    for (board, d) in &mut st.perft_roots {
++        perft_total += board.perft(*d);
++    }
++    println!("semantic positions {}", st.boards.len());
++    println!("semantic legal {}", st.all_moves.len());
++    println!("semantic tactical {}", st.tactical.len());
++    println!("semantic checking {checking}");
++    println!("semantic see_ge0 {see_true}");
++    println!("semantic perft {perft_total}");
++    if perft_total != 197_281 + 97_862 + 674_624 {
++        eprintln!("preflight: perft {perft_total} is not 969767");
++        ok = false;
++    }
++    if !oracle.present {
++        eprintln!("preflight: {} has no oracle line", args[0]);
++        ok = false;
++    } else if oracle.positions != st.boards.len() as u64
++        || oracle.legal != st.all_moves.len() as u64
++        || oracle.tactical != st.tactical.len() as u64
++        || oracle.checking != checking
++    {
++        eprintln!("preflight: the board disagrees with the file's oracle counts");
++        ok = false;
++    }
++    if !ok {
++        std::process::exit(1);
++    }
++    println!("preflight: PASS");
++    if preflight_only {
++        return;
++    }
++
++    // ---- Timing ----
++    let mut passes = vec![1u64; cols.len()];
++    for (k, &c) in cols.iter().enumerate() {
++        let t0 = Instant::now();
++        let mut n = 0u64;
++        while t0.elapsed().as_secs_f64() * 1e3 < sample_ms {
++            black_box(st.run(c).sum);
++            n += 1;
++        }
++        passes[k] = n.max(1);
++    }
++    println!("samples: {samples} round-robin, about {sample_ms:.0} ms each");
++    let mut ns_per_op: Vec<Vec<f64>> = vec![Vec::new(); cols.len()];
++    for s in 0..samples {
++        for (k, &c) in cols.iter().enumerate() {
++            let mut ops = 0u64;
++            let mut sum = 0u64;
++            let t0 = Instant::now();
++            for q in 0..passes[k] {
++                let p = st.run(c);
++                ops += p.ops;
++                sum ^= p.sum.wrapping_add(q);
++            }
++            let ns = t0.elapsed().as_secs_f64() * 1e9;
++            black_box(sum);
++            if ops != expected[k].ops * passes[k] {
++                eprintln!(
++                    "sample {s}: {} did {ops} operations, not {}",
++                    COLUMNS[c].0,
++                    expected[k].ops * passes[k]
++                );
++                std::process::exit(1);
++            }
++            let v = ns / ops as f64;
++            ns_per_op[k].push(v);
++            println!("sample {s:2} {:<16} {v:10.3} ns/op", COLUMNS[c].0);
++        }
++    }
++    println!();
++    println!(
++        "{:<16} {:>12} {:>10} {:>8} {:>12}",
++        "column", "median ns/op", "MAD ns", "MAD %", "passes/sample"
++    );
++    for (k, &c) in cols.iter().enumerate() {
++        let med = median(&ns_per_op[k]);
++        let dev: Vec<f64> = ns_per_op[k].iter().map(|x| (x - med).abs()).collect();
++        let mad = median(&dev);
++        println!(
++            "{:<16} {:>12.3} {:>10.3} {:>7.2}% {:>12}",
++            COLUMNS[c].0,
++            med,
++            mad,
++            100.0 * mad / med,
++            passes[k]
++        );
++    }
++}

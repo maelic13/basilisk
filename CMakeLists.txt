@@ -269,6 +269,10 @@ target_link_libraries(basilisk PRIVATE basilisk_engine basilisk_version)
 # ---------------------------------------------------------------------------
 add_executable(board_performance_test tests/board_performance.cpp)
 target_link_libraries(board_performance_test PRIVATE basilisk_board)
+# Each board primitive timed alone on frozen game positions
+# (tools/diag/board_micro_run.py runs it).
+add_executable(board_micro_bench tests/board_micro.cpp)
+target_link_libraries(board_micro_bench PRIVATE basilisk_engine)
 
 # ---------------------------------------------------------------------------
 # Board correctness tests
@@ -422,6 +426,10 @@ add_test(NAME test_b3_proof         COMMAND test_b3_proof)
 add_test(NAME test_b4_qsearch       COMMAND test_b4_qsearch)
 add_test(NAME test_b5_root          COMMAND test_b5_root ${CMAKE_SOURCE_DIR}/tools/diag/suite_v2.epd)
 add_test(NAME test_search_path      COMMAND test_search_path)
+# The microbenchmark's preflight alone: its work is repeatable and the
+# search's path finds the board's perft.
+add_test(NAME board_micro_preflight COMMAND board_micro_bench
+         ${CMAKE_SOURCE_DIR}/tests/data/board_micro_positions.fen --preflight-only)
 add_test(NAME test_kernel_pins      COMMAND test_kernel_pins)
 add_test(NAME test_cpu_features COMMAND test_cpu_features)
 add_test(NAME test_move         COMMAND test_move)
@@ -610,7 +618,7 @@ endif()
 # every project-wide guarantee, so keep this list exhaustive.
 set(_ALL_TARGETS
     basilisk_board basilisk_engine basilisk_launcher basilisk_version
-    basilisk board_performance_test
+    basilisk board_performance_test board_micro_bench
     test_board test_board_v2 test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics test_threats
     test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch test_b5_root

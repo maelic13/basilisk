@@ -1,0 +1,476 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 3ad2972..fd08687 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -12,6 +12,12 @@ crate-type = ["cdylib", "rlib"]
+ default = ["syzygy"]
+ syzygy = []
+ spsa = []
++board-bench = []
++
++[[bench]]
++name = "board_v2"
++harness = false
++required-features = ["board-bench"]
+ 
+ [profile.dev]
+ opt-level = 3
+diff --git a/benches/board_v2.rs b/benches/board_v2.rs
+new file mode 100644
+index 0000000..1a39918
+--- /dev/null
++++ b/benches/board_v2.rs
+@@ -0,0 +1,3 @@
++fn main() {
++    std::process::exit(reckless::board_bench_run(std::env::args().collect()));
++}
+diff --git a/src/lib.rs b/src/lib.rs
+index 09bb90c..1d37c2f 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -24,6 +24,9 @@ mod types;
+ 
+ mod tools;
+ 
++#[cfg(feature = "board-bench")]
++pub use tools::board_bench::run_cli as board_bench_run;
++
+ #[cfg(not(target_arch = "wasm32"))]
+ mod uci;
+ 
+diff --git a/src/tools/board_bench.rs b/src/tools/board_bench.rs
+new file mode 100644
+index 0000000..280cf83
+--- /dev/null
++++ b/src/tools/board_bench.rs
+@@ -0,0 +1,371 @@
++//! Board microbenchmark for the cross-engine contract `cross-engine-board-v2`
++//! (tools/board_compare/CONTRACT.md in the Basilisk repository).
++//!
++//! Compiled only with the `board-bench` feature; it calls the board's own
++//! crate-visible API and changes none of it. Moves are made with the null
++//! observer, so no accumulator work is done.
++
++use std::{
++    hint::black_box,
++    time::{Duration, Instant},
++};
++
++use crate::{
++    board::{Board, NullBoardObserver},
++    types::{Move, MoveList},
++};
++
++const PROFILE: &str = "cross-engine-board-v2";
++
++struct Oracle {
++    positions: u64,
++    legal: u64,
++    tactical: u64,
++    checking: u64,
++    present: bool,
++}
++
++#[derive(Clone, Copy)]
++struct Pass {
++    ops: u64,
++    sum: u64,
++}
++
++#[derive(Clone, Copy, PartialEq)]
++enum Col {
++    LegalGen,
++    CaptureGen,
++    MakeUnmake,
++    SeeCaptures,
++    BoardPerft,
++}
++
++const COLUMNS: [(Col, &str, &str); 5] = [
++    (Col::LegalGen, "legal_gen", "positions"),
++    (Col::CaptureGen, "capture_gen", "positions"),
++    (Col::MakeUnmake, "make_unmake", "moves"),
++    (Col::SeeCaptures, "see_captures", "moves"),
++    (Col::BoardPerft, "board_perft", "leaves"),
++];
++
++fn raw(mv: Move) -> u64 {
++    mv.from() as u64 | (mv.to() as u64) << 6 | (mv.kind() as u64) << 12
++}
++
++fn fold(sum: u64, list: &MoveList) -> u64 {
++    let last = if list.is_empty() { 0 } else { raw(list[list.len() - 1].mv) };
++    sum.wrapping_mul(31).wrapping_add(list.len() as u64).wrapping_add(last)
++}
++
++struct Inputs {
++    boards: Vec<Board>,
++    all_moves: Vec<(u32, Move)>,
++    tactical: Vec<(u32, Move)>,
++    roots: Vec<(Board, usize)>,
++    list: MoveList,
++    perft_lists: Vec<MoveList>,
++}
++
++fn read_fens(path: &str, oracle: &mut Oracle) -> Vec<String> {
++    let text = std::fs::read_to_string(path).unwrap_or_else(|e| {
++        eprintln!("cannot read {path}: {e}");
++        std::process::exit(2);
++    });
++    let mut fens = Vec::new();
++    for line in text.lines() {
++        let line = line.trim_end_matches('\r');
++        if let Some(rest) = line.strip_prefix("# Oracle: positions ") {
++            let n: Vec<u64> = rest.split_whitespace().filter_map(|w| w.parse().ok()).collect();
++            if n.len() == 4 {
++                *oracle = Oracle { positions: n[0], legal: n[1], tactical: n[2], checking: n[3], present: true };
++            }
++        }
++        if line.is_empty() || line.starts_with('#') {
++            continue;
++        }
++        fens.push(line.to_string());
++    }
++    fens
++}
++
++fn build_inputs(fens: &[String]) -> Inputs {
++    let mut boards = Vec::with_capacity(fens.len());
++    for fen in fens {
++        match Board::from_fen(fen) {
++            Ok(b) => boards.push(b),
++            Err(_) => {
++                eprintln!("bad FEN {fen}");
++                std::process::exit(2);
++            }
++        }
++    }
++    let mut all_moves = Vec::new();
++    let mut tactical = Vec::new();
++    let mut list = MoveList::new();
++    for (i, b) in boards.iter().enumerate() {
++        list.clear();
++        b.append_all_moves(&mut list);
++        for e in list.iter() {
++            all_moves.push((i as u32, e.mv));
++            if e.mv.is_capture() || e.mv.is_promotion() {
++                tactical.push((i as u32, e.mv));
++            }
++        }
++    }
++    let roots = [
++        ("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 4),
++        ("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1", 3),
++        ("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", 5),
++    ]
++    .iter()
++    .map(|&(fen, depth)| (Board::from_fen(fen).unwrap(), depth))
++    .collect();
++    Inputs {
++        boards,
++        all_moves,
++        tactical,
++        roots,
++        list: MoveList::new(),
++        perft_lists: (0..8).map(|_| MoveList::new()).collect(),
++    }
++}
++
++fn perft(board: &mut Board, depth: usize, lists: &mut [MoveList]) -> u64 {
++    let (list, rest) = lists.split_first_mut().unwrap();
++    list.clear();
++    board.append_all_moves(list);
++    if depth == 1 {
++        return list.len() as u64;
++    }
++    let mut n = 0;
++    for e in list.iter() {
++        board.make_move(e.mv, &mut NullBoardObserver);
++        n += perft(board, depth - 1, rest);
++        board.undo_move(e.mv);
++    }
++    n
++}
++
++fn run(col: Col, inp: &mut Inputs) -> Pass {
++    let mut p = Pass { ops: 0, sum: 0 };
++    match col {
++        Col::LegalGen => {
++            for b in &inp.boards {
++                inp.list.clear();
++                b.append_all_moves(&mut inp.list);
++                black_box(&inp.list);
++                p.ops += 1;
++                p.sum = fold(p.sum, &inp.list);
++            }
++        }
++        Col::CaptureGen => {
++            for b in &inp.boards {
++                inp.list.clear();
++                b.append_noisy_moves(&mut inp.list);
++                black_box(&inp.list);
++                p.ops += 1;
++                p.sum = fold(p.sum, &inp.list);
++            }
++        }
++        Col::MakeUnmake => {
++            for &(i, mv) in &inp.all_moves {
++                let b = &mut inp.boards[i as usize];
++                b.make_move(mv, &mut NullBoardObserver);
++                black_box(b.hash());
++                p.sum = p.sum.wrapping_add(b.hash() ^ b.checkers().0);
++                b.undo_move(mv);
++                p.ops += 1;
++            }
++        }
++        Col::SeeCaptures => {
++            for &(i, mv) in &inp.tactical {
++                let r = inp.boards[i as usize].see(mv, 0);
++                black_box(r);
++                p.sum = p.sum.wrapping_mul(3).wrapping_add(r as u64);
++                p.ops += 1;
++            }
++        }
++        Col::BoardPerft => {
++            for (board, depth) in inp.roots.iter_mut() {
++                let n = perft(board, *depth, &mut inp.perft_lists);
++                p.ops += n;
++                p.sum = p.sum.wrapping_mul(1000003).wrapping_add(n);
++            }
++        }
++    }
++    p
++}
++
++fn median(v: &[f64]) -> f64 {
++    let mut v = v.to_vec();
++    v.sort_by(|a, b| a.partial_cmp(b).unwrap());
++    let n = v.len();
++    if n % 2 == 1 { v[n / 2] } else { 0.5 * (v[n / 2 - 1] + v[n / 2]) }
++}
++
++pub fn run_cli(args: Vec<String>) -> i32 {
++    if args.len() < 2 {
++        eprintln!("usage: board_v2 <positions.fen> [--samples N] [--sample-ms MS] [--columns a,b] [--preflight-only]");
++        return 2;
++    }
++    let mut samples = 15usize;
++    let mut sample_ms = 200.0f64;
++    let mut preflight_only = false;
++    let mut only = String::new();
++    let mut a = 2;
++    while a < args.len() {
++        match args[a].as_str() {
++            "--samples" if a + 1 < args.len() => {
++                a += 1;
++                samples = args[a].parse().unwrap_or(0);
++            }
++            "--sample-ms" if a + 1 < args.len() => {
++                a += 1;
++                sample_ms = args[a].parse().unwrap_or(0.0);
++            }
++            "--columns" if a + 1 < args.len() => {
++                a += 1;
++                only = format!(",{},", args[a]);
++            }
++            "--preflight-only" => preflight_only = true,
++            other => {
++                eprintln!("unknown argument {other}");
++                return 2;
++            }
++        }
++        a += 1;
++    }
++    if samples < 3 || sample_ms <= 0.0 {
++        eprintln!("need at least 3 samples and a positive sample time");
++        return 2;
++    }
++
++    crate::lookup::initialize();
++
++    let mut oracle = Oracle { positions: 0, legal: 0, tactical: 0, checking: 0, present: false };
++    let fens = read_fens(&args[1], &mut oracle);
++    let mut inp = build_inputs(&fens);
++
++    let columns: Vec<(Col, &str, &str)> = COLUMNS
++        .iter()
++        .copied()
++        .filter(|(_, name, _)| only.is_empty() || only.contains(&format!(",{name},")))
++        .collect();
++    if columns.is_empty() {
++        eprintln!("no column matches {only}");
++        return 2;
++    }
++
++    println!("profile: {PROFILE}");
++
++    let mut ok = true;
++    let mut expected = Vec::new();
++    for &(col, name, unit) in &columns {
++        let first = run(col, &mut inp);
++        let again = run(col, &mut inp);
++        if again.ops != first.ops || again.sum != first.sum {
++            eprintln!("preflight: {name} is not repeatable");
++            ok = false;
++        }
++        println!("work {:<16} {:>10} {:<9} checksum {:016x}", name, first.ops, unit, first.sum);
++        expected.push(first);
++    }
++
++    // The capture generator's own total, counted untimed.
++    let mut gen_total = 0u64;
++    for b in &inp.boards {
++        inp.list.clear();
++        b.append_noisy_moves(&mut inp.list);
++        gen_total += inp.list.len() as u64;
++    }
++    if gen_total != inp.tactical.len() as u64 {
++        println!("noncomparable capture_gen {} of {}", gen_total, inp.tactical.len());
++    }
++    println!("noncomparable gives_check no query");
++
++    // Engine-independent semantics. Reckless has no check query that does not
++    // make the move (is_direct_check is approximate), so `checking` is counted
++    // by making each legal move and reading in_check, untimed.
++    let mut checking = 0u64;
++    for &(i, mv) in &inp.all_moves {
++        let b = &mut inp.boards[i as usize];
++        b.make_move(mv, &mut NullBoardObserver);
++        checking += b.in_check() as u64;
++        b.undo_move(mv);
++    }
++    let mut see_true = 0u64;
++    for &(i, mv) in &inp.tactical {
++        see_true += inp.boards[i as usize].see(mv, 0) as u64;
++    }
++    let mut leaves = 0u64;
++    for (board, depth) in inp.roots.iter_mut() {
++        leaves += perft(board, *depth, &mut inp.perft_lists);
++    }
++    println!("semantic positions {}", inp.boards.len());
++    println!("semantic legal {}", inp.all_moves.len());
++    println!("semantic tactical {}", inp.tactical.len());
++    println!("semantic checking {checking}");
++    println!("semantic see_ge0 {see_true}");
++    println!("semantic perft {leaves}");
++    if !oracle.present {
++        eprintln!("preflight: {} has no oracle line", args[1]);
++        ok = false;
++    } else if oracle.positions != inp.boards.len() as u64
++        || oracle.legal != inp.all_moves.len() as u64
++        || oracle.tactical != inp.tactical.len() as u64
++        || oracle.checking != checking
++    {
++        eprintln!("preflight: the board disagrees with the file's oracle counts");
++        ok = false;
++    }
++    if !ok {
++        return 1;
++    }
++    println!("preflight: PASS");
++    if preflight_only {
++        return 0;
++    }
++
++    // Warm up one sample's time each, fixing the passes per sample.
++    let mut passes = Vec::new();
++    for &(col, _, _) in &columns {
++        let t0 = Instant::now();
++        let mut n = 0u64;
++        while t0.elapsed() < Duration::from_secs_f64(sample_ms / 1000.0) {
++            black_box(run(col, &mut inp).sum);
++            n += 1;
++        }
++        passes.push(n.max(1));
++    }
++
++    println!("samples: {samples} round-robin, about {sample_ms:.0} ms each");
++    let mut ns_per_op: Vec<Vec<f64>> = vec![Vec::new(); columns.len()];
++    for s in 0..samples {
++        for (k, &(col, name, _)) in columns.iter().enumerate() {
++            let (mut ops, mut sum) = (0u64, 0u64);
++            let t0 = Instant::now();
++            for j in 0..passes[k] {
++                let p = run(col, &mut inp);
++                ops += p.ops;
++                sum ^= p.sum.wrapping_add(j);
++            }
++            let ns = t0.elapsed().as_nanos() as f64;
++            black_box(sum);
++            if ops != expected[k].ops * passes[k] {
++                eprintln!("sample {s}: {name} did {ops} operations, not {}", expected[k].ops * passes[k]);
++                return 1;
++            }
++            ns_per_op[k].push(ns / ops as f64);
++            println!("sample {:>2} {:<16} {:>10.3} ns/op", s, name, ns_per_op[k].last().unwrap());
++        }
++    }
++
++    println!("\n{:<16} {:>12} {:>10} {:>8} {:>12}", "column", "median ns/op", "MAD ns", "MAD %", "passes/sample");
++    for (k, &(_, name, _)) in columns.iter().enumerate() {
++        let med = median(&ns_per_op[k]);
++        let dev: Vec<f64> = ns_per_op[k].iter().map(|x| (x - med).abs()).collect();
++        let mad = median(&dev);
++        println!("{:<16} {:>12.3} {:>10.3} {:>7.2}% {:>12}", name, med, mad, 100.0 * mad / med, passes[k]);
++    }
++    0
++}
+diff --git a/src/tools/mod.rs b/src/tools/mod.rs
+index 8b3ff28..a460f17 100644
+--- a/src/tools/mod.rs
++++ b/src/tools/mod.rs
+@@ -1,4 +1,6 @@
+ mod bench;
++#[cfg(feature = "board-bench")]
++pub mod board_bench;
+ mod perft;
+ mod speedtest;
+ 
+diff --git a/src/types/movelist.rs b/src/types/movelist.rs
+index b2decba..aa18bc7 100644
+--- a/src/types/movelist.rs
++++ b/src/types/movelist.rs
+@@ -26,6 +26,11 @@ impl MoveList {
+         self.inner.is_empty()
+     }
+ 
++    #[cfg(feature = "board-bench")]
++    pub const fn clear(&mut self) {
++        self.inner.clear();
++    }
++
+     pub fn push(&mut self, from: Square, to: Square, kind: MoveKind) {
+         self.inner.push(MoveEntry { mv: Move::new(from, to, kind), score: 0 });
+     }
+diff --git a/src/types/piece.rs b/src/types/piece.rs
+index 69c2378..b471ba5 100644
+--- a/src/types/piece.rs
++++ b/src/types/piece.rs
+@@ -137,11 +137,27 @@ impl PieceType {
+ 
+     pub const fn value(self) -> i32 {
+         match self {
++            #[cfg(not(feature = "board-bench"))]
+             Self::Pawn => 109,
++            #[cfg(not(feature = "board-bench"))]
+             Self::Knight => 403,
++            #[cfg(not(feature = "board-bench"))]
+             Self::Bishop => 435,
++            #[cfg(not(feature = "board-bench"))]
+             Self::Rook => 679,
++            #[cfg(not(feature = "board-bench"))]
+             Self::Queen => 1242,
++            // cross-engine-board-v2 SEE values (CONTRACT.md): P100 N300 B300 R500 Q900.
++            #[cfg(feature = "board-bench")]
++            Self::Pawn => 100,
++            #[cfg(feature = "board-bench")]
++            Self::Knight => 300,
++            #[cfg(feature = "board-bench")]
++            Self::Bishop => 300,
++            #[cfg(feature = "board-bench")]
++            Self::Rook => 500,
++            #[cfg(feature = "board-bench")]
++            Self::Queen => 900,
+             Self::King => 0,
+             Self::None => 0,
+         }
