@@ -90,7 +90,7 @@ eed3f6b	external	Rarog: cited by the 2026-10-24 Rarog audit (analysis/rarog_audi
 f209981	external	Rarog: cited by the 2026-10-24 Rarog audit (analysis/rarog_audit_2026-10-24*.md)
 f548432	external	Rarog: cited by the 2026-10-24 Rarog audit (analysis/rarog_audit_2026-10-24*.md)
 9c72539	external	Colosseum: the cli-v0.4.0 release revision, pinned until 2026-10-30
-8fa63cc	external	Colosseum: the cli-v0.5.0 release revision pinned in colosseum.pin.json
+8fa63cc	external	Colosseum CLI: the v0.5.0 release revision pinned in colosseum.pin.json (maelic13/colosseum-cli; cli-v0.5.0 in maelic13/colosseum before the move)
 0c18907	external	Triumviratus: the main head pinned as the third donor's snapshot
 5f3dc60	external	Triumviratus-Networks: the head pinned for the networks snapshot
 e876fa3	external	Triumviratus: parent of the 8.1 document deletion, snapshotted under removed/
