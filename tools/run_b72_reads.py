@@ -33,7 +33,7 @@ MICRO = {
     "reckless": BIN / "reckless-board-v2.exe",
 }
 PROFILE_ENGINE = REPO / "tools" / "test_engines" / "basilisk-b72-head-prof-pext-profile-pgo.exe"
-PROFILE_SHA = "692422C449C763CF904BAEDB45AAD8EC5D87ACAC4BA37519FA31DDA355D7BF42"
+PROFILE_SHA = "BACA66E702ACCF6BBD75BBD59D4915832A44DD5271DF07A927A27CA77B282A05"
 BENCH = 4247965
 MICRO_OUT = REPO / "tools" / "results" / "b72-micro"
 PROFILE_OUT = REPO / "tools" / "results" / "b72-profile"
