@@ -664,11 +664,11 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P25](experiments/BAS-P25.md) | The zero-weight evaluation terms no longer computed. | COMPLETE: +2.35% [+2.01, +2.70], kept |
 | [BAS-P26](experiments/BAS-P26.md) | Instruction-specific speed: compressed PEXT tables and code generation. | COMPLETE: nothing faster; compressed −0.98%, znver3 tuning −0.95%, v3 +0.02%; native's −1.04% is its tuning |
 | [BAS-P27](experiments/BAS-P27.md) | Clang for Microsoft's ABI from winget against the MSYS2 build. | COMPLETE: −5.10% [−5.28, −4.92], FAIL (Windows stays on MSYS2) |
-| [BAS-P28](experiments/BAS-P28.md) | Speed at an identical tree from hardware counters, validated on BAS-P25 (B.16.4). | Registered; the read runs at B.15.4 |
+| [BAS-P28](experiments/BAS-P28.md) | Speed at an identical tree from hardware counters, validated on BAS-P25 (B.16.4). | NOT ACCEPTED: P25 −2.23% [−2.80, −1.67] meets its NPS read, but the null's half-width 0.76% exceeds 0.5% |
 | [BAS-P29](experiments/BAS-P29.md) | The evaluation's material, SEE's exchange and the quiet stage made cheaper (B.4.5). | COMPLETE: arm +3.99% [+3.84, +4.14], OFF +4.16% [+4.00, +4.33], kept |
 | [BAS-P30](experiments/BAS-P30.md) | The board rebuild's set in the whole engine, pooled-PGO NPS (B.7.6). | COMPLETE: +3.21% [+2.90, +3.52], kept |
-| [BAS-P31](experiments/BAS-P31.md) | The board's second round: six candidates on the replay and the engine screen (B.7.7). | COMPLETE: none kept (best +0.22%, keys by table), NO_CHANGE |
-| [BAS-P32](experiments/BAS-P32.md) | The final board beside the donors (contract v3), and B.7.6's speed in hardware counters (B.7.9). | Registered; both reads wait for the idle host |
+| [BAS-P31](experiments/BAS-P31.md) | The board's second round: six candidates on the replay and the engine screen (B.7.7). | COMPLETE: none kept (best +0.22%, keys by table; all six together −7.76%), NO_CHANGE |
+| [BAS-P32](experiments/BAS-P32.md) | The final board beside the donors (contract v3), and B.7.6's speed in hardware counters (B.7.9). | COMPLETE: Basilisk cheapest, 60.7 ns per node against classical Stockfish 61.9, Rarog 69.8, Stockfish 19 76.6; counter read not counted (BAS-P28) |
 
 ## 7. Correctness and protocol lessons
 

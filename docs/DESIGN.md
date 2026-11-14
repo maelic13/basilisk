@@ -182,18 +182,31 @@ The four layers, kept separate (`analysis/endgame_measurement_layers_v1.md`):
 
 ## 5. Performance assumptions
 
-- **The board is about a quarter of a node, and B.7 makes it as fast as can
-  be measured** (maintainer decision 2026-11-14). The profile at `bench 13`
-  reads it at 24.0% of samples. B.7.1 was the defect hunt; the review
-  against Stockfish's and Triumviratus's boards (B.7.2) and the frontier
-  review (`analysis/b7_frontier_review_2026-11-14.md`) replace a component
-  only where another form measures faster, and keep Basilisk's otherwise.
+- **The board is about a quarter of a node, and B.7 made it as fast as could
+  be measured** (maintainer decision 2026-11-14). B.7.1 was the defect hunt;
+  the review against Stockfish's and Triumviratus's boards (B.7.2) and the
+  frontier review (`analysis/b7_frontier_review_2026-11-14.md`) replaced a
+  component only where another form measured faster, and kept Basilisk's
+  otherwise. The final figures (B.7.9):
+  - **Speed:** B.7.6's rebuild read +3.21% pooled-PGO NPS [+2.90%, +3.52%]
+    (BAS-P30). No candidate of B.7.7's second round paid (BAS-P31).
+  - **Profile at `bench 13`:** the board is 23.4% of samples (26.9% with
+    its inlined frames): `see_ge` 5.51%, `gives_check` 4.12%, capture
+    generation 3.68%, `make_unmake` 3.37% and 1.46%.
+  - **Against the donors** (contract v3, Basilisk's call mix, BAS-P32):
+    60.7 ns per node, classical Stockfish 61.9, Rarog 69.8, Stockfish 19
+    76.6. Every column a donor leads is work moved into its make or out of
+    the timed column.
+  - **Counters:** the hardware-counter instrument is not validated
+    (BAS-P28), so cycles per node are not yet a speed verdict.
 - **A board change is priced in real search order and in the engine, never
   on a microbenchmark column alone.** A column times game positions on cold
   boards and underpriced the board by 22% to 57%. Of nine candidate kernels
   read on the search replay and the engine screen (PLAN B.7.5), two gained:
   the ones that removed a whole code path. Every one that only removed or
-  skipped slider lookups gained nothing or lost.
+  skipped slider lookups gained nothing or lost. The second round's six lost
+  for the other half of the same reason: each added more work than the
+  branches it removed (BAS-P31).
 - **Nodes-to-depth, not raw NPS, is where the peer gap lives.**
 - Bench node counts are **chaotic** under small evaluation perturbations: in
   the 6.5.a floor sweep, floor 32 cost +28.5% while 24 and 40 sat near

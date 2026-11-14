@@ -62,11 +62,31 @@ change, and the read records the new pool files.
 
 #### RESULT — append after exposure
 
-- Diagnostics (not the verdict):
-- Deciding result:
-- Disposition:
+Read 2026-11-14 by the maintainer, elevated, CPU 2, host at 0.3% before and after
+(`tools/results/b164-pmc/`), 27 runs of 19,470,325 nodes, start-up 0.75% of the
+engine's cycles.
+
+| Contrast | Cycles per node | Instructions per node | Branch misses per node |
+|---|---|---|---|
+| `p25` (builds) | −2.233% [−2.796%, −1.671%] | −2.623% [−2.726%, −2.520%] | −1.487% [−1.940%, −1.034%] |
+| `null` (runs) | +0.096% [−0.666%, +0.858%] | −0.053% [−0.199%, +0.093%] | −0.240% [−0.897%, +0.416%] |
+
+- Diagnostics (not the verdict): the p25 arms' builds read 1,425–1,431 and 1,388–1,401
+  cycles per node; the copy reads 1,429.5, inside the base's builds.
+- Deciding result: (b) holds: p25's interval lies below 0 and overlaps BAS-P25's
+  [−2.63%, −1.97%]. (a) fails: the null holds 0, but its half-width is 0.76%, above the
+  0.5% the rule allows.
+- Disposition: **NOT ACCEPTED** by the frozen rule. The null is three runs of one
+  binary against three of another, and its t-interval on two degrees of freedom is
+  wider than the instrument's real noise suggests: the copy sits inside the base's
+  four builds. The instrument goes back to research with this read (PLAN B.7.9).
 
 #### PREDICTION CALIBRATION — preserve the original prediction above
 
-- Original prediction summary:
-- Observed result:
+- Original prediction summary: null within ±0.3% holding 0, instructions equal to
+  0.01%; p25 −2.3% excluding 0, instructions 1–4% lower, branch misses within ±1%.
+- Observed result: cycles as predicted on both contrasts (+0.10% and −2.23%), and
+  p25's instructions −2.62% inside 1–4%. Missed: the null's instructions read −0.05%,
+  not 0.01% (a different path through the same code at start-up is the likely cause),
+  p25's branch misses fell 1.5%, and the null's interval was wider than the rule. The
+  miss is in the instrument's design (a three-run null), not in the counters.

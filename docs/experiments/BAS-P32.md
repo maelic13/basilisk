@@ -34,4 +34,67 @@
      classical Stockfish and at least 20% under Stockfish 19 (probability 0.7). The
      donors still lead `see_captures` and `gives_check` (Stockfish's stored check
      information), and Rarog leads `make_unmake`.
-- **Status.** Registered; both reads wait for the idle host.
+
+#### RESULT
+
+Idle host, CPU 2, 2026-11-14.
+
+**1. Counters** (`tools/results/b79-pmc/`, maintainer-run, elevated): `b76` −2.587%
+cycles per node [−3.663%, −1.510%], instructions −2.738%, branch misses −3.364%; the
+null −0.112% [−0.682%, +0.459%]. **Not counted:** BAS-P28 did not accept the
+instrument (its null's half-width 0.76% against a 0.5% rule). For information, the
+point estimate lies 0.5 points short of BAS-P30's −3.11% in time, with intervals
+overlapping.
+
+**2. Five engines on contract v3** (`tools/results/b79-micro5/`, five alternating
+rounds; Basilisk's harness at `0c978c2`, host 1.4% before, 4.8% after). Every
+engine-independent count agrees, the new `quiet_positions` 477 and `quiet` 13,029
+included. Medians, ns per operation:
+
+| Column | Basilisk | Stockfish 19 | Stockfish classical | Rarog | Reckless |
+|---|---:|---:|---:|---:|---:|
+| `legal_gen` | 48.79 | 76.69 | 90.06 | 64.27 | 52.60 |
+| `capture_gen` † | 17.89 | 10.50 | 14.21 | 21.54 | 16.62 |
+| `quiet_gen` † | 47.75 | 29.30 | 30.12 | 44.88 | 40.40 |
+| `make_unmake` | 16.04 | 53.33 | 35.34 | 14.68 | 40.28 |
+| `see_captures` | 10.61 | 6.53 | 6.62 | 14.09 | 18.45 |
+| `gives_check` | 6.64 | 3.46 | 3.25 | 8.08 | — |
+| `board_perft` | 3.33 | 6.28 | 5.12 | 4.11 | 5.42 |
+
+† Basilisk's generators yield exactly the legal sets. Both Stockfishes generate
+pseudo-legal moves and test legality at delivery, untimed (13,713 and 13,714 quiets,
+1,150 and 1,104 captures). Rarog and Reckless leave 42 underpromotions to the quiet
+stage (13,085 and 13,071).
+
+Composite, ns per node, by the frozen rule:
+
+| | Basilisk | Stockfish 19 | Stockfish classical | Rarog | Reckless |
+|---|---:|---:|---:|---:|---:|
+| ns per node | **60.7** | 76.6 | 61.9 | 69.8 | — |
+| against Basilisk | 100% | 126% | 102% | 115% | — |
+| without `gives_check` | 51.2 | 69.8 | 55.5 | 53.9 | 80.1 |
+
+- **The final board is the cheapest of the five on the work Basilisk's search does.**
+  Classical Stockfish is within 2%, inside the composite's resolution (B.7.2's ±5%).
+  Rarog is 15% dearer once its make pays for the check answer its search provides.
+- **The columns a donor still leads, and their mechanisms:**
+  - `see_captures` and `gives_check`: Stockfish's check information stored at every
+    make, paid in its make (35 and 53 ns against 16).
+  - `make_unmake`: Rarog's hinted make. B.7.7's p5 measured that form in Basilisk's
+    search as −0.49%.
+  - `capture_gen` and `quiet_gen`, Stockfish: legality deferred to delivery.
+  - `capture_gen` and `quiet_gen`, Reckless: threats and pins kept in its board at
+    every make (its make 40 ns), which decide king targets, castling and pinned
+    pieces for free. B.7.7's p6, an enemy attack map per node, measured that form in
+    Basilisk's search as −1.32%.
+  - Each lead is work moved into make or out of the timed column, and each of the
+    two forms that could be moved into Basilisk was read in Basilisk's search, and
+    lost.
+
+**Calibration** against the frozen predictions:
+- Counters: not counted; the estimate (−2.6%) was a little short of the predicted
+  −3.1%, inside the interval's overlap.
+- Composite: Basilisk cheapest, more than 5% under Rarog and more than 20% under
+  Stockfish 19, as predicted. Missed: classical Stockfish is 2%, not 5% or more,
+  above it. The donors' leads are the predicted three, plus both generation columns.
+- **Disposition.** COMPLETE.

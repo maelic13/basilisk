@@ -4053,11 +4053,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - Calibration: four arms missed their frozen predictions in sign
         and one in magnitude. Each candidate costs more in what it adds
         than in the branches it removes.
-    - [ ] **B.7.8** `[I2]` Second rebuild: the candidates that cleared
+    - [x] **B.7.8** `[I2]` Second rebuild: the candidates that cleared
       B.7.7's handoff under B.7.6's rules, one commit each, each read
       again on both instruments against the commit before it, then the
       set's pooled read (B.7's rule) against B.7.6's head. It closes as
       NO_CHANGE if B.7.7 kept nothing.
+      Done 2026-11-14, NO_CHANGE: B.7.7 kept nothing (BAS-P31). For
+      information, all six candidates together read −7.76% on the engine
+      screen, and all but the byte mailbox −2.83%.
     - [ ] **B.7.9** `[V]` Board speed read and gate
       It was B.7.4 until 2026-11-14.
       First, B.16.4's counter read is validated: BAS-P28, registered
@@ -4081,6 +4084,27 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - A component that changes the generation order, and so the tree,
         takes a `[-5,0]` SPRT at `3+0.03`; none is planned.
       It closes B.7, and DESIGN §5 takes the final figures.
+      Read 2026-11-14 (BAS-P28, BAS-P32); open on BAS-P28 alone:
+      - BAS-P28, maintainer-run, elevated: P25 reads −2.23% cycles per
+        node [−2.80%, −1.67%], meeting its NPS read. But the null's
+        half-width is 0.76% against the rule's 0.5% (three runs of one
+        binary against three of another). **The instrument is not
+        accepted**, and by its frozen rule goes back to research. Its read
+        of B.7.6's pools (−2.59% cycles per node) is therefore not counted.
+      - Total: B.7.8 closed NO_CHANGE, so BAS-P30's +3.21% [+2.90%,
+        +3.52%] is B.7's.
+      - Profile of the final head: B.7.7's, the same build (board 23.4% of
+        samples, 26.9% inline-inclusive).
+      - Five engines on contract v3 (BAS-P32), ns per node at Basilisk's
+        call mix: Basilisk 60.7, classical Stockfish 61.9, Rarog 69.8,
+        Stockfish 19 76.6. Reckless, priced without `gives_check`, reads
+        80.1 against 51.2. Every column a donor leads is work moved into
+        its make (Stockfish's check information, Reckless's threats and
+        pins) or out of the timed column (Stockfish's legality at
+        delivery, Rarog's hint). The two forms Basilisk could take were
+        read in its search as losses (BAS-P31).
+      - No component changed the generation order: no SPRT.
+      - DESIGN §5 has the final figures.
 - [ ] **B.8** Cleanup and speed pass
   Cleanup: remove the legacy search path, dead parameters, unconsumed switches
   and diagnostics without an owner; exact fingerprint; no game gate. Then
@@ -4833,8 +4857,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.7.8 | RESEARCH | I2 | B.7.7 kept nothing (BAS-P31): it closes NO_CHANGE |
-| B.7.9 | RESEARCH | V | Was B.7.4 (B.15.4); after B.7.8, before B.8 |
+| B.7.9 | RESEARCH | V | Every read done but BAS-P28, which did not accept the counter instrument; the maintainer decides where its repair goes |
 | B.8.2 | RESEARCH | I1 | After the clusters and the board |
 | B.8.3 | READY_FOR_IMPLEMENTATION | I1 | Was B.7.1; before the speed pass, no engine change |
 | B.8.4 | RESEARCH | I1 | Split from the speed pass 2026-11-05; before it |

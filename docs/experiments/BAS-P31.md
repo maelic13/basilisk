@@ -38,5 +38,9 @@ screen, 16 rounds, against the head built from the same tree; null copy −0.30%
   what it adds: bytes per make, byte loads, a whole kinds mask, a second make, a map
   built where its consumers would have stopped early.
 - **Retry triggers.** In the packet's §5, one per candidate.
+- **Added after the verdict, for information** (maintainer's request, 2026-11-14;
+  `tools/results/b77/screen-all`, `replay-all`): all six together −7.76% (0/16), all
+  but the byte mailbox −2.83% (0/16). The five without the mailbox sum to −4.87%
+  alone and read −2.83% together: they overlap a little, and the set still loses.
 - **Artifacts.** `tools/results/b77/` (patch, binaries, replay, screen), the profile
   `tools/results/b77-profile/`.
