@@ -5,6 +5,7 @@
 #include "move.h"
 #include "attacks.h"
 #include "zobrist.h"
+#include "constants.h"
 #include <memory>
 #include <vector>
 #include <expected>
@@ -70,6 +71,10 @@ private:
 
 public:
     static constexpr size_t HISTORY_RESERVE = 2048;
+    // Room past the game history for the longest search line (MAX_PLY plies
+    // of moves and null moves, with margin). Every copy reserves it, so no
+    // node of a search grows the history.
+    static constexpr size_t SEARCH_HISTORY_HEADROOM = 2 * MAX_PLY;
 
     // Compact, opaque image of one coherent position. It deliberately omits
     // undo history and diagnostic counters: restoring it produces the same
@@ -102,6 +107,7 @@ public:
     public:
         PositionSnapshot(const PositionSnapshot&) = default;
         PositionSnapshot& operator=(const PositionSnapshot&) = default;
+        bool operator==(const PositionSnapshot&) const = default;
     };
 
 private:
@@ -146,6 +152,7 @@ public:
     [[nodiscard]] Bitboard checking_pieces() const noexcept { return checkers; }
     [[nodiscard]] size_t history_size() const noexcept { return history.size(); }
     [[nodiscard]] bool history_empty() const noexcept { return history.empty(); }
+    [[nodiscard]] size_t history_capacity() const noexcept { return history.capacity(); }
     // The piece the last move captured (NO_PIECE after a quiet or null move,
     // or at a position with no move history).
     [[nodiscard]] Piece captured_piece() const noexcept {
@@ -201,7 +208,13 @@ public:
     [[nodiscard]] int64_t see_ge_call_count() const noexcept { return diag_see_ge_calls; }
     [[nodiscard]] int64_t gives_check_call_count() const noexcept { return diag_gives_check_calls; }
 
+    // Called more than once a node: defined here so that every caller inlines
+    // it. A trace build defines it out of line, to record it (board_trace.cpp).
+#ifdef BASILISK_BOARD_TRACE
     [[nodiscard]] bool is_in_check() const;
+#else
+    [[nodiscard]] bool is_in_check() const { return checkers != 0; }
+#endif
     [[nodiscard]] bool gives_check(Move m) const;
     [[nodiscard]] Bitboard check_squares(PieceType pt, Color us) const;
     [[nodiscard]] bool is_square_attacked(Square sq, Color by) const;
@@ -239,6 +252,9 @@ public:
     // Whether vacating `s` can pin a piece against either king: `s` shares a
     // line with the king and an enemy slider of that line's kind is on it.
     [[nodiscard]] bool see_departure_opens_line(Square s, Bitboard occ) const;
+    // A draw by repetition at search_ply plies from the root: the position
+    // occurred once since the root (strictly after it), or twice in the
+    // reversible history.
     [[nodiscard]] bool is_repetition(int search_ply) const;
     // Whether the side to move has a reversible move back to a position of
     // the key history, found by the cuckoo tables without generating moves
@@ -248,7 +264,14 @@ public:
     [[nodiscard]] bool upcoming_repetition(int search_ply) const;
     [[nodiscard]] bool is_insufficient_material() const;
 
+    // Inlined in every caller, as is_in_check.
+#ifdef BASILISK_BOARD_TRACE
     [[nodiscard]] bool has_non_pawn_material(Color c) const;
+#else
+    [[nodiscard]] bool has_non_pawn_material(Color c) const {
+        return (pieces[c][KNIGHT] | pieces[c][BISHOP] | pieces[c][ROOK] | pieces[c][QUEEN]) != 0;
+    }
+#endif
     [[nodiscard]] int see(Move m) const;
     [[nodiscard]] bool see_ge(Move m, int threshold) const;
 #ifdef BASILISK_TUNE
@@ -277,9 +300,48 @@ public:
          7, 15, 15, 15,  3, 15, 15, 11  // rank 8
     };
 
+#ifdef BASILISK_BOARD_TRACE
+    // Search-replay trace: the public methods of the same names are defined in
+    // board_trace.cpp, record the call and forward to these (board.cpp).
+private:
+    void make_move_untraced(Move m);
+    void unmake_move_untraced(Move m);
+    void make_null_move_untraced();
+    void unmake_null_move_untraced();
+    void gen_legal_untraced(MoveList& moves) const;
+    void gen_legal_captures_untraced(MoveList& moves) const;
+    void gen_legal_quiets_untraced(MoveList& moves) const;
+    void gen_quiet_checks_untraced(MoveList& moves) const;
+    [[nodiscard]] bool see_ge_untraced(Move m, int threshold) const;
+    [[nodiscard]] bool gives_check_untraced(Move m) const;
+    [[nodiscard]] Bitboard check_squares_untraced(PieceType pt, Color us) const;
+    [[nodiscard]] bool is_legal_untraced(Move m) const;
+    [[nodiscard]] bool is_draw_untraced(int search_ply) const;
+    [[nodiscard]] bool is_repetition_untraced(int search_ply) const;
+    [[nodiscard]] bool upcoming_repetition_untraced(int search_ply) const;
+    [[nodiscard]] bool is_in_check_untraced() const;
+    [[nodiscard]] bool has_non_pawn_material_untraced(Color c) const;
+#endif
+
 private:
     void put_piece(Color c, PieceType pt, Square sq);
     void remove_piece(Square sq);
     void move_piece(Square from, Square to);
+    void put_piece_board(Color c, PieceType pt, Square sq);
+    void remove_piece_board(Square sq);
+    void move_piece_board(Square from, Square to);
+    // restore_position without touching the history or the counters.
+    void restore_fields(const PositionSnapshot& snapshot) noexcept;
+#ifdef BASILISK_BOARD_CROSSCHECK
+    // The original forms of rebuilt board operations, which a cross-check
+    // build runs beside the rebuilt ones (board.cpp).
+    void unmake_move_reference(Move m);
+    [[nodiscard]] bool see_ge_rebuilt(Move m, int threshold) const;
+    [[nodiscard]] bool see_ge_reference(Move m, int threshold) const;
+    [[nodiscard]] bool is_draw_rebuilt() const;
+    [[nodiscard]] bool is_draw_reference() const;
+    [[nodiscard]] bool is_repetition_rebuilt(int search_ply) const;
+    [[nodiscard]] bool is_repetition_reference(int search_ply) const;
+#endif
     [[nodiscard]] Key compute_hash() const;
 };

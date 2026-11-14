@@ -101,6 +101,26 @@ class AnalyseTest(unittest.TestCase):
         self.assertAlmostEqual(null["delta_percent"], 0.0)
         self.assertAlmostEqual(report["arms"]["base"]["startup_cycle_share"], 0.01)
 
+    def test_null_over_copied_builds(self):
+        # BAS-P33's null: a copy of every base build, decided over builds like
+        # the contrast, so one disturbed run moves it no more than its median.
+        runs = []
+        for cycle in range(3):
+            for b, level in enumerate((100.0, 101.0, 99.0, 100.5)):
+                disturbed = 3.0 if (b, cycle) == (2, 1) else 0.0
+                runs.append(run("base", f"b{b}", level + 0.1 * cycle))
+                runs.append(run("copy", f"b{b}-copy", level + 0.1 * cycle + disturbed))
+        with tempfile.TemporaryDirectory() as d:
+            d = pathlib.Path(d)
+            self.write(d, runs, [{"name": "null", "base": "base", "cand": "copy"}])
+            report = pmc_read.analyse(d)
+        null = report["contrasts"][0]["cycles_per_node"]
+        self.assertEqual(null["samples"], "builds")
+        self.assertAlmostEqual(null["delta_percent"], 0.0, delta=0.05)
+        lo, hi = null["interval_percent"]
+        self.assertLess(lo, 0)
+        self.assertGreater(hi, 0)
+
     def test_one_tree_required(self):
         with tempfile.TemporaryDirectory() as d:
             d = pathlib.Path(d)

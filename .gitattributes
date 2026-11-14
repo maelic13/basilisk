@@ -5,3 +5,6 @@
 docs/reference/** -text -whitespace linguist-vendored
 # The oracle bridge patch is applied byte-exact.
 tools/oracle/*.patch -text
+# The other engines' board-harness adapters are applied byte-exact.
+tools/board_compare/*/*.diff -text
+tools/board_compare/*/*.patch -text

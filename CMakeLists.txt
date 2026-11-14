@@ -174,7 +174,33 @@ set(BOARD_SOURCES
     src/zobrist.cpp
     src/threats.cpp
 )
+# The search-replay trace (src/board_trace.cpp): a measurement build that
+# records every board operation the search makes, in order and with its
+# result, to the file BASILISK_BOARD_TRACE_FILE names; tests/board_replay.cpp
+# replays it. Configure a tree of its own with it ON, never a release: OFF
+# leaves no code behind. board_replay always times the untraced board, so a
+# trace tree builds that board a second time for it.
+option(BASILISK_BOARD_TRACE "Record the search's board operations (a measurement build)" OFF)
+set(_board_replay_board basilisk_board)
+if(BASILISK_BOARD_TRACE)
+    add_library(basilisk_board_untraced STATIC ${BOARD_SOURCES})
+    target_include_directories(basilisk_board_untraced PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    set(_board_replay_board basilisk_board_untraced)
+    list(APPEND BOARD_SOURCES src/board_trace.cpp)
+endif()
 add_library(basilisk_board STATIC ${BOARD_SOURCES})
+if(BASILISK_BOARD_TRACE)
+    target_compile_definitions(basilisk_board PUBLIC BASILISK_BOARD_TRACE)
+endif()
+# A check build: each rebuilt board operation runs its original form beside
+# it and aborts on the first difference. Never a release.
+option(BASILISK_BOARD_CROSSCHECK "Run rebuilt board operations beside their originals (a check build)" OFF)
+if(BASILISK_BOARD_CROSSCHECK)
+    target_compile_definitions(basilisk_board PUBLIC BASILISK_BOARD_CROSSCHECK)
+    if(TARGET basilisk_board_untraced)
+        target_compile_definitions(basilisk_board_untraced PUBLIC BASILISK_BOARD_CROSSCHECK)
+    endif()
+endif()
 target_include_directories(basilisk_board PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
@@ -269,12 +295,23 @@ target_link_libraries(basilisk PRIVATE basilisk_engine basilisk_version)
 # ---------------------------------------------------------------------------
 add_executable(board_performance_test tests/board_performance.cpp)
 target_link_libraries(board_performance_test PRIVATE basilisk_board)
+# Each board primitive timed alone on frozen game positions
+# (tools/diag/board_micro_run.py runs it).
+add_executable(board_micro_bench tests/board_micro.cpp)
+target_link_libraries(board_micro_bench PRIVATE basilisk_engine)
+# Replays a recorded search's board operations on one Board, the production
+# board, untraced (tools/diag/board_replay_run.py times it).
+add_executable(board_replay tests/board_replay.cpp)
+target_link_libraries(board_replay PRIVATE ${_board_replay_board})
 
 # ---------------------------------------------------------------------------
 # Board correctness tests
 # ---------------------------------------------------------------------------
 add_executable(test_board tests/test_board.cpp)
 target_link_libraries(test_board PRIVATE basilisk_board)
+# The board against python-chess's oracle files in tests/data.
+add_executable(test_board_v2 tests/test_board_v2.cpp)
+target_link_libraries(test_board_v2 PRIVATE basilisk_board)
 
 # ---------------------------------------------------------------------------
 # Move encoding / decoding tests
@@ -408,6 +445,7 @@ target_compile_definitions(test_endgames PRIVATE
 
 include(CTest)
 add_test(NAME test_board        COMMAND test_board)
+add_test(NAME test_board_v2     COMMAND test_board_v2 ${CMAKE_SOURCE_DIR}/tests/data)
 add_test(NAME test_wac          COMMAND test_wac)
 add_test(NAME test_invariants   COMMAND test_invariants)
 add_test(NAME test_threats      COMMAND test_threats)
@@ -418,6 +456,18 @@ add_test(NAME test_b3_proof         COMMAND test_b3_proof)
 add_test(NAME test_b4_qsearch       COMMAND test_b4_qsearch)
 add_test(NAME test_b5_root          COMMAND test_b5_root ${CMAKE_SOURCE_DIR}/tools/diag/suite_v2.epd)
 add_test(NAME test_search_path      COMMAND test_search_path)
+# The microbenchmark's preflight alone: its work is repeatable and the
+# search's path finds the board's perft.
+add_test(NAME board_micro_preflight COMMAND board_micro_bench
+         ${CMAKE_SOURCE_DIR}/tests/data/board_micro_positions.fen --preflight-only)
+# A trace tree records one search and replays it: every recorded result is
+# reproduced, and a planted wrong answer of each kind is caught.
+if(BASILISK_BOARD_TRACE)
+    add_test(NAME board_replay_verify
+             COMMAND ${CMAKE_COMMAND} "-DENGINE=$<TARGET_FILE:basilisk>"
+                     "-DREPLAY=$<TARGET_FILE:board_replay>" "-DWORK=${CMAKE_CURRENT_BINARY_DIR}"
+                     -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/board_replay_check.cmake)
+endif()
 add_test(NAME test_kernel_pins      COMMAND test_kernel_pins)
 add_test(NAME test_cpu_features COMMAND test_cpu_features)
 add_test(NAME test_move         COMMAND test_move)
@@ -606,12 +656,15 @@ endif()
 # every project-wide guarantee, so keep this list exhaustive.
 set(_ALL_TARGETS
     basilisk_board basilisk_engine basilisk_launcher basilisk_version
-    basilisk board_performance_test
-    test_board test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
+    basilisk board_performance_test board_micro_bench board_replay
+    test_board test_board_v2 test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics test_threats
     test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch test_b5_root
     basilisk_engine_child_log test_search_path test_kernel_pins
 )
+if(BASILISK_BOARD_TRACE)
+    list(APPEND _ALL_TARGETS basilisk_board_untraced)
+endif()
 
 # Fathom is part of the shipped executable and must obey its ISA contract, but
 # remains outside _ALL_TARGETS because third-party warning/sanitizer policy is

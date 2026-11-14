@@ -137,9 +137,10 @@ line names where it lives.
   must record the policy and never mix with natural-termination evidence.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
-- **Bench signature** of the accepted head: `bench 13` = **4,278,307**
-  nodes (since B.5.5's gates, which turned Cluster 4's root and aspiration on.
-  Earlier: 4,144,790 at B.4.7's gates, which turned Cluster 3's quiescence on, 6,090,091 at B.4.2's SEE repairs of promotion recaptures and
+- **Bench signature** of the accepted head: `bench 13` = **4,247,965**
+  nodes (since B.7.1's gate, which kept the root-repetition repair.
+  Earlier: 4,278,307 at B.6's gate, which accepted B.6.7's joint fit,
+  3,783,135 at B.5.5's gates, which turned Cluster 4's root and aspiration on, 4,144,790 at B.4.7's gates, which turned Cluster 3's quiescence on, 6,090,091 at B.4.2's SEE repairs of promotion recaptures and
   created pins, 5,361,058 at B.3.6's gate, which indexed the histories
   by coloured piece, 5,369,042 at B.3.5's gate, which turned Cluster 2's proof
   searches and extensions on; 11,880,564 at B.14's verdict guard, 16,615,757 at B.12's quiescence repair, 19,470,325 at A.13.2's
@@ -181,12 +182,32 @@ The four layers, kept separate (`analysis/endgame_measurement_layers_v1.md`):
 
 ## 5. Performance assumptions
 
-- **The board is not the bottleneck, and "make it faster" is not a motivation.**
-  BAS-X16 measured this source ahead of a peer engine by 22-46% on every board
-  microbenchmark. Board work starts as a **defect hunt** (PLAN B.7.1). The
-  review against Stockfish's and Triumviratus's boards (B.7.2, maintainer
-  decision 2026-11-03) replaces a component only where the other form
-  measures better, and keeps Basilisk's otherwise.
+- **The board is about a quarter of a node, and B.7 made it as fast as could
+  be measured** (maintainer decision 2026-11-14). B.7.1 was the defect hunt;
+  the review against Stockfish's and Triumviratus's boards (B.7.2) and the
+  frontier review (`analysis/b7_frontier_review_2026-11-14.md`) replaced a
+  component only where another form measured faster, and kept Basilisk's
+  otherwise. The final figures (B.7.9):
+  - **Speed:** B.7.6's rebuild read +3.21% pooled-PGO NPS [+2.90%, +3.52%]
+    (BAS-P30). No candidate of B.7.7's second round paid (BAS-P31).
+  - **Profile at `bench 13`:** the board is 23.4% of samples (26.9% with
+    its inlined frames): `see_ge` 5.51%, `gives_check` 4.12%, capture
+    generation 3.68%, `make_unmake` 3.37% and 1.46%.
+  - **Against the donors** (contract v3, Basilisk's call mix, BAS-P32):
+    60.7 ns per node, classical Stockfish 61.9, Rarog 69.8, Stockfish 19
+    76.6. Every column a donor leads is work moved into its make or out of
+    the timed column.
+  - **Counters:** the hardware-counter instrument failed its null twice
+    (BAS-P28, BAS-P33). At three cycles identical builds read 0.5% apart,
+    so cycles per node are no speed verdict. Pooled NPS decides.
+- **A board change is priced in real search order and in the engine, never
+  on a microbenchmark column alone.** A column times game positions on cold
+  boards and underpriced the board by 22% to 57%. Of nine candidate kernels
+  read on the search replay and the engine screen (PLAN B.7.5), two gained:
+  the ones that removed a whole code path. Every one that only removed or
+  skipped slider lookups gained nothing or lost. The second round's six lost
+  for the other half of the same reason: each added more work than the
+  branches it removed (BAS-P31).
 - **Nodes-to-depth, not raw NPS, is where the peer gap lives.**
 - Bench node counts are **chaotic** under small evaluation perturbations: in
   the 6.5.a floor sweep, floor 32 cost +28.5% while 24 and 40 sat near

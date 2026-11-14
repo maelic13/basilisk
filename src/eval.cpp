@@ -16,6 +16,7 @@
 #include <string>
 #include <unordered_map>
 #endif
+#include "board_trace.h"
 
 // ---- Texel trace thread-local storage and macros --------------------------
 #ifdef TEXEL_TRACE
@@ -1121,6 +1122,9 @@ bool Evaluator::draw_verdict(const Board& b) {
 // adds nothing to the endgame census or the lazy audit; eval_calls counts it,
 // since it pays for an evaluation.
 int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
+#ifdef BASILISK_BOARD_TRACE
+    board_trace::EvalScope trace_eval_scope;
+#endif
     ++eval_calls;
 #ifdef BASILISK_TUNE
     if (diag_endgames && !query)

@@ -1679,7 +1679,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       byte-identical copy of the base as the noise control. The tool on the
       5950X is chosen here (ETW PMC sources or AMD uProf). Validated
       against A.9.4's pooled read on one patch of known effect. Then the
-      instrument of B.7.4, B.8.5 and any profile share a gate asks for
+      instrument of B.7.9, B.8.5 and any profile share a gate asks for
       (B.3.5's repetition-check share).
       - Tool chosen 2026-11-05: ETW PMC through the Windows Performance
         Toolkit's `xperf`, which lists InstructionRetired, TotalCycles and
@@ -1706,7 +1706,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         the read needs an elevated shell and an idle host, about ten
         minutes, maintainer-run.
       - Closed 2026-11-05 as an instrument built (maintainer): its
-        validation read (BAS-P28, registered, not run) moves to B.7.4, the
+        validation read (BAS-P28, registered, not run) moves to B.7.9, the
         first leaf that reads it; B.8.5 reads it after. CLOSED.
     - [x] **B.16.5** `[I1]` Prompt helper stop (ANY TIME) — before B.4
       Added 2026-11-05 (maintainer: "investigate and repair now"),
@@ -3563,7 +3563,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         singular family and the drifting correction scale and IIR depth
         to C.10, the forgotten-mate witness to B.9, the literal census
         to B.11.3.
-- [ ] **B.7** Board review and rebuild
+- [x] **B.7** Board review and rebuild
   Added 2026-11-03 (maintainer): Basilisk's board is reviewed against
   Stockfish's (`Position` and `StateInfo`, the modern donor's form) and
   against Triumviratus's measured board ideas (the third donor), and
@@ -3578,9 +3578,35 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   own: phase letters are identifiers, and a phase between B and C would
   re-letter C–G. Inputs: `analysis/triumviratus_review_2026-11-03.md` (TB
   items) and the archived board leaves 7.1–7.12 (HISTORY's number map).
-    - [ ] **B.7.1** `[R2]` Board contract audit and instruments
+  Reworked 2026-11-14 (maintainer, after
+  `analysis/b7_frontier_review_2026-11-14.md`): B.7 ends with the fastest
+  board that can be measured here, not one that is fast enough. Its open
+  leaves were renumbered in the order they run (B.7.3 is B.7.6, B.7.4 is
+  B.7.9; HISTORY's number map): the instruments first, and a second round
+  of candidates before the gate. Chess960 is not a goal (maintainer, the
+  same day): the board is built for standard chess, C7 and TB-9 are
+  withdrawn, and a later decision for Chess960 would rework the board
+  then.
+  Speed is read in the whole engine after every leaf that changes the
+  board (maintainer, 2026-11-14): the board is made fast so that the
+  engine is, and a board change that does not show in NPS has not
+  delivered. Each such leaf ends with a pooled-PGO NPS read (PROCESS
+  *NPS*, gain form) of its head against the commit before its first
+  component, floor +0.5%; the agent builds the pools, then asks for the
+  idle host.
+  - A set under its floor has its members read alone (D-16), and a
+    member that does not pay returns to Basilisk's form.
+  - A set or member that reads below zero is a red flag. The leaf
+    returns to research (R3) and the next leaf waits. The research reads
+    the search as well as the board: a board change can move cost into
+    its callers (the picker, the search, the evaluation) through
+    inlining, PGO's layout or a changed call pattern. It profiles both
+    arms by region (A.9.5), the board's callers included, counts the
+    search's board calls on both (the trace's census), and names where
+    the time went before anything is kept or reverted.
+    - [x] **B.7.1** `[R2]` Board contract audit and instruments
       Was D.3.1, then B.15.1 (HISTORY's number map): the defect
-      hunt, and the safety net B.7.3 rebuilds behind (archived 7.1, 7.7,
+      hunt, and the safety net B.7.6 rebuilds behind (archived 7.1, 7.7,
       7.9–7.12). Port the snapshot's board-v2 corpus and oracle
       (`tests/data/`, `tools/diag/board_v2_*.py`).
       The corpus freezes canonical FEN, legal and capture sets, perft and
@@ -3611,13 +3637,77 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - FEN robustness (TB-3): an en-passant square inconsistent with the
         side to move, castling rights that do not match the board, a side
         not to move in check; one position must never get two keys.
-    - [ ] **B.7.2** `[R2]` Board review against Stockfish and Triumviratus
+      Audit done 2026-11-14 (`analysis/b71_board_contract_2026-11-14.md`):
+      instruments built, two defects repaired; the second moves the tree
+      and waits for its gate. `bench 13` **4,278,307** through the first.
+      - The corpus: 26 tagged positions checked by python-chess
+        (`tools/diag/board_v2_oracle.py`), and 192 SEE cases with the
+        legal exchange tree (`tools/diag/see_oracle.py`, every
+        `test_board` fixture, Rarog's cases and mirrors). `test_board_v2`
+        reads both. At the roots: FEN, checkers, legal, capture and
+        checking sets, perft and divide equal the oracle.
+      - Over 12,451 walked nodes: make, unmake and null restore every
+        field; `gives_check` matches play on 9,498 checks; every FEN
+        reads back to the same keys.
+      - The rest: the generators' partition, clones and 160-ply unwinds;
+        Zobrist rank 64 (TB-2); TB-3's FEN cases; the clock outside the
+        key (A-14); `see_ge` exact on all 187 moves (A-5).
+      - Negative controls show each check can fail: `gives_check`
+        without its discovered clause disagrees 161 times; 32-bit keys
+        read rank 32.
+      - A-13 is a `test_search` fixture whose control without history
+        shows the stored claim answering. TB-1 is B.6.3's search-path
+        perft, reused.
+      - Repaired: a board copy of a game longer than the reserve had no
+        room for a search line, so the search grew the history at its
+        first node. The copy now reserves `2 × MAX_PLY` past it, under a
+        test that fails on the old code. Also repaired: `test_board`'s
+        SEE fixture "pinner stays" was an illegal position; its bishop
+        moves to f3.
+      - F1, repaired at the maintainer's word (2026-11-14): `is_repetition`
+        scored one return to the root as a draw, where the cuckoo test
+        (donor form) and Stockfish do not. It now needs a second
+        occurrence at or before the root, and a test holds the two
+        predicates to one answer (it fails on the head). `bench 13`
+        **4,247,965**. The proven-mate fixture of `test_b5_root` moves
+        with the tree (proved in 9 from depth 19, in 8 from depth 24, where
+        the head proved it in 8 from depth 17).
+      - Gate: BAS-S63, `[-5,5]` at `3+0.03`, cap 4,000 pairs (12.1% of
+        3,000 game positions choose another move at 50k nodes, by the new
+        `tools/diag/decision_diff.py`), `python tools/run_b71_gate.py`.
+        Maintainer-run 2026-11-14: the cap without a decision, 8,000
+        games, +1.9 ± 4.1 Elo, LLR +2.29, no faults. The repair stays (the
+        cap rule, confirmed by the maintainer) and the fingerprint record
+        moves to **4,247,965**. CLOSED 2026-11-14.
+      - For B.8.2 (F4): `Board::see` has no caller left in `src/`.
+    - [x] **B.7.2** `[R2]` Board review against Stockfish and Triumviratus
       A packet that reads each component against the donor's form and
       Triumviratus's, measures Basilisk's (its share in A.9.5's profile at
       `bench 13`, a microbenchmark per component), and decides keep,
       replace or adapt, each with its reason and expected cost; a
       departures table records every kept Basilisk form. Its frozen handoff
-      is B.7.3's contract. Components:
+      is B.7.6's contract.
+      Added 2026-11-14 (maintainer: the board's speed is the point of B.7):
+      - Its first deliverable is the board microbenchmark, so that every
+        component is read on it before B.7.6 changes it and again after.
+        It times each primitive alone, as Rarog's board-v2 bench did: legal
+        generation, capture generation, staged generation, make and unmake
+        alone, SEE alone. It adds `gives_check`, the check information, the
+        legality test of a TT or killer move, and a perft through the
+        search's generator.
+      - Its inputs are built before timing, every sample is printed, and a
+        checksum keeps the compiler from eliding the work. The timed binary
+        is a pinned release build, read on an idle host (the maintainer
+        says when).
+      - `tests/board_performance.cpp` (cross-engine-board-v1) stays as it
+        is, for its cross-engine comparability.
+      - Donor techniques, with what each source measured, are inventoried in
+        `analysis/b7_board_speed_inputs_2026-11-14.md`: Stockfish 19's
+        board, Triumviratus's TB items and Rarog's measured board work.
+        B.7.2 reads each against Basilisk's component. A technique no
+        source measured is a candidate to measure, not to adopt, and a
+        donor result measured as a loss counts as much as a gain.
+      Components:
       - Check information computed once per node at make: checkers, pins
         and blockers, check squares, as `StateInfo` holds them (Basilisk
         computes `check_squares` and pins per call), shared by the
@@ -3640,23 +3730,386 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         the SEE kernel, representation).
       - Chess960 representable without a second rewrite (TB-9); the
         feature itself is G.2's.
-    - [ ] **B.7.3** `[I2]` Rebuild behind the board contract
-      B.7.2's accepted components, one commit each, each passing B.7.1's
-      corpus and B.6.3's search-path perft and keeping the exact `bench 13`
-      fingerprint while the generation order is unchanged. No search,
-      evaluation or parameter change rides along. Each replaced component
-      keeps, behind a build switch, a check that runs the old form beside
-      the new at every node and aborts on the first disagreement (TM-10).
-    - [ ] **B.7.4** `[V]` Board speed read and gate
-      Pooled-PGO NPS of the rebuilt board against the head (A.9.4) and
-      each component's share in the profiler (A.9.5); a component that
-      does not pay its +0.5% returns to Basilisk's form. A component that
-      changes the generation order, and so the tree, takes a `[-5,0]`
-      SPRT at `3+0.03`.
+      Done 2026-11-14 (`analysis/b72_board_review_2026-11-14.md`, its §6 the
+      frozen handoff):
+      - Instruments: `board_micro_bench` (`tests/board_micro.cpp`), each
+        primitive alone on 512 positions of BAS-S63's games, with a
+        python-chess oracle line and a checksum per column. Rarog's and
+        Reckless's boards are timed under one contract
+        (`tools/board_compare/`, adapters as patches on pinned commits).
+        `tools/diag/board_micro_run.py` alternates the binaries on one CPU.
+      - Microbenchmark, five alternating rounds:
+        - Basilisk leads legal generation by 7–29% and perft by 25–61%.
+        - Rarog's make/unmake is 15% faster (its make is hinted).
+        - Quiet-check generation costs four times the staged pair.
+      - Added the same day, at the maintainer's request: both Stockfishes,
+        19 and classical, in one five-engine session. Weighted by the
+        search's counted call mix, Basilisk's board costs 65.8 ns per node.
+        - Rarog is within 2%.
+        - Classical Stockfish is 9% dearer and Stockfish 19 26% dearer.
+          Stockfish's stored check information halves `gives_check` and SEE
+          and doubles or triples make.
+        - Rarog's and Stockfish's SEE pass promotions and en passant
+          unexamined (36 moves), the donor's rule, not a defect.
+        - Quiet-check generation is never called (quiet checks are off at
+          the defaults), so C4 was withdrawn.
+      - Profile at `bench 13`: board 24.0% of samples. By entry point: SEE
+        6.13% (pins 1.71), `make_move` 3.48%, `gives_check` 3.33%,
+        `unmake_move` 2.68%, generation 6.4%.
+      - Disassembly: every slider lookup is inlined, and no hot function
+        probes its stack (TB-11 closed).
+      - Handoff, six behaviour-neutral components, one commit each:
+        - C1: unmake without the key work it discards;
+        - C2: a discovered-check pre-test in `gives_check`;
+        - C3: a pin pre-test in SEE;
+        - C5: the repetition scan from distance 4;
+        - C6: the hinted make, BAS-P04's untested half; its trigger is met
+          by reuse;
+        - C7: castling squares from tables (TB-9).
+      - Kept: lazy check information, legal generation, the exact SEE
+        pins, flat PEXT tables, repetition on demand, the representation.
+      - Deferred: to B.8.5, G.2 and F.1 (the dirty-piece record, its
+        contract fixed here).
+      - Maintainer's decision: whether C7, which buys representability,
+        is held to cost-neutral rather than +0.5%.
+      Amended 2026-11-14 by the frontier review
+      (`analysis/b7_frontier_review_2026-11-14.md`, R3; its §5 and §6 are
+      research amendments 1 and 2 to the packet):
+      - Each component was read in real search order (a replay of every
+        board operation of `bench 13`) and in the engine (16 alternating
+        `bench 13` rounds, plain builds): C1 +1.86%; SEE pins read from
+        aligned sliders +1.56%; C2 and C3's pre-test no gain;
+        `gives_check` without lookups no gain; checkers derived in make
+        −0.74%; C6 no gain on the replay.
+      - The handoff is C1, C3′ (the new SEE pins) and C5. C2 and C6 are
+        dropped on measurement. C7 is withdrawn (maintainer: no
+        Chess960), which settles the decision above.
+      - "Fastest of five" stands against Stockfish 19 and Reckless.
+        Against Rarog and classical Stockfish it rests on the
+        composite's stand-in for the quiet stage, and B.7.9 reads it
+        without one.
+      - The dirty-piece record is not written by make (F.1).
+    - [x] **B.7.5** `[I2]` Board instruments: replay and engine screen
+      Added 2026-11-14 (`analysis/b7_frontier_review_2026-11-14.md` §2.5,
+      §3, §8). The two instruments every later leaf of B.7 reads, made
+      permanent from the review's prototypes. A microbenchmark column
+      prices game positions on cold boards and underprices the board by
+      22% to 57%; these two price the search's own work. No playing
+      change: every build keeps `bench 13` at 4,247,965. New tools are
+      Python. Class I2, not I1: every later keep or refusal in B.7 rests
+      on these reads, and the adapters are patches on four pinned
+      engines in two languages.
+      Starting point: `tools/results/b7-frontier/replay/prototype_final.patch`
+      (local, SHA-256 A7C836C81DAB6F0E…, on this branch's `2231b50`).
+      Only the recorder and the replayer are taken from it, no `PROTO_`
+      kernel.
+      - The trace build, a CMake option that is off by default and leaves
+        no code behind when off: it records every operation the search
+        makes on its own board, in order and with its result. Make (the
+        key after it), unmake, null moves, each generation stage (the
+        count), `see_ge` (threshold and answer), `gives_check`,
+        `check_squares`, `is_legal`, the draw tests, `is_in_check`. A
+        call a board function makes itself is not recorded. Eight bytes
+        a record.
+      - `board_replay`, a test target on the production board:
+        - `--verify` replays every record and compares every result;
+          the first mismatch is exit 1. A CTest records a short trace
+          (one bench root at a node cap), verifies it, and shows the
+          check failing on a planted wrong answer.
+        - A timed run filters the trace to the chosen classes before
+          timing (make, unmake and null moves always run), takes one
+          warm-up pass and prints a checksum.
+        - `--stub` is the control: the same records through the same
+          switch, each case an empty out-of-line call. Board cost is the
+          timed run less the stub. The stub over-corrects, so the two
+          figures bracket the truth; an A/B of two boards on one trace
+          needs no correction.
+      - `tools/diag/board_replay_run.py`: alternates binaries and class
+        lists on one pinned CPU, refuses a busy host, records hashes and
+        every sample, and writes its samples before it prints. A trace
+        is regenerated (`bench 13`: 58.6 million records, 469 MB), never
+        committed.
+      - `tools/diag/engine_ab.py`, the engine screen: alternating
+        `bench 13` runs of plain release builds on one pinned CPU, 16
+        rounds, the order reversed on odd rounds, the per-round time
+        ratio to the first binary. It refuses a busy host and any node
+        count but the fingerprint. A null pair (one build, two copies)
+        is read first and gives the resolution; the review read about
+        ±0.3%.
+      - Cross-engine contract v3 (`tools/board_compare/`): a `quiet_gen`
+        column, each engine's quiet-stage generator as its search calls
+        it, in Basilisk's harness and the four adapters, so that the
+        per-node composite needs no stand-in. No timing here; B.7.9
+        reads it.
+      - Timed reads are short (under ten minutes each) and need the idle
+        host: the agent builds, then asks for it.
+      - Done when verify passes at the head and fails on the planted
+        answer; the head's class table reproduces the review's within
+        its spread (uncorrected, ns per node: make and unmake 26.1,
+        generation 29.5 more, SEE 28.8 more, `gives_check` 16.9 more);
+        and the null pair reads within ±0.3%.
+      Done 2026-11-14:
+      - The trace build (`-DBASILISK_BOARD_TRACE=ON`) and the plain build
+        both give `bench 13` 4,247,965. Its `bench 13` trace, 58,598,640
+        records, is byte-identical to the review's (SHA-256
+        4C6643CD9CB43460…). With the option off, `board.cpp`, `eval.cpp`
+        and `search_worker.cpp` preprocess byte-identically to the
+        commit before, and differ with it on.
+      - `board_replay --verify` passes on that trace. The CTest
+        `board_replay_verify` (trace trees only) records Kiwipete at
+        20,000 nodes, verifies it, and catches a planted wrong answer of
+        each of eleven kinds at the planted record. `board_replay` links
+        the untraced board in either tree.
+      - `board_replay_run.py` and `engine_ab.py` ran end to end on a busy
+        host with tiny settings (numbers discarded).
+      - Contract v3: `quiet_gen` on the 477 positions not in check,
+        whose 13,029 legal quiets every harness agrees on. Basilisk's
+        generator yields exactly that set; the four adapters build from
+        their pinned commits and pass preflight, each printing its own
+        count (Rarog 13,085, Reckless 13,071, Stockfish 19 13,713,
+        classical 13,714). Rarog's adapter makes its quiet stage `pub`,
+        nothing else. B.7.2's twelve microbenchmark checksums are
+        unchanged. The v3 binaries sit beside v2's (`*-board-v3.exe`).
+      - Timed reads, idle host, CPU 2:
+        - Head class table (`tools/results/b75/replay-head/`, replayer
+          SHA-256 305889121CA972FC…, three rounds of five passes),
+          uncorrected ns per node, the review's in brackets: make and
+          unmake 26.00 (26.1), generation 29.54 more (29.5), SEE 28.88
+          more (28.8), `gives_check` 17.43 more (16.9). Each lies within
+          its row's spread plus `none`'s (0.45 to 0.97 ns).
+        - Less stub: 16.48, 25.43, 21.82 and 10.99 (17.2, 25.9, 22.2,
+          11.1). All classes in one run time 143.3 (spread 5.0%),
+          against 135.1 for the sum of the classes read one at a time.
+        - Engine null pair (`tools/results/b75/screen-null/`, SHA-256
+          C0A50086AA2AAF2C…): median −0.03%; single rounds −0.68% to
+          +0.85%, the copy faster in 7 of 16.
+    - [x] **B.7.6** `[I2]` Rebuild behind the board contract
+      It was B.7.3 until 2026-11-14. B.7.2's handoff as the frontier
+      review amended it (its §6), one commit each, in this order.
+      Rules for every component (B.7.2's packet §6):
+      - `bench 13` stays 4,247,965, and every checksum of
+        `board_micro_bench` stays as
+        `tools/results/b72-micro/manifest.json` records it.
+      - `test_board_v2`, `test_search_path` and `board_replay --verify`
+        on a fresh `bench 13` trace pass.
+      - The old form runs beside the new behind a build switch and
+        aborts on the first difference; it is run once under
+        `test_search_path` and `bench 13` (TM-10).
+      - Nothing rides along: no search, evaluation or parameter change,
+        and the generation order is unchanged.
+      Components:
+      - C1, unmake without key work. `put_piece`, `remove_piece` and
+        `move_piece` gain a board-only form (bitboards, occupancies,
+        mailbox, king square); `unmake_move` uses it and restores every
+        key from `UndoInfo`. Review: replay −2.1 ns per node, screen
+        +1.86%. PGO may already drop part of it; B.7.9 reads that.
+      - C3′, SEE pins from aligned sliders. `see_ge` computes no pins up
+        front. For each colour `c` it holds `snipers(c)`: the enemy
+        rooks and queens on an empty-board rook line of `c`'s king, and
+        the enemy bishops and queens on a bishop line (two 64-entry
+        constant tables). Where it chooses an attacker of colour `c`,
+        and in the promotion-threat test, a piece is excluded when it
+        alone stands between its king and a sniper that is still in the
+        exchange occupancy (`BB_BETWEEN[king][sniper] & occ` is that one
+        piece) and `to` is not on that line. Read on the occupancy of
+        that moment, this is the set `see_pins` returns, and it replaces
+        both the pinner test and the recomputation after a departure:
+        `see_pins` and `see_departure_opens_line` leave `see_ge`. The
+        king-legality rule keeps its unfiltered opponent set.
+        `Board::see` has no caller and is B.8.2's to delete. Review:
+        exact on 6.05 million recorded SEE answers; replay −4.3 ns per
+        node, screen +1.56%.
+      - C5, the repetition scan from distance 4 (`is_repetition`,
+        `is_draw`): cleanup, no measurable effect.
+      - C8, `is_in_check` and `has_non_pawn_material` defined in
+        `board.h`: each is called 1.2 times per node and is an
+        out-of-line call that only LTO removes. Cost-neutral cleanup.
+      Each of C1 and C3′ is read on B.7.5's two instruments against the
+      commit before it. It stays when its replay class is faster by more
+      than twice the spread of the untouched classes and the engine
+      screen is faster in at least 13 of 16 rounds. A component that
+      fails returns the leaf to research with its numbers.
+      Then the set's pooled read (B.7's rule), its head against the
+      commit before C1. The review's frozen prediction is +2.0%, 80%
+      interval [+0.8%, +3.2%]; under +0.5% falsifies the engine screen as
+      a predictor, and the leaf returns to research (R3) instead of
+      choosing members by the screen.
+      Not built (review §3): C2, C3's pre-test and C6 (no gain
+      measured), C7 (withdrawn). `UndoInfo` gains no field for the
+      network (F.1).
+      Done 2026-11-14 (BAS-P30):
+      - One commit each: C1 `1097ee8`, C3′ `eccf9b7`, C5 `5e40371`, C8
+        `0c978c2`. After each, `bench 13` is 4,247,965, `test_board_v2`,
+        `test_search_path` and `board_replay --verify` pass, and the
+        twelve checksums of `tools/results/b72-micro/manifest.json`
+        hold. The head's fresh `bench 13` trace is byte-identical to the
+        base's (SHA-256 4C6643CD9CB43460…).
+      - The cross-check build (`-DBASILISK_BOARD_CROSSCHECK=ON`) runs the
+        original unmake, `see_ge`, `is_repetition` and `is_draw` beside
+        the rebuilt ones. It passes `bench 13`, `test_search_path` and
+        `test_board`, and a planted defect in each of C1, C3′ and C5
+        aborts it.
+      - Also: CTest without the strength floors (30 tests), the
+        sanitizer build's `test_board`, `test_board_v2` and
+        `test_invariants`, and a TUNE build.
+      - Screens, idle host: the replay reads C1's make and unmake −1.89
+        ns per node and C3′'s SEE −4.64, each beyond twice its untouched
+        classes' spread (0.72 and 0.38); the engine screen reads C1
+        +0.77% (15 of 16 rounds) and C3′ +1.92% over C1 (16 of 16).
+        Both stay.
+      - Pooled read, BAS-P30 (pools `b76-base` at `fb91be6`, `b76-head`
+        at `0c978c2`): +3.21%, 95% interval [+2.90%, +3.52%], ACCEPT at
+        step 1. Above the floor, just above the frozen prediction's 80%
+        interval ([+0.8%, +3.2%]).
+    - [x] **B.7.7** `[R2]` Second round: candidates on the instruments
+      Added 2026-11-14 (maintainer: the fastest board possible at the end
+      of B.7). Bounded research on B.7.6's head. Each candidate below is
+      prototyped behind a macro in a scratch worktree, as the review's
+      nine were, proved exact, read on both instruments, and kept or
+      refused by the rule frozen here. Nothing is merged in this leaf.
+      Its packet (`analysis/`) carries every candidate with both reads,
+      and the frozen handoff for B.7.8 or NO_CHANGE.
+      The lesson that orders the list (review §3): on this host a slider
+      lookup is not the cost, the code around it is. Every kernel that
+      only removed or skipped lookups gained nothing or lost; the two
+      that removed a whole path gained. A pre-test is a branch.
+      First reading: the profile of B.7.6's head by board entry point
+      (A.9.5, as B.7.2's packet §1.2). A candidate whose target is under
+      0.5% of samples is not prototyped.
+      Candidates, in order:
+      - Undo as one block. Make saves the changing state as one image
+        (the twelve piece bitboards and the occupancies, 136 bytes; the
+        keys, counters, king squares and checkers, 72 bytes) and unmake
+        copies it back: no branch on the move's kind, no
+        read-modify-write. The mailbox is restored by two to four
+        stores. The undo stack becomes a fixed array sized for the
+        longest search line, and the key history a dense array of its
+        own, so that no search node allocates (B.7.1's capacity
+        contract) and a repetition scan reads eight keys a cache line.
+        It must hold B.7.1's restore-every-field walk, the three
+        repetition tests on the new history, clones and the 160-ply
+        unwind. Prior: 0 to +1% beyond C1.
+      - A byte mailbox: `Piece` stored in one byte (64 bytes instead of
+        256), alone and inside the image above, where it frees unmake
+        of its last branches. It must hold every `piece_on` reader.
+      - Keys by table in make: one row per piece and square holding the
+        main, pawn, minor and non-pawn key parts, in place of three type
+        tests per helper (TB-5; part of a −1.05% cycles package there).
+      - Next attacker by index in `see_ge` (TB-6; −0.38% and −0.14%
+        cycles there).
+      - The hinted make with the search wired (C6): `make_move` takes
+        the search's `gives_check` answer where it has one, which is at
+        43% of makes (38.5% no, 4.5% yes). The review's replay read no
+        gain and its nearest form lost 0.74%; this is the one arm it
+        could not build in the engine. BAS-P04's trigger is met by the
+        changed reuse.
+      - One enemy attack map per node, built on first use, for the
+        quiet stage's king targets (4.0 tests per generation), castling,
+        the quiet scorer's threat maps and `see_ge`'s exit when nobody
+        attacks the square (28% of its calls; an attack through the
+        mover's origin is not in the map, so that exit needs a line
+        test). Priors conflict: Triumviratus −0.35% cycles, Rarog
+        −0.58% for the SEE exit, BAS-P04 −0.16% for sharing between
+        stages.
+      - Whatever the profile shows above 0.5% inside a board entry point
+        that no candidate above covers, its mechanism stated before the
+        prototype.
+      Not retried (measured in the review, §3; their trigger is the
+      network's cache load, H.4): `gives_check` and make's checkers
+      without lookups, SEE attackers from aligned sliders, the
+      generator's pins from aligned sliders (RAR-M31), C2, C3's
+      pre-test. Refused on record: eager check information and pin
+      sharing (BAS-P04), compressed tables (BAS-P26), the side or stage
+      as a template parameter (RAR-M44(c)), incremental attack tables,
+      pseudo-legal generation, copy-make, Chess960 tables.
+      The rule for each candidate, frozen:
+      - Exact: `board_replay --verify` on a fresh trace, the
+        fingerprint, the microbenchmark checksums, `test_board_v2` and
+        `test_search_path`.
+      - Kept: the engine screen at +0.3% or more with at least 13 of 16
+        rounds faster, and no replay class slower by more than twice
+        the null spread. Read alone against B.7.6's head, then once
+        more against the kept set.
+      - Between the null pair's resolution and +0.3%: reported, not
+        kept, unless it also removes code.
+      - The round ends after one pass over the list. A second pass is
+        only for a candidate that a kept one changed.
+      A premise found false goes back to the maintainer with its
+      evidence (R3), not into a wider prototype.
+      Done 2026-11-14, NO_CHANGE (`analysis/b77_second_round_2026-11-14.md`,
+      BAS-P31):
+      - Profile of B.7.6's head by entry point: `see_ge` 5.51%,
+        `gives_check` 4.12%, capture generation 3.68%, `make_move` 3.37%,
+        `unmake_move` 1.46%. Every candidate's target cleared 0.5%.
+        `gives_check`'s own code (2.60%) has no unmeasured mechanism, so
+        nothing was prototyped for it.
+      - Six candidates and one pairing, each exact, each read against
+        the head built from the same tree. Engine screen, the null at
+        −0.30%: undo as one block −2.52%, byte mailbox −0.57%, both
+        −7.27%, keys by table +0.22% (10 of 16 rounds), next attacker by
+        index −0.76%, hinted make −0.49%, enemy attack map −1.32%.
+      - Nothing reaches +0.3% with 13 of 16 rounds. Keys by table is
+        reported, not kept. B.7.8 closes NO_CHANGE.
+      - Calibration: four arms missed their frozen predictions in sign
+        and one in magnitude. Each candidate costs more in what it adds
+        than in the branches it removes.
+    - [x] **B.7.8** `[I2]` Second rebuild: the candidates that cleared
+      B.7.7's handoff under B.7.6's rules, one commit each, each read
+      again on both instruments against the commit before it, then the
+      set's pooled read (B.7's rule) against B.7.6's head. It closes as
+      NO_CHANGE if B.7.7 kept nothing.
+      Done 2026-11-14, NO_CHANGE: B.7.7 kept nothing (BAS-P31). For
+      information, all six candidates together read −7.76% on the engine
+      screen, and all but the byte mailbox −2.83%.
+    - [x] **B.7.9** `[V]` Board speed read and gate
+      It was B.7.4 until 2026-11-14.
       First, B.16.4's counter read is validated: BAS-P28, registered
       2026-11-05, `tools/run_b164_pmc.ps1` (elevated, idle host, about ten
       minutes; its P25 pools rebuilt by `tools/nps_pool.ps1` if gone, the
       new pool hashes recorded). Then it reads beside the pooled read.
+      Then, maintainer-run on the idle host:
+      - The steps' pooled reads are B.7.6's and B.7.8's (B.7's rule).
+        If B.7.8 changed the board, one two-pool read of the head before
+        B.7.6 against the final head gives B.7's total; if B.7.8 closed
+        NO_CHANGE, B.7.6's read is the total.
+      - The profile of the final head by board entry point (A.9.5),
+        beside B.7.2's table.
+      - The five-engine read on contract v3, and the composite
+        recomputed from it: no stand-in for the quiet stage; a hinted
+        make charged its `gives_check` for the 57% of makes the search
+        does not ask about; Basilisk charged its draw tests and the
+        picker's check squares. It states, per column and per node,
+        where the board stands against Rarog and both Stockfishes, and
+        names any column a donor still leads, with its mechanism.
+      - A component that changes the generation order, and so the tree,
+        takes a `[-5,0]` SPRT at `3+0.03`; none is planned.
+      It closes B.7, and DESIGN §5 takes the final figures.
+      Done 2026-11-14 (BAS-P28, BAS-P32, BAS-P33):
+      - BAS-P28, maintainer-run, elevated: P25 reads −2.23% cycles per
+        node [−2.80%, −1.67%], meeting its NPS read. But the null's
+        half-width is 0.76% against the rule's 0.5% (three runs of one
+        binary against three of another): **not accepted**.
+      - BAS-P33, the null redesigned at the maintainer's request (copies
+        of every base build, decided over builds like the contrast):
+        identical builds read −0.56% [−1.10%, −0.02%] and +0.49%.
+        **Not accepted** either. At three cycles the counters resolve
+        about ±1%, coarser than pooled NPS. Neither read of B.7.6's
+        pools (−2.59%, −2.70% cycles per node) is counted, and no third
+        design is tried.
+      - Total: B.7.8 closed NO_CHANGE, so BAS-P30's +3.21% [+2.90%,
+        +3.52%] is B.7's.
+      - Profile of the final head: B.7.7's, the same build (board 23.4% of
+        samples, 26.9% inline-inclusive).
+      - Five engines on contract v3 (BAS-P32), ns per node at Basilisk's
+        call mix: Basilisk 60.7, classical Stockfish 61.9, Rarog 69.8,
+        Stockfish 19 76.6. Reckless, priced without `gives_check`, reads
+        80.1 against 51.2. Every column a donor leads is work moved into
+        its make (Stockfish's check information, Reckless's threats and
+        pins) or out of the timed column (Stockfish's legality at
+        delivery, Rarog's hint). The two forms Basilisk could take were
+        read in its search as losses (BAS-P31).
+      - No component changed the generation order: no SPRT.
+      - DESIGN §5 has the final figures.
 - [ ] **B.8** Cleanup and speed pass
   Cleanup: remove the legacy search path, dead parameters, unconsumed switches
   and diagnostics without an owner; exact fingerprint; no game gate. Then
@@ -3836,8 +4289,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         TT duplicates, if one exists (TB-15).
       - Priors on what did not pay there: prefetching and reordering loads,
         AVX-512 gathers, the next-move TT prefetch on AMD (TB-16).
-      - B.16.4's identical-tree counter read beside A.9.4's pooled read
-        (TM-7).
+      - No hardware-counter read (maintainer, 2026-11-14): B.16.4's
+        instrument failed its null twice (BAS-P28, BAS-P33), identical
+        builds reading 0.5% apart, so pooled NPS alone decides.
       - Shortcut builds (TM-10): each shortcut ships with a build switch that
         runs the original beside it at every node and aborts on the first
         disagreement, as Triumviratus checked every identical-tree patch.
@@ -3862,6 +4316,25 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - The frame of `negamax` and of quiescence in bytes, read in the
         disassembly beside TB-11's stack probes; B.9.1 sizes the thread
         stacks from it.
+      Added 2026-11-14 (`analysis/b7_frontier_review_2026-11-14.md` §4;
+      counted on the search-replay trace of `bench 13`):
+      - SEE verdicts carried per move. 20.6% of `see_ge` calls ask about
+        a move already asked at that node, and an earlier answer settles
+        0.145 calls per node (10.2%), because `see_ge` is monotone in
+        its threshold: a yes at `t` answers every threshold at or below
+        `t`, a no every threshold at or above. The picker's verdict
+        travels with the move to the search's pruning tests. Ceiling
+        2.7 ns per node; 1.9.1's memo read +0.36%. Kept at +0.3% on
+        B.7.5's engine screen.
+      - Captures generated twice: 8.7% of capture generations repeat at
+        the same node (the ProbCut picker, then the main picker), about
+        1 ns per node. TB-8's item, now sized.
+      - The evaluation's `check_squares`: 3.64 of its 4.19 calls per
+        node are the safe-check loop, and the queen's set repeats the
+        bishop's and the rook's lookups. Behaviour-neutral.
+      - From B.7.2's deferrals: the stage as a template parameter stays
+        refused (RAR-M44(c)); next attacker by index and the quiet-SEE
+        exit are B.7.7's.
     - [x] **B.8.6** `[I1]` Delete the old search arms (ANY TIME) — before B.5
       Done 2026-11-08 at the maintainer's request, out of turn, so that
       Cluster 4 builds on one search path; every gate the arms served is
@@ -4121,6 +4594,24 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   the 1.11.0 release (B.11 until 2026-11-05, B.11.2 until 2026-11-11).
     - [ ] **B.11.1** `[V]` Search programme checkpoint
       Checkpoint: re-measure every deficit meter.
+      G(0) is read twice (maintainer, 2026-11-14), so that the gain compares
+      both with Basilisk's own baseline and with Rarog's reads:
+      - BAS-O05's protocol unchanged. The oracle package is rebuilt with
+        the head's HCE by `tools/oracle/build_oracle.ps1`; 3,000 paired
+        games at `3+0.03`, 1T, Hash 64, UHO, no adjudication. Its
+        difference from +312.6 is the programme's recovery.
+      - RAR-O08's conditions (Rarog, 2026-11-13). The bridge's share of
+        the oracle's time per node is measured first, by Rarog's
+        bridge-price method, and returned to the oracle as time odds:
+        Rarog's classical oracle paid 8.5%, ×1.093, a 3.279+0.033 clock.
+        Rarog found that RAR-O03 and O04 read their oracle through a FEN
+        round trip at 0.56 of its own speed, Basilisk's at 0.83, so only
+        this read compares with Rarog's O08 and later reads. The method is
+        read from Rarog at the time, with its commit cited.
+      - Optional arms, chosen when the checkpoint is prepared: RAR-O08's
+        Stockfish-dev and Reckless hybrids on Basilisk's HCE.
+      - The sign: Basilisk states G(0) as the oracle over Basilisk, Rarog
+        as its head over the oracle.
       The meters are G(0) against the oracle, fixed-node depth and
       branching, pooled NPS, the conversion instrument and the endgame truth
       cohort, plus a 1T pool gauntlet against the four targets and Rarog (400
@@ -4372,10 +4863,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.7.1 | RESEARCH | R2 | Was D.3.1, then B.15.1; after B.6, the board's safety net |
-| B.7.2 | RESEARCH | R2 | Was B.15.2; after B.7.1 |
-| B.7.3 | RESEARCH | I2 | Was B.15.3; on B.7.2's frozen handoff |
-| B.7.4 | RESEARCH | V | Was B.15.4; after B.7.3, before B.8 |
 | B.8.2 | RESEARCH | I1 | After the clusters and the board |
 | B.8.3 | READY_FOR_IMPLEMENTATION | I1 | Was B.7.1; before the speed pass, no engine change |
 | B.8.4 | RESEARCH | I1 | Split from the speed pass 2026-11-05; before it |
@@ -5396,6 +5883,18 @@ speed (F.5, F.6). F.2.1, F.2.2, F.3 and F.4 are retired numbers
   factual per-ply dirty-piece deltas, evaluator-owned per-thread stacks,
   refresh and unwind semantics, randomized differential tests, exact
   fingerprint, cost recorded (archived 10.1–10.2).
+  Contract fixed 2026-11-14 (`analysis/b7_frontier_review_2026-11-14.md`
+  §5, research amendment 1 to B.7.2's packet): make writes nothing for
+  the network and `UndoInfo` gains no field. The delta of a ply is the
+  triple the search holds at every make (the move, the piece that moves,
+  the piece captured), stored at the make call site in the evaluator's
+  stack. A null move stores an empty entry, and unmake does nothing. The
+  triple is complete (at most four piece changes) and reversible, so a
+  lazy update walks it back to the last computed ply, and a king-bucket
+  refresh is taken at the current ply from the twelve piece bitboards.
+  The board keeps those bitboards, the king squares and the occupancy
+  directly readable and carries no evaluator state. F.1's cost target is
+  zero on the pooled read.
 - [ ] **F.2** Network contract, trainer and corpus
   Four sub-steps in the order of work (2026-11-11): the engine reads a
   network exactly, the trainer is proved and sizes the corpus, the corpus
@@ -5628,9 +6127,10 @@ speed (F.5, F.6). F.2.1, F.2.2, F.3 and F.4 are retired numbers
   first use; until then nothing is gained by changing the standard.
   Triumviratus review inputs (2026-11-03,
   `analysis/triumviratus_review_2026-11-03.md`; IDs are its items):
-  - Chess960 (TB-9): X-FEN and Shredder-FEN, castling written as the king
-    taking its rook, the occupancy updated by XOR so king and rook may share
-    squares, the FRC perft suite; B.7.2 keeps the board able to carry it.
+  - Chess960 (TB-9): withdrawn 2026-11-14 (maintainer). The engine is
+    built for standard chess. A later decision for Chess960 would rework
+    the board then (X-FEN, castling written as the king taking its rook,
+    the FRC perft suite).
   - An analysis build (TA-1): the second root move always searched with a
     full window, paused in quiet positions; the more direct of two clear
     wins played; the analysis search compiled as a second copy so games pay
@@ -5778,6 +6278,14 @@ already repairing or a form it must choose anyway, and says so.
   negatives). The profile is the first reading, and an item under 0.5%
   of samples is not built. Each change is behaviour-neutral: the exact
   fingerprint and the pooled read.
+  Added 2026-11-14 (`analysis/b7_frontier_review_2026-11-14.md` §3, §5):
+  the board forms that removed slider lookups and gained nothing on the
+  classical head are read again here, where the network's weights and
+  accumulators take the cache the slider tables sit in: `gives_check`
+  and make's checkers without lookups, SEE attackers from aligned
+  sliders, the generator's pins from aligned sliders, BAS-P26's
+  compressed tables. Their kernels are in the review's patch. They are
+  read first on B.7.5's replay and engine screen.
 - [ ] **H.5** `[I2]` Harness rewritten in Python for a Linux host
   Added 2026-11-12 at the maintainer's request, so that development can
   move to Linux, or run on a second Linux host, when the maintainer
@@ -5855,7 +6363,7 @@ already repairing or a form it must choose anyway, and says so.
 | Meter | Protocol | Owner |
 |---|---|---|
 | Pool score | Colosseum, fixed pool with Houdini 3, `3+0.03`, UHO, no adjudication, 400 games per pair, 1T and 4T | A.7, B.11.1, C.11, E.2 |
-| Search deficit G(0) | Paired, head against the frozen classical-Stockfish search oracle rebuilt with the head's HCE, 3,000 games, equal time, no adjudication | A.7.3, B.11.1 |
+| Search deficit G(0) | Paired, head against the frozen classical-Stockfish search oracle rebuilt with the head's HCE, 3,000 games, no adjudication; at equal time (BAS-O05) and, from B.11.1, also with the bridge's price returned as time odds (RAR-O08) | A.7.3, B.11.1 |
 | Evaluation deficit | Hybrid at the head against the classical-Stockfish-HCE hybrid, same search | C.11 |
 | Cluster acceptance | Registered final-PGO SPRT, bracket per rule 5, `[0,10]` for B.2 | every cluster |
 | Neutral change | Exact fingerprint, release and sanitizer CTest, pooled-PGO NPS | B.1, B.8, C.1, C.12, F.1 |

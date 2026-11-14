@@ -120,3 +120,5 @@ e1a884c	external	Triumviratus: per-expert margins of experts 5-7 unbaked
 f7a83be	external	Triumviratus: NUMA spread on Linux
 f7e1489	external	Triumviratus: per-thread state aligned to 128 bytes
 e27a201	external	Colosseum: the smt-slot-prototype branch (--slot-per-logical-cpu) on 0.5.0, pinned for B.5.7 by colosseum-smt-proto.pin.json
+611307e	external	Rarog: the live head built for B.7.2's board comparison at the maintainer's request
+8d7d1dd	external	Reckless: the head built for B.7.2's board comparison
