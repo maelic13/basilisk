@@ -686,7 +686,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P46](experiments/BAS-P46.md) | Search parameters as constants outside Tune (B.8.9 B2). | COMPLETE: +0.94% [+0.49, +1.39], ACCEPT; kept |
 | [BAS-P47](experiments/BAS-P47.md) | The picker's stages fall through (B.8.9 B3). | COMPLETE: +0.81% [+0.60, +1.02], ACCEPT; kept |
 | [BAS-P48](experiments/BAS-P48.md) | The sort's insertion pass by rank (AVX2) (B.8.9 B4). | COMPLETE: −1.57% [−1.95, −1.19]; reverted |
-| [BAS-P49](experiments/BAS-P49.md) | Quiet scoring's rows hoisted per piece type (B.8.9 B5). | REGISTERED |
+| [BAS-P49](experiments/BAS-P49.md) | Quiet scoring's rows hoisted per piece type (B.8.9 B5). | COMPLETE: −1.41% [−1.60, −1.22]; reverted |
 
 ## 7. Correctness and protocol lessons
 
