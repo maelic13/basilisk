@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.8.4** `[I1]` Large pages on every platform — Claude Sonnet
+**Next step:** **B.8.5** `[I1]` Speed pass — Claude Sonnet
 
 **Held `(ANY TIME)` steps**, done between steps when asked:
 
@@ -138,7 +138,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.8.1** `[I1]` Delete the legacy search kernel (ANY TIME) — before the A.11 gates
     - [x] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
     - [x] **B.8.3** `[I1]` Allocation guard
-    - [ ] **B.8.4** `[I1]` Large pages on every platform
+    - [x] **B.8.4** `[I1]` Large pages on every platform
     - [ ] **B.8.5** `[I1]` Speed pass
     - [x] **B.8.6** `[I1]` Delete the old search arms (ANY TIME) — before B.5
     - [ ] **B.8.7** `[I1]` Count nodes as Stockfish does (ANY TIME) — before B.8.4

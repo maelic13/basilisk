@@ -14,6 +14,16 @@ and next step).
 
 ## [Unreleased]
 
+### Added
+
+- **Large pages.** The hash table and each search thread's tables now use
+  large memory pages wherever the system offers them (Windows with the "Lock
+  pages in memory" right, Linux), which makes the engine about 1% faster
+  (BAS-P35: +0.91% nodes per second). A new `LargePages` option, on by
+  default, turns them off; `bench` says whether they were used. A large Hash
+  is also set up several times faster when more threads are set. It plays
+  the same moves.
+
 ### Changed
 
 - **About 2% faster again.** The engine carried alternative versions of

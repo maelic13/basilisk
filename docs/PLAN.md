@@ -4286,7 +4286,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           No per-node allocation or lock. The planted allocation is reported
           (four unknown hits in `negamax`); without line tables one inlined
           root-table site cannot be attributed and the tool refuses it.
-    - [ ] **B.8.4** `[I1]` Large pages on every platform
+    - [x] **B.8.4** `[I1]` Large pages on every platform
       Large pages for every allocation big enough to pay, on every platform
       Basilisk ships, behind a `LargePages` UCI option so that one binary
       reads both arms (Rarog RAR-M77: on read +2.7% NPS and +10.3 ± 5.9 Elo
@@ -4328,6 +4328,38 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         (D-9), pinned one thread per physical core: Rarog's fall from 3.72
         to 2.60, unseen by its head-to-head, was later traced to SMT
         packing (BAS-X41), so the check guards placement as well as code.
+      - Closed 2026-11-15, behaviour-neutral (`bench 13` 4,688,537 on both
+        arms and on Linux; maintainer decisions: the option on by default,
+        Stockfish's full Linux form):
+        - `src/large_pages.{h,cpp}` (`60db617`): Windows x64 and ARM64
+          `VirtualAlloc(MEM_LARGE_PAGES)` with `SeLockMemoryPrivilege`
+          enabled for the call; Linux 1 GiB `MAP_HUGETLB` for an allocation
+          that size, then a 2 MiB-aligned `mmap` with
+          `madvise(MADV_HUGEPAGE)`; macOS and the rest plain pages, reported
+          not available (checked again: Apple silicon has 4 and 16 KiB pages
+          and no userspace superpage; Stockfish 19 asks for none there).
+          Every path falls back silently; `bench` prints `Large pages` (on,
+          partial, off, not available). The `LargePages` check option (CMake
+          `LARGE_PAGES` sets its default, for the Off arm's pool) reallocates
+          the table and rebuilds the threads' state when it moves.
+        - On large pages: the table, each pool thread's `Searcher` (its
+          stack, buffers, evaluator and inline histories) and the three heap
+          history tables.
+        - The table's fill: clusters value-initialised (no sequentially
+          consistent stores) and constructed on `Threads` workers, each its
+          own share; `ucinewgame` clears the same way. Hash 16384: 1,358 ms
+          at Threads 8 against 7,431 ms before; the clear, 848 against
+          1,222 ms, is memory-bound.
+        - Read (BAS-P35): +0.91% [+0.62%, +1.20%] pooled-PGO NPS, on over
+          off, ACCEPT at step 1. Linux, WSL2: huge pages back 1,075,200 of a
+          running engine's 1,081,188 kB at Hash 1024, none with the option
+          off. D-9: four pinned threads 4.11 to 4.25 times one on both arms.
+          The ARM64 platforms ship behind the fallback, unread.
+        - Tests: `test_tt` (zeroed, aligned memory under both settings; the
+          status; a four-worker clear; resizes under both settings); CTest
+          33/33 on Release, Diag and Tune, ASan/UBSan 31/31; Linux
+          `test_tt` and the allocation guard pass.
+        - From here every speed read runs with large pages on, the default.
     - [ ] **B.8.5** `[I1]` Speed pass
       Behaviour-neutral throughput work on the new modules, with a pooled-PGO
       floor of +0.5% per change and B.8.3's guard as the other floor, on
@@ -4986,7 +5018,6 @@ leaf's tag. Later phases carry only a class until they open.
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
 | B.8.7 | GAME_GATE | I1 | Implemented 2026-11-15 (`838a3c6`); BAS-S64's `[-5,5]` gate is the maintainer's run |
-| B.8.4 | RESEARCH | I1 | Split from the speed pass 2026-11-05; before it |
 | B.8.5 | RESEARCH | I1 | Was B.7.2; after B.8.3 and B.8.4, on the new modules |
 | B.9.1 | RESEARCH | R2 | Was D.3.2, with the release-visible defects (2026-11-05) |
 | B.9.3 | RESEARCH | R2 | Added 2026-11-11; the evaluator's hard verdicts against Syzygy, the evaluation frozen |
