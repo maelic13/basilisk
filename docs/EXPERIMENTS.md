@@ -684,6 +684,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P44](experiments/BAS-P44.md) | The build's second read: inline threshold 500 and ext-tsp placement (B.8.9 C). | COMPLETE: +0.92% [+0.63, +1.21] bench, +0.66% cohort; kept |
 | [BAS-P45](experiments/BAS-P45.md) | LMR's window division hoisted, LMP's halving (B.8.9 B1). | COMPLETE: +0.23% [−0.01, +0.46]; kept under the bar (D-17) |
 | [BAS-P46](experiments/BAS-P46.md) | Search parameters as constants outside Tune (B.8.9 B2). | COMPLETE: +0.94% [+0.49, +1.39], ACCEPT; kept |
+| [BAS-P47](experiments/BAS-P47.md) | The picker's stages fall through (B.8.9 B3). | REGISTERED |
 
 ## 7. Correctness and protocol lessons
 
