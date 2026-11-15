@@ -675,6 +675,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P35](experiments/BAS-P35.md) | B.8.4's large pages, on against off, pooled-PGO NPS (B.8.4). | COMPLETE: +0.91% [+0.62, +1.20], ACCEPT; the default stays on |
 | [BAS-P36](experiments/BAS-P36.md) | The four-thread pooled NPS read's null pair (B.8.5). | FAILED: cycles disturbed twice (the clock's drift, 2.1% and 1.05%), builds spread about 2.7%; B.8.9 reads one thread |
 | [BAS-P37](experiments/BAS-P37.md) | The loaded cohort read's null pair and its liveness (B.8.9). | COMPLETE: null −0.13% [−0.35, +0.10], liveness +2.38% [+1.89, +2.87]; admitted |
+| [BAS-P38](experiments/BAS-P38.md) | The table prefetch from a predicted key (B.8.9 A1). | REGISTERED |
 
 ## 7. Correctness and protocol lessons
 
