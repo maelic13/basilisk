@@ -29,6 +29,11 @@
         decision treats such a cycle as disturbed.
       - Every binary is hashed against its pool before the first reading, and
         every reading records the hash it ran.
+      - -Threads N reads N threads: each reading is `bench <Depth> <Repeats>
+        N`, pinned to the last N physical cores, one logical CPU each (BAS-X41:
+        packing threads onto siblings reads the placement, not the engine).
+        Trees differ from run to run at N > 1, so every run's node count is
+        archived and the reading's value is still its best NPS.
 
     The archive is <Out>/read.json plus <Out>/runs.jsonl; the decision is
     recomputed from it at any time with
@@ -61,6 +66,7 @@ param(
     [ValidateRange(1, 16)][int]$Repeats = 3,
     [ValidateRange(1, 64)][int]$WarmupDepth = 8,
     [int]$Cpu = -1,
+    [ValidateRange(1, 64)][int]$Threads = 1,
     [double]$BusyCeilingPercent = 10,
     [ValidateRange(0, 3600)][int]$QuietSeconds = 60,
     [ValidateRange(1, 240)][int]$MaxQuietMinutes = 30,
@@ -139,7 +145,7 @@ if ($Extend) {
     $config = [ordered]@{
         schema = 'basilisk-nps-read-v2'
         label = $Label
-        depth = $Depth; repeats = $Repeats; warmup_depth = $WarmupDepth
+        depth = $Depth; repeats = $Repeats; warmup_depth = $WarmupDepth; threads = $Threads
         busy_ceiling_percent = $BusyCeilingPercent; quiet_seconds = $QuietSeconds
         arms = @($armSpecs)
         contrasts = @($contrastSpecs)
@@ -171,14 +177,30 @@ foreach ($arm in $arms) {
 # and pinning concentrates whatever interference the chosen core sees.
 $cores = @(Get-HarnessPhysicalCpus)
 if ($Extend) {
-    if ($Cpu -ge 0 -and $Cpu -ne [int]$config.cpu) { throw "Step 1 read on CPU $($config.cpu); -Extend stays on it." }
-    $Cpu = [int]$config.cpu
+    $Threads = if ($config.PSObject.Properties.Name -contains 'threads') { [int]$config.threads } else { 1 }
+    if ($Threads -eq 1) {
+        if ($Cpu -ge 0 -and $Cpu -ne [int]$config.cpu) { throw "Step 1 read on CPU $($config.cpu); -Extend stays on it." }
+        $Cpu = [int]$config.cpu
+    }
 }
-$core = if ($Cpu -ge 0) { @($cores | Where-Object Cpu -EQ $Cpu) } else { @($cores[-1]) }
-if ($core.Count -ne 1) { throw "-Cpu $Cpu is not one of the physical CPUs: $($cores.Cpu -join ', ')." }
-if ($core[0].Cpu -ge 63) { throw 'Processor-group affinity above CPU 62 is not supported by this harness.' }
-$mask = [IntPtr]([int64]1 -shl $core[0].Cpu)
-if (-not $Extend) { $config.cpu = $core[0].Cpu; $config | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $configPath -Encoding utf8 }
+if ($Threads -eq 1) {
+    $core = if ($Cpu -ge 0) { @($cores | Where-Object Cpu -EQ $Cpu) } else { @($cores[-1]) }
+    if ($core.Count -ne 1) { throw "-Cpu $Cpu is not one of the physical CPUs: $($cores.Cpu -join ', ')." }
+} else {
+    if ($Cpu -ge 0) { throw '-Cpu names one core; -Threads above 1 takes the last physical cores.' }
+    if ($cores.Count -lt $Threads) { throw "-Threads $Threads needs $Threads physical cores; this host has $($cores.Count)." }
+    $core = @($cores[($cores.Count - $Threads)..($cores.Count - 1)])
+}
+if (($core | Measure-Object -Property Cpu -Maximum).Maximum -ge 63) { throw 'Processor-group affinity above CPU 62 is not supported by this harness.' }
+$maskValue = [int64]0
+foreach ($c in $core) { $maskValue = $maskValue -bor ([int64]1 -shl $c.Cpu) }
+$mask = [IntPtr]$maskValue
+$cpuText = ($core | ForEach-Object { $_.Cpu }) -join ','
+if (-not $Extend) {
+    $config.cpu = $core[0].Cpu
+    $config.cpus = @($core | ForEach-Object { $_.Cpu })
+    $config | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $configPath -Encoding utf8
+}
 
 function Invoke-Reading([string]$Exe, [int]$BenchDepth, [int]$Runs) {
     $psi = [Diagnostics.ProcessStartInfo]::new($Exe)
@@ -189,7 +211,7 @@ function Invoke-Reading([string]$Exe, [int]$BenchDepth, [int]$Runs) {
     try {
         $p.ProcessorAffinity = $mask
         $p.PriorityClass = [Diagnostics.ProcessPriorityClass]::High
-        $p.StandardInput.WriteLine("bench $BenchDepth $Runs 1")
+        $p.StandardInput.WriteLine("bench $BenchDepth $Runs $Threads")
         $p.StandardInput.WriteLine('quit')
         $p.StandardInput.Close()
         $text = $p.StandardOutput.ReadToEnd()
@@ -199,9 +221,11 @@ function Invoke-Reading([string]$Exe, [int]$BenchDepth, [int]$Runs) {
     $pattern = if ($Runs -eq 1) { '(?ms)^Nodes searched\s*:\s*(\d+).*?^Nodes/second\s*:\s*(\d+)' } else { '(?m)^run\s+\d+/\d+\s+nodes\s+(\d+)\s+time\s+\d+ms\s+nps\s+(\d+)' }
     $found = [regex]::Matches($text, $pattern)
     if ($found.Count -ne $Runs) { throw "$Exe printed $($found.Count) bench runs, expected $Runs." }
-    $nodes = @($found | ForEach-Object { [long]$_.Groups[1].Value } | Sort-Object -Unique)
-    if ($nodes.Count -ne 1) { throw "$Exe searched different node counts across its runs: $($nodes -join ', ')." }
-    [pscustomobject]@{ Nodes = $nodes[0]; Nps = @($found | ForEach-Object { [long]$_.Groups[2].Value }) }
+    $runNodes = @($found | ForEach-Object { [long]$_.Groups[1].Value })
+    $nodes = @($runNodes | Sort-Object -Unique)
+    # One thread searches one tree; several search a different one each run.
+    if ($Threads -eq 1 -and $nodes.Count -ne 1) { throw "$Exe searched different node counts across its runs: $($nodes -join ', ')." }
+    [pscustomobject]@{ Nodes = $runNodes[0]; RunNodes = $runNodes; Nps = @($found | ForEach-Object { [long]$_.Groups[2].Value }) }
 }
 
 function Add-Record($Record) {
@@ -230,7 +254,7 @@ function Wait-HostQuiet {
 }
 
 $contrastText = ($config.contrasts | ForEach-Object { "$($_.name) ($($_.mode))" }) -join ', '
-Write-Host "NPS read$(if ($config.label) { " [$($config.label)]" }): $($arms.Count) arms of $pairs builds, $contrastText, cycles $firstCycle-$lastCycle, CPU $($core[0].Cpu)"
+Write-Host "NPS read$(if ($config.label) { " [$($config.label)]" }): $($arms.Count) arms of $pairs builds, $contrastText, cycles $firstCycle-$lastCycle, $(if ($Threads -eq 1) { "CPU $cpuText" } else { "$Threads threads on CPUs $cpuText" })"
 Assert-HarnessHostIdle -MaxBusyPercent 15 -Allow:$AllowBusyHost | Out-Null
 
 if (-not $Extend) {
@@ -257,7 +281,7 @@ for ($cycle = $firstCycle; $cycle -le $lastCycle; $cycle++) {
         $order = @(for ($j = 0; $j -lt $arms.Count; $j++) { $arms[($first + $j) % $arms.Count] })
         foreach ($arm in $order) {
             $r = Invoke-Reading $builds[$arm][$i].Path $config.depth $config.repeats
-            Add-Record ([ordered]@{ kind = 'reading'; cycle = $cycle; arm = $arm; build = $i; sha256 = $builds[$arm][$i].Sha; nodes = $r.Nodes; nps = $r.Nps })
+            Add-Record ([ordered]@{ kind = 'reading'; cycle = $cycle; arm = $arm; build = $i; sha256 = $builds[$arm][$i].Sha; nodes = $r.Nodes; run_nodes = $r.RunNodes; nps = $r.Nps })
             $levels[$arm] += ($r.Nps | Measure-Object -Maximum).Maximum
         }
     }
