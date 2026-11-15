@@ -21,3 +21,19 @@
 - **Reads.** The pooled `bench` read, gain; the cohort read at one engine, reported.
 - **Verdict rule (packet §6, frozen, as BAS-P43).** Kept when the `bench` gain
   contrast ACCEPTs and the one-engine cohort estimate is −0.5% or above.
+
+#### RESULT
+
+Idle host, 2026-11-15. All four arm builds reproduce `bench 13` and the cohort
+fingerprint. Archives `tools/results/b89-c2-bench`, `b89-c2-single`.
+
+| Read | Delta | 95% interval | Verdict |
+|---|---:|---|---|
+| pooled `bench`, step 1 | +0.92% | [+0.63%, +1.21%] | ACCEPT |
+| cohort, one engine | +0.66% | [+0.35%, +0.98%] | above −0.5% |
+
+- **Disposition: KEPT** (`354fef4`). The universal binary rebuilds with it and every
+  tier and the dispatcher reproduce 4,688,537 on this host; the SDE check is the
+  release workflow's.
+- With BAS-P43 the build gains about +4.2% on `bench` and +3.2% on the cohort,
+  products of the two reads (+3.23% then +0.92%; +2.56% then +0.66%).
