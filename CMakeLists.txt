@@ -416,6 +416,13 @@ target_compile_definitions(test_engine_threading PRIVATE
 target_link_libraries(test_engine_threading PRIVATE basilisk_engine)
 
 # ---------------------------------------------------------------------------
+# Allocation guard: per-node search code never allocates (a counting global
+# operator new over whole searches at two depths, Threads 1 and 4)
+# ---------------------------------------------------------------------------
+add_executable(test_allocation_guard tests/test_allocation_guard.cpp)
+target_link_libraries(test_allocation_guard PRIVATE basilisk_engine)
+
+# ---------------------------------------------------------------------------
 # UCI protocol tests
 # ---------------------------------------------------------------------------
 add_executable(test_uci_protocol
@@ -468,6 +475,7 @@ add_test(NAME test_eval         COMMAND test_eval)
 add_test(NAME test_search       COMMAND test_search)
 add_test(NAME test_engine_ponder COMMAND test_engine_ponder)
 add_test(NAME test_engine_threading COMMAND test_engine_threading)
+add_test(NAME test_allocation_guard COMMAND test_allocation_guard)
 add_test(NAME test_uci_protocol COMMAND test_uci_protocol)
 add_test(NAME test_endgames     COMMAND test_endgames
          ${CMAKE_CURRENT_SOURCE_DIR}/tests/endgames.epd)
@@ -644,7 +652,7 @@ endif()
 set(_ALL_TARGETS
     basilisk_board basilisk_engine basilisk_launcher basilisk_version
     basilisk board_performance_test board_micro_bench board_replay
-    test_board test_board_v2 test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
+    test_board test_board_v2 test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_allocation_guard test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics test_threats
     test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch test_b5_root
     basilisk_engine_child_log test_search_path test_kernel_pins
