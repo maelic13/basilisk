@@ -24,7 +24,7 @@ Idle host, 2026-11-15. Two eight-build pools, `bench 13` 4,688,537 each. Archive
 
 | Read | Delta | 95% interval | Verdict |
 |---|---:|---|---|
-| step 1 | | | NO_CHANGE |
+| step 1 | −0.06% | [−0.21%, +0.10%] | NO_CHANGE |
 | six cycles | +0.05% | [−0.11%, +0.21%] | under D-17's +0.5% |
 
 - **Disposition: B1 AND S2 LEAVE TOGETHER** (reverted). Alone they read +0.23% and

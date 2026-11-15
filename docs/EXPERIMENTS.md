@@ -690,7 +690,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P50](experiments/BAS-P50.md) | The draw verdict from the node's own evaluation (B.8.9 S1). | COMPLETE: −0.28% [−0.62, +0.07]; reverted |
 | [BAS-P51](experiments/BAS-P51.md) | Root_ordering tested once per stage (B.8.9 S2). | COMPLETE: +0.09% [−0.16, +0.34]; kept under the bar, then reverted with the bundle (BAS-P52) |
 | [BAS-P52](experiments/BAS-P52.md) | The sub-bar bundle under D-17: B1 and S2 together (B.8.9). | COMPLETE: +0.05% [−0.11, +0.21]; both reverted |
-| [BAS-P53](experiments/BAS-P53.md) | The speed pass whole, against B.8.5's head; D-9; the profile again (B.8.9). | REGISTERED |
+| [BAS-P53](experiments/BAS-P53.md) | The speed pass whole, against B.8.5's head; D-9; the profile again (B.8.9). | COMPLETE: +6.05% [+5.55, +6.55] bench, +4.66% [+4.49, +4.83] loaded; D-9 4.0x |
 
 ## 7. Correctness and protocol lessons
 

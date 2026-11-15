@@ -25,3 +25,45 @@
     the head; `bench 13` ×5 and the game cohort at 150,000 nodes), against B.8.5's.
 - **What the reads decide.** Nothing is kept or reverted by them; they are the pass's
   record. The pooled read's estimate is the number the CHANGELOG cites.
+
+#### RESULT
+
+Idle host, 2026-11-15. `b89-final` reproduces `bench 13` and the cohort fingerprint on
+all four builds. Archives `tools/results/b89-pass-bench`, `b89-pass-loaded`,
+`b89-d9.json`, `b89-profile-bench`, `b89-profile-games`.
+
+| Read | `b84-on` | `b89-final` | Delta | 95% interval | Verdict |
+|---|---:|---:|---:|---|---|
+| pooled `bench`, step 1 | 2.3958M | 2.5407M | +6.05% | [+5.55%, +6.55%] | ACCEPT |
+| loaded cohort, 14 engines | 2.1028M | 2.2008M | +4.66% | [+4.49%, +4.83%] | loaded rule met (one cycle disturbed, absorbed) |
+
+- **D-9** (`bench 13 3`, pinned, best of three, four repeats): `b84-on` 1T 2.374M to
+  2.385M, 4T 9.61M to 9.69M, ratio 4.03 to 4.08; `b89-final` 1T 2.491M to 2.529M, 4T
+  9.99M to 10.42M, ratio 3.95 to 4.18. No collapse of placement or code; the
+  four-thread readings do not resolve a difference between the arms (BAS-P36).
+- **Profile** (`profile.ps1`, same method as B.8.5; shares of all samples):
+
+  | Region | `bench 13` ×5, B.8.5 → now | Game cohort, B.8.5 → now |
+  |---|---|---|
+  | ordering | 24.4% → 24.9% | 25.2% → 23.4% |
+  | board | 23.3% → 24.1% | 22.2% → 23.3% |
+  | evaluation | 22.6% → 19.4% | 18.1% → 15.3% |
+  | search | 17.2% → 17.7% | 15.7% → 15.8% |
+  | table | 6.1% → 6.0% | 13.0% → 13.7% |
+  | attacks | 6.0% → 7.6% | 5.1% → 5.8% |
+  | outside the engine | 0.2% → 0.2% | 0.4% → 2.6% |
+
+  Samples for the same work: 10,207 → 9,105 (`bench`), 63,779 → 60,660 (cohort).
+  Top frames, cohort: `evaluate_full` 14.10% → 11.69%, `probe_copy` 6.78% → 7.16%,
+  `score_quiets` 7.01% → 6.97%, `CoreMovePicker::next` 4.27% → 3.28%,
+  `partial_insertion_sort` 3.72% → 3.78%. Full LTO took the most from the evaluation;
+  B3 from `next`; the table's wait is a larger share of a faster node.
+- **Unexplained:** the cohort's samples outside the engine image rose from 0.4% to
+  2.6% (1,556 samples); not investigated.
+- **Prediction, the pass (§8):** bench +3.5% [+1.5, +6.0]: +6.05%, just above the
+  interval; loaded +6% [+3, +10]: +4.66%, inside. It came from the build and the code
+  items, not from the memory items, the reverse of the packet's ranking. The pass's
+  falsifier (under +1.5% on `bench` with A1 kept) cannot fire: A1 was not kept.
+- **Disposition: RECORDED.** The pass stands at +6.05% on `bench` and +4.66% under
+  load, about +9 to +12 Elo at `3+0.03` by BAS-P01's 2 Elo per 1% (not measured; the
+  tree is identical, so no game is owed).

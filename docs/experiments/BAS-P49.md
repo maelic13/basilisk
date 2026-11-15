@@ -23,5 +23,5 @@ Idle host, 2026-11-15. Exactness before the read as BAS-P47's. Archive
 
 - **Disposition: REVERTED**, below D-17's −0.1% floor at step 1.
 - Prediction +0.2% [−0.3, +0.7]: missed low; Rarog read the same idea at −0.59%.
-  The row pointers are 42 words a pass held across the loop, where the compiler
-  had kept the five row bases in registers and indexed them per move.
+  Not diagnosed; a plausible cause is the 42 row pointers held across the loop
+  where the compiler had indexed the rows directly.
