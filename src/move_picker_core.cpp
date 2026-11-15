@@ -71,12 +71,10 @@ int capture_order_score(const Board& board, const CoreHistoryTables& history, Mo
 }
 
 void CoreMovePicker::score_captures(int begin, int end) {
-    for (int i = begin; i < end; ++i)
-        moves_[i].score = capture_order_score(board_, history_, moves_[i].move);
-    // The root's ordering inputs exist at the root alone.
-    if (root_)
-        for (int i = begin; i < end; ++i)
-            moves_[i].score += root_ordering(moves_[i].move);
+    for (int i = begin; i < end; ++i) {
+        const Move m = moves_[i].move;
+        moves_[i].score = capture_order_score(board_, history_, m) + root_ordering(m);
+    }
 }
 
 void CoreMovePicker::score_quiets(int begin, int end) {
@@ -131,11 +129,8 @@ void CoreMovePicker::score_quiets(int begin, int end) {
         if (low_ply)
             v += KLIT_SCALED(8 * (*low_ply)[from][to], pick_low_ply_scale) / (1 + ply_);
 
-        moves_[i].score = v;
+        moves_[i].score = v + root_ordering(m);
     }
-    if (root_)
-        for (int i = begin; i < end; ++i)
-            moves_[i].score += root_ordering(moves_[i].move);
 }
 
 // Each stage falls into the next, so a call dispatches once: the stages,
