@@ -37,3 +37,28 @@
     repeat.
   - Admitted means both pass. Otherwise A1 to A4 are read by the pooled `bench`
     read at the standing rule, and the packet's loaded predictions stay unverified.
+
+#### RESULT
+
+Idle host, 2026-11-15, CPUs 4 to 30 (even), harness on 0 to 3; foreign load 0.3 to
+0.9 logical CPUs every cycle (`tools/results/b89-cohort-live`, `b89-cohort-null`).
+
+| Read | Base arm | Cand arm | Delta | 95% interval | Disturbed cycles | Verdict |
+|---|---:|---:|---:|---|---|---|
+| liveness, `b84-off` → `b84-on` | 2.0185M | 2.0691M | +2.38% | [+1.89%, +2.87%] | one each, absorbed | PASS |
+| null, `b84-on` → `b84-on-null` | 2.0835M | 2.0808M | −0.13% | [−0.35%, +0.10%] | two and one, absorbed | PASS |
+
+- **Disposition: ADMITTED.** The loaded read decides A1 to A4 by the packet's §4.1.
+  Its half-width at the null is 0.23%; the builds of one pool spread 0.3%.
+- Large pages read +2.38% under load against BAS-P35's +0.91% alone on `bench`:
+  the load multiplies a memory item about 2.6 times, as B.8.5 inferred.
+- **Instrument change before these reads (deviation, recorded):** a five- and a
+  forty-position smoke on `b84-off` and `b84-on`, before this registration's reads,
+  timed each search from `go` to `bestmove` in the harness; the harness's reply
+  latency ran 4.7% over the engines' own time on average and up to 20%, and two
+  cycles of the five-position smoke halved. The reading's time is the engine
+  process's own CPU time over its counted searches (`cohort_read.py`'s docstring);
+  the wall time is archived beside it. The smokes' archives were deleted; neither
+  is a read.
+- Cycle levels move 2.4% between cycles in one arm (the arms swap cores and the
+  cycle's host); both arms move together, which the concurrent design is for.
