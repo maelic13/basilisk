@@ -11,6 +11,7 @@
 
 #include "board.h"
 #include "constants.h"
+#include "large_pages.h"
 #include "eval.h"
 #include "kernel_literals.h"
 #include "parameters.h"
@@ -140,6 +141,7 @@ Parameters::Parameters() {
     multipv      = 1;
     hash_mb      = 64;
     threads      = 1;
+    large_pages  = large_pages::default_enabled();
     ponder_enabled = false;
     syzygy_path.clear();
     syzygy_probe_depth = 1;
@@ -189,6 +191,8 @@ std::string Parameters::uci_options() {
            "option name Hash type spin default 64 min " + std::to_string(kHashMinMb)
            + " max " + std::to_string(max_hash_mb()) + "\n"
            "option name Clear Hash type button\n"
+           "option name LargePages type check default "
+           + std::string(large_pages::default_enabled() ? "true" : "false") + "\n"
            "option name Ponder type check default false\n"
            "option name Move Overhead type spin default 10 min 0 max 5000\n"
            "option name MultiPV type spin default 1 min 1 max 256\n"
@@ -398,6 +402,8 @@ void Parameters::set_option(const std::string& args) {
         syzygy_path = (value == "<empty>") ? std::string{} : value;
     } else if (name_lower == "ponder") {
         ponder_enabled = parse_bool_option(value);
+    } else if (name_lower == "largepages") {
+        large_pages = parse_bool_option(value);
     } else if (name_lower == "syzygy50moverule") {
         syzygy_50_move_rule = parse_bool_option(value);
     } else if (name_lower == "diag") {

@@ -173,7 +173,17 @@ set(BOARD_SOURCES
     src/attacks.cpp
     src/zobrist.cpp
     src/threats.cpp
+    src/large_pages.cpp
 )
+# LargePages' default (src/large_pages.h): ON asks for large pages unless the
+# UCI option turns them off. OFF builds the other arm of a pooled NPS read with
+# the same source.
+option(LARGE_PAGES "Default of the LargePages UCI option" ON)
+if(LARGE_PAGES)
+    set(_basilisk_large_pages_default 1)
+else()
+    set(_basilisk_large_pages_default 0)
+endif()
 # The search-replay trace (src/board_trace.cpp): a measurement build that
 # records every board operation the search makes, in order and with its
 # result, to the file BASILISK_BOARD_TRACE_FILE names; tests/board_replay.cpp
@@ -185,10 +195,14 @@ set(_board_replay_board basilisk_board)
 if(BASILISK_BOARD_TRACE)
     add_library(basilisk_board_untraced STATIC ${BOARD_SOURCES})
     target_include_directories(basilisk_board_untraced PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_compile_definitions(basilisk_board_untraced PRIVATE
+        BASILISK_LARGE_PAGES_DEFAULT=${_basilisk_large_pages_default})
     set(_board_replay_board basilisk_board_untraced)
     list(APPEND BOARD_SOURCES src/board_trace.cpp)
 endif()
 add_library(basilisk_board STATIC ${BOARD_SOURCES})
+target_compile_definitions(basilisk_board PRIVATE
+    BASILISK_LARGE_PAGES_DEFAULT=${_basilisk_large_pages_default})
 if(BASILISK_BOARD_TRACE)
     target_compile_definitions(basilisk_board PUBLIC BASILISK_BOARD_TRACE)
 endif()
@@ -318,7 +332,7 @@ target_link_libraries(test_magics PRIVATE basilisk_board)
 # Transposition table tests (TT is header-only)
 # ---------------------------------------------------------------------------
 add_executable(test_tt tests/test_tt.cpp)
-target_include_directories(test_tt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(test_tt PRIVATE basilisk_board)
 
 add_executable(test_fatal_report tests/test_fatal_report.cpp)
 target_include_directories(test_fatal_report PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

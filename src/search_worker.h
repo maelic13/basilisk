@@ -190,7 +190,7 @@ public:
     // because the info callback is thread 0's and the helpers' counters are
     // complete only then. Takes the pool itself so each helper's private
     // counters are read directly and DiagCounters stays private.
-    void print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& pool,
+    void print_pool_diag(const std::vector<LargePagePtr<Searcher>>& pool,
                          int thread_count,
                          const std::vector<int>& completed_depths) const;
 

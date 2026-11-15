@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "board.h"
+#include "large_pages.h"
 #include "bench.h"
 #include "search.h"
 #include "tt.h"
@@ -107,7 +108,7 @@ void run_bench(int depth, int repeats, int threads) {
         // Clean, identical starting state each repeat (TT + histories) so every
         // run is the same deterministic workload — the only NPS variation is
         // machine noise — and the fingerprint is independent of prior state.
-        tt.clear();
+        tt.clear(threads);
         search_pool.clear();
 
         int64_t total_nodes = 0;
@@ -186,8 +187,10 @@ void run_bench(int depth, int repeats, int threads) {
         "Nodes searched  : {}\n"
         "Geomean EBF     : {:.3f}\n"
         "Median nodes    : {}\n"
-        "Top-pos share   : {:.1f}%  ({} nodes)\n",
-        fingerprint_nodes, geomean_ebf, median_nodes, top_share, max_nodes);
+        "Top-pos share   : {:.1f}%  ({} nodes)\n"
+        "Large pages     : {}\n",
+        fingerprint_nodes, geomean_ebf, median_nodes, top_share, max_nodes,
+        large_pages::status_name(large_pages::status()));
     // Keep a line beginning "Nodes/second" for the single-run case — the PGO
     // training harness waits for it as the completion marker.
     if (repeats == 1)

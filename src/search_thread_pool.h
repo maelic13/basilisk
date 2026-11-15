@@ -31,7 +31,9 @@ public:
     SearchThreadPool& operator=(const SearchThreadPool&) = delete;
 
     int ensure_threads(int count);
-    int resize_threads(int count);
+    // `rebuild` constructs every thread's state again even at the same count
+    // (the LargePages option moved).
+    int resize_threads(int count, bool rebuild = false);
     int active_thread_count() const;
     void clear();
     SearchResult search(Board board, const SearchLimits& limits, int thread_count);
@@ -49,7 +51,8 @@ private:
     std::atomic_bool* ponderhit_;
     InfoCallback info_cb_;
 
-    std::vector<std::unique_ptr<Searcher>> searchers_;
+    // Each thread's search state, on large pages where they are granted.
+    std::vector<LargePagePtr<Searcher>> searchers_;
     std::vector<std::thread> workers_;
 
     mutable std::mutex mutex_;

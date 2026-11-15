@@ -1,6 +1,7 @@
 #pragma once
 
 #include "constants.h"
+#include "large_pages.h"
 #include "types.h"
 #include "move.h"
 
@@ -10,7 +11,9 @@
 #include <cstdint>
 #include <memory>
 #include <new>
+#include <thread>
 #include <utility>
+#include <vector>
 #if defined(_MSC_VER)
 #include <xmmintrin.h>
 #endif
@@ -81,12 +84,12 @@ struct TTEntry {
 // and the word holds 64, so the repair needs a different layout. Stockfish
 // ships this same tolerance in this same structure.
 struct alignas(32) TTCluster {
-    std::atomic<uint64_t> data[3];    // payload words, 8-byte aligned (offsets 0/8/16)
-    std::atomic<uint16_t> key16[3];   // partial keys (offsets 24/26/28)
+    std::atomic<uint64_t> data[3]{};  // payload words, 8-byte aligned (offsets 0/8/16)
+    std::atomic<uint16_t> key16[3]{}; // partial keys (offsets 24/26/28)
 
-    TTCluster() noexcept {
-        for (int i = 0; i < 3; ++i) { data[i].store(0); key16[i].store(0); }
-    }
+    // Value-initialised: a construction is plain stores of zero, which the
+    // table's clear runs on several threads.
+    TTCluster() noexcept = default;
     TTCluster(const TTCluster&) = delete;
     TTCluster& operator=(const TTCluster&) = delete;
 };
@@ -109,48 +112,53 @@ public:
     static inline size_t reservable_clusters = kMaxReservableClusters;
 
     explicit TranspositionTable(size_t mb = 64) { resize(mb); }
+    ~TranspositionTable() { large_pages::release(clusters_); }
+    TranspositionTable(const TranspositionTable&) = delete;
+    TranspositionTable& operator=(const TranspositionTable&) = delete;
 
     // Size the table from the byte budget the user asked for. The cluster
     // count floors to a power of two (the index is a mask), so the allocation
     // is always <= the budget and never less than half of it. Closing that gap
     // needs full-budget (multiply-hi) indexing, which is deferred. Returns
     // false when the requested table cannot be allocated: the table then
-    // keeps its previous size, cleared, so the engine stays usable.
-    bool resize(size_t mb) {
+    // keeps its previous size, cleared, so the engine stays usable. The table
+    // is on large pages where the LargePages option and the system allow
+    // (src/large_pages.h), and `threads` workers construct it.
+    bool resize(size_t mb, int threads = 1) {
         size_t bytes = mb * 1024 * 1024;
         size_t count = bytes / sizeof(TTCluster);
         size_t power = 1;
         while (power * 2 <= count) power *= 2;
 
-        // Free the old table before allocating the new one: plain assignment
-        // keeps both alive across make_unique, so growing 8 -> 16 GB
-        // transiently needed about 24 GB at `setoption Hash` time, mid-game.
-        // No entries are carried across a resize, so dropping first costs
-        // nothing, and make_unique value-initializes the new table clear.
+        // Free the old table before allocating the new one: holding both
+        // across the allocation made growing 8 -> 16 GB transiently need
+        // about 24 GB at `setoption Hash` time, mid-game. No entries are
+        // carried across a resize, so dropping first costs nothing.
         const size_t previous = cluster_count_;
         bool allocated = true;
-        clusters_.reset();
-        try {
-            // A table above every platform's virtual address space (2^57
-            // bytes, x86-64 with five-level paging) is refused here, without
-            // asking the allocator: no platform could reserve it, and under a
-            // sanitizer the allocator's refusal aborts rather than throws.
-            if (power > reservable_clusters)
-                throw std::bad_alloc();
-            clusters_ = std::make_unique<TTCluster[]>(power);
-        } catch (const std::bad_alloc&) {
+        large_pages::release(clusters_);
+        clusters_ = nullptr;
+        cluster_count_ = 0;
+        // A table above every platform's virtual address space (2^57 bytes,
+        // x86-64 with five-level paging) is refused here, without asking the
+        // allocator: no platform could reserve it.
+        if (power <= reservable_clusters)
+            clusters_ = static_cast<TTCluster*>(large_pages::allocate(power * sizeof(TTCluster)));
+        if (!clusters_) {
             // Not a smaller table: zero-filling the largest one the system
             // would commit could exhaust memory. The previous size was
             // allocated a moment ago; a first table has none to return to.
             if (previous == 0)
-                throw;
-            clusters_ = std::make_unique<TTCluster[]>(previous);
+                throw std::bad_alloc();
+            clusters_ = static_cast<TTCluster*>(large_pages::allocate(previous * sizeof(TTCluster)));
+            if (!clusters_)
+                throw std::bad_alloc();
             power = previous;
             allocated = false;
         }
         cluster_count_ = power;
         mask_ = power - 1;
-        age_.store(0, std::memory_order_relaxed);
+        clear(threads);
         return allocated;
     }
 
@@ -160,13 +168,31 @@ public:
         return cluster_count_ * sizeof(TTCluster);
     }
 
-    void clear() {
-        for (size_t i = 0; i < cluster_count_; ++i) {
-            for (int j = 0; j < 3; ++j) {
-                clusters_[i].data[j].store(0, std::memory_order_relaxed);
-                clusters_[i].key16[j].store(0, std::memory_order_relaxed);
+    // Every cluster constructed afresh (empty), split over `threads` workers
+    // as the donor's clear is, each touching its own share; run only while no
+    // search does. A worker the system will not start leaves its share to
+    // this thread.
+    void clear(int threads = 1) {
+        const size_t n = cluster_count_;
+        auto fill = [this](size_t begin, size_t end) {
+            for (size_t i = begin; i < end; ++i)
+                ::new (&clusters_[i]) TTCluster;
+        };
+        const size_t workers = std::clamp<size_t>(size_t(std::max(threads, 1)), 1,
+                                                   std::max<size_t>(n / kClearChunk, 1));
+        std::vector<std::thread> helpers;
+        for (size_t t = 1; t < workers; ++t) {
+            const size_t begin = n * t / workers;
+            const size_t end = n * (t + 1) / workers;
+            try {
+                helpers.emplace_back(fill, begin, end);
+            } catch (...) {
+                fill(begin, end);
             }
         }
+        fill(0, n / workers);
+        for (std::thread& helper : helpers)
+            helper.join();
         age_.store(0, std::memory_order_relaxed);
     }
 
@@ -345,7 +371,10 @@ public:
     }
 
 private:
-    std::unique_ptr<TTCluster[]> clusters_;
+    // A worker clears at least this many clusters (2 MiB), so a small table
+    // is cleared on one thread.
+    static constexpr size_t kClearChunk = (size_t{2} << 20) / sizeof(TTCluster);
+    TTCluster* clusters_ = nullptr;
     size_t cluster_count_ = 0;
     size_t mask_ = 0;
     std::atomic<uint8_t> age_{0};

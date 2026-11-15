@@ -22,6 +22,7 @@ public:
     int     multipv;         // lines reported per depth (MultiPV option)
     int     hash_mb;        // TT size in MB
     int     threads;        // search worker count
+    bool    large_pages;    // LargePages: the big allocations ask for large pages
     int64_t nodes;          // node limit (0 = unlimited)
     int     movestogo;      // moves until next time control (0 = sudden death)
     int     mate;           // mate search target in moves (0 = disabled)

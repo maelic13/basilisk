@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "constants.h"
+#include "large_pages.h"
 #include "engine.h"
 #include "output_sink.h"
 #include "bench.h"
@@ -391,11 +392,18 @@ void Engine::run_perft_command(uint64_t command_epoch) {
 // resize and clear ran after `go` on the engine's clock -- 138 ms at 256 MB,
 // ~550 ms at 1 GB on the first move of every game.
 void Engine::apply_table_state() {
+    // LargePages moved: the table and every thread's state are allocated
+    // again under the new setting (empty, as after `ucinewgame`).
+    if (parameters_.large_pages != large_pages::enabled()) {
+        large_pages::set_enabled(parameters_.large_pages);
+        tt_.resize(static_cast<size_t>(current_hash_mb_), parameters_.threads);
+        search_pool_.resize_threads(parameters_.threads, true);
+    }
     // A refused Hash puts the setting back to the table in use, so only a
     // setoption that sends a Hash again tries again, and each one that is
     // refused says so; no other command repeats the notice.
     if (parameters_.hash_mb != current_hash_mb_) {
-        if (tt_.resize(static_cast<size_t>(parameters_.hash_mb))) {
+        if (tt_.resize(static_cast<size_t>(parameters_.hash_mb), parameters_.threads)) {
             current_hash_mb_ = parameters_.hash_mb;
         } else {
             write_output_line("info string Unable to allocate Hash value "
@@ -405,7 +413,7 @@ void Engine::apply_table_state() {
         }
     }
     if (parameters_.new_game || parameters_.clear_hash) {
-        tt_.clear();
+        tt_.clear(parameters_.threads);
         search_pool_.clear();
         parameters_.new_game = false;
         parameters_.clear_hash = false;

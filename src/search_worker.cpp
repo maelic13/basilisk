@@ -236,7 +236,7 @@ bool Searcher::check_stop() {
 // The pool section, printed by thread 0 after the join (its own search and
 // per-thread lines finish before the helpers do), so it appends rather than
 // replacing anything. Emitted only at Threads > 1.
-void Searcher::print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& pool,
+void Searcher::print_pool_diag(const std::vector<LargePagePtr<Searcher>>& pool,
                                int thread_count,
                                const std::vector<int>& completed_depths) const {
     if (!shared_.info || !config_.limits.diag || thread_count <= 1) return;
