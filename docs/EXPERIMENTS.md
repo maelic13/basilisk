@@ -689,6 +689,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P49](experiments/BAS-P49.md) | Quiet scoring's rows hoisted per piece type (B.8.9 B5). | COMPLETE: −1.41% [−1.60, −1.22]; reverted |
 | [BAS-P50](experiments/BAS-P50.md) | The draw verdict from the node's own evaluation (B.8.9 S1). | COMPLETE: −0.28% [−0.62, +0.07]; reverted |
 | [BAS-P51](experiments/BAS-P51.md) | Root_ordering tested once per stage (B.8.9 S2). | COMPLETE: +0.09% [−0.16, +0.34]; kept under the bar (D-17) |
+| [BAS-P52](experiments/BAS-P52.md) | The sub-bar bundle under D-17: B1 and S2 together (B.8.9). | REGISTERED |
 
 ## 7. Correctness and protocol lessons
 
