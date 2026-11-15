@@ -838,6 +838,14 @@ endif()
 # ---------------------------------------------------------------------------
 include(CheckIPOSupported)
 check_ipo_supported(RESULT _lto_ok OUTPUT _lto_msg)
+# Clang's IPO is ThinLTO; FULL_LTO links the whole program as one module.
+option(FULL_LTO "Link Clang Release builds with full LTO instead of ThinLTO" OFF)
+if(_lto_ok AND FULL_LTO AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(CMAKE_CXX_COMPILE_OPTIONS_IPO -flto=full)
+    set(CMAKE_CXX_LINK_OPTIONS_IPO -flto=full)
+    set(CMAKE_C_COMPILE_OPTIONS_IPO -flto=full)
+    set(CMAKE_C_LINK_OPTIONS_IPO -flto=full)
+endif()
 if(_lto_ok)
     foreach(_tgt IN LISTS _ALL_TARGETS)
         set_property(TARGET ${_tgt} PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
@@ -854,9 +862,15 @@ endif()
 # ---------------------------------------------------------------------------
 # Profile-guided optimisation
 # ---------------------------------------------------------------------------
+# Clang's PGO instruments the front end's AST by default; IR_PGO instruments
+# the optimiser's IR instead (-fprofile-generate / -fprofile-use).
+option(IR_PGO "Clang PGO at the IR level instead of the front end's" OFF)
 function(_basilisk_apply_pgo _target)
     if(_basilisk_pgo STREQUAL "GENERATE")
-        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND IR_PGO)
+            target_compile_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-generate>)
+            target_link_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-generate>)
+        elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             target_compile_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-instr-generate>)
             target_link_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-instr-generate>)
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -870,7 +884,17 @@ function(_basilisk_apply_pgo _target)
         # keep LTO for the final PGO-use build instead.
         set_property(TARGET ${_target} PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE FALSE)
     elseif(_basilisk_pgo STREQUAL "USE")
-        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND IR_PGO)
+            if(NOT EXISTS "${BASILISK_PGO_PROFILE_FILE}")
+                message(FATAL_ERROR "PGO profile file does not exist: ${BASILISK_PGO_PROFILE_FILE}")
+            endif()
+            target_compile_options(${_target} PRIVATE
+                $<$<CONFIG:Release>:-fprofile-use=${BASILISK_PGO_PROFILE_FILE}>
+                $<$<CONFIG:Release>:-Wno-profile-instr-unprofiled>
+                $<$<CONFIG:Release>:-Wno-profile-instr-out-of-date>
+            )
+            target_link_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-use=${BASILISK_PGO_PROFILE_FILE}>)
+        elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             if(NOT BASILISK_PGO_PROFILE_FILE)
                 message(FATAL_ERROR "BASILISK_PGO=USE with Clang requires BASILISK_PGO_PROFILE_FILE")
             endif()
@@ -1049,6 +1073,8 @@ add_custom_target(pgo
         -DPGO_DIAGNOSTIC=${DIAGNOSTIC}
         -DPGO_ABLATION=${ABLATION}
         -DPGO_PROFILE_SYMBOLS=${PROFILE_SYMBOLS}
+        -DPGO_FULL_LTO=${FULL_LTO}
+        -DPGO_IR_PGO=${IR_PGO}
         -DPGO_DEV_ID=${BASILISK_DEV_ID}
         -DPGO_PORTABLE_BUILD=${_basilisk_pgo_portable}
         -DPGO_STATIC_RUNTIME=${STATIC_RUNTIME}
