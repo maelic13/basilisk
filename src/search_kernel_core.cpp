@@ -694,11 +694,6 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     };
 #endif
 
-    // The correction histories' weighted value, read before the table so that
-    // its loads overlap the probe's: it reads the board and the records above
-    // this one, which the probe does not write.
-    const int correction_raw = correction_value(ss);
-
     // ---- Transposition table lookup ----------------------------------------
     Key hash     = tt_key(*state_.board);
     TTEntry tte{};
@@ -764,8 +759,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     // ---- Static evaluation -------------------------------------------------
     // The corrected static eval: the raw eval plus the correction histories'
-    // weighted value over 131072 (correction_raw, read above), inside the
-    // tablebase band.
+    // weighted value over 131072, inside the tablebase band.
+    const int correction_raw = correction_value(ss);
     // The TT holds the evaluation without the halfmove clock, which its key
     // lacks (tt_static_eval); the damping is applied once, at this node's
     // clock, to give the raw static eval.
