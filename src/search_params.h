@@ -313,15 +313,43 @@
     BASILISK_KERNEL_PARAMS(X)     \
     BASILISK_ROOT_PARAMS(X)
 
+// Outside a Tune build nothing sets the kernel's lines (the core kernel's,
+// Cluster 2's and Cluster 3's tables), so there each is a compile-time
+// constant of the struct and `kp.name` folds where it is read; the driver's
+// tables (the root's and Cluster 4's) stay fields. A line a test assigns
+// stays a field in every build; it is named here, one probe each.
+#define BASILISK_PARAM_RUNTIME_b3_nmp_verify_depth BASILISK_PARAM_PROBE
+#define BASILISK_PARAM_RUNTIME_b4_qs_fut_base BASILISK_PARAM_PROBE
+#define BASILISK_PARAM_RUNTIME_b4_qs_fail_high_blend BASILISK_PARAM_PROBE
+#define BASILISK_PARAM_RUNTIME_b4_qs_move_count BASILISK_PARAM_PROBE
+#define BASILISK_PARAM_RUNTIME_b4_qs_see_margin BASILISK_PARAM_PROBE
+
+#define BASILISK_PARAM_PROBE ~, 1
+#define BASILISK_PARAM_SECOND(a, b, ...) b
+#define BASILISK_PARAM_IS_PROBE(...) BASILISK_PARAM_SECOND(__VA_ARGS__, 0, ~)
+#define BASILISK_PARAM_IS_RUNTIME(field) BASILISK_PARAM_IS_PROBE(BASILISK_PARAM_RUNTIME_##field)
+#define BASILISK_PARAM_CAT(a, b) BASILISK_PARAM_CAT_I(a, b)
+#define BASILISK_PARAM_CAT_I(a, b) a##b
+#define BASILISK_PARAM_DECL_1(field, def) int field = def;
+#define BASILISK_PARAM_DECL_0(field, def) static constexpr int field = def;
+
 struct SearchParams {
 #define BASILISK_SEARCH_PARAM_FIELD(field, uci, def, lo, hi) int field = def;
-    BASILISK_SEARCH_PARAMS(BASILISK_SEARCH_PARAM_FIELD)
+#ifdef BASILISK_TUNE
+#define BASILISK_KERNEL_PARAM_FIELD(field, uci, def, lo, hi) int field = def;
+#else
+#define BASILISK_KERNEL_PARAM_FIELD(field, uci, def, lo, hi) \
+    BASILISK_PARAM_CAT(BASILISK_PARAM_DECL_, BASILISK_PARAM_IS_RUNTIME(field))(field, def)
+#endif
+    BASILISK_KERNEL_PARAMS(BASILISK_KERNEL_PARAM_FIELD)
+    BASILISK_ROOT_PARAMS(BASILISK_SEARCH_PARAM_FIELD)
     BASILISK_KERNEL_SWITCHES(BASILISK_SEARCH_PARAM_FIELD)
-    BASILISK_B3_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
-                       BASILISK_SEARCH_PARAM_FIELD)
-    BASILISK_B4_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
-                       BASILISK_SEARCH_PARAM_FIELD)
+    BASILISK_B3_PARAMS(BASILISK_KERNEL_PARAM_FIELD, BASILISK_KERNEL_PARAM_FIELD,
+                       BASILISK_KERNEL_PARAM_FIELD)
+    BASILISK_B4_PARAMS(BASILISK_KERNEL_PARAM_FIELD, BASILISK_KERNEL_PARAM_FIELD,
+                       BASILISK_KERNEL_PARAM_FIELD)
     BASILISK_B5_PARAMS(BASILISK_SEARCH_PARAM_FIELD, BASILISK_SEARCH_PARAM_FIELD,
                        BASILISK_SEARCH_PARAM_FIELD)
+#undef BASILISK_KERNEL_PARAM_FIELD
 #undef BASILISK_SEARCH_PARAM_FIELD
 };
