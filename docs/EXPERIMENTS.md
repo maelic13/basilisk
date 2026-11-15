@@ -678,6 +678,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P38](experiments/BAS-P38.md) | The table prefetch from a predicted key (B.8.9 A1). | COMPLETE: bench −0.62% [−0.83, −0.41] FAIL, loaded +1.38% [+1.00, +1.76], cohort alone +0.71%; reverted (Return 1) |
 | [BAS-P39](experiments/BAS-P39.md) | The continuation-correction cells prefetched before the make (B.8.9 A2). | COMPLETE: bench −0.93% FAIL, loaded −0.87%; reverted |
 | [BAS-P40](experiments/BAS-P40.md) | The head's own pool, and A1 and A2 read again against it (B.8.9). | COMPLETE: head −0.03% [−0.24, +0.18], base valid; not owed, verdicts unchanged (A1 −0.43% bench, +1.54% loaded; A2 −0.82%, −1.09%) |
+| [BAS-P41](experiments/BAS-P41.md) | The structure-correction entries prefetched after the make (B.8.9 A3). | REGISTERED |
 
 ## 7. Correctness and protocol lessons
 
