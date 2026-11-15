@@ -386,8 +386,6 @@ target_link_libraries(test_search_path PRIVATE basilisk_engine)
 add_executable(test_kernel_pins tests/test_kernel_pins.cpp
                src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_kernel_pins PRIVATE basilisk_engine_child_log)
-target_compile_definitions(test_kernel_pins PRIVATE
-    BASILISK_TEST_GAME_COHORT="${CMAKE_CURRENT_SOURCE_DIR}/tools/diag/game_cohort_v1.epd")
 
 add_executable(test_cpu_features tests/test_cpu_features.cpp)
 target_include_directories(test_cpu_features PRIVATE

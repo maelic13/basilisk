@@ -251,12 +251,7 @@ using InfoCallback = std::function<void(const std::string&)>;
        that reached the loop), those where it was searched first and cut,   \
        and the captures generated and scored at those nodes, which staged   \
        delivery of the table move would not generate. */                    \
-    X(qs_tt_capture_nodes) X(qs_tt_capture_cuts) X(qs_tt_cut_generated)    \
-    /* The table prefetch from a predicted key (the speed pass, B.8.9):     \
-       moves made whose key was predicted exactly before the make, and      \
-       those whose made key corrected it. Their sum is every move made,     \
-       those made only to read the table one ply down included. */          \
-    X(key_predicted) X(key_corrected)
+    X(qs_tt_capture_nodes) X(qs_tt_capture_cuts) X(qs_tt_cut_generated)
 
 // The stack's negative-reduction fields are written where a counter or the
 // mechanism reads them.
@@ -288,7 +283,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 178, "the counter contract has 178 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 176, "the counter contract has 176 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.

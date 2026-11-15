@@ -1059,6 +1059,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                               : depth <= 7 ? state_.diag.null_tries_d4_7
                                            : state_.diag.null_tries_d8p));
                 do_null_move(ss);
+                shared_.tt.prefetch(tt_key(*state_.board));
                 (ss + 1)->ext_plies = ss->ext_plies;
                 set_negext(ss, 0);
                 CHILD_SITE(NullMove, is_pv, cut_node);
@@ -1152,6 +1153,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             DIAG_COUNT(state_.diag.probcut_tries++);
             if (is_pv) DIAG_COUNT(++state_.diag.probcut_pv_tries);
             do_move(ss, m);
+            shared_.tt.prefetch(tt_key(*state_.board));
             (ss + 1)->ext_plies = ss->ext_plies;
             set_negext(ss, 0);
             CHILD_SITE(ProbCutQs, is_pv, cut_node);
@@ -1628,6 +1630,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
         const int64_t nodes_before_move = state_.nodes;
         do_move(ss, m);
+        shared_.tt.prefetch(tt_key(*state_.board));
         state_.sel_depth = std::max(state_.sel_depth, ply + 1);
         ss->ext_taken = std::max(extension, 0);
         (ss + 1)->ext_plies = ss->ext_plies + ss->ext_taken;
