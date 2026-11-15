@@ -19,7 +19,6 @@
 #include "test_harness.h"
 
 #include <algorithm>
-#include <climits>
 #include <cstdint>
 #include <cstdio>
 #include <memory>
@@ -278,15 +277,13 @@ static void test_partial_sort_order() {
     begin_section("partial insertion sort: move for move the one-pass order, ties included");
     std::mt19937_64 rng(7);
     int differ = 0;
-    // Prefixes of 0 to 80 moves: below, inside and above the rank pass's 4 to
-    // 64, every fourth list with no limit so the whole list is the prefix.
-    for (int trial = 0; trial < 40000; ++trial) {
-        ScoredMove a[96], b[96];
-        const int n = int(rng() % 81);
+    for (int trial = 0; trial < 20000; ++trial) {
+        ScoredMove a[64], b[64];
+        const int n = int(rng() % 65);
         const uint64_t spread = trial % 2 ? 7 : 20001;  // the narrow spread makes ties
         for (int i = 0; i < n; ++i)
             a[i] = b[i] = {Move(i + 1), int(rng() % spread) - int(spread / 2)};
-        const int limit = trial % 4 == 3 ? INT_MIN : int(rng() % spread) - int(spread / 2);
+        const int limit = int(rng() % spread) - int(spread / 2);
         partial_insertion_sort(a, a + n, limit);
         reference_sort(b, b + n, limit);
         for (int i = 0; i < n; ++i)

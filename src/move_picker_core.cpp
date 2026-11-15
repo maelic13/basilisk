@@ -2,59 +2,6 @@
 
 #include <climits>
 #include <utility>
-#if defined(__AVX2__)
-#include <immintrin.h>
-#endif
-
-#if defined(__AVX2__)
-namespace {
-
-// The rank pass handles prefixes this long; outside the range, and on every
-// tier without AVX2, the insertion pass does, in the same order.
-constexpr int RANK_SORT_MIN = 4;
-constexpr int RANK_SORT_MAX = 64;
-
-// The prefix [begin, begin + n) in the insertion pass's order, placed by
-// rank: a move's rank is the count of scores greater than its own plus the
-// count of equal scores at an earlier index, which is its place in a stable
-// descending sort of the prefix in arrival order (the insertion pass shifts
-// a move only past strictly smaller scores). Eight scores a compare; the
-// padding is INT_MIN, never greater than a score and never at an earlier
-// index. The ranks are a permutation, which moves the list in place a cycle
-// at a time.
-void place_by_rank(ScoredMove* begin, int n) {
-    alignas(32) int scores[RANK_SORT_MAX];
-    int rank[RANK_SORT_MAX];
-    const int padded = (n + 7) & ~7;
-    for (int i = 0; i < n; ++i)
-        scores[i] = begin[i].score;
-    for (int i = n; i < padded; ++i)
-        scores[i] = INT_MIN;
-    const __m256i lanes = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
-    for (int i = 0; i < n; ++i) {
-        const __m256i score = _mm256_set1_epi32(scores[i]);
-        const __m256i index = _mm256_set1_epi32(i);
-        int ahead_count = 0;
-        for (int j = 0; j < padded; j += 8) {
-            const __m256i other = _mm256_load_si256(reinterpret_cast<const __m256i*>(scores + j));
-            const __m256i earlier = _mm256_cmpgt_epi32(index, _mm256_add_epi32(lanes, _mm256_set1_epi32(j)));
-            const __m256i ahead = _mm256_or_si256(
-                _mm256_cmpgt_epi32(other, score),
-                _mm256_and_si256(_mm256_cmpeq_epi32(other, score), earlier));
-            ahead_count += __builtin_popcount(unsigned(_mm256_movemask_ps(_mm256_castsi256_ps(ahead))));
-        }
-        rank[i] = ahead_count;
-    }
-    for (int i = 0; i < n; ++i)
-        while (rank[i] != i) {
-            const int to = rank[i];
-            std::swap(begin[i], begin[to]);
-            std::swap(rank[i], rank[to]);
-        }
-}
-
-}  // namespace
-#endif
 
 void partial_insertion_sort(ScoredMove* begin, ScoredMove* end, int limit) {
     if (end - begin < 2)
@@ -72,12 +19,6 @@ void partial_insertion_sort(ScoredMove* begin, ScoredMove* end, int limit) {
         *swap_with = tmp;
         sorted_end += above;
     }
-#if defined(__AVX2__)
-    if (const int prefix = int(sorted_end - begin) + 1; prefix >= RANK_SORT_MIN && prefix <= RANK_SORT_MAX) {
-        place_by_rank(begin, prefix);
-        return;
-    }
-#endif
     for (ScoredMove* p = begin + 1; p <= sorted_end; ++p) {
         const ScoredMove tmp = *p;
         ScoredMove* q = p;
