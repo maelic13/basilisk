@@ -4464,6 +4464,34 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - The gate scripts that built an OFF arm (`tools/run_b32_games.ps1`,
         `run_b36_gate.ps1`, `run_b45_games.ps1`) reproduce only at the
         commits their entries record.
+    - [ ] **B.8.7** `[I1]` Count nodes as Stockfish does (ANY TIME) — before B.8.4
+      Added and implemented 2026-11-15 at the maintainer's request, out of
+      turn, after reading Rarog's D.6.8 (`638b56d` there: each position
+      counted once, by a move or a null move).
+      - The departure: Basilisk counted every `negamax` entry and every
+        quiescence entry negamax had not handed over, so the null child,
+        re-searches, the exclusion search, the null verification, ProbCut's
+        pair and the root's re-entries counted again. Stockfish 19 counts
+        once per move made (`Search::Worker::do_move`, `search.cpp:658` at
+        `sf_19`), the null move excluded. The old count ran 8.5% above the
+        donor's on `suite_v2` at depth 12, and 10 to 13% at 1 to 8 threads,
+        nearly uniform, so earlier SMP readings were not inflated by more
+        than about 2% at 8 threads. NPS figures against the donors were
+        about 10% high in the donor's unit; BAS-P32's composite uses
+        Basilisk's call mix per old-unit node for every engine, so its
+        ranking stands.
+      - The repair (`838a3c6`): `Searcher::do_move` counts and looks for a
+        stop; the graph-history check's move is not counted; each node
+        reads `stopped` on entry. The pool's total is each thread's count
+        summed at the join, as the donor's `nodes_searched()`. `bench 13`
+        4,688,537 (the tree moves, since the tie rule, the root averages and
+        the effort share read the count).
+      - Gate (BAS-S64): a repair kept unless it harms, `[-5,5]` at
+        `3+0.03`, cap 4,000 pairs, the maintainer's run:
+        `python tools/run_b87_gate.py`. Until it reads, the accepted
+        fingerprint stays 4,247,965.
+      - Kept open for the gate. SMP findings that do not break the count go
+        to D.2.
 - [ ] **B.9** Robustness, verdicts and protocol before the release
   Added 2026-11-05 (maintainer: every correctness fix before the next
   release): the lifecycle and protocol work that was D.3.2, the
@@ -4957,6 +4985,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
+| B.8.7 | GAME_GATE | I1 | Implemented 2026-11-15 (`838a3c6`); BAS-S64's `[-5,5]` gate is the maintainer's run |
 | B.8.4 | RESEARCH | I1 | Split from the speed pass 2026-11-05; before it |
 | B.8.5 | RESEARCH | I1 | Was B.7.2; after B.8.3 and B.8.4, on the new modules |
 | B.9.1 | RESEARCH | R2 | Was D.3.2, with the release-visible defects (2026-11-05) |

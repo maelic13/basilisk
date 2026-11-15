@@ -122,3 +122,4 @@ f7e1489	external	Triumviratus: per-thread state aligned to 128 bytes
 e27a201	external	Colosseum: the smt-slot-prototype branch (--slot-per-logical-cpu) on 0.5.0, pinned for B.5.7 by colosseum-smt-proto.pin.json
 611307e	external	Rarog: the live head built for B.7.2's board comparison at the maintainer's request
 8d7d1dd	external	Reckless: the head built for B.7.2's board comparison
+638b56d	external	Rarog: the release that counts each position once (D.6.8), read for B.8.7

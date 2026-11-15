@@ -38,6 +38,10 @@ not measured rankings.
 
 **Next step:** **B.8.4** `[I1]` Large pages on every platform — Claude Sonnet
 
+**Held `(ANY TIME)` steps**, done between steps when asked:
+
+- **B.8.7** `[I1]` Count nodes as Stockfish does (ANY TIME) — before B.8.4 — Claude Sonnet
+
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
 A.1–A.7 closed between 2026-09-28 and 2026-10-06; their text is in
@@ -137,6 +141,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [ ] **B.8.4** `[I1]` Large pages on every platform
     - [ ] **B.8.5** `[I1]` Speed pass
     - [x] **B.8.6** `[I1]` Delete the old search arms (ANY TIME) — before B.5
+    - [ ] **B.8.7** `[I1]` Count nodes as Stockfish does (ANY TIME) — before B.8.4
 - [ ] **B.9** Robustness, verdicts and protocol before the release
     - [ ] **B.9.1** `[R2]` Lifecycle and protocol audit and tests
     - [ ] **B.9.3** `[R2]` Hard verdicts against Syzygy
