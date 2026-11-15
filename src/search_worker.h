@@ -173,17 +173,6 @@ struct SearchState {
     ScoredMove move_buffers[MAX_PLY][2][MoveList::CAPACITY];
 };
 
-// A read hint for one cache line the search will load soon.
-inline void prefetch_line(const void* address) {
-#if defined(_MSC_VER)
-    _mm_prefetch(static_cast<const char*>(address), _MM_HINT_T0);
-#elif defined(__GNUC__) || defined(__clang__)
-    __builtin_prefetch(address, 0, 3);
-#else
-    (void)address;
-#endif
-}
-
 class Searcher {
 public:
     Searcher(TranspositionTable& tt,
@@ -355,11 +344,6 @@ private:
         const Piece piece = state_.board->piece_on(from_sq(m));
         ss->cont_hist   = &hist_.continuation->row[ss->in_check][capture_stage][hist_piece(piece)][to];
         ss->cont_corr   = &hist_.cont_corr->row[hist_piece(piece)][to];
-        // The child's continuation correction reads the cells of the piece
-        // that will stand on `to` in the rows two and four plies above it.
-        const PieceType arriving = move_type(m) == PROMOTION ? promo_type(m) : type_of(piece);
-        prefetch_line(&(ss - 1)->cont_corr->entry[arriving][to]);
-        prefetch_line(&(ss - 3)->cont_corr->entry[arriving][to]);
         state_.board->make_move(m);
         if (counted)
             count_node();
