@@ -614,3 +614,84 @@ B2, B3 and B5.
   on the cohort. A1's verdict is the first read's; but the two reads straddle the
   guard's −0.5%, so option 2 or 4 above is a question of the rule's design, not of
   this item alone.
+
+## 12. Implementation record (B.8.9, 2026-11-15)
+
+Every item was read alone on the head before it, in §10's order, on the idle host;
+before each read `bench 13` was 4,688,537 on Release, Tune and Diag builds and the
+symbol PGO build, the cohort fingerprint 24,421,195 `8bc7f3c8d1dde0d2` on each (and on
+the picker check's build for B3 to S2), CTest 33/33 on Release and Diag (the
+allocation guard among them), and `hot_path_calls.py` reported nothing unknown. Each
+read has its BAS-P entry; the bench reads are `nps_read.ps1`'s standing method, the
+loaded reads BAS-P37's instrument.
+
+**The instrument.** `tools/cohort_read.py` (`064dac9`, `c845994`): the loaded read,
+its one-engine form and `fingerprint`. Its null read −0.13% [−0.35, +0.10] (half-width
+0.23%) and its liveness, large pages off against on, +2.38% [+1.89, +2.87]: admitted
+(BAS-P37). One change from §4.1 before any registered read: a reading's time is the
+engine's own CPU time over its counted searches, because the harness's reply latency
+ran 4.7% over it on average and up to 20%.
+
+| Item | Predicted (§8, 80%) | Bench (95%) | Loaded (95%) | Kept | Commit |
+|---|---|---|---|---|---|
+| A1 | +0.8% [+0.2, +1.6]; loaded +3.5% [+1.5, +6.0] | −0.62% [−0.83, −0.41], no-regression FAIL | +1.38% [+1.00, +1.76] | reverted (Return 1) | `8440f8b`, `2bc4d2b` |
+| A2 | +0.3% [0.0, +0.7]; +0.6% [0.0, +1.5] | −0.93% [−1.07, −0.79], FAIL | −0.87% [−1.23, −0.52] | reverted | `887289d`, `cfc543a` |
+| A3 | +0.2% [−0.2, +0.6]; +0.5% [−0.2, +1.3] | −0.31% [−0.64, +0.01] | −0.44% [−1.55, +0.68] | reverted | `7699164`, `ef1deef` |
+| A4 | no row | −0.15% [−0.44, +0.14] | −0.16% [−0.44, +0.12] | reverted | `004b6f4`, `5e68524` |
+| C, full LTO | best arm +0.8% [−0.5, +2.5] | +3.23% [+2.94, +3.52] | cohort alone +2.56% [+2.29, +2.84] | **kept** | `a662fd9`, `4612bbf` |
+| C, IR PGO | | −0.70% [−1.03, −0.37] | cohort alone −0.68% | not kept | — |
+| C, both | | +2.53% [+2.26, +2.80] | cohort alone +1.93% | not the winner | — |
+| C, inline 500 and ext-tsp | — | +0.92% [+0.63, +1.21] | cohort alone +0.66% [+0.35, +0.98] | **kept** | `354fef4` |
+| B1 | +0.5% [+0.1, +1.0] | +0.23% [−0.01, +0.46] | — | under the bar, then out with the bundle | `1a4549a`, `33591d7` |
+| B2 | +0.5% [0.0, +1.2] | +0.94% [+0.49, +1.39] | — | **kept** | `6172370` |
+| B3 | +0.4% [0.0, +0.8] | +0.81% [+0.60, +1.02] | — | **kept** | `33ba08e` (check), `1e82067` |
+| B4 | +0.8% [+0.2, +1.5] | −1.57% [−1.95, −1.19] | — | reverted | `fc45d32`, `396278a` |
+| B5 | +0.2% [−0.3, +0.7] | −1.41% [−1.60, −1.22] | — | reverted | `671c79e`, `321eeab` |
+| S1 | S1 and S2 +0.15% [0.0, +0.4] | −0.28% [−0.62, +0.07] | — | reverted | `6f573fa`, `67ca790` |
+| S2 | (with S1) | +0.09% [−0.16, +0.34] | — | under the bar, then out with the bundle | `19e337c`, `8f31cbb` |
+| B1 + S2 (D-17) | — | +0.05% [−0.11, +0.21], six cycles, eight builds | — | both out | BAS-P52 |
+| **The pass** | +3.5% [+1.5, +6.0]; loaded +6% [+3, +10] | **+6.05% [+5.55, +6.55]** | **+4.66% [+4.49, +4.83]** | | head `d17a62d` |
+
+The one-engine cohort reads of the memory items, reported: A1 +0.71%, A2 −1.09%,
+A3 −0.33%, A4 −0.02%. The kept items' product, 3.23, 0.92, 0.94 and 0.81 percent,
+is +6.0%, the pass's read.
+
+**The falsifiers (§8).**
+- A1 under +1.0% loaded with the instrument admitted: did not fire (+1.38%, and
+  +1.54% in BAS-P40's unowed second read). The table's wait is lead time, but half of
+  what §1.1's model gave, and the item's `bench` cost decided it.
+- B3 and B4 both under +0.2%: did not fire (B3 +0.81%). H3 holds for the dispatch;
+  the sort's rank pass lost 1.6%, so H3 does not hold for the sort, and B5 lost too.
+- The pass under +1.5% on `bench` with A1 kept: cannot fire, A1 was not kept; the
+  pass read +6.05%.
+
+**What the pass says about H1 to H3.** The memory items lost on `bench` (every one),
+and only A1 gained under load; the gains came from the build (+4.2% together) and
+from removing work in the search's code (B2, B3). H2 held: A1's loaded read was about
+twice its cohort-alone read. The packet's ranking put the memory items first; the
+reads put them last.
+
+**Deviations from the handoff.**
+- §4.1's reading time is the engine's CPU time (above, BAS-P37).
+- BAS-P40, about 80 minutes: a pool of the head itself, built because A2's offset
+  looked like a wrong base; the base was valid, so its re-reads of A1 and A2 were not
+  owed. Their verdicts stayed the first reads'; A1's second read would have passed its
+  guard (Return 1's added note).
+- Two disturbed step-1 reads repeated, as the method says (B1, B4).
+- B4's first build spilled its prefix copy into a `memcpy` the hot-path scan refused
+  before any read; the read version permutes in place.
+- B5's row pointers are locals of the scoring pass, not picker members (one reader).
+- D-17's six cycles needed `nps_read.ps1 -Extend -Force` (`239fcff`).
+- `hot_path_calls.py`'s KNOWN list gained the null move's undo-stack path, which full
+  LTO inlines (`1255e75`), in its own commit.
+- The C arms that were not kept, the second read's arm and the bundle's base are
+  throwaway revisions, cited by their recipes in BAS-P43, BAS-P44 and BAS-P52.
+- The picker check (`VERIFY_PICKER`) left with the pass (`d17a62d`), as §6 says.
+- The closing one-engine cohort read was not run; §10's closing reads name `bench`
+  and the load only. BAS-P53's registration was committed during its first read's
+  warm-up, after the final pool was built and before the first counted cycle.
+
+**Owed elsewhere.** The universal binary builds with full LTO and its tiers reproduce
+4,688,537 here; `check_universal.py` under Intel SDE needs SDE and runs in the release
+workflow. CI and the release take the preset's default, so they build with full LTO
+and the two link options with no flag change.
