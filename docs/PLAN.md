@@ -5812,6 +5812,39 @@ has lost games in both engines (BAS-X02).
     −5.54 (RAR-R05); its retry condition is instability as one input to
     a completed-root confidence, and root instability from a completed
     root snapshot read +6.46 (RAR-X06).
+  Node-count and effort inputs (2026-11-15, after B.8.7; maintainer: add
+  what the count change showed):
+  - The effort term is not the donor's form. Basilisk's is the best
+    move's nodes in the iteration's last search over every window's nodes
+    of that iteration (`search_worker.cpp:705-707` at `dfa922c`), read as
+    a step: at or over `TmEffortHi` 80 the total is ×0.80, at or under
+    `TmEffortLo` 25 ×1.20 (`:881-883`). The donor's
+    (`search.cpp:571` and `:588-589` at `sf_19`) is the best root move's
+    effort over the whole search against every node searched,
+    interpolated from 75.8% to 104.5% onto ×0.969 to ×0.714 and clamped
+    to [0.693, 0.838]: it only ever shortens a think.
+  - So Basilisk's low step is in force most of the time: 55.1% of the
+    iterations with a window on `suite_v2` at depth 12 before B.8.7,
+    56.7% after it (the high step 10.5% and 11.1%); B.5's input above
+    read 56.6%. The ×1.20 is close to a constant, not an easy-or-hard
+    signal, and it extends where the donor's term never does.
+  - B.8.7 moved the term's input to the donor's unit (once per move
+    made) and its firing by about a point. The donor's form is now
+    portable exactly: its effort is the root move's own count, summed
+    over iterations.
+  - The audit ticks each of the donor's factors present, absent or
+    different beside Basilisk's: falling eval (Basilisk's score-drop
+    extension, `TmScoredropThr`, `TmScoredropDiv`), the best move's
+    stability over depths (`TmStability`), the previous move's time
+    reduction (absent), instability across threads (D.2's), and node
+    effort (above). The donor's shape is built whole as one arm, then
+    both arms are fitted, as H.6's rule says for a form a fitted arm
+    cannot clear.
+  - Then one SPSA of the clock's coordinates on the chosen form (the
+    default surface's `Tm*` lines and whatever the donor's shape adds),
+    at the control it acts at and against an external engine (TT-3),
+    not in self-play. A change to the effort measure re-reads
+    `B5AspBase` and `B5AspGrowth` (above).
 - [ ] **D.2** `[R2]` Lazy SMP quality
   Self-relative scaling before any design: each engine against itself at
   4T against 1T, and against twice its time at 1T, so that four threads
@@ -6520,6 +6553,16 @@ already repairing or a form it must choose anyway, and says so.
     form is rebuilt here from `55e3010` at the place
     `analysis/b82_switch_inventory_2026-11-14.md` §3 names, with
     `B5NegExtMax`'s other two values.
+  - The draw jitter (B.6.6 row 20; added 2026-11-15 at the maintainer's
+    request): the donor scores a draw `VALUE_DRAW - 1 + (nodes & 2)`
+    (`value_draw`, `search.cpp:134` at `sf_19`), Basilisk 0. B.6.6 kept 0
+    with no card: B.5.3's blindness read found 0 of 885 repetition draws
+    with the repeating side at +150 or better, and Rarog's jitter read
+    −1.2. Since B.8.7 its input, the node count, is the donor's, so the
+    form ports exactly. Its population counter is the draw returns
+    (repetition, rule 50, the ply cap in check) on `bench 13` and the
+    gate games; a small expected value, so it is read here and not
+    earlier.
 
 ## 4. Measurement protocols
 
