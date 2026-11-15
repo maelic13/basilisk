@@ -685,7 +685,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P45](experiments/BAS-P45.md) | LMR's window division hoisted, LMP's halving (B.8.9 B1). | COMPLETE: +0.23% [−0.01, +0.46]; kept under the bar (D-17) |
 | [BAS-P46](experiments/BAS-P46.md) | Search parameters as constants outside Tune (B.8.9 B2). | COMPLETE: +0.94% [+0.49, +1.39], ACCEPT; kept |
 | [BAS-P47](experiments/BAS-P47.md) | The picker's stages fall through (B.8.9 B3). | COMPLETE: +0.81% [+0.60, +1.02], ACCEPT; kept |
-| [BAS-P48](experiments/BAS-P48.md) | The sort's insertion pass by rank (AVX2) (B.8.9 B4). | REGISTERED |
+| [BAS-P48](experiments/BAS-P48.md) | The sort's insertion pass by rank (AVX2) (B.8.9 B4). | COMPLETE: −1.57% [−1.95, −1.19]; reverted |
 
 ## 7. Correctness and protocol lessons
 
