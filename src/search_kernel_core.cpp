@@ -65,10 +65,17 @@ static TablebaseProbe tablebase_probe(Syzygy::Wdl wdl, int ply, bool rule50) {
     std::unreachable();
 }
 
+// The move-count rule's limit: the count at an improving node and half of it
+// otherwise, the divisor 2 - improving as a choice the compiler shifts.
+static constexpr int lmp_moves(int count, bool improving) {
+    return improving ? count : count / 2;
+}
+
 int Searcher::lmr_reduction(bool improving, int depth, int move_count, int delta, bool pv) const {
     const auto& p = config_.limits.params;
     const int scale = reductions_[std::min(depth, 255)] * reductions_[std::min(move_count, 255)];
-    const int window_term = b5::lmr_window_term(pv, delta, root_delta_);
+    const int window_term = pv ? b5::lmr_window_term(true, delta, root_delta_) : lmr_window_null_term_;
+    CORE_NODE_CHECK(window_term == b5::lmr_window_term(pv, delta, root_delta_));
     return scale - window_term
          + (improving ? 0 : scale * p.lmr_not_improving / 512) + p.lmr_offset;
 }
@@ -1330,8 +1337,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             // Count pruning: past this many moves the picker delivers no
             // more quiets.
             if (!picker.quiets_skipped()
-                && move_count >= (kp.lmp_base + depth * depth * kp.lmp_square_scale / 16)
-                                 / (2 - improving)) {
+                && move_count >= lmp_moves(kp.lmp_base + depth * depth * kp.lmp_square_scale / 16,
+                                           improving)) {
                 picker.skip_quiets();
                 DIAG_COUNT(++state_.diag.skip_quiets_nodes);
                 if (in_check) DIAG_COUNT(++state_.diag.in_check_skip_quiets);
@@ -2085,6 +2092,7 @@ void Searcher::root_record_searched(RootMove& rm, int value, int64_t nodes, bool
 
 int Searcher::root_search(int depth, int alpha, int beta, int searched_depth) {
     root_delta_ = std::max(1, beta - alpha);
+    lmr_window_null_term_ = b5::lmr_window_term(false, 1, root_delta_);
     root_depth_ = depth;
     root_score_ = state_.prev_root_score;
     CHILD_SITE(Root, true, false);
