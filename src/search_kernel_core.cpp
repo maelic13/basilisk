@@ -434,6 +434,12 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     for (Move m : captures)
         sm[nm++] = {m, m == tt_move ? 10'000'000
                                     : capture_order_score(*state_.board, hist_, m)};
+    // Counted in Tune and Diag builds only; a release build has no scan.
+    [[maybe_unused]] bool tt_capture = false;
+    if constexpr (kDiagBuild)
+        tt_capture = tt_move != MOVE_NONE
+            && std::any_of(captures.begin(), captures.end(), [&](Move c) { return c == tt_move; });
+    DIAG_COUNT(state_.diag.qs_tt_capture_nodes += tt_capture);
 
     Move best_move = MOVE_NONE;
     DIAG_COUNT(state_.diag.qs_moves += nm);
@@ -532,6 +538,9 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             DIAG_COUNT(state_.diag.qs_fail_high_first += captures_searched == 1);
             DIAG_COUNT(state_.diag.qs_fail_high_index_sum += captures_searched - 1);
             DIAG_COUNT(state_.diag.qs_fail_high_excess += is_decisive(s) ? 0 : s - beta);
+            DIAG_COUNT(state_.diag.qs_tt_capture_cuts += tt_capture && m == tt_move && captures_searched == 1);
+            DIAG_COUNT(state_.diag.qs_tt_cut_generated
+                       += (tt_capture && m == tt_move && captures_searched == 1) ? nm : 0);
             TRACE_DECISION(.event = TraceEvent::QsBetaCutoff, .ply = ply, .depth = 0, .move = m,
                            .alpha = alpha, .beta = beta, .estimated_score = stand_pat,
                            .improving = -1, .correction = correction, .history = VALUE_NONE,

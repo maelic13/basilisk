@@ -245,7 +245,13 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(root_tt_probe_fh) X(root_tt_mismatch_fh)                             \
     X(asp_nodes_windowed) X(asp_nodes_failed) X(asp_nodes_giveup)          \
     X(asp_fail_high_research_nodes) X(fhstop_fired)                        \
-    X(root_effort_hi) X(root_effort_lo)
+    X(root_effort_hi) X(root_effort_lo)                                     \
+    /* Quiescence outside check and its table move (the speed pass, B.8.5): \
+       nodes whose table move is among the captures (denominator qs_nodes  \
+       that reached the loop), those where it was searched first and cut,   \
+       and the captures generated and scored at those nodes, which staged   \
+       delivery of the table move would not generate. */                    \
+    X(qs_tt_capture_nodes) X(qs_tt_capture_cuts) X(qs_tt_cut_generated)
 
 // The stack's negative-reduction fields are written where a counter or the
 // mechanism reads them.
@@ -277,7 +283,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 173, "the counter contract has 173 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 176, "the counter contract has 176 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.

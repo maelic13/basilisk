@@ -361,6 +361,9 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             d.asp_nodes_windowed, d.asp_nodes_failed, d.asp_nodes_giveup,
             d.asp_fail_high_research_nodes, d.fhstop_fired, d.root_effort_hi, d.root_effort_lo);
         emit(buf);
+        buf = std::format("kv qs_tt_capture_nodes={} qs_tt_capture_cuts={} qs_tt_cut_generated={}",
+            d.qs_tt_capture_nodes, d.qs_tt_capture_cuts, d.qs_tt_cut_generated);
+        emit(buf);
     }
     // Speed telemetry: the evaluation rate, the pawn-cache hit rate, the
     // gives_check rate and SEE calls per node.
