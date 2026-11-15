@@ -30,3 +30,35 @@
   them, against `b89-head`. The base check decides nothing about an item; if `head`
   reads within ±0.5% the earlier base stood and the earlier verdicts are confirmed
   by these reads; otherwise these reads decide.
+
+#### RESULT
+
+Idle host, 2026-11-15. `b89-head` built from `2bc4d2b` (`bench 13` 4,688,537).
+Archives `tools/results/b89-p40-bench`, `b89-p40-loaded-{head,a1,a2}`,
+`b89-p40-single`.
+
+| Contrast | Read | Delta | 95% interval | Verdict |
+|---|---|---:|---|---|
+| `b84-on` → `b89-head` | pooled `bench`, six cycles | −0.03% | [−0.24%, +0.18%] | PASS (base check) |
+| | loaded | −0.06% | [−0.49%, +0.36%] | reported |
+| | one engine | −0.02% | [−0.41%, +0.37%] | reported |
+| `b89-head` → `b89-a1` | pooled `bench`, six cycles | −0.43% | [−0.56%, −0.30%] | gain NO_CHANGE; no-regression PASS (step 1 EXTEND) |
+| | loaded | +1.54% | [+1.11%, +1.97%] | loaded rule MET |
+| | one engine | +0.81% | [+0.46%, +1.16%] | reported |
+| `b89-head` → `b89-a2` | pooled `bench`, six cycles | −0.82% | [−0.95%, −0.69%] | gain NO_CHANGE; no-regression FAIL |
+| | loaded | −1.09% | [−1.44%, −0.74%] | loaded rule NOT_MET |
+| | one engine | −1.03% | [−1.38%, −0.69%] | reported |
+
+The one-engine read's sixth cycle was disturbed in every arm (the host's level fell
+1%), absorbed; no other cycle disturbed.
+
+- **The base stood.** The head's own pool reads level with `b84-on` on every
+  workload, so the premise that prompted this entry was false, and BAS-P38's and
+  BAS-P39's reads were made against a valid base.
+- **Disposition.** These reads were not owed: the leaf's rule allows a second read
+  of an item only after a disturbed one, and nothing disturbed BAS-P38 or BAS-P39.
+  Their verdicts stand. A2: reverted (both reads agree). A1: reverted by BAS-P38.
+  This entry's A1 reads would keep it (the guard passes at −0.43% where BAS-P38's
+  failed at −0.62%), which says the guard's −0.5% threshold sits inside the spread
+  of two reads of one pair; recorded in the packet's Return 1 for the research.
+- **Cost of the deviation:** about 80 minutes of reads; no verdict changed by it.

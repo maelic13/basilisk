@@ -676,8 +676,8 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P36](experiments/BAS-P36.md) | The four-thread pooled NPS read's null pair (B.8.5). | FAILED: cycles disturbed twice (the clock's drift, 2.1% and 1.05%), builds spread about 2.7%; B.8.9 reads one thread |
 | [BAS-P37](experiments/BAS-P37.md) | The loaded cohort read's null pair and its liveness (B.8.9). | COMPLETE: null −0.13% [−0.35, +0.10], liveness +2.38% [+1.89, +2.87]; admitted |
 | [BAS-P38](experiments/BAS-P38.md) | The table prefetch from a predicted key (B.8.9 A1). | COMPLETE: bench −0.62% [−0.83, −0.41] FAIL, loaded +1.38% [+1.00, +1.76], cohort alone +0.71%; reverted (Return 1) |
-| [BAS-P39](experiments/BAS-P39.md) | The continuation-correction cells prefetched before the make (B.8.9 A2). | REGISTERED |
-| [BAS-P40](experiments/BAS-P40.md) | The head's own pool, and A1 and A2 read again against it (B.8.9). | REGISTERED |
+| [BAS-P39](experiments/BAS-P39.md) | The continuation-correction cells prefetched before the make (B.8.9 A2). | COMPLETE: bench −0.93% FAIL, loaded −0.87%; reverted |
+| [BAS-P40](experiments/BAS-P40.md) | The head's own pool, and A1 and A2 read again against it (B.8.9). | COMPLETE: head −0.03% [−0.24, +0.18], base valid; not owed, verdicts unchanged (A1 −0.43% bench, +1.54% loaded; A2 −0.82%, −1.09%) |
 
 ## 7. Correctness and protocol lessons
 

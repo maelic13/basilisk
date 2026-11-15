@@ -608,3 +608,9 @@ B2, B3 and B5.
 - **Interaction for the later items.** A2 and A3 are read on the head without A1,
   as §6's order reads "alone on the head with what A1 kept". A2's and A3's
   pooled guards meet the same workload question.
+- **Added after BAS-P40.** A second read of A1 against the head's own pool (a read
+  that was not owed; BAS-P40) gave −0.43% [−0.56, −0.30] on `bench`, which passes
+  the no-regression guard, with +1.54% [+1.11, +1.97] under load and +0.81% alone
+  on the cohort. A1's verdict is the first read's; but the two reads straddle the
+  guard's −0.5%, so option 2 or 4 above is a question of the rule's design, not of
+  this item alone.
