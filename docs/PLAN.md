@@ -4360,7 +4360,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           33/33 on Release, Diag and Tune, ASan/UBSan 31/31; Linux
           `test_tt` and the allocation guard pass.
         - From here every speed read runs with large pages on, the default.
-    - [ ] **B.8.5** `[V]` Speed pass: the baseline reads
+    - [x] **B.8.5** `[V]` Speed pass: the baseline reads
       The speed pass is three leaves (maintainer, 2026-11-15: the reads
       already named here first, then a Fable packet, then the
       implementation; the goal is as much speed as can be had, since speed
@@ -4409,6 +4409,28 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         this profile shows its share moved.
       Closes with the reads recorded in one analysis file and a BAS-P
       entry for the four-thread instrument's null.
+      - Closed 2026-11-15 (`analysis/b85_speed_baseline_2026-11-15.md`; no
+        engine behaviour changed, `bench 13` 4,688,537; three Diag counters
+        added, `ee6312d`):
+        - Profile, `bench 13` and a 1,000-position timed-game cohort
+          (`tools/diag/game_cohort_v1.epd`, from BAS-S64's games, 150,000
+          nodes each): ordering 24 to 25%, board 22 to 23%, evaluation 18
+          to 23%, search 16 to 17%; the table 6.1% on `bench` and 13.0% in
+          the cohort (its probe 6.8% against 2.4%; 4% of the cohort's is
+          the profiler's per-position clear).
+        - The game's speed: the cohort reads 2.50M alone and 1.87M with 15
+          engines at once, the games' 1.85M; with a 1 MiB table 2.61M and
+          2.21M. The shared host costs the gates a quarter of the speed, and
+          half of that is the table's memory traffic (4% of a node alone,
+          about 15% under load). Single-engine reads under-weight memory
+          items three to four times against play.
+        - Frames: `negamax` 1,416 bytes at most, quiescence 1,256, the
+          evaluation 1,352; no `__chkstk` (TB-11 does not apply).
+        - NODE-5 closes: the table move cuts first at 1.2% of quiescence's
+          capture-loop nodes, 1.8% of its generated captures.
+        - The four-thread read (`nps_read.ps1 -Threads`, `586e3bf`) failed
+          its null (BAS-P36): the clock's drift disturbed both reads and the
+          builds spread about 2.7%. B.8.9 reads one thread.
     - [x] **B.8.6** `[I1]` Delete the old search arms (ANY TIME) — before B.5
       Done 2026-11-08 at the maintainer's request, out of turn, so that
       Cluster 4 builds on one search path; every gate the arms served is
@@ -4491,6 +4513,17 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       for B.8.9 with a frozen handoff, or with `NO_CHANGE`.
       Floors for every item: a pooled-PGO gain of +0.5% (PROCESS *NPS*),
       B.8.3's allocation guard and hot-path scan, the exact fingerprint.
+      B.8.5's reads (`analysis/b85_speed_baseline_2026-11-15.md`) set two
+      questions of method for the packet:
+      - A memory item (a prefetch, the entry's size, a probe saved) pays
+        three to four times more in the gates' conditions than in a
+        single-engine read: decide how such an item is read, for example a
+        loaded read (the cohort with 15 engines at once, BAS-S64's
+        conditions) beside the pooled one, with its own null first.
+      - The four-thread read failed its null (BAS-P36): decide whether a
+        second design (the clock held, more builds) is worth it, or whether
+        one thread plus the loaded read and B.8.4's pinned scaling check
+        decide.
       Inputs, from the earlier leaves:
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
@@ -5082,7 +5115,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.8.5 | RESEARCH | V | The speed pass's reads, split 2026-11-15; no engine change |
 | B.8.8 | RESEARCH | R3 | The speed pass's packet on B.8.5's reads (Fable) |
 | B.8.9 | RESEARCH | I2 | The speed pass's implementation; waits for B.8.8's handoff |
 | B.9.1 | RESEARCH | R2 | Was D.3.2, with the release-visible defects (2026-11-05) |
