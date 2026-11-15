@@ -687,16 +687,6 @@ if(TUNE)
     message(STATUS "TUNE build: search constants exposed as UCI options (BASILISK_TUNE defined)")
 endif()
 
-# The speed pass's picker check: the picker as it stood before the pass runs
-# beside the shipped one and the search aborts where they differ. A
-# verification build only; never measured.
-option(VERIFY_PICKER "Run the reference move picker beside the shipped one (sets BASILISK_VERIFY_PICKER)" OFF)
-if(VERIFY_PICKER)
-    foreach(_tgt IN LISTS _ALL_TARGETS)
-        target_compile_definitions(${_tgt} PRIVATE BASILISK_VERIFY_PICKER)
-    endforeach()
-endif()
-
 if(DIAGNOSTIC)
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_definitions(${_tgt} PRIVATE BASILISK_DIAGNOSTIC)

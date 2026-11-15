@@ -10,17 +10,6 @@
 #include "search_b3.h"
 #include "search_b4.h"
 #include "search_b5.h"
-#include "move_picker_reference.h"
-
-// The kernel's picker; a picker-verification build checks it at every node
-// against the reference, on the ply's second buffer.
-#ifdef BASILISK_VERIFY_PICKER
-using KernelPicker = VerifiedMovePicker;
-#define VERIFY_PICKER_BUFFER(buffer) , (buffer)
-#else
-using KernelPicker = CoreMovePicker;
-#define VERIFY_PICKER_BUFFER(buffer)
-#endif
 #include "search_child_log.h"
 #include "syzygy.h"
 #include <algorithm>
@@ -291,9 +280,8 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
         const PieceToHistory* const conts[6] = {
             (ss - 1)->cont_hist, (ss - 2)->cont_hist, (ss - 3)->cont_hist,
             (ss - 4)->cont_hist, (ss - 5)->cont_hist, (ss - 6)->cont_hist};
-        KernelPicker picker(*state_.board, hist_, pawn_bucket(), conts, tt_move, MOVE_NONE,
-                            0, ply, nullptr, state_.move_buffers[ply][0]
-                            VERIFY_PICKER_BUFFER(state_.move_buffers[ply][1]));
+        CoreMovePicker picker(*state_.board, hist_, pawn_bucket(), conts, tt_move, MOVE_NONE,
+                              0, ply, nullptr, state_.move_buffers[ply][0]);
         int evasions_searched = 0;
         [[maybe_unused]] int quiets_searched = 0;
         PRICE(MoveList quiets_tried);
@@ -1234,9 +1222,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     const PieceToHistory* const conts[6] = {
         (ss - 1)->cont_hist, (ss - 2)->cont_hist, (ss - 3)->cont_hist,
         (ss - 4)->cont_hist, (ss - 5)->cont_hist, (ss - 6)->cont_hist};
-    KernelPicker picker(*state_.board, hist_, pawn_bucket(), conts, tt_move, ss->excluded,
-                        depth, ply, is_root ? &state_.root_ordering : nullptr,
-                        state_.move_buffers[ply][0] VERIFY_PICKER_BUFFER(state_.move_buffers[ply][1]));
+    CoreMovePicker picker(*state_.board, hist_, pawn_bucket(), conts, tt_move, ss->excluded,
+                          depth, ply, is_root ? &state_.root_ordering : nullptr,
+                          state_.move_buffers[ply][0]);
 
 #ifdef BASILISK_PRICING
     // A move searched as a rule denied it, at `child_depth` with the node's
