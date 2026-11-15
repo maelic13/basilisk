@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.8.9** `[I2]` Speed pass: the implementation — Claude Opus
+**Next step:** **B.9.1** `[R2]` Lifecycle and protocol audit and tests — Claude Opus
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -130,7 +130,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.7.7** `[R2]` Second round: candidates on the instruments
     - [x] **B.7.8** `[I2]` Second rebuild: the candidates that cleared
     - [x] **B.7.9** `[V]` Board speed read and gate
-- [ ] **B.8** Cleanup and speed pass
+- [x] **B.8** Cleanup and speed pass
     - [x] **B.8.1** `[I1]` Delete the legacy search kernel (ANY TIME) — before the A.11 gates
     - [x] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
     - [x] **B.8.3** `[I1]` Allocation guard
@@ -139,7 +139,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.8.6** `[I1]` Delete the old search arms (ANY TIME) — before B.5
     - [x] **B.8.7** `[I1]` Count nodes as Stockfish does (ANY TIME) — before B.8.4
     - [x] **B.8.8** `[R3]` Speed pass: the research packet
-    - [ ] **B.8.9** `[I2]` Speed pass: the implementation
+    - [x] **B.8.9** `[I2]` Speed pass: the implementation
 - [ ] **B.9** Robustness, verdicts and protocol before the release
     - [ ] **B.9.1** `[R2]` Lifecycle and protocol audit and tests
     - [ ] **B.9.3** `[R2]` Hard verdicts against Syzygy

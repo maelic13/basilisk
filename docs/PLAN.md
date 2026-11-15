@@ -4111,7 +4111,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         read in its search as losses (BAS-P31).
       - No component changed the generation order: no SPRT.
       - DESIGN §5 has the final figures.
-- [ ] **B.8** Cleanup and speed pass
+- [x] **B.8** Cleanup and speed pass
   Cleanup: remove the legacy search path, dead parameters, unconsumed switches
   and diagnostics without an owner; exact fingerprint; no game gate. Then
   the allocation guard, large pages and the speed pass (B.7 until
@@ -4641,7 +4641,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           `bench` and +6% [+3, +10] under load.
         - D-17 is the packet's §4.4, accepted by the maintainer
           2026-11-15 with S1 (the evaluator's verdict hand-back) in scope.
-    - [ ] **B.8.9** `[I2]` Speed pass: the implementation
+    - [x] **B.8.9** `[I2]` Speed pass: the implementation
       B.8.8's frozen handoff, one item at a time in its order (maintainer,
       2026-11-15). Each item: its shortcut build agrees at every node on
       `bench 13` where it has one; the exact fingerprint; B.8.3's guard and
@@ -4659,6 +4659,30 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         the four-thread instrument failed its null (BAS-P36), so D-9 is
         read on B.8.4's pinned scaling check; sub-bar gains follow D-17,
         the packet's §4.4 (maintainer, 2026-11-15).
+      - Closed 2026-11-15 (the packet's §12 and Return 1; BAS-P37 to
+        BAS-P53; `bench 13` 4,688,537 throughout, an identical tree):
+        - The pass: +6.05% [+5.55, +6.55] pooled `bench` against B.8.5's
+          head and +4.66% [+4.49, +4.83] under load, fourteen engines on
+          the timed-game cohort (BAS-P53). D-9: four pinned threads 3.95
+          to 4.18 times one (4.03 to 4.08 before).
+        - Kept: full LTO (+3.23%, BAS-P43) with an inline threshold of 500
+          and ext-tsp placement (+0.92%, BAS-P44), the build every preset
+          now takes; the kernel's parameters as constants outside Tune (B2,
+          +0.94%); the picker's stages falling through (B3, +0.81%).
+        - Reverted: the four memory items (A1 +1.38% loaded but −0.62% on
+          `bench`, a no-regression FAIL; A2, A3, A4 at or below 0), the sort
+          by rank (B4, −1.57%), quiet scoring's rows (B5, −1.41%), the
+          verdict hand-back (S1, −0.28%), and B1 and S2, under the bar
+          alone and +0.05% together (D-17's bundle, BAS-P52). IR-level PGO
+          read −0.70%.
+        - The instrument: `tools/cohort_read.py`, the loaded cohort read
+          and the cohort fingerprint, admitted on its null (BAS-P37). Return
+          1 asks whether `bench` is the right guard for a memory item: A1
+          gains +0.71% on the cohort alone and loses on `bench`.
+        - The profile again: the evaluation's share fell about 3 points on
+          both cohorts and `next()`'s by 0.7 to 1.0; the table's wait is a
+          larger share of a faster node (`probe_copy` 7.16% of the
+          cohort's samples).
 - [ ] **B.9** Robustness, verdicts and protocol before the release
   Added 2026-11-05 (maintainer: every correctness fix before the next
   release): the lifecycle and protocol work that was D.3.2, the
@@ -5152,7 +5176,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.8.9 | READY_FOR_IMPLEMENTATION | I2 | B.8.8's frozen handoff (`analysis/b88_speed_packet_2026-11-15.md`); D-17 accepted 2026-11-15 |
 | B.9.1 | RESEARCH | R2 | Was D.3.2, with the release-visible defects (2026-11-05) |
 | B.9.3 | RESEARCH | R2 | Added 2026-11-11; the evaluator's hard verdicts against Syzygy, the evaluation frozen |
 | B.9.4 | RESEARCH | R2 | Added 2026-11-11; known defects owned after B.11, repaired now or justified |

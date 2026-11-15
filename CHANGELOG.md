@@ -26,6 +26,13 @@ and next step).
 
 ### Changed
 
+- **About 6% faster.** The engine is now linked as one whole program, with
+  more inlining and better code layout (Stockfish's build), the search's
+  tuned constants are compiled in outside the tuning build, and the move
+  picker steps through its stages without going back to the start each
+  time. It reads +6.05% nodes per second alone on `bench` and +4.66% with
+  fourteen engines searching game positions at once (BAS-P53). It plays the
+  same moves: `bench 13` is unchanged at 4,688,537.
 - **Nodes are counted as Stockfish counts them**, once for each move the
   search makes. Re-searches of a position and the null move no longer add
   to the count, so the reported nodes and nodes per second read about 9%
