@@ -173,6 +173,17 @@ struct SearchState {
     ScoredMove move_buffers[MAX_PLY][2][MoveList::CAPACITY];
 };
 
+// A read hint for one cache line the search will load soon.
+inline void prefetch_line(const void* address) {
+#if defined(_MSC_VER)
+    _mm_prefetch(static_cast<const char*>(address), _MM_HINT_T0);
+#elif defined(__GNUC__) || defined(__clang__)
+    __builtin_prefetch(address, 0, 3);
+#else
+    (void)address;
+#endif
+}
+
 class Searcher {
 public:
     Searcher(TranspositionTable& tt,
@@ -345,6 +356,17 @@ private:
         ss->cont_hist   = &hist_.continuation->row[ss->in_check][capture_stage][hist_piece(piece)][to];
         ss->cont_corr   = &hist_.cont_corr->row[hist_piece(piece)][to];
         state_.board->make_move(m);
+        {
+            // The child's four structure-correction entries, at its keys and
+            // for its side to move.
+            constexpr Key mask = CoreHistoryTables::CORR_SIZE - 1;
+            const Board& b = *state_.board;
+            const Color us = b.turn();
+            prefetch_line(&hist_.pawn_corr[us][b.pawn_key_value() & mask]);
+            prefetch_line(&hist_.minor_corr[us][b.minor_key_value() & mask]);
+            prefetch_line(&hist_.nonpawn_corr[us][WHITE][b.nonpawn_key_value(WHITE) & mask]);
+            prefetch_line(&hist_.nonpawn_corr[us][BLACK][b.nonpawn_key_value(BLACK) & mask]);
+        }
         if (counted)
             count_node();
     }
