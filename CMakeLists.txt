@@ -847,6 +847,16 @@ if(_lto_ok AND FULL_LTO AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CMAKE_C_COMPILE_OPTIONS_IPO -flto=full)
     set(CMAKE_C_LINK_OPTIONS_IPO -flto=full)
 endif()
+# With full LTO: a higher inline threshold at the compile and at the link,
+# and ext-tsp block placement at the link, Stockfish's build (+0.92% on bench
+# and +0.66% on the game cohort over full LTO alone, BAS-P44).
+if(_lto_ok AND FULL_LTO AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_options(${_tgt} PRIVATE "SHELL:-mllvm -inline-threshold=500")
+        target_link_options(${_tgt} PRIVATE "LINKER:--mllvm=-inline-threshold=500"
+                            "LINKER:--mllvm=-enable-ext-tsp-block-placement=1")
+    endforeach()
+endif()
 if(_lto_ok)
     foreach(_tgt IN LISTS _ALL_TARGETS)
         set_property(TARGET ${_tgt} PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
