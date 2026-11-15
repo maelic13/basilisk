@@ -11,3 +11,15 @@
 - **Read.** The pooled `bench` read (`nps_read.ps1`), gain form; step 2 when step 1
   extends.
 - **Verdict rule (standing method; packet §4.4, D-17, frozen).** Kept alone when the pooled gain contrast ACCEPTs (+0.9% at step 1, or +0.5% with the lower bound above 0 at step 2). Otherwise, as an item that only removes, hoists or reorders work, it is kept under the bar when its step-1 estimate is −0.1% or above, and it then stands or falls with the sub-bar bundle's read (+0.5% or more with the lower bound above 0, eight builds an arm, six cycles). Below −0.1% at step 1 it is reverted.
+
+#### RESULT
+
+Idle host, 2026-11-15. Exactness before the read as BAS-P45's (Release, Tune, Diag and
+the symbol PGO build at 4,688,537 and the cohort fingerprint; CTest 33/33 on Release
+and Diag; `hot_path_calls.py` 0 unknown). Archive `tools/results/b89-b2-bench`.
+
+| Read | Delta | 95% interval | Verdict |
+|---|---:|---|---|
+| step 1 | +0.94% | [+0.49%, +1.39%] | ACCEPT |
+
+- **Disposition: KEPT on its own bar.** Prediction +0.5% [0.0, +1.2]: inside.
