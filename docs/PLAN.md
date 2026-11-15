@@ -4639,8 +4639,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           prefetch, the imbalance cache (built already) and sixteen more.
         - Prediction, frozen (packet §8): the pass +3.5% [+1.5, +6.0] on
           `bench` and +6% [+3, +10] under load.
-        - D-17 is proposed in the packet's §4.4 and waits for the
-          maintainer.
+        - D-17 is the packet's §4.4, accepted by the maintainer
+          2026-11-15 with S1 (the evaluator's verdict hand-back) in scope.
     - [ ] **B.8.9** `[I2]` Speed pass: the implementation
       B.8.8's frozen handoff, one item at a time in its order (maintainer,
       2026-11-15). Each item: its shortcut build agrees at every node on
@@ -4657,8 +4657,8 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         memory items, with the pooled read as their no-regression guard;
         every item also reproduces the cohort fingerprint, 24,421,195;
         the four-thread instrument failed its null (BAS-P36), so D-9 is
-        read on B.8.4's pinned scaling check; the sub-bar items wait for
-        the maintainer's D-17.
+        read on B.8.4's pinned scaling check; sub-bar gains follow D-17,
+        the packet's §4.4 (maintainer, 2026-11-15).
 - [ ] **B.9** Robustness, verdicts and protocol before the release
   Added 2026-11-05 (maintainer: every correctness fix before the next
   release): the lifecycle and protocol work that was D.3.2, the
@@ -5152,7 +5152,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.8.9 | READY_FOR_IMPLEMENTATION | I2 | B.8.8's frozen handoff (`analysis/b88_speed_packet_2026-11-15.md`); D-17 waits for the maintainer |
+| B.8.9 | READY_FOR_IMPLEMENTATION | I2 | B.8.8's frozen handoff (`analysis/b88_speed_packet_2026-11-15.md`); D-17 accepted 2026-11-15 |
 | B.9.1 | RESEARCH | R2 | Was D.3.2, with the release-visible defects (2026-11-05) |
 | B.9.3 | RESEARCH | R2 | Added 2026-11-11; the evaluator's hard verdicts against Syzygy, the evaluation frozen |
 | B.9.4 | RESEARCH | R2 | Added 2026-11-11; known defects owned after B.11, repaired now or justified |

@@ -4,6 +4,7 @@
 - Owner / date: Fable, 2026-11-15, on the head `ea3b2e0` (`bench 13` 4,688,537)
 - Decision needed from the maintainer: the rule for gains under the bar (§4.4,
   D-17), and whether the one evaluator-seam item (S1, §6) is in scope.
+  **Decided 2026-11-15: both accepted as proposed.**
 
 **Recommendation.** Build the prefetch from a predicted key first and read it
 under load: the table's first load is 7% of a game's node, an eighth of the
@@ -254,7 +255,7 @@ which is a host setting. The multi-thread PGO training goes to D.2 with it.
 
 ### 4.4 Gains under the bar (D-17) — the maintainer's decision
 
-Proposed:
+Accepted by the maintainer, 2026-11-15, as proposed:
 
 - An item that adds a prefetch, a table, a vector path or a build flag clears
   its own bar alone, or is not kept.
@@ -450,7 +451,7 @@ and its read. Predictions are in §8.
 - **Why exact.** Both calls run the same function on the same position; a
   verdict implies a 0.
 - **Scope.** It adds one out-parameter to the evaluator's entry point and
-  changes no term. The maintainer's call (the evaluation is not a target).
+  changes no term. In scope (maintainer, 2026-11-15).
 - **Verify.** A node check that the kept verdict equals the query's.
 
 ### S2 — `root_ordering` tested once per stage
@@ -526,8 +527,8 @@ read's; loaded figures are §4.1's read. Intervals are 80%.
 
 `READY_FOR_IMPLEMENTATION`. The profile, the counts and three engines' records
 agree on A1; the others are each small, exact and separately readable. D-17
-waits for the maintainer and gates only S1, S2 and the sub-bar outcomes of
-B1, B2, B3 and B5.
+(§4.4, accepted 2026-11-15) governs S1, S2 and the sub-bar outcomes of B1,
+B2, B3 and B5.
 
 ## 10. Implementation handoff (B.8.9)
 
