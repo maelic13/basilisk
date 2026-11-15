@@ -17,3 +17,18 @@
 - **Verdict rule (packet §4.1, frozen).** Kept when the pooled gain contrast
   ACCEPTs, or when the loaded read is +1.0% or more with its lower bound above 0
   and the pooled no-regression contrast PASSes. Otherwise reverted.
+
+#### RESULT
+
+Idle host, 2026-11-15. Pools `b89-head` and `b89-a4` (`004b6f4`'s engine). Exactness
+before the reads as BAS-P38's. Archives `tools/results/b89-a4-bench`,
+`b89-a4-loaded`, `b89-a4-single`.
+
+| Read | Delta | 95% interval | Verdict |
+|---|---:|---|---|
+| pooled `bench`, six cycles | −0.15% | [−0.44%, +0.14%] | gain NO_CHANGE; no-regression PASS (step 1 EXTEND) |
+| loaded cohort, 14 engines | −0.16% | [−0.44%, +0.12%] | loaded rule NOT_MET |
+| cohort, one engine (reported) | −0.02% | [−0.38%, +0.34%] | — |
+
+- **Disposition: REVERTED.** The correction's loads already overlap the probe's,
+  or cost nothing on its path: no read moves.

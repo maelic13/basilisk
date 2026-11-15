@@ -679,7 +679,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P39](experiments/BAS-P39.md) | The continuation-correction cells prefetched before the make (B.8.9 A2). | COMPLETE: bench −0.93% FAIL, loaded −0.87%; reverted |
 | [BAS-P40](experiments/BAS-P40.md) | The head's own pool, and A1 and A2 read again against it (B.8.9). | COMPLETE: head −0.03% [−0.24, +0.18], base valid; not owed, verdicts unchanged (A1 −0.43% bench, +1.54% loaded; A2 −0.82%, −1.09%) |
 | [BAS-P41](experiments/BAS-P41.md) | The structure-correction entries prefetched after the make (B.8.9 A3). | COMPLETE: bench −0.31%, loaded −0.44% [−1.55, +0.68]; reverted |
-| [BAS-P42](experiments/BAS-P42.md) | The correction computed before the table probe (B.8.9 A4). | REGISTERED |
+| [BAS-P42](experiments/BAS-P42.md) | The correction computed before the table probe (B.8.9 A4). | COMPLETE: bench −0.15%, loaded −0.16%; reverted |
 
 ## 7. Correctness and protocol lessons
 
