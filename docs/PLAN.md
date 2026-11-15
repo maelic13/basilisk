@@ -4498,7 +4498,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         depth 16.41 against 16.40, 70.1 against 70.2 ms a move) with 8.5%
         fewer nodes reported. The count stays and the fingerprint record
         moves to **4,688,537**.
-    - [ ] **B.8.8** `[R3]` Speed pass: the research packet
+    - [x] **B.8.8** `[R3]` Speed pass: the research packet
       Fable's packet on B.8.5's reads (maintainer, 2026-11-15). It ranks
       every candidate below by its measured or estimated share of a node,
       in the profile of the timed game's cohort first, and for each one it
@@ -4612,6 +4612,35 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - From B.7.2's deferrals: the stage as a template parameter stays
         refused (RAR-M44(c)); next attacker by index and the quiet-SEE
         exit are B.7.7's.
+      - Closed 2026-11-15 (`analysis/b88_speed_packet_2026-11-15.md`; no
+        engine code changed, `bench 13` 4,688,537):
+        `READY_FOR_IMPLEMENTATION`.
+        - Evidence: B.8.5's samples read by line, and counts from a
+          scratch build on both cohorts (`tools/results/b88`). The table
+          probe's first load is 6.56% of the game cohort's samples, half
+          of it under quiescence, whose own children (31% of its probes)
+          are made with no prefetch.
+        - Kept, in the order of the reads: the table prefetch from a
+          predicted key at every make (A1; exact for 98.5% of moves, as
+          Stockfish, Rarog and Triumviratus do it); the correction cells
+          prefetched before and after the make (A2, A3); a build read
+          (full LTO, IR-level PGO, both); LMR's window division hoisted
+          (B1); the kernel's parameters as constants outside Tune (B2);
+          the picker's stages falling through (B3); the sort's insertion
+          pass by rank on AVX2 (B4); quiet scoring's rows per piece (B5);
+          two free items under D-17 (S1, S2).
+        - Method: a memory item is decided by a loaded cohort read
+          (fourteen engines at once, the arms concurrent; built and proved
+          on a null first), with the pooled read as its no-regression
+          guard. No second four-thread design. A cohort fingerprint,
+          24,421,195 nodes at depth 10, stands beside `bench 13`.
+        - Closed with reasons and retry triggers (packet §7): D-6, D-10,
+          D-11, D-12, the hinted make, lazy selection, the history
+          prefetch, the imbalance cache (built already) and sixteen more.
+        - Prediction, frozen (packet §8): the pass +3.5% [+1.5, +6.0] on
+          `bench` and +6% [+3, +10] under load.
+        - D-17 is proposed in the packet's §4.4 and waits for the
+          maintainer.
     - [ ] **B.8.9** `[I2]` Speed pass: the implementation
       B.8.8's frozen handoff, one item at a time in its order (maintainer,
       2026-11-15). Each item: its shortcut build agrees at every node on
@@ -4622,6 +4651,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       with one pooled read of the whole pass against B.8.5's head, the 1T
       and 4T scaling re-read on B.8.5's four-thread instrument (D-9), and
       the profile again on both cohorts.
+      - From B.8.8's packet (2026-11-15,
+        `analysis/b88_speed_packet_2026-11-15.md` §4, §10): the loaded
+        cohort read is built and proved on its null first and decides the
+        memory items, with the pooled read as their no-regression guard;
+        every item also reproduces the cohort fingerprint, 24,421,195;
+        the four-thread instrument failed its null (BAS-P36), so D-9 is
+        read on B.8.4's pinned scaling check; the sub-bar items wait for
+        the maintainer's D-17.
 - [ ] **B.9** Robustness, verdicts and protocol before the release
   Added 2026-11-05 (maintainer: every correctness fix before the next
   release): the lifecycle and protocol work that was D.3.2, the
@@ -5115,8 +5152,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.8.8 | RESEARCH | R3 | The speed pass's packet on B.8.5's reads (Fable) |
-| B.8.9 | RESEARCH | I2 | The speed pass's implementation; waits for B.8.8's handoff |
+| B.8.9 | READY_FOR_IMPLEMENTATION | I2 | B.8.8's frozen handoff (`analysis/b88_speed_packet_2026-11-15.md`); D-17 waits for the maintainer |
 | B.9.1 | RESEARCH | R2 | Was D.3.2, with the release-visible defects (2026-11-05) |
 | B.9.3 | RESEARCH | R2 | Added 2026-11-11; the evaluator's hard verdicts against Syzygy, the evaluation frozen |
 | B.9.4 | RESEARCH | R2 | Added 2026-11-11; known defects owned after B.11, repaired now or justified |

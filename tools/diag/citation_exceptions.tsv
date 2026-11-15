@@ -123,3 +123,9 @@ e27a201	external	Colosseum: the smt-slot-prototype branch (--slot-per-logical-cp
 611307e	external	Rarog: the live head built for B.7.2's board comparison at the maintainer's request
 8d7d1dd	external	Reckless: the head built for B.7.2's board comparison
 638b56d	external	Rarog: the release that counts each position once (D.6.8), read for B.8.7
+1e7e6bde	external	Stockfish: the local development head of 2026-11-14 read for B.8.8's packet
+4150d22b	external	Stockfish: the continuation-correction prefetch, read for B.8.8's packet
+ed2f9bdc	external	Stockfish: the duplicate table prefetch removed, read for B.8.8's packet
+c1bca289	external	Stockfish: the history pointers hoisted in quiet scoring, read for B.8.8's packet
+fae1d0a	external	Rarog: the live head read for B.8.8's packet at the maintainer's request
+8bc7f3c8d1dde0d2	content	The cohort fingerprint's digest at depth 10 (B.8.8's packet, section 1.2)
