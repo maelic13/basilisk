@@ -98,8 +98,11 @@ void operator delete[](void* p, std::align_val_t, const std::nothrow_t&) noexcep
 
 namespace {
 
-// Plies between the two searches; each extra ply is one more iteration.
-constexpr int SHALLOW_DEPTH = 5;
+// Plies between the two searches; each extra ply is one more iteration. At
+// Threads 4 the shallow search's size varies with the helpers' timing: from
+// depth 5 the deep one grew as little as 7.6 times in twelve runs, so the
+// shallow search is at depth 4.
+constexpr int SHALLOW_DEPTH = 4;
 constexpr int DEEP_DEPTH = 13;
 
 // Allocations one iteration may add, per searching thread. Measured at most
