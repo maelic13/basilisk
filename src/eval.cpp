@@ -1112,11 +1112,6 @@ int Evaluator::evaluate_undamped(const Board& b) {
     return evaluate_full(b, verdict, false);
 }
 
-int Evaluator::evaluate_undamped(const Board& b, bool& verdict) {
-    verdict = false;
-    return evaluate_full(b, verdict, false);
-}
-
 bool Evaluator::draw_verdict(const Board& b) {
     bool verdict = false;
     evaluate_full(b, verdict, true);

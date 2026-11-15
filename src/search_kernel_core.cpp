@@ -392,15 +392,13 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
     // Stand-pat evaluation. The TT holds the evaluation without the halfmove
     // clock, which its key lacks; the damping is applied at this node's clock.
     int tt_eval;
-    bool verdict = false;
-    const bool evaluated = !(tt_found && tte.static_eval != INF_SCORE);
-    if (!evaluated)
+    if (tt_found && tte.static_eval != INF_SCORE)
         tt_eval = tte.static_eval;
     else
-        tt_eval = evaluator_.evaluate_undamped(*state_.board, verdict);
+        tt_eval = evaluator_.evaluate_undamped(*state_.board);
     const int raw_eval = damp_rule50(tt_eval, state_.board->rule50_count());
 
-    int stand_pat = corrected_eval(raw_eval, correction_value(ss), evaluated ? &verdict : nullptr);
+    int stand_pat = corrected_eval(raw_eval, correction_value(ss));
     const int static_eval = stand_pat;
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     const int correction = stand_pat - raw_eval;
@@ -798,12 +796,10 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // Inherit eval from parent to avoid calling evaluate twice
         static_eval = ss->eval;
     } else {
-        bool verdict = false;
-        const bool evaluated = !(tt_found && tte.static_eval != INF_SCORE);
-        if (!evaluated)
+        if (tt_found && tte.static_eval != INF_SCORE)
             tt_static_eval = tte.static_eval;
         else {
-            tt_static_eval = evaluator_.evaluate_undamped(*state_.board, verdict);
+            tt_static_eval = evaluator_.evaluate_undamped(*state_.board);
             // A miss stores the evaluation alone, so a transposition reuses it.
             if (!tt_found)
                 tt_store(hash, TT_DEPTH_UNSEARCHED, VALUE_NONE, TT_NONE, MOVE_NONE, ply,
@@ -812,7 +808,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         raw_static_eval = damp_rule50(tt_static_eval, state_.board->rule50_count());
 
         // TT stores the raw static eval; correction is applied at probe time.
-        static_eval = corrected_eval(raw_static_eval, correction_raw, evaluated ? &verdict : nullptr);
+        static_eval = corrected_eval(raw_static_eval, correction_raw);
         ss->eval = static_eval;
         ss->raw_eval = raw_static_eval;
     }
