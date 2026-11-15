@@ -97,6 +97,7 @@ kept so the run can be reproduced from its ledger entry.
 
 | Tool | Purpose | Used by |
 |---|---|---|
+| `diag/hot_path_calls.py` | Allocator, copy and lock calls the binary can reach from the per-node search, each with its call path and inline chain; known guarded paths named with their reasons | PLAN *Standing contracts* |
 | `diag/run_suite.py`, `diag/suite_v1.epd`, `diag/suite_v2.epd` | The fixed differential suite, run at a fixed depth with per-position counters | PROCESS *Fixed-budget search probes* |
 | `diag/build_suite.py` | Builds the versioned differential suite | `diag/suite_v1.epd` |
 | `diag/baseline_v1.json` | The counter baseline of `suite_v1` at depth 12 | `run_suite.py` comparisons |
