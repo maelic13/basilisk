@@ -31,7 +31,6 @@
 #include "eval.h"
 #include "search_diagnostics.h"
 #include "search_pricing.h"
-#include "search_b5.h"
 #include "search_root.h"
 #include "search_types.h"
 #include "syzygy.h"
@@ -274,9 +273,6 @@ private:
     // root_search() for the reduction's window term and the equal-score rule.
     int root_delta_ = 1;
     int root_depth_ = 1;
-    // The reduction's window term at a null-window node depends on the root
-    // window alone, so root_search() computes it once.
-    int lmr_window_null_term_ = b5::lmr_window_term(false, 1, 1);
     // The last completed iteration's raw root score, as root_search() found it.
     int root_score_ = 0;
     // Cluster 2's null-move verification region: while a verification runs,
