@@ -680,7 +680,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P40](experiments/BAS-P40.md) | The head's own pool, and A1 and A2 read again against it (B.8.9). | COMPLETE: head −0.03% [−0.24, +0.18], base valid; not owed, verdicts unchanged (A1 −0.43% bench, +1.54% loaded; A2 −0.82%, −1.09%) |
 | [BAS-P41](experiments/BAS-P41.md) | The structure-correction entries prefetched after the make (B.8.9 A3). | COMPLETE: bench −0.31%, loaded −0.44% [−1.55, +0.68]; reverted |
 | [BAS-P42](experiments/BAS-P42.md) | The correction computed before the table probe (B.8.9 A4). | COMPLETE: bench −0.15%, loaded −0.16%; reverted |
-| [BAS-P43](experiments/BAS-P43.md) | The build: full LTO, IR-level PGO, both (B.8.9 C). | REGISTERED |
+| [BAS-P43](experiments/BAS-P43.md) | The build: full LTO, IR-level PGO, both (B.8.9 C). | COMPLETE: full LTO +3.23% [+2.94, +3.52] bench, +2.56% cohort; kept. IR PGO −0.70% |
 
 ## 7. Correctness and protocol lessons
 

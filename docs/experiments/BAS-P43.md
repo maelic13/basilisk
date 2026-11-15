@@ -32,3 +32,29 @@
   bound above 0 at step 2) and its one-engine cohort estimate is −0.5% or above. Of several kept arms the one with
   the largest `bench` estimate is the winner. A kept arm owes CI's and the release's
   flags, the universal binary's tiers and `check_universal.py`.
+
+#### RESULT
+
+Idle host, 2026-11-15. All twelve arm builds reproduce `bench 13` 4,688,537 and the
+cohort fingerprint 24,421,195 `8bc7f3c8d1dde0d2`. Archives
+`tools/results/b89-c-bench` (step 1 decided every contrast), `b89-c-single`.
+
+| Arm | Pooled `bench` | 95% interval | Verdict | Cohort, one engine | 95% interval |
+|---|---:|---|---|---:|---|
+| `b89-head` | 2.3932M | | | 2.3901M | |
+| full LTO | +3.23% | [+2.94%, +3.52%] | ACCEPT at step 1 | +2.56% | [+2.29%, +2.84%] |
+| IR PGO | −0.70% | [−1.03%, −0.37%] | NO_CHANGE | −0.68% | [−1.00%, −0.37%] |
+| both | +2.53% | [+2.26%, +2.80%] | ACCEPT at step 1 | +1.93% | [+1.62%, +2.24%] |
+
+- **Disposition: full LTO KEPT** (`4612bbf`, `FULL_LTO` on by default), the winner by
+  its `bench` estimate; both kept arms pass the cohort's −0.5% floor. IR-level PGO
+  loses alone and costs about 0.7% inside the pair, so it stays off.
+- Prediction, the best arm +0.8% [−0.5, +2.5]: beaten (+3.23%, above the interval).
+- **Owed with the kept arm:** CI's and the release's builds take the preset's
+  default, so they take full LTO without a flag. The universal binary
+  (`build_test.ps1 -Universal`) builds with it and its four tier builds and the
+  dispatcher each reproduce 4,688,537 on this host (the pext tier); the Intel SDE
+  check (`check_universal.py`) needs SDE, not installed here, and runs in the
+  release workflow. `hot_path_calls.py` needed the null move's undo path in its
+  KNOWN list (`1255e75`): full LTO inlines it.
+- The second read on the winner is BAS-P44.
