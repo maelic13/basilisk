@@ -55,9 +55,10 @@ TERMINAL = (r"__throw_", r"^(__imp_)?__cxa_(allocate_exception|throw|free_except
 # names; a pattern accepts the frames in either order because a frame is a
 # call in one build and inlined in the next.
 KNOWN = (
-    (r"make_move\b.*UndoInfo|UndoInfo.*\bmake_move\b",
-     "the undo stack's growth path: a search's board is a copy that reserves "
-     "the line's headroom first, so it never grows during a search"),
+    (r"make_(null_)?move\b.*UndoInfo|UndoInfo.*\bmake_(null_)?move\b",
+     "the undo stack's growth path, from a move or a null move (full LTO "
+     "inlines the null move's into negamax): a search's board is a copy that "
+     "reserves the line's headroom first, so it never grows during a search"),
     (r"\bordering_score\b.*mutex::lock\(|mutex::lock\(.*\bordering_score\b",
      "the shared root table's lock, read only when the picker has root ordering "
      "(at the root)"),
