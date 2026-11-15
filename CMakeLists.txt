@@ -838,8 +838,9 @@ endif()
 # ---------------------------------------------------------------------------
 include(CheckIPOSupported)
 check_ipo_supported(RESULT _lto_ok OUTPUT _lto_msg)
-# Clang's IPO is ThinLTO; FULL_LTO links the whole program as one module.
-option(FULL_LTO "Link Clang Release builds with full LTO instead of ThinLTO" OFF)
+# Clang's IPO is ThinLTO; FULL_LTO links the whole program as one module,
+# which read +3.23% on bench and +2.56% on the game cohort (BAS-P43).
+option(FULL_LTO "Link Clang Release builds with full LTO instead of ThinLTO" ON)
 if(_lto_ok AND FULL_LTO AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     set(CMAKE_CXX_COMPILE_OPTIONS_IPO -flto=full)
     set(CMAKE_CXX_LINK_OPTIONS_IPO -flto=full)
