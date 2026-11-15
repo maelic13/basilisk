@@ -23,3 +23,4 @@ agreeing at every node). Archive `tools/results/b89-s2-bench`.
 
 - **Disposition: KEPT UNDER THE BAR (D-17)**, its step-1 estimate at −0.1% or above;
   it stands or falls with the sub-bar bundle (BAS-P52).
+- **Final: REVERTED with the bundle** (BAS-P52: B1 and S2 together +0.05%).

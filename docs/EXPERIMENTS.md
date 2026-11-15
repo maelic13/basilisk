@@ -682,14 +682,14 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P42](experiments/BAS-P42.md) | The correction computed before the table probe (B.8.9 A4). | COMPLETE: bench −0.15%, loaded −0.16%; reverted |
 | [BAS-P43](experiments/BAS-P43.md) | The build: full LTO, IR-level PGO, both (B.8.9 C). | COMPLETE: full LTO +3.23% [+2.94, +3.52] bench, +2.56% cohort; kept. IR PGO −0.70% |
 | [BAS-P44](experiments/BAS-P44.md) | The build's second read: inline threshold 500 and ext-tsp placement (B.8.9 C). | COMPLETE: +0.92% [+0.63, +1.21] bench, +0.66% cohort; kept |
-| [BAS-P45](experiments/BAS-P45.md) | LMR's window division hoisted, LMP's halving (B.8.9 B1). | COMPLETE: +0.23% [−0.01, +0.46]; kept under the bar (D-17) |
+| [BAS-P45](experiments/BAS-P45.md) | LMR's window division hoisted, LMP's halving (B.8.9 B1). | COMPLETE: +0.23% [−0.01, +0.46]; kept under the bar, then reverted with the bundle (BAS-P52) |
 | [BAS-P46](experiments/BAS-P46.md) | Search parameters as constants outside Tune (B.8.9 B2). | COMPLETE: +0.94% [+0.49, +1.39], ACCEPT; kept |
 | [BAS-P47](experiments/BAS-P47.md) | The picker's stages fall through (B.8.9 B3). | COMPLETE: +0.81% [+0.60, +1.02], ACCEPT; kept |
 | [BAS-P48](experiments/BAS-P48.md) | The sort's insertion pass by rank (AVX2) (B.8.9 B4). | COMPLETE: −1.57% [−1.95, −1.19]; reverted |
 | [BAS-P49](experiments/BAS-P49.md) | Quiet scoring's rows hoisted per piece type (B.8.9 B5). | COMPLETE: −1.41% [−1.60, −1.22]; reverted |
 | [BAS-P50](experiments/BAS-P50.md) | The draw verdict from the node's own evaluation (B.8.9 S1). | COMPLETE: −0.28% [−0.62, +0.07]; reverted |
-| [BAS-P51](experiments/BAS-P51.md) | Root_ordering tested once per stage (B.8.9 S2). | COMPLETE: +0.09% [−0.16, +0.34]; kept under the bar (D-17) |
-| [BAS-P52](experiments/BAS-P52.md) | The sub-bar bundle under D-17: B1 and S2 together (B.8.9). | REGISTERED |
+| [BAS-P51](experiments/BAS-P51.md) | Root_ordering tested once per stage (B.8.9 S2). | COMPLETE: +0.09% [−0.16, +0.34]; kept under the bar, then reverted with the bundle (BAS-P52) |
+| [BAS-P52](experiments/BAS-P52.md) | The sub-bar bundle under D-17: B1 and S2 together (B.8.9). | COMPLETE: +0.05% [−0.11, +0.21]; both reverted |
 
 ## 7. Correctness and protocol lessons
 

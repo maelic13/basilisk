@@ -16,3 +16,17 @@
   [+0.1, +1.0] beside it. No new prediction is added.
 - **Verdict rule (D-17, frozen).** The bundle stays when its six-cycle estimate is
   +0.5% or more with the lower bound above 0. Otherwise B1 and S2 leave together.
+
+#### RESULT
+
+Idle host, 2026-11-15. Two eight-build pools, `bench 13` 4,688,537 each. Archive
+`tools/results/b89-bundle-bench` (step 1, then `-Extend -Force`).
+
+| Read | Delta | 95% interval | Verdict |
+|---|---:|---|---|
+| step 1 | | | NO_CHANGE |
+| six cycles | +0.05% | [−0.11%, +0.21%] | under D-17's +0.5% |
+
+- **Disposition: B1 AND S2 LEAVE TOGETHER** (reverted). Alone they read +0.23% and
+  +0.09% at step 1; together +0.05%. As D-17's reason foresaw, the sub-bar gains were
+  real only as far as a read could show them, and this one shows none.

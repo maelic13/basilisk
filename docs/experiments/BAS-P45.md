@@ -27,3 +27,4 @@ each; CTest 33/33 on Release and Diag; `hot_path_calls.py` 0 unknown.
 - **Disposition: KEPT UNDER THE BAR (D-17),** its step-1 estimate +0.23% being −0.1%
   or above; it stands or falls with the sub-bar bundle's read.
 - Prediction +0.5% [+0.1, +1.0]: inside the interval's low half.
+- **Final: REVERTED with the bundle** (BAS-P52: B1 and S2 together +0.05%).
