@@ -60,6 +60,10 @@ param(
     [string[]]$Contrasts = @(),
     [Parameter(Mandatory)][string]$Out,
     [switch]$Extend,
+    # With -Extend: run cycles 3 to 6 although step 1 decided, for a rule that
+    # reads six cycles (B.8.8's D-17). A contrast decided at step 1 keeps that
+    # verdict in the report; its six-cycle estimate is the rule's.
+    [switch]$Force,
     [switch]$NoRegression,
     [string]$Label = '',
     [ValidateRange(1, 64)][int]$Depth = 13,
@@ -117,7 +121,7 @@ if ($Extend) {
         Where-Object kind -EQ 'cycle').Count
     if ($done -ne $Step1Cycles) { throw "-Extend continues a $Step1Cycles-cycle step 1; $Out has $done cycles." }
     $step1 = Get-Content -LiteralPath (Join-Path $Out "verdict-$Step1Cycles.json") -Raw | ConvertFrom-Json
-    if ($step1.next -ne 'EXTEND') { throw "Step 1 says $($step1.next), not EXTEND; this read does not extend." }
+    if ($step1.next -ne 'EXTEND' -and -not ($Force -and $step1.next -eq 'DONE')) { throw "Step 1 says $($step1.next), not EXTEND; this read does not extend." }
     $firstCycle = $Step1Cycles + 1; $lastCycle = $Step2Cycles
 } else {
     if ($Base -or $Cand) {
