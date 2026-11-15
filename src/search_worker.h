@@ -422,10 +422,16 @@ private:
     void update_correction_history(SearchStack* ss, int bonus);
     // The evaluator's draw verdicts take no correction: a classification has
     // no error to correct, and the shared keys' training would overwrite it.
-    // A verdict is a 0, so only a 0 is asked about (a TT-stored evaluation
-    // carries no verdict); an ordinary evaluation of 0 keeps its correction.
-    int corrected_eval(int raw_eval, int correction) {
-        if (raw_eval == 0 && evaluator_.draw_verdict(*state_.board)) return 0;
+    // A verdict is a 0, so only a 0 is asked about; an ordinary evaluation of
+    // 0 keeps its correction. `verdict` is the evaluator's own answer when
+    // the node has just evaluated; a TT-stored evaluation carries none
+    // (null), and the evaluator is asked.
+    int corrected_eval(int raw_eval, int correction, const bool* verdict) {
+        if (raw_eval == 0) {
+            CORE_NODE_CHECK(!verdict || *verdict == evaluator_.draw_verdict(*state_.board));
+            if (verdict ? *verdict : evaluator_.draw_verdict(*state_.board))
+                return 0;
+        }
         return std::clamp(raw_eval + correction / 131072,
                           -(tablebaseWinInMaxPly - 1), tablebaseWinInMaxPly - 1);
     }

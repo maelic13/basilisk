@@ -64,6 +64,8 @@ public:
     // of the position key alone. This is the value the TT may store and reuse;
     // the damping is applied at the reading node's own clock.
     int evaluate_undamped(const Board& b);
+    // The same, with whether the value is one of the draw verdicts below.
+    int evaluate_undamped(const Board& b, bool& verdict);
     // Whether evaluate_undamped(b) is one of the evaluator's draw verdicts
     // (KNNK, the drawn KPK, the wrong-corner KBP-K, a pawnless side that
     // cannot mate): a 0 that classifies the position rather than estimating
