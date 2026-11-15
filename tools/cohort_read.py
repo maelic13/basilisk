@@ -21,9 +21,13 @@ Method (B.8.8's packet, section 4.1):
     positions (a game clears its table once). An engine that finishes its 200
     goes on searching later cohort positions, not counted, until every engine
     of the cycle has finished, so no counted search runs on a lighter host.
-  - A reading is one engine's nodes over its summed search time, the time from
-    sending `go` to reading `bestmove`. A search counts its limit, or its last
-    line's nodes when it ends early (a mate in one, or the depth cap).
+  - A reading is one engine's nodes over its summed search time, read as the
+    engine process's own CPU time from before its first counted `go` to after
+    its last counted `bestmove`: a single-thread engine on a core of its own
+    runs only while it searches, and the harness's reply latency stays out
+    (each reading also archives the summed `go`-to-`bestmove` wall time). A
+    search counts its limit, or its last line's nodes when it ends early (a
+    mate in one, or the depth cap).
   - The seven slots of an arm run its builds in rotation, so every build is
     read at least once a cycle. A build's cycle value is the mean of its
     readings in that cycle; its value is the median over six cycles. The
@@ -178,8 +182,10 @@ def pin_self(cpus: list[int]) -> None:
     mask = 0
     for cpu in cpus:
         mask |= 1 << cpu
-    handle = ctypes.windll.kernel32.GetCurrentProcess()
-    if not ctypes.windll.kernel32.SetProcessAffinityMask(handle, ctypes.c_size_t(mask)):
+    kernel32 = ctypes.windll.kernel32
+    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+    handle = kernel32.GetCurrentProcess()
+    if not kernel32.SetProcessAffinityMask(wintypes.HANDLE(handle), ctypes.c_size_t(mask)):
         raise OSError("SetProcessAffinityMask failed for the harness")
 
 
@@ -414,15 +420,17 @@ def run_session(exe: Path, cpu: int, fens: list[str], config: dict, barrier: thr
         if barrier is not None:
             barrier.wait()
         go = f"go nodes {config['nodes']}"
-        nodes, seconds, early = 0, 0.0, 0
+        nodes, wall, early = 0, 0.0, 0
         digest = hashlib.sha256()
+        cpu_before = process_cpu_seconds(engine.process)
         for fen in fens[:config["positions"]]:
             lines, elapsed = engine.search(fen, go)
             counted, ended = counted_nodes(lines, config["nodes"], config["depth_cap"])
             nodes += counted
-            seconds += elapsed
+            wall += elapsed
             early += ended
             digest.update(f"{counted} {lines[-1].split()[1]}\n".encode())
+        seconds = process_cpu_seconds(engine.process) - cpu_before
         filler = 0
         if done is not None:
             with lock:
@@ -442,7 +450,8 @@ def run_session(exe: Path, cpu: int, fens: list[str], config: dict, barrier: thr
         if done is not None:
             done.set()
         raise
-    return {"nodes": nodes, "seconds": seconds, "nps": nodes / seconds, "early_ends": early,
+    return {"nodes": nodes, "seconds": seconds, "wall_seconds": wall, "nps": nodes / seconds,
+            "wall_nps": nodes / wall, "early_ends": early,
             "tree": digest.hexdigest()[:16], "filler": filler, "cpu_seconds": cpu_seconds}
 
 
@@ -542,6 +551,7 @@ def command_run(args: argparse.Namespace) -> int:
         plan = cycle_plan(config, cycle)
         started = utc()
         busy0, total0 = system_times()
+        harness0 = time.process_time()
         results: list[dict] = []
         if args.engines == 1:
             engine_cpu = 0.0
@@ -577,6 +587,7 @@ def command_run(args: argparse.Namespace) -> int:
             results = slots
             engine_cpu = sum(r["cpu_seconds"] for r in results)
         busy1, total1 = system_times()
+        engine_cpu += time.process_time() - harness0
         foreign = max(0.0, (busy1 - busy0) - engine_cpu) / max(1e-9, (total1 - total0)) * os.cpu_count()
         procs = foreign_busy_processes(own)
         for r in results:
