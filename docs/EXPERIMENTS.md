@@ -674,6 +674,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P34](experiments/BAS-P34.md) | B.8.2's deletions and idioms in the whole engine, pooled-PGO NPS, no-regression form (B.8.2). | COMPLETE: +1.89% [+1.47, +2.31], no-regression PASS; kept |
 | [BAS-P35](experiments/BAS-P35.md) | B.8.4's large pages, on against off, pooled-PGO NPS (B.8.4). | COMPLETE: +0.91% [+0.62, +1.20], ACCEPT; the default stays on |
 | [BAS-P36](experiments/BAS-P36.md) | The four-thread pooled NPS read's null pair (B.8.5). | FAILED: cycles disturbed twice (the clock's drift, 2.1% and 1.05%), builds spread about 2.7%; B.8.9 reads one thread |
+| [BAS-P37](experiments/BAS-P37.md) | The loaded cohort read's null pair and its liveness (B.8.9). | REGISTERED |
 
 ## 7. Correctness and protocol lessons
 
