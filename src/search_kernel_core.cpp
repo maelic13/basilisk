@@ -173,18 +173,13 @@ static inline void set_negext(SearchStack* ss, int taken) {
 // never stands in for its value on the principal variation.
 template<NodeType NT>
 int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss,
-                         bool counted) {
+                         bool checked) {
     constexpr bool is_pv = NT != NodeType::NonPV;
     CHILD_RECEIVED_QS(is_pv);
 #ifdef BASILISK_PRICING
     const PriceNode node_kind = is_pv ? PriceNode::Pv : PriceNode::Qs;
 #endif
-    if (!counted) {
-        record_node();
-        // The clock is read every 2048 nodes, the stop flag at every node:
-        // the main thread waits for every helper before `bestmove`.
-        if ((state_.nodes & 2047) == 0 || shared_.stop.load(std::memory_order_relaxed))
-            check_stop();
+    if (!checked) {
         if (state_.stopped) return 0;
         // A draw outranks the cap, and a side in check at the cap has no
         // evaluation to stand on: the search cannot see its escape.
@@ -599,13 +594,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 #else
     constexpr bool bare = false;
 #endif
-    record_node();
-    // The clock is read every 2048 nodes, the stop flag at every node: the
-    // main thread waits for every helper before `bestmove`, so a helper
-    // that saw the stop only at its next clock read held the move back by
-    // up to 2048 nodes.
-    if ((state_.nodes & 2047) == 0 || shared_.stop.load(std::memory_order_relaxed))
-        check_stop();
+    // The move that reached this node counted it and looked for a stop.
     if (state_.stopped) return 0;
 
     // pv_len has no entry for the ply past the last; every return below this
@@ -878,7 +867,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // graph-history errors.
         bool cut = b3::tt_cutoff_rule50_allows(state_.board->rule50_count());
         if (cut && depth >= KLIT(tt_graph_depth) && !is_decisive(tt_score) && tt_move_playable(tt_move)) {
-            do_move(ss, tt_move);
+            do_move(ss, tt_move, false);
             TTEntry next{};
             const bool next_found = tt_probe(tt_key(*state_.board), next);
             undo_move(ss, tt_move);

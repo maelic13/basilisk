@@ -319,12 +319,11 @@ private:
     template<NodeType NT>
     int negamax(int depth, int alpha, int beta, int ply,
                 SearchStack* ss, bool cut_node);
-    // `counted` marks negamax's own node handed to quiescence (the depth-0
-    // drop, razoring): negamax already counted it and ran the stop, ply and
-    // draw checks, so each node is counted once.
+    // `checked` marks negamax's own node handed to quiescence (the depth-0
+    // drop, razoring): negamax already ran the stop, ply and draw checks.
     template<NodeType NT>
     int quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss,
-                   bool counted = false);
+                   bool checked = false);
 
     // The single make/unmake seam. Every search-side move execution goes
     // through this pair (negamax, quiescence, evasions, ProbCut, null move),
@@ -333,7 +332,12 @@ private:
     // A move also selects the continuation row its successors read: by
     // whether it was made in check, whether it is from the capture stage, its
     // piece and its destination. The null move selects the sentinel row.
-    void do_move(SearchStack* ss, Move m) {
+    //
+    // The node count is the donor's: one count per move made here, so a
+    // re-search, the exclusion search, the null move and the hand-off to
+    // quiescence add none. `counted` false is a move made only to read the
+    // table one ply down, which the donor makes without counting.
+    void do_move(SearchStack* ss, Move m, bool counted = true) {
         const Square to = Square(to_sq(m));
         const bool capture_stage = is_capture_stage(*state_.board, m);
         ss->move        = m;
@@ -341,6 +345,18 @@ private:
         ss->cont_hist   = &hist_.continuation->row[ss->in_check][capture_stage][hist_piece(piece)][to];
         ss->cont_corr   = &hist_.cont_corr->row[hist_piece(piece)][to];
         state_.board->make_move(m);
+        if (counted)
+            count_node();
+    }
+    // Counts the position a move reached, then looks for a reason to stop:
+    // the node limit, another thread's stop at every count, the clock every
+    // 2048. The main thread waits for every helper before `bestmove`, so a
+    // helper reads the stop at its next move. A reason to stop sets
+    // `stopped`, which every node reads on entry.
+    void count_node() {
+        record_node();
+        if ((state_.nodes & 2047) == 0 || shared_.stop.load(std::memory_order_relaxed))
+            check_stop();
     }
     void undo_move(SearchStack* ss, Move m) {
         state_.board->unmake_move(m);

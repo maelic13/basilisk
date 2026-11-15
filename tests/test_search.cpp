@@ -1516,10 +1516,10 @@ static void test_tt_static_eval_served_at_reading_clock() {
 }
 
 static void test_frontier_node_counted_once() {
-    // The root's only move, Kh2, leaves a child with no capture and no check,
-    // which a depth-1 search hands to quiescence for its stand-pat. That is
-    // two nodes, the root and the child; the child used to be counted again
-    // as it entered quiescence, so the search reported three.
+    // The count is the donor's: one per move made. The root's only move, Kh2,
+    // leaves a child with no capture and no check, which a depth-1 search
+    // hands to quiescence for its stand-pat. That is one count: neither the
+    // root nor the child's hand-off to quiescence adds one.
     TranspositionTable tt(4);
     std::atomic_bool stop{false};
     Board b;
@@ -1529,8 +1529,23 @@ static void test_frontier_node_counted_once() {
     auto searcher = std::make_unique<Searcher>(tt, stop);
     const SearchResult result = searcher->search(b, limits);
 
-    begin_section("node count: a depth-1 search of one quiet move is two nodes");
-    EXPECT_EQ(result.nodes, int64_t{2});
+    begin_section("node count: a depth-1 search of one quiet move counts it once");
+    EXPECT_EQ(result.nodes, int64_t{1});
+    end_section();
+
+    // From the start position no reply is a capture, so a depth-1 search
+    // makes its twenty root moves and nothing else; a re-search of a root
+    // move, which makes no move, adds nothing.
+    TranspositionTable start_tt(4);
+    Board start;
+    SearchLimits one;
+    one.depth = 1;
+    auto start_searcher = std::make_unique<Searcher>(start_tt, stop);
+    const SearchResult counted = start_searcher->search(start, one);
+
+    begin_section("node count: a depth-1 search from the start counts its twenty moves");
+    EXPECT_EQ(counted.depth, 1);
+    EXPECT_EQ(counted.nodes, int64_t{20});
     end_section();
 }
 
