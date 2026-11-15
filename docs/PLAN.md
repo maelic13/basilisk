@@ -4360,13 +4360,15 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           33/33 on Release, Diag and Tune, ASan/UBSan 31/31; Linux
           `test_tt` and the allocation guard pass.
         - From here every speed read runs with large pages on, the default.
-    - [ ] **B.8.5** `[I1]` Speed pass
-      Behaviour-neutral throughput work on the new modules, with a pooled-PGO
-      floor of +0.5% per change and B.8.3's guard as the other floor, on
-      B.8.4's large pages. The archived board-speed leaves (7.2–7.8) moved
-      to the board review (B.7) on 2026-11-03; this leaf profiles the board
-      B.7 leaves. It was B.7.2 until 2026-11-05.
-      Scope (maintainer, 2026-11-14):
+    - [ ] **B.8.5** `[V]` Speed pass: the baseline reads
+      The speed pass is three leaves (maintainer, 2026-11-15: the reads
+      already named here first, then a Fable packet, then the
+      implementation; the goal is as much speed as can be had, since speed
+      is strength at timed play, about 2 Elo per 1% NPS at `3+0.03`,
+      BAS-P01, and about 145 Elo a doubling in Rarog). This leaf reads; it
+      changes no engine code. B.8.8 is the packet, B.8.9 the
+      implementation.
+      Scope (maintainer, 2026-11-14), for all three:
       - The search is the main target, with everything around it (the
         driver, the TT, ordering, the build and link).
       - The board is not a target: B.7 made it as fast as could be
@@ -4374,6 +4376,122 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - The evaluation is not a target: the HCE is Phase C's.
       - A board or evaluation item enters only where the search's profile
         shows its cost moved.
+      The reads, each on the head at its fingerprint with large pages on
+      (B.8.4's default), on an idle host:
+      - The profile by region and by inline frame (`tools/profile.ps1` on a
+        `-Flavor Profile` build; PROCESS *Profiling*), on two cohorts:
+        `bench 13`, and a frozen EPD of positions sampled from BAS-S64's
+        games searched to a fixed node count, so the profile is the timed
+        game's and not only the bench's. The packet's ranking starts here.
+      - The frames of `negamax` and quiescence in bytes and any `__chkstk`
+        in the hot functions, from the disassembly of the PGO build (TB-11,
+        NODE-5); B.9.1 sizes the thread stacks from it.
+      - The game's NPS against the bench's (B.3.5's P9, the ON arm reading
+        0.96 times the OFF arm's in games): from BAS-S64's record, which
+        has it per move (1.85M at 15 games a time against `bench`'s 2.36M
+        alone); then the profile's two cohorts say whether the gap is the
+        workload or the shared host.
+      - The count NODE-5 asks for: the quiescence nodes whose table move
+        cuts, beside the captures generated before it (a Diag counter if
+        none exists, behaviour-neutral, kept as an instrument).
+      - A four-thread pooled NPS read, built and proved on a self pair
+        before anything is read with it: `nps_read.ps1` reads one thread
+        pinned to one CPU, and B.8.4's pinned `bench 13` at four threads
+        varied by about ±4% run to run (trees differ, runs last a second).
+        It needs a longer deterministic workload per run (a fixed node
+        budget per position) and placement one thread per physical core
+        (BAS-X41). The PGO-training item (a Threads-2 run in the training)
+        and the closing D-9 read need it.
+      - Not repeated: the replay counts of B.7's frontier review (SEE
+        verdicts asked twice, captures generated twice, `check_squares` in
+        the evaluation) stand as sized there, and B.7.2's and A.17's
+        profiles are superseded by this one. A count is re-read only where
+        this profile shows its share moved.
+      Closes with the reads recorded in one analysis file and a BAS-P
+      entry for the four-thread instrument's null.
+    - [x] **B.8.6** `[I1]` Delete the old search arms (ANY TIME) — before B.5
+      Done 2026-11-08 at the maintainer's request, out of turn, so that
+      Cluster 4 builds on one search path; every gate the arms served is
+      read. Deleted: the `B3_PROOF`, `B4_QSEARCH` and `COLOUR_HISTORY`
+      options and their defines; the kernel's OFF-only paths (null move,
+      ProbCut, IIR and singular extension in their old forms; quiescence's
+      old ordering, pruning, depth cap and in-check search); the colourless
+      history index; CI's two OFF-arm builds; the lines only those paths
+      read (`NullBase`, `NullEvalDiv`, `ProbCutMargin`, `SingularMinDepth`,
+      `SingularBetaMult`, `SingularDoubleMargin`, `DoubleExtMax`,
+      `CoreIirMinDepth`) and the `double_exts` stack field. The default SPSA
+      surface regenerates from 19 coordinates to 12 and the core surface
+      from 49 to 48; the B.3.3 and B.4.6 surfaces are unchanged.
+      - Kept, for B.8.2: the clusters' refit tables
+        (`BASILISK_B3_CORE_DEFAULTS`, `_B4_CORE_DEFAULTS`), which still
+        apply over their X lines, because folding them in moves the core
+        surface's start values; three more zero counters (`sing_cap_bound`,
+        `qs_cap_hits`, `qs_late_pruned`) with the `QsLatePrune` trace event
+        and the `QsLate` price rule. The `B4QsDelta` switch stays: it
+        restores the old delta rule.
+      - `test_search`'s lone-move section bound the deleted singular
+        margin; it now binds the graded extension's boundary (one ply at
+        margins of one, two below). Its count falls by one expectation per
+        deleted line in every build and one more in Tune (Release 735 to
+        728, Tune 804 to 789, each with the section's added check); the
+        other suites' counts are unchanged.
+      - Exact fingerprint: `bench 13` 4,144,790 on fresh Release, Tune and
+        Diag builds, each passing CTest 27/27; the Ablate build's
+        `test_uci_protocol` passes and the Texel build's `--verify`
+        reconstructs all seven positions; `generate_spsa_surface.py
+        --check` and the `tools/diag` tests (177) pass. Not run: the
+        sanitizers, and the macOS and Linux builds, which CI runs.
+      - The gate scripts that built an OFF arm (`tools/run_b32_games.ps1`,
+        `run_b36_gate.ps1`, `run_b45_games.ps1`) reproduce only at the
+        commits their entries record.
+    - [x] **B.8.7** `[I1]` Count nodes as Stockfish does (ANY TIME) — before B.8.4
+      Added and implemented 2026-11-15 at the maintainer's request, out of
+      turn, after reading Rarog's D.6.8 (`638b56d` there: each position
+      counted once, by a move or a null move).
+      - The departure: Basilisk counted every `negamax` entry and every
+        quiescence entry negamax had not handed over, so the null child,
+        re-searches, the exclusion search, the null verification, ProbCut's
+        pair and the root's re-entries counted again. Stockfish 19 counts
+        once per move made (`Search::Worker::do_move`, `search.cpp:658` at
+        `sf_19`), the null move excluded. The old count ran 8.5% above the
+        donor's on `suite_v2` at depth 12, and 10 to 13% at 1 to 8 threads,
+        nearly uniform, so earlier SMP readings were not inflated by more
+        than about 2% at 8 threads. NPS figures against the donors were
+        about 10% high in the donor's unit; BAS-P32's composite uses
+        Basilisk's call mix per old-unit node for every engine, so its
+        ranking stands.
+      - The repair (`838a3c6`): `Searcher::do_move` counts and looks for a
+        stop; the graph-history check's move is not counted; each node
+        reads `stopped` on entry. The pool's total is each thread's count
+        summed at the join, as the donor's `nodes_searched()`. `bench 13`
+        4,688,537 (the tree moves, since the tie rule, the root averages and
+        the effort share read the count).
+      - Gate (BAS-S64): a repair kept unless it harms, `[-5,5]` at
+        `3+0.03`, cap 4,000 pairs, the maintainer's run:
+        `python tools/run_b87_gate.py`. Until it reads, the accepted
+        fingerprint stays 4,247,965.
+      - SMP findings that do not break the count go to D.2; none did.
+      - Closed 2026-11-15 (BAS-S64): the cap, 8,000 games, −0.8 ± 4.5 Elo,
+        LLR −0.92, zero faults; the game record reads equal work (non-mate
+        depth 16.41 against 16.40, 70.1 against 70.2 ms a move) with 8.5%
+        fewer nodes reported. The count stays and the fingerprint record
+        moves to **4,688,537**.
+    - [ ] **B.8.8** `[R3]` Speed pass: the research packet
+      Fable's packet on B.8.5's reads (maintainer, 2026-11-15). It ranks
+      every candidate below by its measured or estimated share of a node,
+      in the profile of the timed game's cohort first, and for each one it
+      kept freezes: the mechanism and why it is behaviour-neutral (or the
+      gate it needs if not), its exact semantics and invariants, the
+      shortcut build that runs the original beside it at every node (TM-10)
+      where it replaces a computation, its prediction with an interval, the
+      order of the reads (each member alone before any bundle, D-16), and
+      the rule for a real gain under the +0.5% bar (D-17, the maintainer's
+      decision, asked in the packet). Candidates the profile does not
+      support are closed with their reason. It ends `READY_FOR_IMPLEMENTATION`
+      for B.8.9 with a frozen handoff, or with `NO_CHANGE`.
+      Floors for every item: a pooled-PGO gain of +0.5% (PROCESS *NPS*),
+      B.8.3's allocation guard and hot-path scan, the exact fingerprint.
+      Inputs, from the earlier leaves:
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
       - Uses A.9.4's NPS read and A.9.5's profiler.
@@ -4461,73 +4579,16 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - From B.7.2's deferrals: the stage as a template parameter stays
         refused (RAR-M44(c)); next attacker by index and the quiet-SEE
         exit are B.7.7's.
-    - [x] **B.8.6** `[I1]` Delete the old search arms (ANY TIME) — before B.5
-      Done 2026-11-08 at the maintainer's request, out of turn, so that
-      Cluster 4 builds on one search path; every gate the arms served is
-      read. Deleted: the `B3_PROOF`, `B4_QSEARCH` and `COLOUR_HISTORY`
-      options and their defines; the kernel's OFF-only paths (null move,
-      ProbCut, IIR and singular extension in their old forms; quiescence's
-      old ordering, pruning, depth cap and in-check search); the colourless
-      history index; CI's two OFF-arm builds; the lines only those paths
-      read (`NullBase`, `NullEvalDiv`, `ProbCutMargin`, `SingularMinDepth`,
-      `SingularBetaMult`, `SingularDoubleMargin`, `DoubleExtMax`,
-      `CoreIirMinDepth`) and the `double_exts` stack field. The default SPSA
-      surface regenerates from 19 coordinates to 12 and the core surface
-      from 49 to 48; the B.3.3 and B.4.6 surfaces are unchanged.
-      - Kept, for B.8.2: the clusters' refit tables
-        (`BASILISK_B3_CORE_DEFAULTS`, `_B4_CORE_DEFAULTS`), which still
-        apply over their X lines, because folding them in moves the core
-        surface's start values; three more zero counters (`sing_cap_bound`,
-        `qs_cap_hits`, `qs_late_pruned`) with the `QsLatePrune` trace event
-        and the `QsLate` price rule. The `B4QsDelta` switch stays: it
-        restores the old delta rule.
-      - `test_search`'s lone-move section bound the deleted singular
-        margin; it now binds the graded extension's boundary (one ply at
-        margins of one, two below). Its count falls by one expectation per
-        deleted line in every build and one more in Tune (Release 735 to
-        728, Tune 804 to 789, each with the section's added check); the
-        other suites' counts are unchanged.
-      - Exact fingerprint: `bench 13` 4,144,790 on fresh Release, Tune and
-        Diag builds, each passing CTest 27/27; the Ablate build's
-        `test_uci_protocol` passes and the Texel build's `--verify`
-        reconstructs all seven positions; `generate_spsa_surface.py
-        --check` and the `tools/diag` tests (177) pass. Not run: the
-        sanitizers, and the macOS and Linux builds, which CI runs.
-      - The gate scripts that built an OFF arm (`tools/run_b32_games.ps1`,
-        `run_b36_gate.ps1`, `run_b45_games.ps1`) reproduce only at the
-        commits their entries record.
-    - [x] **B.8.7** `[I1]` Count nodes as Stockfish does (ANY TIME) — before B.8.4
-      Added and implemented 2026-11-15 at the maintainer's request, out of
-      turn, after reading Rarog's D.6.8 (`638b56d` there: each position
-      counted once, by a move or a null move).
-      - The departure: Basilisk counted every `negamax` entry and every
-        quiescence entry negamax had not handed over, so the null child,
-        re-searches, the exclusion search, the null verification, ProbCut's
-        pair and the root's re-entries counted again. Stockfish 19 counts
-        once per move made (`Search::Worker::do_move`, `search.cpp:658` at
-        `sf_19`), the null move excluded. The old count ran 8.5% above the
-        donor's on `suite_v2` at depth 12, and 10 to 13% at 1 to 8 threads,
-        nearly uniform, so earlier SMP readings were not inflated by more
-        than about 2% at 8 threads. NPS figures against the donors were
-        about 10% high in the donor's unit; BAS-P32's composite uses
-        Basilisk's call mix per old-unit node for every engine, so its
-        ranking stands.
-      - The repair (`838a3c6`): `Searcher::do_move` counts and looks for a
-        stop; the graph-history check's move is not counted; each node
-        reads `stopped` on entry. The pool's total is each thread's count
-        summed at the join, as the donor's `nodes_searched()`. `bench 13`
-        4,688,537 (the tree moves, since the tie rule, the root averages and
-        the effort share read the count).
-      - Gate (BAS-S64): a repair kept unless it harms, `[-5,5]` at
-        `3+0.03`, cap 4,000 pairs, the maintainer's run:
-        `python tools/run_b87_gate.py`. Until it reads, the accepted
-        fingerprint stays 4,247,965.
-      - SMP findings that do not break the count go to D.2; none did.
-      - Closed 2026-11-15 (BAS-S64): the cap, 8,000 games, −0.8 ± 4.5 Elo,
-        LLR −0.92, zero faults; the game record reads equal work (non-mate
-        depth 16.41 against 16.40, 70.1 against 70.2 ms a move) with 8.5%
-        fewer nodes reported. The count stays and the fingerprint record
-        moves to **4,688,537**.
+    - [ ] **B.8.9** `[I2]` Speed pass: the implementation
+      B.8.8's frozen handoff, one item at a time in its order (maintainer,
+      2026-11-15). Each item: its shortcut build agrees at every node on
+      `bench 13` where it has one; the exact fingerprint; B.8.3's guard and
+      `tools/diag/hot_path_calls.py`; then its pooled-PGO read against the
+      head before it, kept at +0.5% or more (or by the packet's D-17 rule).
+      A false premise returns the item to B.8.8 with its evidence. Closes
+      with one pooled read of the whole pass against B.8.5's head, the 1T
+      and 4T scaling re-read on B.8.5's four-thread instrument (D-9), and
+      the profile again on both cohorts.
 - [ ] **B.9** Robustness, verdicts and protocol before the release
   Added 2026-11-05 (maintainer: every correctness fix before the next
   release): the lifecycle and protocol work that was D.3.2, the
@@ -5021,7 +5082,9 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.8.5 | RESEARCH | I1 | Was B.7.2; after B.8.3 and B.8.4, on the new modules |
+| B.8.5 | RESEARCH | V | The speed pass's reads, split 2026-11-15; no engine change |
+| B.8.8 | RESEARCH | R3 | The speed pass's packet on B.8.5's reads (Fable) |
+| B.8.9 | RESEARCH | I2 | The speed pass's implementation; waits for B.8.8's handoff |
 | B.9.1 | RESEARCH | R2 | Was D.3.2, with the release-visible defects (2026-11-05) |
 | B.9.3 | RESEARCH | R2 | Added 2026-11-11; the evaluator's hard verdicts against Syzygy, the evaluation frozen |
 | B.9.4 | RESEARCH | R2 | Added 2026-11-11; known defects owned after B.11, repaired now or justified |
