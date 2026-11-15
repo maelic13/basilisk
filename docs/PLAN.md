@@ -389,6 +389,7 @@ derivations are in the linked records.
 | Behaviour-neutral change = exact fingerprint plus targeted checks plus pooled NPS | `AGENTS.md` |
 | Diagnostic counters: one table, each counter with its unit and denominator; names and units are the cross-engine contract, extended at the end and never renamed | `src/search_diagnostics.h`; `tools/diag/run_suite.py` |
 | Cross-engine board timings are compared only on the `cross-engine-board-v1` profile and its five-position corpus | `tests/board_performance.cpp` |
+| Per-node search code does not allocate or lock: allocations grow per iteration, never per node, at Threads 1 and 4; every allocator, copy or lock call the shipped code can reach from `negamax`, quiescence and the evaluation is a known guarded path | `tests/test_allocation_guard.cpp`; `tools/diag/hot_path_calls.py` on a `PROFILE_SYMBOLS` PGO build; `agents/implementation.md` *Per-node code* |
 
 ### Known defects
 
@@ -4246,7 +4247,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           surfaces, roadmap, citations and every `tools/diag` test.
         - Speed (BAS-P34): +1.89% [+1.47%, +2.31%] pooled-PGO NPS over
           master's engine, the no-regression form passed at step 1.
-    - [ ] **B.8.3** `[I1]` Allocation guard
+    - [x] **B.8.3** `[I1]` Allocation guard
       Before the speed pass (B.7.1 until 2026-11-05): a test with a
       counting global `operator new` searches fixed positions at two depths at
       Threads 1 and 4.
@@ -4259,6 +4260,32 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       IDs are its items):
       - Beside the counting allocator, a disassembly search for `memcpy` and
         allocator calls in `negamax`, `quiescence` and `evaluate` (D-23).
+      - Closed 2026-11-15, no engine change (`bench 13` 4,247,965):
+        - `tests/test_allocation_guard.cpp`: every replaceable `operator new`
+          counts; four bench positions (the start, two middlegames, an
+          ending) at depths 5 and 13 from a cleared state, after a warm-up
+          search. Measured at most 15 allocations per iteration per thread at
+          Threads 1 and 17 at Threads 4 (six runs; the helpers' timing varies
+          the second); the bound is 32, which still catches an allocation at
+          one node in about 650 at the least sensitive point. The deep search
+          has 22 to 69 times the shallow one's nodes (at least 10 required).
+          Passes on Release, Diag, Tune and ASan/UBSan.
+        - Planted faults, each reverted and the kernel checked unchanged: an
+          allocation at every `negamax` entry fails all eight checks
+          (75,763 to 322,376 extra); one at an interior node in 512 fails five
+          of eight.
+        - D-23: `tools/diag/hot_path_calls.py` walks the binary's call graph
+          from `negamax` (PV and non-PV), quiescence and `evaluate_full`, each
+          call site given its inline chain from the line tables, and reports
+          every reachable allocator, `memcpy`/`memmove` or lock call once per
+          caller. On the shipped code (a `PROFILE_SYMBOLS` PGO build, bench
+          4,247,965) all 14 hits are four known guarded paths: the undo
+          stack's growth (a search's board is a copy that reserves its
+          headroom first), the root table's lock (root ordering only), the
+          KPK bitbase's `call_once` and Fathom's lazy first load of a table.
+          No per-node allocation or lock. The planted allocation is reported
+          (four unknown hits in `negamax`); without line tables one inlined
+          root-table site cannot be attributed and the tool refuses it.
     - [ ] **B.8.4** `[I1]` Large pages on every platform
       Large pages for every allocation big enough to pay, on every platform
       Basilisk ships, behind a `LargePages` UCI option so that one binary
@@ -4930,7 +4957,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.8.3 | READY_FOR_IMPLEMENTATION | I1 | Was B.7.1; before the speed pass, no engine change |
 | B.8.4 | RESEARCH | I1 | Split from the speed pass 2026-11-05; before it |
 | B.8.5 | RESEARCH | I1 | Was B.7.2; after B.8.3 and B.8.4, on the new modules |
 | B.9.1 | RESEARCH | R2 | Was D.3.2, with the release-visible defects (2026-11-05) |

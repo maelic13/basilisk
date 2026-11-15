@@ -14,8 +14,11 @@ evaluation, SEE, TT probes) does not allocate (no `new`, no growing
 (`std::shared_ptr`), or pass or return a large value by copy. Ownership is
 solved with references, make/unmake and per-thread arrays. An exception states
 its reason in one sentence and carries an NPS measurement by PROCESS's method.
-A shared atomic states what it signals and which search it belongs to. PLAN
-B.8.3's allocation guard checks the first clause.
+A shared atomic states what it signals and which search it belongs to.
+`tests/test_allocation_guard.cpp` checks the first clause at run time and
+`tools/diag/hot_path_calls.py` the allocation and lock clauses in the shipped
+code (a `PROFILE_SYMBOLS` PGO build); a new guarded path joins its KNOWN list
+with its reason.
 
 ## Qualifying a change
 
