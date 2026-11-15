@@ -90,6 +90,11 @@ void CoreMovePicker::score_quiets(int begin, int end) {
     const auto& main = history_.main.entry[us];
     const auto* low_ply = ply_ < LowPlyHistory::PLIES ? &history_.low_ply.entry[ply_] : nullptr;
 
+    // A piece type's pawn-history row and its five continuation rows, found at
+    // the type's first quiet, as checks_for keeps its squares.
+    const int16_t* rows[PIECE_TYPE_NB][6];
+    bool rows_ready[PIECE_TYPE_NB] = {};
+
     for (int i = begin; i < end; ++i) {
         const Move m = moves_[i].move;
         const Square from = Square(from_sq(m));
@@ -97,12 +102,21 @@ void CoreMovePicker::score_quiets(int begin, int end) {
         const PieceType pt = type_of(board_.piece_on(from));
 
         const int hp = hist_piece(us, pt);
+        const int16_t* const* row = rows[pt];
+        if (!rows_ready[pt]) {
+            rows[pt][0] = pawn_.entry[hp];
+            rows[pt][1] = cont_[0]->entry[hp];
+            rows[pt][2] = cont_[1]->entry[hp];
+            rows[pt][3] = cont_[2]->entry[hp];
+            rows[pt][4] = cont_[3]->entry[hp];
+            rows[pt][5] = cont_[5]->entry[hp];
+            rows_ready[pt] = true;
+        }
 
         int v = KLIT_SCALED(2 * main[from][to], pick_main_scale)
-              + KLIT_SCALED(2 * pawn_.entry[hp][to], pick_pawn_scale)
-              + cont_[0]->entry[hp][to] + cont_[1]->entry[hp][to]
-              + KLIT_SCALED(cont_[2]->entry[hp][to] + cont_[3]->entry[hp][to]
-                                + cont_[5]->entry[hp][to], pick_cont_far_scale);
+              + KLIT_SCALED(2 * row[0][to], pick_pawn_scale)
+              + row[1][to] + row[2][to]
+              + KLIT_SCALED(row[3][to] + row[4][to] + row[5][to], pick_cont_far_scale);
 #ifdef BASILISK_DIAGNOSTIC
         history_.shadow->read(ShadowTable::Pawn, history_.pawn_cell(&pawn_, hp, to), us);
         for (int k : {0, 1, 2, 3, 5})
