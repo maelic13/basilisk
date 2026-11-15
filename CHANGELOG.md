@@ -26,6 +26,12 @@ and next step).
 
 ### Changed
 
+- **Nodes are counted as Stockfish counts them**, once for each move the
+  search makes. Re-searches of a position and the null move no longer add
+  to the count, so the reported nodes and nodes per second read about 9%
+  lower for the same search, and `go nodes N` searches that much more. The
+  engine plays as strongly (BAS-S64: −0.8 ± 4.5 Elo over 8,000 games).
+  `bench 13` is now 4,688,537.
 - **About 2% faster again.** The engine carried alternative versions of
   many search rules, kept to measure them against each other, and checked
   at every position which one to use; it also counted statistics nobody

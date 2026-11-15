@@ -4496,7 +4496,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - The gate scripts that built an OFF arm (`tools/run_b32_games.ps1`,
         `run_b36_gate.ps1`, `run_b45_games.ps1`) reproduce only at the
         commits their entries record.
-    - [ ] **B.8.7** `[I1]` Count nodes as Stockfish does (ANY TIME) — before B.8.4
+    - [x] **B.8.7** `[I1]` Count nodes as Stockfish does (ANY TIME) — before B.8.4
       Added and implemented 2026-11-15 at the maintainer's request, out of
       turn, after reading Rarog's D.6.8 (`638b56d` there: each position
       counted once, by a move or a null move).
@@ -4522,8 +4522,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         `3+0.03`, cap 4,000 pairs, the maintainer's run:
         `python tools/run_b87_gate.py`. Until it reads, the accepted
         fingerprint stays 4,247,965.
-      - Kept open for the gate. SMP findings that do not break the count go
-        to D.2.
+      - SMP findings that do not break the count go to D.2; none did.
+      - Closed 2026-11-15 (BAS-S64): the cap, 8,000 games, −0.8 ± 4.5 Elo,
+        LLR −0.92, zero faults; the game record reads equal work (non-mate
+        depth 16.41 against 16.40, 70.1 against 70.2 ms a move) with 8.5%
+        fewer nodes reported. The count stays and the fingerprint record
+        moves to **4,688,537**.
 - [ ] **B.9** Robustness, verdicts and protocol before the release
   Added 2026-11-05 (maintainer: every correctness fix before the next
   release): the lifecycle and protocol work that was D.3.2, the
@@ -5017,7 +5021,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.8.7 | GAME_GATE | I1 | Implemented 2026-11-15 (`838a3c6`); BAS-S64's `[-5,5]` gate is the maintainer's run |
 | B.8.5 | RESEARCH | I1 | Was B.7.2; after B.8.3 and B.8.4, on the new modules |
 | B.9.1 | RESEARCH | R2 | Was D.3.2, with the release-visible defects (2026-11-05) |
 | B.9.3 | RESEARCH | R2 | Added 2026-11-11; the evaluator's hard verdicts against Syzygy, the evaluation frozen |

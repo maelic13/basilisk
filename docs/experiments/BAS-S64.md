@@ -93,4 +93,21 @@ the full one, as BAS-S63's.
 
 #### RESULT
 
-Pending: the games are the maintainer's.
+Run 2026-11-15 (started, paused for BAS-P35's read and resumed from its
+checkpoint; the official sample is one run), `tools/results/b87-gate/`,
+1h19m at 15 games at a time.
+
+- **The cap, inconclusive: 8,000 games, −0.8 ± 4.5 Elo (nElo −1.4 ± 7.6), LLR
+  −0.92 in [−2.94, 2.94].** W/D/L 2,009 / 3,963 / 2,028; pentanomial
+  [113, 978, 1825, 983, 101]; zero faults and zero time losses.
+  `tools/diag/colosseum_recount.py` agrees with the runner's pentanomial.
+- **Equal work, read from the game record:** the candidate's non-mate depth
+  16.41 against 16.40, 70.1 ms a move against 70.2; 129,933 nodes a move
+  against 141,929 (−8.5%) and 1.85M nodes per second against 2.02M, which is the
+  unit's change and nothing else.
+- **Disposition by the frozen rule:** the cap with LLR above the lower bound, so
+  the donor's count stays. The fingerprint record moves to **4,688,537** (GUIDE,
+  DESIGN, AGENTS). CLOSED 2026-11-15.
+- **Calibration:** a repair kept unless it harms, read as harmless; the competing
+  explanation that the literals fitted on the old count would cost Elo is not
+  supported at this resolution (about ±4.5).
