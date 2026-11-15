@@ -29,3 +29,31 @@
   ACCEPTs; or when the loaded read is +1.0% or more with its lower bound above 0 and
   the pooled read's no-regression contrast PASSes. Otherwise reverted. If BAS-P37
   did not admit the loaded instrument, the pooled gain contrast alone decides.
+
+#### RESULT
+
+Idle host, 2026-11-15. Pools `b84-on` and `b89-a1` (four final-PGO builds of the
+head with A1, `8440f8b`, `bench 13` 4,688,537). Archives `tools/results/b89-a1-bench`,
+`b89-a1-loaded`, `b89-a1-single`.
+
+| Read | `b84-on` | `b89-a1` | Delta | 95% interval | Verdict |
+|---|---:|---:|---:|---|---|
+| pooled `bench`, gain, six cycles | 2.3947M | 2.3798M | −0.62% | [−0.83%, −0.41%] | NO_CHANGE |
+| pooled `bench`, no-regression | | | −0.62% | [−0.83%, −0.41%] | FAIL (step 1 EXTEND) |
+| loaded cohort, 14 engines | 2.0900M | 2.1188M | +1.38% | [+1.00%, +1.76%] | loaded rule MET |
+| cohort, one engine (reported) | 2.3917M | 2.4087M | +0.71% | [+0.52%, +0.90%] | — |
+
+No cycle of any read disturbed. Exactness before the reads: `bench 13` 4,688,537 on
+Release, Tune, Diag and the symbol PGO build; the cohort fingerprint 24,421,195
+`8bc7f3c8d1dde0d2` on each; CTest 33/33 on Release and Diag; `hot_path_calls.py` 14
+hits, 0 unknown; the Diag counters reproduce the packet's counts exactly (`bench`
+4,592,276 predicted and 110,206 corrected, 97.66%; the cohort 145,097,634 and
+2,187,425, 98.51%); the kernel pin walks 26,426 cohort moves and 837,423 in all.
+
+- **Disposition: REVERTED by the frozen rule.** The loaded read meets its bar, but the
+  pooled read's no-regression contrast fails, and the rule keeps a memory item on the
+  loaded read only with that guard passing.
+- The prediction: bench +0.8% [+0.2, +1.6] missed (−0.62%); loaded +3.5% [+1.5, +6.0]
+  missed low (+1.38%) and is above the falsifier's +1.0%, so H1 stands for the
+  table. The game cohort alone gains +0.71%; `bench 13` alone loses. The item's sign
+  depends on the workload, not on the load: Return 1 in the packet.

@@ -572,3 +572,39 @@ B2, B3 and B5.
 - **`profile.ps1` reports the last `info` line's nodes**, a quarter below the
   search's count on a node-limited cohort. Any NPS derived from a profile's
   report would be low by that much; none is recorded.
+
+## Return 1 — A1 gains on the game's workload and loses on `bench` (B.8.9, 2026-11-15)
+
+- **What was built.** A1 exactly as §6 states it (`8440f8b`, reverted by the next
+  commit): the predicted key, both prefetches, the null move's exact key, the
+  kernel's three post-make prefetches removed, two Diag counters, the node check,
+  and a kernel pin over the cohort's legal moves. Exactness held everywhere and the
+  counters reproduce §1.2's 98.51% and 97.66% to the move.
+- **Evidence (BAS-P38).**
+
+  | Read | Delta | 95% interval |
+  |---|---:|---|
+  | pooled `bench 13`, alone, Hash 16 | −0.62% | [−0.83%, −0.41%] |
+  | game cohort, one engine, Hash 64 | +0.71% | [+0.52%, +0.90%] |
+  | game cohort, 14 engines, Hash 64 | +1.38% | [+1.00%, +1.76%] |
+
+- **Which premise failed.** §8's bench prediction (+0.8% [+0.2, +1.6]) and §4.1's
+  premise that the pooled `bench` read is a fair no-regression guard for a memory
+  item. On `bench` the item costs more than it saves: the key's computation and its
+  table loads are paid at every one of 1.6 makes a node, and at Hash 16 the cluster
+  is mostly in the L3 cache, so the lead buys little. On the cohort the same binary
+  gains alone, so the sign is the workload's (the table's size and the positions),
+  not the load's. H1's falsifier did not fire (+1.38% is above +1.0%), but the
+  loaded gain is under half of §8's +3.5%.
+- **Disposition by the frozen rule:** reverted. Nothing was rescued or reshaped.
+- **Options I see** (the research's to decide):
+  1. Keep the rule and the result: A1 stays out.
+  2. Change the guard for memory items to the cohort read at one engine (here
+     +0.71%), which is the held-out game workload §3 names; A1 would be kept.
+  3. A cheaper A1: keep the post-make prefetch at the negamax sites and add one in
+     quiescence's two loops only (the half of §1.1's wait that has no prefetch);
+     no predicted key, no cost at the 1.5 interior makes a node.
+  4. Hash 64 for the pooled read's `bench`, so the guard sees a table out of L3.
+- **Interaction for the later items.** A2 and A3 are read on the head without A1,
+  as §6's order reads "alone on the head with what A1 kept". A2's and A3's
+  pooled guards meet the same workload question.
