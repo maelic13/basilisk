@@ -571,8 +571,7 @@ add_test(NAME endgame_verdicts_fixtures
                  "-DEXPECT_CODE=1" "-DGOLDEN=${CMAKE_CURRENT_SOURCE_DIR}/tests/data/endgame_verdicts_golden.txt"
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/output_check.cmake)
 set_tests_properties(endgame_verdicts_fixtures PROPERTIES TIMEOUT 600)
-add_test(NAME test_same_colour_bishops COMMAND test_same_colour_bishops --expect-defect)
-basilisk_known_defect(test_same_colour_bishops)
+add_test(NAME test_same_colour_bishops COMMAND test_same_colour_bishops)
 # An exception escaping a non-UCI thread is reported on stdout, then exit 1.
 add_test(NAME fatal_report_from_a_thread
          COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:test_fatal_report>" "-DARGS="
