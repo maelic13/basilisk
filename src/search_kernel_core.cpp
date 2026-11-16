@@ -302,7 +302,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
                 continue;
             }
             [[maybe_unused]] const bool quiet = !is_capture_stage(*state_.board, m);
-            do_move_prefetching(ss, m);
+            do_move(ss, m);
             const int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
             undo_move(ss, m);
             if (state_.stopped) return 0;
@@ -521,7 +521,7 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
             continue;
         }
 
-        do_move_prefetching(ss, m);
+        do_move(ss, m);
         int s = -quiescence<NT>(-beta, -alpha, ply + 1, qply + 1, ss + 1);
         undo_move(ss, m);
 

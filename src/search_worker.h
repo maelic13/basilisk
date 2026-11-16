@@ -35,7 +35,6 @@
 #include "search_types.h"
 #include "syzygy.h"
 #include "tt.h"
-#include "zobrist.h"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -173,36 +172,6 @@ struct SearchState {
     int  pv_len[MAX_PLY];
     ScoredMove move_buffers[MAX_PLY][2][MoveList::CAPACITY];
 };
-
-// The key of the position `m` reaches from `b`, known before the move is
-// made, so that the child's table cluster is fetched while the make runs.
-// Exact for every move except four kinds, which the made key corrects: a
-// promotion, an en passant capture, a castling, and a pawn's double push
-// that sets an en-passant square.
-[[nodiscard]] inline Key predicted_child_key(const Board& b, Move m) {
-    const Square from = from_sq(m), to = to_sq(m);
-    const Piece piece = b.piece_on(from), victim = b.piece_on(to);
-    Key key = b.position_key() ^ Zobrist::SideKey
-            ^ Zobrist::PieceKeys[color_of(piece)][type_of(piece)][from]
-            ^ Zobrist::PieceKeys[color_of(piece)][type_of(piece)][to];
-    // The empty square's row of the piece keys is random, not zero.
-    if (victim != NO_PIECE)
-        key ^= Zobrist::PieceKeys[color_of(victim)][type_of(victim)][to];
-    const int rights = b.castling();
-    key ^= Zobrist::CastlingKeys[rights]
-         ^ Zobrist::CastlingKeys[rights & Board::CASTLING_MASK[from] & Board::CASTLING_MASK[to]];
-    if (b.ep_square() != SQ_NONE)
-        key ^= Zobrist::EpKeys[file_of(b.ep_square())];
-    return key;
-}
-
-// Whether `m`, at `b`, is one of the four kinds predicted_child_key may miss.
-[[nodiscard]] inline bool predicted_key_may_miss(const Board& b, Move m) {
-    if (move_type(m) != NORMAL)
-        return true;
-    const int step = int(to_sq(m)) - int(from_sq(m));
-    return type_of(b.piece_on(from_sq(m))) == PAWN && (step == 16 || step == -16);
-}
 
 class Searcher {
 public:
@@ -378,31 +347,6 @@ private:
         state_.board->make_move(m);
         if (counted)
             count_node();
-    }
-    // Quiescence's makes: as do_move, with the child's cluster fetched across
-    // the make from the predicted key, and again from the made key when that
-    // differs. negamax prefetches after its makes instead.
-    void do_move_prefetching(SearchStack* ss, Move m) {
-        const Square to = Square(to_sq(m));
-        const bool capture_stage = is_capture_stage(*state_.board, m);
-        ss->move        = m;
-        const Piece piece = state_.board->piece_on(from_sq(m));
-        ss->cont_hist   = &hist_.continuation->row[ss->in_check][capture_stage][hist_piece(piece)][to];
-        ss->cont_corr   = &hist_.cont_corr->row[hist_piece(piece)][to];
-        const Key predicted = predicted_child_key(*state_.board, m);
-        shared_.tt.prefetch(predicted);
-#if defined(BASILISK_DIAGNOSTIC) || !defined(NDEBUG)
-        const bool may_miss = predicted_key_may_miss(*state_.board, m);
-#endif
-        state_.board->make_move(m);
-        if (const Key made = tt_key(*state_.board); made != predicted) {
-            shared_.tt.prefetch(made);
-            DIAG_COUNT(++state_.diag.key_corrected);
-            CORE_NODE_CHECK(may_miss);
-        } else {
-            DIAG_COUNT(++state_.diag.key_predicted);
-        }
-        count_node();
     }
     // Counts the position a move reached, then looks for a reason to stop:
     // the node limit, another thread's stop at every count, the clock every
