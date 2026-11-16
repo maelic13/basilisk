@@ -36,3 +36,17 @@
   NO_CHANGE. Falsifiers: X0's one-engine delta at Hash 1 (BAS-P58) not below its delta
   at Hash 64 (BAS-P56) keeps nothing and writes Return 2; X0's loaded read under
   +1.0% closes A1 (retry with D.2's table).
+
+#### RESULT
+
+Idle host, 2026-11-16, CPU 30. Archive `tools/results/b810-guard`; no cycle disturbed.
+
+| Arm | Mean of build medians | Delta | 95% interval | Guard |
+|---|---:|---:|---|---|
+| `b89-final` | 2.5177M | | | |
+| X0 | 2.5318M | +0.56% | [+0.41%, +0.71%] | held |
+| X2 | 2.5253M | +0.31% | [+0.05%, +0.56%] | held |
+| X1 | 2.5236M | +0.24% | [+0.05%, +0.43%] | held |
+
+- Predictions: X0 +0.8% [+0.4, +1.2], X2 +0.4% [0.0, +0.9], X1 +0.2% [−0.1, +0.5]:
+  all inside.

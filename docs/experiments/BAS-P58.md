@@ -36,3 +36,23 @@
   NO_CHANGE. Falsifiers: X0's one-engine delta at Hash 1 (BAS-P58) not below its delta
   at Hash 64 (BAS-P56) keeps nothing and writes Return 2; X0's loaded read under
   +1.0% closes A1 (retry with D.2's table).
+
+#### RESULT
+
+Idle host, 2026-11-16, CPU 30, one engine. Archives `tools/results/b810-x0-hash1`,
+`b810-x0-hash256`; no cycle disturbed.
+
+| Hash | `b89-final` | X0 | Delta | 95% interval | Predicted (80%) |
+|---|---:|---:|---:|---|---|
+| 1 MiB | 2.6495M | 2.6225M | −1.02% | [−1.36%, −0.68%] | −0.7% [−1.2, −0.3] |
+| 64 MiB (BAS-P56) | 2.5177M | 2.5318M | +0.56% | [+0.41%, +0.71%] | +0.8% [+0.4, +1.2] |
+| 256 MiB | 2.4783M | 2.5062M | +1.13% | [+0.86%, +1.39%] | +0.9% [+0.5, +1.4] |
+
+- **The model's falsifier did not fire:** at Hash 1 X0's delta is below its Hash 64
+  delta (−1.02% against +0.56%), and it rises again at Hash 256. The gain grows with
+  the table, so it is the probe's wait.
+- **Cost and payoff, as the model reads them** (an inference, not a measurement of
+  either part alone): at 1 MiB the table sits in the cache and the prefetch buys
+  nothing, so the key's cost is about 1.0% of a node. The payoff is then about 1.6%
+  at Hash 64 alone, 2.1% at Hash 256 and 2.3% under load at Hash 64; `bench`'s
+  16 MiB table gives back about 0.2%.

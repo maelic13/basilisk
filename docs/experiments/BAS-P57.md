@@ -36,3 +36,20 @@
   NO_CHANGE. Falsifiers: X0's one-engine delta at Hash 1 (BAS-P58) not below its delta
   at Hash 64 (BAS-P56) keeps nothing and writes Return 2; X0's loaded read under
   +1.0% closes A1 (retry with D.2's table).
+
+#### RESULT
+
+Idle host, 2026-11-16, CPUs 4 to 30. Archives `tools/results/b810-loaded-{x0,x2,x1}`.
+
+| Arm | `b89-final` | Arm | Delta | 95% interval | Decider | Disturbed |
+|---|---:|---:|---:|---|---|---|
+| X0 | 2.2012M | 2.2304M | +1.32% | [+1.00%, +1.64%] | met | none |
+| X2 | 2.2019M | 2.2143M | +0.57% | [+0.14%, +0.99%] | not met | one cycle, absorbed |
+| X1 | 2.1954M | 2.2011M | +0.26% | [−0.25%, +0.76%] | not met | one cycle, absorbed |
+
+- **The keep rule.** X0 passes all three conditions (decider here, guard BAS-P56,
+  ceiling BAS-P55); X2 and X1 fail the decider. X2's +0.57% lies outside X0's
+  interval, so no smaller arm replaces it. **X0 is kept** (`63b9420`, re-applied on the head by
+  `dd5a5d4`).
+- Predictions: X0 +1.5% [+1.0, +2.1], X2 +0.8% [+0.2, +1.5], X1 +0.3% [−0.1, +0.9]:
+  all inside. The falsifier "X0's loaded read under +1.0%" did not fire.

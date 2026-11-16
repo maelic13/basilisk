@@ -36,3 +36,19 @@
   NO_CHANGE. Falsifiers: X0's one-engine delta at Hash 1 (BAS-P58) not below its delta
   at Hash 64 (BAS-P56) keeps nothing and writes Return 2; X0's loaded read under
   +1.0% closes A1 (retry with D.2's table).
+
+#### RESULT
+
+Idle host, 2026-11-16. Archive `tools/results/b810-bench` (step 1 extended on x1;
+six cycles; no cycle disturbed).
+
+| Arm | Mean of build medians | Delta | 95% interval | Ceiling (above −1.0%) |
+|---|---:|---:|---|---|
+| `b89-final` | 2.5464M | | | |
+| X0 | 2.5260M | −0.80% | [−1.02%, −0.58%] | held |
+| X2 | 2.5440M | −0.09% | [−0.41%, +0.22%] | held |
+| X1 | 2.5504M | +0.16% | [−0.05%, +0.37%] | held |
+
+- No arm ACCEPTs on `bench` (X0 and X2 NO_CHANGE at step 1, X1 NO_CHANGE at step 2),
+  so each is decided by the three conditions. Predictions: X0 −0.5% [−0.9, −0.2],
+  X2 −0.1% [−0.3, +0.1], X1 0.0% [−0.2, +0.2]: all inside.
