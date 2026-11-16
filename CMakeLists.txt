@@ -558,14 +558,8 @@ foreach(case lifecycle_guards new_game_resets multipv_stopped tablebase_threads 
              whitespace hash_rounding_notice syzygy_path_retry fathom_unmappable_table
              syzygy_non_ascii_path bench_stop wac_stop bench_quit closed_stdout
              seldepth_qsearch ponderhit_game_ply depth_limit_threads
-             clock_zero bare_go go_mate)
+             clock_zero bare_go go_mate abort_sweep)
     basilisk_uci_test(${case})
-endforeach()
-set(_basilisk_uci_defects
-    abort_sweep)
-foreach(case IN LISTS _basilisk_uci_defects)
-    basilisk_uci_test(${case} --expect-defect)
-    basilisk_known_defect(uci_${case})
 endforeach()
 add_test(NAME test_tb_root_rank COMMAND test_tb_root_rank --expect-defect)
 # The evaluator's hard verdicts on a seeded sample of each fixture class,

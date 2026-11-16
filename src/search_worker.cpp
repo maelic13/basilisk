@@ -172,11 +172,11 @@ int64_t Searcher::record_node() {
         // one batch would have been missed entirely and overshot ~10x.
         // The comparison is local arithmetic; the atomic is what got batched.
         const int64_t estimate = state_.shared_nodes_total + (state_.nodes - state_.shared_nodes_flushed);
-        if (state_.nodes_limit > 0 && estimate >= state_.nodes_limit)
+        if (state_.nodes_limit > 0 && estimate >= state_.nodes_limit && state_.first_iteration_done)
             state_.stopped = true;
         return estimate;
     }
-    if (state_.nodes_limit > 0 && state_.nodes >= state_.nodes_limit)
+    if (state_.nodes_limit > 0 && state_.nodes >= state_.nodes_limit && state_.first_iteration_done)
         state_.stopped = true;
     return state_.nodes;
 }
@@ -203,6 +203,7 @@ int64_t Searcher::current_tbhits() const {
 
 bool Searcher::check_stop() {
     if (state_.stopped) return true;
+    if (!state_.first_iteration_done) return false;
 
     if (shared_.stop.load(std::memory_order_acquire)) {
         state_.stopped = true;
@@ -412,6 +413,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     state_.shared_nodes_total   = 0;
     state_.sel_depth    = 0;
     state_.stopped      = false;
+    state_.first_iteration_done = false;
     state_.last_line_move = MOVE_NONE;
     state_.longest_window = 0.0;
     state_.longest_window_start = 0.0;
@@ -701,7 +703,12 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             }
         }
 
-        if (state_.stopped && depth > 1) break;
+        // A stop is taken only once an iteration is complete (check_stop), so
+        // the first iteration always stands: a stop at any time answers with
+        // a searched move, never a cut first iteration's or the first legal
+        // one.
+        if (state_.stopped) break;
+        state_.first_iteration_done = true;
 
         if (state_.root_depth_nodes > 0)
             state_.root_best_effort = static_cast<int>(
