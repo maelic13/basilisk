@@ -457,6 +457,13 @@ target_compile_definitions(test_endgames PRIVATE
     BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
 )
 
+# The root's tablebase ranking after a repetition in the game
+add_executable(test_tb_root_rank tests/test_tb_root_rank.cpp)
+target_link_libraries(test_tb_root_rank PRIVATE basilisk_engine)
+target_compile_definitions(test_tb_root_rank PRIVATE
+    BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
+)
+
 include(CTest)
 add_test(NAME test_board        COMMAND test_board)
 add_test(NAME test_board_v2     COMMAND test_board_v2 ${CMAKE_SOURCE_DIR}/tests/data)
@@ -519,6 +526,41 @@ basilisk_cli_test(cli_unknown_exits_2 2 "Unknown command: 'frobnicate'" frobnica
 add_test(NAME uci_hash_above_machine_limit
          COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:basilisk>" "-DWORK=${CMAKE_CURRENT_BINARY_DIR}"
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/hash_limit_check.cmake)
+# The engine as a process over UCI: lifecycle and protocol contracts
+# (tests/uci_process_check.py). A case given --expect-defect is a known
+# defect awaiting its repair: it passes only while it reproduces the defect,
+# and the repair's commit moves it to the first list.
+find_package(Python3 3.8 REQUIRED COMPONENTS Interpreter)
+function(basilisk_uci_test case)
+    add_test(NAME uci_${case}
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/uci_process_check.py
+                     $<TARGET_FILE:basilisk> ${case}
+                     --fixtures ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy ${ARGN})
+    set_tests_properties(uci_${case} PROPERTIES TIMEOUT 600)
+endfunction()
+function(basilisk_known_defect name)
+    set_tests_properties(${name} PROPERTIES LABELS known-defect
+                         PASS_REGULAR_EXPRESSION "KNOWN DEFECT REPRODUCED")
+endfunction()
+foreach(case lifecycle_guards new_game_resets multipv_stopped tablebase_threads fuzz)
+    basilisk_uci_test(${case})
+endforeach()
+set(_basilisk_uci_defects
+    depth_limit_threads abort_sweep clock_zero bare_go go_mate hash_rounding_notice
+    syzygy_path_retry fathom_unmappable_table ponderhit_game_ply bench_stop wac_stop
+    bench_quit closed_stdout seldepth_qsearch whitespace)
+# Fathom opens files with the narrow CreateFile on Windows only.
+if(WIN32)
+    list(APPEND _basilisk_uci_defects syzygy_non_ascii_path)
+else()
+    basilisk_uci_test(syzygy_non_ascii_path)
+endif()
+foreach(case IN LISTS _basilisk_uci_defects)
+    basilisk_uci_test(${case} --expect-defect)
+    basilisk_known_defect(uci_${case})
+endforeach()
+add_test(NAME test_tb_root_rank COMMAND test_tb_root_rank --expect-defect)
+basilisk_known_defect(test_tb_root_rank)
 # An exception escaping a non-UCI thread is reported on stdout, then exit 1.
 add_test(NAME fatal_report_from_a_thread
          COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:test_fatal_report>" "-DARGS="
@@ -669,7 +711,7 @@ set(_ALL_TARGETS
     basilisk_board basilisk_engine basilisk_launcher basilisk_version
     basilisk board_performance_test board_micro_bench board_replay
     test_board test_board_v2 test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_allocation_guard test_uci_protocol test_cpu_features
-    test_endgames test_wac test_invariants test_magics test_threats
+    test_endgames test_tb_root_rank test_wac test_invariants test_magics test_threats
     test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch test_b5_root
     basilisk_engine_child_log test_search_path test_kernel_pins
 )
