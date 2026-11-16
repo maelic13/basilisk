@@ -125,6 +125,7 @@ struct SearchState {
     bool     stopped = false;
     bool     pondering = false;
     Color    root_side = WHITE;
+    int      root_game_ply = 0;   // the root's game ply, for the clock at ponderhit
 
     std::chrono::steady_clock::time_point start_time{};
     double soft_limit = 0.0;  // target time — stop early if best move is stable

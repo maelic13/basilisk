@@ -209,10 +209,9 @@ bool Searcher::check_stop() {
 
     if (state_.pondering && shared_.ponderhit && shared_.ponderhit->load(std::memory_order_acquire)) {
         state_.pondering = false;
-        const int game_ply = state_.board
-            ? 2 * (state_.board->fullmove() - 1) + (state_.board->turn() == BLACK ? 1 : 0)
-            : 0;
-        compute_time_limit(config_.limits, false, state_.root_side, game_ply);
+        // The budget is the root's, as at the search's start: the board here
+        // is whichever node saw the flag, deeper by a varying number of plies.
+        compute_time_limit(config_.limits, false, state_.root_side, state_.root_game_ply);
         if (state_.soft_limit > 0.0 && elapsed_seconds() >= state_.soft_limit) {
             state_.stopped = true;
             return true;
@@ -440,8 +439,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     state_.start_time = (limits.go_recv_time.time_since_epoch().count() != 0)
                 ? limits.go_recv_time
                 : std::chrono::steady_clock::now();
-    const int game_ply = 2 * (board.fullmove() - 1) + (board.turn() == BLACK ? 1 : 0);
-    compute_time_limit(limits, limits.ponder, board.turn(), game_ply);
+    state_.root_game_ply = 2 * (board.fullmove() - 1) + (board.turn() == BLACK ? 1 : 0);
+    compute_time_limit(limits, limits.ponder, board.turn(), state_.root_game_ply);
 
     if (config_.update_tt_age)
         shared_.tt.new_search();
