@@ -260,8 +260,8 @@ void Searcher::send_info(int depth, int multipv, int score, const std::vector<Mo
     // within half the Move Overhead, because Basilisk prints a line at every
     // depth. A line that ends in a fifty-move draw shows the draw.
     if (!pv_moves.empty() && is_tablebase_decisive(score) && Syzygy::enabled()
-        && config_.limits.movetime <= 0 && config_.limits.wtime <= 0
-        && config_.limits.btime <= 0) {
+        && config_.limits.movetime <= 0 && !config_.limits.clock
+        && config_.limits.wtime <= 0 && config_.limits.btime <= 0) {
         Syzygy::PvExtension ext = Syzygy::extend_pv(
             *state_.board, pv_moves, config_.limits.syzygy_50_move_rule,
             config_.limits.syzygy_probe_limit, [] { return false; });

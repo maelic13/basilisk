@@ -163,8 +163,10 @@ void Engine::publish_tablebase_pv(SearchResult& result, const Board& root_board,
         || !is_tablebase_decisive(result.score))
         return;
 
+    // A named clock is a clock even when it reads 0: the extension must then
+    // fit in it, which an empty one never allows.
     const int clock_ms = root_board.turn() == WHITE ? limits.wtime : limits.btime;
-    if (clock_ms > 0) {
+    if (clock_ms > 0 || limits.clock) {
         const double elapsed_ms = limits.go_recv_time.time_since_epoch().count() != 0
             ? std::chrono::duration<double, std::milli>(
                   std::chrono::steady_clock::now() - limits.go_recv_time).count()
@@ -182,7 +184,7 @@ void Engine::publish_tablebase_pv(SearchResult& result, const Board& root_board,
     }
 
     const auto start = std::chrono::steady_clock::now();
-    const bool timed = limits.movetime > 0 || limits.wtime > 0 || limits.btime > 0;
+    const bool timed = limits.movetime > 0 || limits.clock || limits.wtime > 0 || limits.btime > 0;
     const int overhead_ms = limits.overhead;
     auto time_abort = [&] {
         if (!timed)
