@@ -112,8 +112,11 @@ constexpr int DEEP_DEPTH = 13;
 // sensitive case (the start position at Threads 1, 88,410 deep nodes).
 constexpr uint64_t ALLOCATIONS_PER_ITERATION_PER_THREAD = 32;
 
-// The deep search must be much larger than the shallow one, or a per-node
-// allocation could hide inside the budget.
+// The deep search must add many more nodes than the budget allows
+// allocations, or a per-node allocation could hide inside the budget. Read
+// against the budget, not the shallow search's own size: at Threads 4 the
+// helpers search on while the main thread finishes a shallow search, which
+// made its count vary from about 2,000 to 29,000 nodes on a 3-core runner.
 constexpr int64_t MIN_NODE_GROWTH = 10;
 
 // Bench positions of different kinds: the start, two middlegames, an ending.
@@ -173,7 +176,7 @@ void test_allocations_grow_per_iteration_never_per_node() {
                         static_cast<long long>(deep.nodes), static_cast<unsigned long long>(grown),
                         static_cast<unsigned long long>(budget), fen);
             // Too small a deep search could hide a per-node allocation.
-            EXPECT(deep.nodes >= MIN_NODE_GROWTH * shallow.nodes);
+            EXPECT(deep.nodes - shallow.nodes >= MIN_NODE_GROWTH * static_cast<int64_t>(budget));
             EXPECT(grown <= budget);
         }
         std::printf("\n  %-52s ", "");
