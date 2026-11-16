@@ -414,9 +414,9 @@ reason.
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
 | C.3, C.5, C.6 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
 | C.7 | B.9.3's V3 KRP-KR's draw rules, V4 the KRPP-KRP table, V6 the pawnless scales 4 and 14 (C.7.5); V5 KBN-K's known win, kept with a retry trigger (C.7.6); decided 2026-11-16, known limitations for 1.11.0 |
-| D.1 | A-46 reserve arithmetic |
-| D.3 | A-59 the tablebase root's DTZ ranking |
-| D.2 | BAS-C05 the TT key and payload published separately |
+| D.1 | A-46 reserve arithmetic; A-45 no sub-second horizon (both kept by B.9.4) |
+| D.3 | A-59 the tablebase root's DTZ ranking; A-57 cold root reads on the clock, a known limitation (both kept by B.9.4) |
+| D.2 | BAS-C05 the TT key and payload published separately; A-46's join before `bestmove` and DRIVER-15, a join behind a table read, a known limitation (kept by B.9.4) |
 
 ## 3. Required evidence
 
@@ -4999,7 +4999,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - Tests: `endgame_verdicts_fixtures`, a golden read of nine
           fixture classes (seven four-man WDL tables added, 82 KB), and
           `test_same_colour_bishops` (`known-defect`). CTest 57 of 57.
-    - [ ] **B.9.4** `[R2]` Deferred defects: repair now or justify
+    - [x] **B.9.4** `[R2]` Deferred defects: repair now or justify
       Added 2026-11-11 (maintainer: every known correctness fix before
       the next release). PLAN §2's *Known defects* gives some defects to
       leaves that run after 1.11.0. Each is read once here against one
@@ -5018,6 +5018,19 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         in no release and stay C.2.1's and C.2.2's.
       - It closes with the table corrected and a list of known
         limitations for 1.11.0's notes.
+      - Closed 2026-11-16 (`analysis/b94_deferred_defects_2026-11-16.md`;
+        no engine source changed, `bench 13` 4,688,537): no defect meets
+        the rule, so B.9.5 takes nothing from this leaf.
+        - A-45 and A-46's reserve are time formulas D.1 refits. A-46's
+          join before `bestmove` is Stockfish's form, and changing it is a
+          D.2 redesign. A-59 is Stockfish's ranking, and D13's repair
+          covers the repetition case that cost game 4965.
+        - A-57 and DRIVER-15 cannot be repaired in any engine, since
+          they are disk waits. C-10 to C-13 need Phase C's refits. BAS-C05
+          was refused on measured cost.
+        - The *Known defects* table names the owners. The release notes'
+          *Known limitations* (`CHANGELOG.md`) list A-57, DRIVER-15,
+          BAS-C05 and B.9.3's V3 to V6.
     - [ ] **B.9.5** `[I2]` Repairs and the repair gate
       It was B.9.2 until 2026-11-11; it now repairs what B.9.1, B.9.3
       and B.9.4 each found. B.9.3's handoff is its packet's §6
@@ -5313,8 +5326,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.9.4 | RESEARCH | R2 | Added 2026-11-11; known defects owned after B.11, repaired now or justified |
-| B.9.5 | RESEARCH | I2 | Was B.9.2; on the failing tests of B.9.1, B.9.3 and B.9.4, one repair gate |
+| B.9.5 | READY_FOR_IMPLEMENTATION | I2 | Was B.9.2; B.9.1's D1 to D14 and decisions, B.9.3's V1 and V2; B.9.4 sent none |
 | B.11.1 | RESEARCH | V | Was B.9; programme checkpoint |
 | B.11.3 | RESEARCH | R2 | Added 2026-11-11; the disclosure on the release candidate, before the cut |
 | B.11.4 | RESEARCH | M | Was B.11, then B.11.2; interim release after B.11.3 (maintainer decision 2026-10-24) |

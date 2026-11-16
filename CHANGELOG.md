@@ -370,6 +370,25 @@ and next step).
   those reads. Measured at **+0.3 ± 3.2 Elo** at `10+0.1` with tablebases
   (8,000 games).
 
+### Known limitations
+
+These are measured and recorded, each with the later work that owns it:
+
+- **The first search with tablebases can be slow.** The first search after
+  the tables load waits while the system reads them from disk: four seconds
+  on a 3-6-man set read cold. No engine can avoid this, because the tables
+  it needs are known only once the search starts. On a slow disk, raise
+  `Move Overhead`.
+- **Waiting for every thread.** With more than one thread, the engine
+  answers only after every thread has stopped, so a thread held up reading
+  a table delays the move.
+- **Transposition-table coherence**, as in 1.10.0.
+- **Some endgames misjudged.** In some rook-and-pawn endings, some endings
+  without pawns, and the bishop-and-knight mate against a bare king, the
+  evaluation calls a won position drawn or the reverse in 1% to 7% of
+  positions (more in a few rare endings). A short search corrects most of
+  these, and tablebases correct all of them.
+
 ---
 
 ## [1.10.2] - 2026-10-08
