@@ -19,3 +19,16 @@
 - **Verdict rule (frozen, BAS-P37's admission).** Admitted when the delta is within
   ±0.5%, the interval holds 0, its half-width is 1.0% or less, and no repeat. If not
   admitted, B.8.10 stops: the guard cannot decide.
+
+#### RESULT
+
+Idle host, 2026-11-16, CPU 30, foreign load 0.16 to 0.19 logical CPUs, no cycle
+disturbed (`tools/results/b810-null-single`).
+
+| Arm | Mean of build medians | Cycle levels |
+|---|---:|---|
+| `b84-on` | 2.3932M | 2.388M to 2.398M |
+| `b84-on-null` | 2.3928M | 2.385M to 2.397M |
+
+- `b84-on-null` over `b84-on`: −0.02% [−0.24%, +0.20%], half-width 0.22%.
+- **Disposition: ADMITTED.** The one-engine form guards B.8.10's arms.
