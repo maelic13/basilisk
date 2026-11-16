@@ -561,7 +561,7 @@ foreach(case lifecycle_guards new_game_resets multipv_stopped tablebase_threads 
              clock_zero bare_go go_mate abort_sweep)
     basilisk_uci_test(${case})
 endforeach()
-add_test(NAME test_tb_root_rank COMMAND test_tb_root_rank --expect-defect)
+add_test(NAME test_tb_root_rank COMMAND test_tb_root_rank)
 # The evaluator's hard verdicts on a seeded sample of each fixture class,
 # compared line for line with their reading at B.9.3; exit status 1 while
 # any site is over the line. A repair updates the golden file.
@@ -573,7 +573,6 @@ add_test(NAME endgame_verdicts_fixtures
 set_tests_properties(endgame_verdicts_fixtures PROPERTIES TIMEOUT 600)
 add_test(NAME test_same_colour_bishops COMMAND test_same_colour_bishops --expect-defect)
 basilisk_known_defect(test_same_colour_bishops)
-basilisk_known_defect(test_tb_root_rank)
 # An exception escaping a non-UCI thread is reported on stdout, then exit 1.
 add_test(NAME fatal_report_from_a_thread
          COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:test_fatal_report>" "-DARGS="

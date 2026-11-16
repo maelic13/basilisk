@@ -210,6 +210,28 @@ std::pair<int, int> count_tablebase_files(const std::string& paths) {
     return {wdl, dtz};
 }
 
+// Whether `move` makes a position for the third time, or lets any reply do
+// so: the game's own history draws it, whatever the tables say. DTZ ranking
+// cannot see this, since the tables know no history: game 4965's shortest
+// win repeated a position a third time.
+bool allows_threefold(Board& board, Move move) {
+    board.make_move(move);
+    bool draw = board.is_repetition(1);
+    if (!draw) {
+        MoveList replies;
+        board.gen_legal(replies);
+        for (Move reply : replies) {
+            board.make_move(reply);
+            draw = board.is_repetition(2);
+            board.unmake_move(reply);
+            if (draw)
+                break;
+        }
+    }
+    board.unmake_move(move);
+    return draw;
+}
+
 std::vector<Syzygy::RootMoveInfo> collect_root_moves(const Board& board,
                                                      const TbRootMoves& moves,
                                                      bool used_dtz,
@@ -217,6 +239,9 @@ std::vector<Syzygy::RootMoveInfo> collect_root_moves(const Board& board,
                                                      bool use_rule50) {
     std::vector<Syzygy::RootMoveInfo> out;
     out.reserve(moves.size);
+    // Only a game that has repeated holds a position twice.
+    const bool repeated = board.has_repeated();
+    Board scratch = board;
 
     for (unsigned i = 0; i < moves.size; ++i) {
         const TbRootMove& tb_move = moves.moves[i];
@@ -233,6 +258,12 @@ std::vector<Syzygy::RootMoveInfo> collect_root_moves(const Board& board,
                      ? std::clamp(static_cast<int>(tb_move.tbScore), -49, 49)
                      : info.score;
         info.used_dtz = used_dtz;
+        // A win the history draws ranks and scores as the draw.
+        if (repeated && info.rank > 0 && allows_threefold(scratch, move)) {
+            info.rank = 0;
+            info.score = 0;
+            info.display = 0;
+        }
         out.push_back(std::move(info));
     }
 
@@ -426,10 +457,14 @@ std::vector<RootMoveInfo> probe_root_moves(const Board& board, bool use_rule50,
 
     TbRootMoves moves{};
     if (rank_dtz) {
+        // Once the game has repeated, every clean win no longer ranks alike:
+        // the wins rank by DTZ, so the search makes progress instead of
+        // choosing a repetition the evaluation scores as well (Stockfish's
+        // rank_root_moves passes has_repeated the same way).
         const int dtz_ok = tb_probe_root_dtz(pos.white, pos.black, pos.kings, pos.queens,
                                              pos.rooks, pos.bishops, pos.knights,
                                              pos.pawns, rule50, 0, pos.ep, pos.turn,
-                                             false, use_rule50, &moves);
+                                             board.has_repeated(), use_rule50, &moves);
         if (dtz_ok) {
             auto out = collect_root_moves(board, moves, true, preferred_move, use_rule50);
             if (!out.empty())

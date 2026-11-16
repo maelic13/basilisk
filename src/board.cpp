@@ -1606,6 +1606,19 @@ bool Board::BT(is_repetition)(int search_ply) const {
     return false;
 }
 
+bool Board::has_repeated() const {
+    const int hist_size = static_cast<int>(history.size());
+    const int reversible = std::min({halfmove_clock, plies_from_null, hist_size});
+    // The positions of the reversible stretch: history[first..] and this one.
+    const int first = hist_size - reversible;
+    auto key_at = [&](int i) { return i == hist_size ? hash : history[static_cast<size_t>(i)].hash; };
+    for (int j = first + 4; j <= hist_size; ++j)
+        for (int i = j - 4; i >= first; i -= 2)
+            if (key_at(i) == key_at(j))
+                return true;
+    return false;
+}
+
 bool Board::BT(upcoming_repetition)(int search_ply) const {
     const int hist_size = static_cast<int>(history.size());
     const int end = std::min({halfmove_clock, plies_from_null, hist_size});

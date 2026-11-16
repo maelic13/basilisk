@@ -248,6 +248,10 @@ public:
     // occurred once since the root (strictly after it), or twice in the
     // reversible history.
     [[nodiscard]] bool is_repetition(int search_ply) const;
+    // Whether any position since the last capture, pawn move or null move
+    // occurred twice (Stockfish's has_repeated): the game has already
+    // repeated, so a repetition is near. Root use only; it scans the history.
+    [[nodiscard]] bool has_repeated() const;
     // Whether the side to move has a reversible move back to a position of
     // the key history, found by the cuckoo tables without generating moves
     // (Stockfish's upcoming_repetition): a draw when the position lies
