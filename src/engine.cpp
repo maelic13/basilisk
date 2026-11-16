@@ -405,6 +405,14 @@ void Engine::apply_table_state() {
     if (parameters_.hash_mb != current_hash_mb_) {
         if (tt_.resize(static_cast<size_t>(parameters_.hash_mb), parameters_.threads)) {
             current_hash_mb_ = parameters_.hash_mb;
+            // The table holds a power of two of clusters, so any other size
+            // is floored; say what is used rather than leave the GUI's figure
+            // standing.
+            const size_t used_mb = tt_.allocated_bytes() >> 20;
+            if (used_mb != static_cast<size_t>(parameters_.hash_mb))
+                write_output_line("info string Hash " + std::to_string(parameters_.hash_mb)
+                               + " MiB uses a " + std::to_string(used_mb)
+                               + " MiB table (the largest power of two that fits).");
         } else {
             write_output_line("info string Unable to allocate Hash value "
                            + std::to_string(parameters_.hash_mb) + "; keeping "
