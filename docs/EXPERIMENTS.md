@@ -566,6 +566,8 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 
 - [BAS-S62](experiments/BAS-S62.md) — B.6's gate: the B.6.7 bake against the head before it, SPRT `[0,3]` — CLOSED 2026-11-14: H1 at 2,620 games, first-crossing +28.2 ± 7.9 Elo; the bake accepted
 
+- [BAS-S64](experiments/BAS-S64.md) — B.8.7's repair gate: nodes counted as Stockfish counts them, once per move made, `[-5,5]` — CLOSED 2026-11-15: the cap, 8,000 games, −0.8 ± 4.5 Elo, LLR −0.92; the count stays, `bench 13` 4,688,537
+- [BAS-S65](experiments/BAS-S65.md) — B.8's delivery gate: the cleanup and speed pass against B.7's head, `[0,3]` — CLOSED 2026-11-16: H1 accepted at 3,938 games, +19.1 ± 6.5 Elo (first-crossing), zero faults
 - [BAS-S63](experiments/BAS-S63.md) — B.7.1's repair gate: a return to the root counts as a repetition only when it recurs, `[-5,5]` — CLOSED 2026-11-14: the cap, 8,000 games, +1.9 ± 4.1 Elo, LLR +2.29; the repair stays, `bench 13` 4,247,965
 
 | ID | Title | Disposition |
@@ -670,6 +672,32 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P31](experiments/BAS-P31.md) | The board's second round: six candidates on the replay and the engine screen (B.7.7). | COMPLETE: none kept (best +0.22%, keys by table; all six together −7.76%), NO_CHANGE |
 | [BAS-P32](experiments/BAS-P32.md) | The final board beside the donors (contract v3), and B.7.6's speed in hardware counters (B.7.9). | COMPLETE: Basilisk cheapest, 60.7 ns per node against classical Stockfish 61.9, Rarog 69.8, Stockfish 19 76.6; counter read not counted (BAS-P28, BAS-P33) |
 | [BAS-P33](experiments/BAS-P33.md) | The counter read's null redesigned: copies of every base build, decided over builds (B.7.9). | NOT ACCEPTED: identical builds read −0.56% [−1.10, −0.02] and +0.49%; the counters resolve about ±1% at three cycles |
+| [BAS-P34](experiments/BAS-P34.md) | B.8.2's deletions and idioms in the whole engine, pooled-PGO NPS, no-regression form (B.8.2). | COMPLETE: +1.89% [+1.47, +2.31], no-regression PASS; kept |
+| [BAS-P35](experiments/BAS-P35.md) | B.8.4's large pages, on against off, pooled-PGO NPS (B.8.4). | COMPLETE: +0.91% [+0.62, +1.20], ACCEPT; the default stays on |
+| [BAS-P36](experiments/BAS-P36.md) | The four-thread pooled NPS read's null pair (B.8.5). | FAILED: cycles disturbed twice (the clock's drift, 2.1% and 1.05%), builds spread about 2.7%; B.8.9 reads one thread |
+| [BAS-P37](experiments/BAS-P37.md) | The loaded cohort read's null pair and its liveness (B.8.9). | COMPLETE: null −0.13% [−0.35, +0.10], liveness +2.38% [+1.89, +2.87]; admitted |
+| [BAS-P38](experiments/BAS-P38.md) | The table prefetch from a predicted key (B.8.9 A1). | COMPLETE: bench −0.62% [−0.83, −0.41] FAIL, loaded +1.38% [+1.00, +1.76], cohort alone +0.71%; reverted (Return 1) |
+| [BAS-P39](experiments/BAS-P39.md) | The continuation-correction cells prefetched before the make (B.8.9 A2). | COMPLETE: bench −0.93% FAIL, loaded −0.87%; reverted |
+| [BAS-P40](experiments/BAS-P40.md) | The head's own pool, and A1 and A2 read again against it (B.8.9). | COMPLETE: head −0.03% [−0.24, +0.18], base valid; not owed, verdicts unchanged (A1 −0.43% bench, +1.54% loaded; A2 −0.82%, −1.09%) |
+| [BAS-P41](experiments/BAS-P41.md) | The structure-correction entries prefetched after the make (B.8.9 A3). | COMPLETE: bench −0.31%, loaded −0.44% [−1.55, +0.68]; reverted |
+| [BAS-P42](experiments/BAS-P42.md) | The correction computed before the table probe (B.8.9 A4). | COMPLETE: bench −0.15%, loaded −0.16%; reverted |
+| [BAS-P43](experiments/BAS-P43.md) | The build: full LTO, IR-level PGO, both (B.8.9 C). | COMPLETE: full LTO +3.23% [+2.94, +3.52] bench, +2.56% cohort; kept. IR PGO −0.70% |
+| [BAS-P44](experiments/BAS-P44.md) | The build's second read: inline threshold 500 and ext-tsp placement (B.8.9 C). | COMPLETE: +0.92% [+0.63, +1.21] bench, +0.66% cohort; kept |
+| [BAS-P45](experiments/BAS-P45.md) | LMR's window division hoisted, LMP's halving (B.8.9 B1). | COMPLETE: +0.23% [−0.01, +0.46]; kept under the bar, then reverted with the bundle (BAS-P52) |
+| [BAS-P46](experiments/BAS-P46.md) | Search parameters as constants outside Tune (B.8.9 B2). | COMPLETE: +0.94% [+0.49, +1.39], ACCEPT; kept |
+| [BAS-P47](experiments/BAS-P47.md) | The picker's stages fall through (B.8.9 B3). | COMPLETE: +0.81% [+0.60, +1.02], ACCEPT; kept |
+| [BAS-P48](experiments/BAS-P48.md) | The sort's insertion pass by rank (AVX2) (B.8.9 B4). | COMPLETE: −1.57% [−1.95, −1.19]; reverted |
+| [BAS-P49](experiments/BAS-P49.md) | Quiet scoring's rows hoisted per piece type (B.8.9 B5). | COMPLETE: −1.41% [−1.60, −1.22]; reverted |
+| [BAS-P50](experiments/BAS-P50.md) | The draw verdict from the node's own evaluation (B.8.9 S1). | COMPLETE: −0.28% [−0.62, +0.07]; reverted |
+| [BAS-P51](experiments/BAS-P51.md) | Root_ordering tested once per stage (B.8.9 S2). | COMPLETE: +0.09% [−0.16, +0.34]; kept under the bar, then reverted with the bundle (BAS-P52) |
+| [BAS-P52](experiments/BAS-P52.md) | The sub-bar bundle under D-17: B1 and S2 together (B.8.9). | COMPLETE: +0.05% [−0.11, +0.21]; both reverted |
+| [BAS-P53](experiments/BAS-P53.md) | The speed pass whole, against B.8.5's head; D-9; the profile again (B.8.9). | COMPLETE: +6.05% [+5.55, +6.55] bench, +4.66% [+4.49, +4.83] loaded; D-9 4.0x |
+| [BAS-P54](experiments/BAS-P54.md) | The one-engine cohort read's null (B.8.10). | COMPLETE: −0.02% [−0.24, +0.20]; admitted |
+| [BAS-P55](experiments/BAS-P55.md) | B.8.10's arms on `bench`: the cost and the ceiling (B.8.10). | COMPLETE: X0 −0.80%, X2 −0.09%, X1 +0.16%; every ceiling held |
+| [BAS-P56](experiments/BAS-P56.md) | B.8.10's arms at one engine on the cohort: the guard (B.8.10). | COMPLETE: X0 +0.56%, X2 +0.31%, X1 +0.24%; every guard held |
+| [BAS-P57](experiments/BAS-P57.md) | B.8.10's arms under load: the decider (B.8.10). | COMPLETE: X0 +1.32% [+1.00, +1.64] kept; X2 +0.57%, X1 +0.26% not |
+| [BAS-P58](experiments/BAS-P58.md) | X0 at one engine, Hash 1 and Hash 256: the model's falsifier (B.8.10). | COMPLETE: −1.02% at Hash 1, +1.13% at Hash 256; the falsifier did not fire |
+| [BAS-P59](experiments/BAS-P59.md) | The universal binary with full LTO, against the pext asset (B.8 delivery). | COMPLETE: +0.30% [+0.19, +0.42], PASS; the universal binary keeps B.8's gain |
 
 ## 7. Correctness and protocol lessons
 

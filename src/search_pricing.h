@@ -35,10 +35,10 @@
 
 enum class PriceRule : uint8_t {
     // Node rules: the node returns without searching its moves.
-    Razor, Rfp, NullMove, ProbCut, ProbCutTt, MultiCut, QsDelta,
+    Razor, Rfp, NullMove, ProbCut, MultiCut,
     // Move rules: one move is not searched.
     CaptureFutility, CaptureSee, ContHist, QuietFutility, QuietSee, SkipQuiets,
-    QsFutility, QsSee, QsLate, QsCount, QsEvasion,
+    QsFutility, QsSee, QsCount, QsEvasion,
     // A reduced search that failed low.
     LmrFailLow,
     Count

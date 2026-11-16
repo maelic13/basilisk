@@ -529,6 +529,20 @@ so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
   - **The null** is two independent pools of one source (BAS-P18).
   - `tools/nps_ab.ps1` is kept only to compare with earlier rows. Its
     bootstrap resamples readings, not builds, so it is not this interval.
+  - **A memory item** (a prefetch, an entry's size, a probe saved) is read
+    on the game's workload (`tools/cohort_read.py`, the timed-game cohort at
+    Hash 64). `bench`'s 16 MiB table sits in the cache: it prices such an
+    item's instructions and not its waits (BAS-P38, BAS-P40;
+    `analysis/b88_speed_packet_2026-11-15.md`, Amendment 1). The item is
+    kept when the pooled read accepts it, or when all three hold:
+    - the loaded read, fourteen engines, is +1.0% or more with its lower
+      bound above 0;
+    - the same read at one engine shows no resolved loss: its estimate is
+      above −0.5% and its interval's upper bound is at 0 or above;
+    - the pooled `bench` read's estimate is above −1.0%, recorded as the
+      item's cost.
+    Each form of the cohort read decides only after its own null
+    (BAS-P37 admitted the loaded form).
 - **Profiling:** `tools/profile.ps1` samples a `build_test.ps1 -Flavor
   Profile` engine, which is Release plus line tables with inline records
   and byte-identical code. It needs no administrator rights.

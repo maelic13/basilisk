@@ -14,8 +14,44 @@ and next step).
 
 ## [Unreleased]
 
+### Added
+
+- **Large pages.** The hash table and each search thread's tables now use
+  large memory pages wherever the system offers them (Windows with the "Lock
+  pages in memory" right, Linux), which makes the engine about 1% faster
+  (BAS-P35: +0.91% nodes per second). A new `LargePages` option, on by
+  default, turns them off; `bench` says whether they were used. A large Hash
+  is also set up several times faster when more threads are set. It plays
+  the same moves.
+
 ### Changed
 
+- **About 1% faster in games.** The search now works out the position a
+  move leads to before making it, and asks the memory for that position's
+  hash-table entry early, so the entry is on its way while the move is
+  made. With fourteen engines searching game positions at once it reads
+  +1.32% nodes per second, and +0.56% alone (BAS-P57, BAS-P56). On
+  `bench`'s small table, which already sits in the processor's cache, it
+  costs 0.8%; the gain grows with the hash size. It plays the same moves:
+  `bench 13` is unchanged at 4,688,537.
+- **About 6% faster.** The engine is now linked as one whole program, with
+  more inlining and better code layout (Stockfish's build), the search's
+  tuned constants are compiled in outside the tuning build, and the move
+  picker steps through its stages without going back to the start each
+  time. It reads +6.05% nodes per second alone on `bench` and +4.66% with
+  fourteen engines searching game positions at once (BAS-P53). It plays the
+  same moves: `bench 13` is unchanged at 4,688,537.
+- **Nodes are counted as Stockfish counts them**, once for each move the
+  search makes. Re-searches of a position and the null move no longer add
+  to the count, so the reported nodes and nodes per second read about 9%
+  lower for the same search, and `go nodes N` searches that much more. The
+  engine plays as strongly (BAS-S64: −0.8 ± 4.5 Elo over 8,000 games).
+  `bench 13` is now 4,688,537.
+- **About 2% faster again.** The engine carried alternative versions of
+  many search rules, kept to measure them against each other, and checked
+  at every position which one to use; it also counted statistics nobody
+  read. Those are gone (BAS-P34: +1.89% nodes per second). It plays the
+  same moves: `bench 13` is unchanged at 4,247,965.
 - **About 3% faster.** Taking a move back no longer recomputes the
   position's keys only to throw them away, and the exchange evaluator works
   out pinned pieces when it needs them instead of in advance (BAS-P30:

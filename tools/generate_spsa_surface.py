@@ -2,8 +2,8 @@
 
 The C++ table owns option names, defaults, and bounds.  This generator derives
 the registered integer perturbation as max(2, round((max - min) / 16)) and
-writes both weather-factory JSON and Colosseum TOML, for the root table and the
-line the kernel inherited and, separately, for each cluster's coordinates.
+writes both weather-factory JSON and Colosseum TOML, for the root table and,
+separately, for each cluster's coordinates.
 Generated files are checked into the tree so experiment registrations can name
 an exact surface; edit the X-macro and regenerate rather than editing them.
 
@@ -11,8 +11,8 @@ an exact surface; edit the X-macro and regenerate rather than editing them.
 PLAN rule 7c: each coordinate's perturbation is twice its step where its seed
 has two steps of room inside its range, and otherwise the largest from one to
 two steps that the room allows; a coordinate with under one step of room keeps
-one step and is named. Seeds are the values the head runs (every cluster's
-refit applied). Without --output it prints the room report only.
+one step and is named. Seeds are the values the head runs, its lines'
+defaults. Without --output it prints the room report only.
 """
 
 from __future__ import annotations
@@ -60,13 +60,11 @@ B3_SWEEP_COORDINATES = {
 B3_SWEEP_EXTRA_POINTS = {
     "B3SingMargin": (17, 126),
 }
-# B.3.3's fit surface (BAS-S42): the B3 table's X lines less the inert ones,
-# with the Cluster 1 coordinates whose consumer populations Cluster 2 moved
+# B.3.3's fit surface (BAS-S42): the B3 table's X lines, with the Cluster 1
+# coordinates whose consumer populations Cluster 2 moved
 # (packet section 5.12, read by B.3.2 in BAS-S41), on the same run file.
 B33_CONFIG = ROOT / "tools" / "spsa_configs" / "config_b33.json"
 B33_TUNE = COLOSSEUM / "b33.tune.toml"
-# Inert while its switch B3ProbCutTt stays 0 (BAS-S41: +0.9 +- 9.5).
-B33_EXCLUDED = ("B3ProbCutTtMargin",)
 B33_ADMITTED_CORE = (
     "CoreLmpBase", "CoreQuietFutBase", "CoreCaptFutBase", "CoreCaptSeeCoeff",
     "CoreContHistPruneSlope", "CoreRfpCorrMult", "CoreCorrUpdateScale",
@@ -107,24 +105,10 @@ CORE_TABLE = "#define BASILISK_CORE_KERNEL_PARAMS("
 B3_TABLE = "#define BASILISK_B3_PARAMS("
 B4_TABLE = "#define BASILISK_B4_PARAMS("
 B5_TABLE = "#define BASILISK_B5_PARAMS("
-# Cluster 2's refit of core coordinates: A(field, UciName, value) lines. The
-# core surface keeps the X lines' values (Cluster 1's fit); a surface tuned
-# after Cluster 2 starts from these.
-B3_CORE_DEFAULTS_TABLE = "#define BASILISK_B3_CORE_DEFAULTS("
-# Cluster 3's refit of earlier clusters' lines, in the same form; a surface
-# tuned after Cluster 3 starts from these, over the B3 table's.
-B4_CORE_DEFAULTS_TABLE = "#define BASILISK_B4_CORE_DEFAULTS("
-# Cluster 4's refit of earlier clusters' lines, in the same form, applied over
-# the B4 table's.
-B5_CORE_DEFAULTS_TABLE = "#define BASILISK_B5_CORE_DEFAULTS("
-# B.6.7's joint fit of the head's X lines, applied after the clusters' refits.
-B67_DEFAULTS_TABLE = "#define BASILISK_B67_DEFAULTS("
-TABLES = (CORE_TABLE, B3_TABLE, B4_TABLE, B5_TABLE, B3_CORE_DEFAULTS_TABLE,
-          B4_CORE_DEFAULTS_TABLE, B5_CORE_DEFAULTS_TABLE, B67_DEFAULTS_TABLE)
-ARM_DEFAULT_RE = re.compile(
-    r"^\s*A\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,\s*(-?\d+)\s*\)"
-)
-SWITCH_RE = re.compile(r"^\s*S\(\s*[a-z][a-z0-9_]*\s*,\s*([A-Za-z][A-Za-z0-9]*)\s*,", re.M)
+# Every line's default is the value in force: B.8.2 folded the clusters'
+# refits and B.6.7's joint fit into the lines, so each surface starts from
+# what the engine runs.
+TABLES = (CORE_TABLE, B3_TABLE, B4_TABLE, B5_TABLE)
 
 
 def split_tables(text: str) -> dict[str, list[str]]:
@@ -191,89 +175,6 @@ def parse_parameters(text: str, core: bool = False, b3: bool = False,
     return parameters
 
 
-def b3_core_defaults(text: str) -> dict[str, int]:
-    """Cluster 2's refit of core defaults, each checked: a core X line's
-    name, inside its range, off its default, named once."""
-    core = {name: (default, minimum, maximum)
-            for name, default, minimum, maximum in parse_parameters(text, core=True)}
-    overrides: dict[str, int] = {}
-    for line in split_tables(text)[B3_CORE_DEFAULTS_TABLE]:
-        match = ARM_DEFAULT_RE.match(line)
-        if not match:
-            continue
-        name, value = match.group(1), int(match.group(2))
-        if name not in core:
-            raise ValueError(f"Cluster 2 default {name} names no core X line")
-        default, minimum, maximum = core[name]
-        if not minimum <= value <= maximum or value == default or name in overrides:
-            raise ValueError(f"Cluster 2 default {name} {value}: must lie in "
-                             f"[{minimum}, {maximum}] off {default}, once")
-        overrides[name] = value
-    return overrides
-
-
-def b4_core_defaults(text: str) -> dict[str, int]:
-    """Cluster 3's refit of earlier clusters' X lines, each
-    checked: inside its range, off its line's default, named once. A switch
-    is never on a surface, so its line here is passed over."""
-    return arm_core_defaults(text, B4_CORE_DEFAULTS_TABLE, "Cluster 3",
-                             [*parse_parameters(text, core=True), *parse_parameters(text, b3=True)])
-
-
-def b5_core_defaults(text: str) -> dict[str, int]:
-    """Cluster 4's refit of earlier clusters' X lines, checked as Cluster 3's."""
-    return arm_core_defaults(text, B5_CORE_DEFAULTS_TABLE, "Cluster 4",
-                             [*parse_parameters(text, core=True), *parse_parameters(text, b3=True),
-                              *parse_parameters(text, b4=True)])
-
-
-def b67_defaults(text: str, earlier: dict[str, int]) -> dict[str, int]:
-    """B.6.7's joint fit, each checked: an X line of the head's tables, inside its
-    range, off the value the clusters left it, named once."""
-    if B67_DEFAULTS_TABLE not in text:
-        return {}
-    lines = {name: (default, minimum, maximum) for name, default, minimum, maximum in
-             [*parse_parameters(text, core=True), *parse_parameters(text, b3=True),
-              *parse_parameters(text, b4=True), *parse_parameters(text, b5=True)]}
-    overrides: dict[str, int] = {}
-    for line in split_tables(text)[B67_DEFAULTS_TABLE]:
-        match = ARM_DEFAULT_RE.match(line)
-        if not match:
-            continue
-        name, value = match.group(1), int(match.group(2))
-        if name not in lines:
-            raise ValueError(f"B.6.7 default {name} names no X line")
-        default, minimum, maximum = lines[name]
-        before = earlier.get(name, default)
-        if not minimum <= value <= maximum or value == before or name in overrides:
-            raise ValueError(f"B.6.7 default {name} {value}: must lie in [{minimum}, {maximum}] "
-                             f"off {before}, once")
-        overrides[name] = value
-    return overrides
-
-
-def arm_core_defaults(text: str, table: str, cluster: str,
-                      parameters: list[tuple[str, int, int, int]]) -> dict[str, int]:
-    lines = {name: (default, minimum, maximum) for name, default, minimum, maximum in parameters}
-    switches = set(SWITCH_RE.findall(text))
-    overrides: dict[str, int] = {}
-    for line in split_tables(text)[table]:
-        match = ARM_DEFAULT_RE.match(line)
-        if not match:
-            continue
-        name, value = match.group(1), int(match.group(2))
-        if name in switches:
-            continue
-        if name not in lines:
-            raise ValueError(f"{cluster} default {name} names no X line")
-        default, minimum, maximum = lines[name]
-        if not minimum <= value <= maximum or value == default or name in overrides:
-            raise ValueError(f"{cluster} default {name} {value}: must lie in "
-                             f"[{minimum}, {maximum}] off {default}, once")
-        overrides[name] = value
-    return overrides
-
-
 def sweep_notes(text: str, coordinates: dict[str, tuple[int, ...]],
                 extra_points: dict[str, tuple[int, ...]]) -> list[str]:
     """The B3 table's sweep registrations as comment lines, each checked: a
@@ -308,29 +209,22 @@ def sweep_notes(text: str, coordinates: dict[str, tuple[int, ...]],
 
 
 def b33_parameters(text: str) -> list[tuple[str, int, int, int]]:
-    """B.3.3's fit surface: the B3 X lines less B33_EXCLUDED, then the core X
-    lines B33_ADMITTED_CORE names, in that order; every name is checked. The
-    surface is Cluster 2's, so a core coordinate starts from its refit where
-    it has one."""
+    """B.3.3's fit surface: the B3 X lines, then the core X lines
+    B33_ADMITTED_CORE names, in that order; every name is checked. The
+    surface is Cluster 2's; every coordinate starts from its line's default."""
     b3 = parse_parameters(text, b3=True)
-    overrides = b3_core_defaults(text)
-    core = {name: (name, overrides.get(name, default), minimum, maximum)
-            for name, default, minimum, maximum in parse_parameters(text, core=True)}
-    missing = [name for name in B33_EXCLUDED if name not in {p[0] for p in b3}]
-    missing += [name for name in B33_ADMITTED_CORE if name not in core]
+    core = {p[0]: p for p in parse_parameters(text, core=True)}
+    missing = [name for name in B33_ADMITTED_CORE if name not in core]
     if missing:
         raise ValueError(f"B.3.3 surface names no X line: {', '.join(missing)}")
-    return [p for p in b3 if p[0] not in B33_EXCLUDED] + [core[name] for name in B33_ADMITTED_CORE]
+    return b3 + [core[name] for name in B33_ADMITTED_CORE]
 
 
 def b46_parameters(text: str) -> list[tuple[str, int, int, int]]:
     """B.4.6's fit surface: the B4 X lines, then the coordinates B46_ADMITTED
     names from the core and B3 tables, in that order; every name is checked.
-    Each starts from the value the engine runs: Cluster 3's refit where it has
-    one, then Cluster 2's."""
-    overrides = {**b3_core_defaults(text), **b4_core_defaults(text)}
-    earlier = {name: (name, overrides.get(name, default), minimum, maximum)
-               for name, default, minimum, maximum in
+    Each starts from its line's default."""
+    earlier = {p[0]: p for p in
                [*parse_parameters(text, core=True), *parse_parameters(text, b3=True)]}
     missing = [name for name in B46_ADMITTED if name not in earlier]
     if missing:
@@ -341,11 +235,8 @@ def b46_parameters(text: str) -> list[tuple[str, int, int, int]]:
 def b54_parameters(text: str) -> list[tuple[str, int, int, int]]:
     """B.5.4's fit surface: the B5 X lines, then the coordinates B54_ADMITTED
     names from the core, B3 and B4 tables, in that order; every name is checked.
-    Each starts from the value the arm runs: Cluster 4's refit where it has
-    one, then Cluster 3's, then Cluster 2's."""
-    overrides = {**b3_core_defaults(text), **b4_core_defaults(text), **b5_core_defaults(text)}
-    earlier = {name: (name, overrides.get(name, default), minimum, maximum)
-               for name, default, minimum, maximum in
+    Each starts from its line's default."""
+    earlier = {p[0]: p for p in
                [*parse_parameters(text, core=True), *parse_parameters(text, b3=True),
                 *parse_parameters(text, b4=True)]}
     missing = [name for name in B54_ADMITTED if name not in earlier]
@@ -495,17 +386,14 @@ def b67_parameters(header_text: str, literal_text: str, surface_text: str) -> li
 
 
 def head_parameters(text: str, surface: str = "head") -> list[tuple[str, int, int, int]]:
-    """A surface's X lines with the seeds the head runs: every cluster's
-    refit of earlier lines applied, then B.6.7's joint fit. "head" is the core, B3, B4
-    and B5 tables."""
-    overrides = {**b3_core_defaults(text), **b4_core_defaults(text), **b5_core_defaults(text)}
-    overrides.update(b67_defaults(text, overrides))
+    """A surface's X lines at the seeds the head runs, its lines' defaults.
+    "head" is the core, B3, B4 and B5 tables."""
     tables = {
         "core": parse_parameters(text, core=True), "b3": parse_parameters(text, b3=True),
         "b4": parse_parameters(text, b4=True), "b5": parse_parameters(text, b5=True),
     }
     chosen = [p for table in ("core", "b3", "b4", "b5") for p in tables[table]] if surface == "head" else tables[surface]
-    return [(name, overrides.get(name, default), minimum, maximum) for name, default, minimum, maximum in chosen]
+    return chosen
 
 
 def graded_perturbation(start: int, minimum: int, maximum: int, step: int) -> tuple[float, float]:
@@ -559,9 +447,8 @@ def render_all(text: str, iterations: int) -> dict[pathlib.Path, str]:
                                             B3_SWEEP_EXTRA_POINTS)))
     outputs.update(render(b33_parameters(text), iterations,
                           config=B33_CONFIG, tune=B33_TUNE, run=None,
-                          notes=["# B.3.3's fit surface (BAS-S42): the B3 X lines less "
-                                 + ", ".join(B33_EXCLUDED) + ", with section 5.12's "
-                                 "Cluster 1 admissions."]))
+                          notes=["# B.3.3's fit surface (BAS-S42): the B3 X lines with "
+                                 "section 5.12's Cluster 1 admissions."]))
     outputs.update(render(parse_parameters(text, b4=True), iterations,
                           config=B4_CONFIG, tune=B4_TUNE, run=None))
     outputs.update(render(b46_parameters(text), iterations,

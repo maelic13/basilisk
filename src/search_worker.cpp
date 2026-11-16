@@ -236,7 +236,7 @@ bool Searcher::check_stop() {
 // The pool section, printed by thread 0 after the join (its own search and
 // per-thread lines finish before the helpers do), so it appends rather than
 // replacing anything. Emitted only at Threads > 1.
-void Searcher::print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& pool,
+void Searcher::print_pool_diag(const std::vector<LargePagePtr<Searcher>>& pool,
                                int thread_count,
                                const std::vector<int>& completed_depths) const {
     if (!shared_.info || !config_.limits.diag || thread_count <= 1) return;
@@ -403,9 +403,6 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     state_.board        = &board;
 #ifdef BASILISK_BOARD_TRACE
     board_trace::begin_search(board);
-#endif
-#ifdef BASILISK_TUNE
-    board.set_see_vector(limits.params.b4_see_values);
 #endif
     state_.nodes        = 0;
     state_.tb_hits      = 0;
@@ -598,14 +595,12 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             b5::RootWindow window = b5::first_window(line.average, delta);
             DIAG_COUNT(++state_.diag.asp_windows);
             [[maybe_unused]] int last_window = 0;
-            int failed_high_cnt = 0;
             int line_score;
             while (true) {
                 if (line_one)
                     DIAG_COUNT(diag_root_tt(last_window, result.bestmove));
                 [[maybe_unused]] const int64_t window_nodes = state_.nodes;
-                line_score = search_window(depth, window.alpha, window.beta,
-                                           b5::adjusted_depth(depth, failed_high_cnt, limits.params.b5_fail_high_reduce != 0));
+                line_score = search_window(depth, window.alpha, window.beta, depth);
                 if (state_.stopped) break;
                 DIAG_COUNT(state_.diag.asp_nodes_windowed += state_.nodes - window_nodes);
                 DIAG_COUNT(state_.diag.asp_nodes_failed
@@ -620,7 +615,6 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                     DIAG_COUNT(++state_.diag.asp_fail_low);
                     DIAG_COUNT(++state_.diag.asp_researches);
                     window = b5::after_fail_low(window, line_score, delta);
-                    failed_high_cnt = 0;
                 } else if (line_score >= window.beta) {
                     if (line_one)
                         bound_line(line_score, true);
@@ -630,7 +624,6 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
                         break;
                     DIAG_COUNT(++state_.diag.asp_researches);
                     window = b5::after_fail_high(window, line_score, delta);
-                    ++failed_high_cnt;
                 } else {
                     break;
                 }
@@ -644,7 +637,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             score = search_window(depth, limits.root_alpha, limits.root_beta);
         } else if (depth <= KLIT(asp_min_depth) || std::abs(prev_score) >= MATE_SCORE - MAX_PLY) {
             score = search_window(depth, -INF_SCORE, INF_SCORE);
-        } else if (limits.params.b5_window && !state_.root_moves.empty()) {
+        } else if (!state_.root_moves.empty()) {
             windowed = true;
             score = search_line_window();
         } else {
@@ -815,7 +808,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             // A move that was no line's last iteration has no previous score.
             const bool was_mate = line.previous_score != kRootScoreNone
                                && std::abs(line.previous_score) >= MATE_SCORE - MAX_PLY;
-            if (depth <= KLIT(asp_min_depth) || !limits.params.b5_window || was_mate)
+            if (depth <= KLIT(asp_min_depth) || was_mate)
                 search_window(depth, -INF_SCORE, INF_SCORE);
             else
                 search_line_window();

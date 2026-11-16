@@ -1,9 +1,9 @@
 #include "history_core.h"
 
 CoreHistoryTables::CoreHistoryTables()
-    : continuation(std::make_unique<ContinuationHistory>())
-    , pawn(std::make_unique<PawnHistory>())
-    , cont_corr(std::make_unique<ContinuationCorrection>()) {
+    : continuation(make_large_page<ContinuationHistory>())
+    , pawn(make_large_page<PawnHistory>())
+    , cont_corr(make_large_page<ContinuationCorrection>()) {
 #ifdef BASILISK_DIAGNOSTIC
     shadow = std::make_unique<CrossColourShadow>(
         size_t{HIST_PIECE_NB} * SQUARE_NB * PIECE_TYPE_NB,

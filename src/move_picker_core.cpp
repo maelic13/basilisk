@@ -49,10 +49,6 @@ Bitboard CoreMovePicker::checks_for(PieceType pt) {
     return check_squares_[pt];
 }
 
-bool CoreMovePicker::direct_check(Move m) {
-    return (checks_for(type_of(board_.piece_on(from_sq(m)))) & sq_bb(to_sq(m))) != 0;
-}
-
 int CoreMovePicker::fill(const MoveList& list, int at) {
     for (Move m : list) {
         if (m == excluded_ || (tt_delivered_ && m == tt_move_))
@@ -137,107 +133,107 @@ void CoreMovePicker::score_quiets(int begin, int end) {
     }
 }
 
+// Each stage falls into the next, so a call dispatches once: the stages,
+// their order, their conditions and their reads of skip_quiets_ are those of
+// a loop that re-entered the switch after every stage change.
 Move CoreMovePicker::next() {
     last_src_ = Src::None;
-    while (true) {
-        switch (stage_) {
-            case Stage::TT:
-                stage_ = Stage::CaptureInit;
-                if (tt_move_ != excluded_ && table_move_usable(board_, tt_move_)) {
-                    tt_delivered_ = true;
-                    last_src_ = Src::TT;
-                    return tt_move_;
-                }
-                break;
-
-            case Stage::CaptureInit: {
-                MoveList list;
-                board_.gen_legal_captures(list);
-                end_captures_ = fill(list, 0);
-                score_captures(0, end_captures_);
-                partial_insertion_sort(moves_, moves_ + end_captures_, INT_MIN);
-                cur_ = end_bad_captures_ = 0;
-                stage_ = Stage::GoodCapture;
-                break;
+    switch (stage_) {
+        case Stage::TT:
+            stage_ = Stage::CaptureInit;
+            if (tt_move_ != excluded_ && table_move_usable(board_, tt_move_)) {
+                tt_delivered_ = true;
+                last_src_ = Src::TT;
+                return tt_move_;
             }
+            [[fallthrough]];
 
-            case Stage::GoodCapture:
-                while (cur_ < end_captures_) {
-                    const ScoredMove sm = moves_[cur_];
-                    // The donor's threshold, score / 18 in its material units,
-                    // in this engine's SEE units (x 0.38): score / 47.
-                    if (board_.see_ge(sm.move, -sm.score / KLIT(pick_good_capture_div))) {
-                        ++cur_;
-                        last_src_ = Src::GoodTactical;
-                        return sm.move;
-                    }
-                    std::swap(moves_[end_bad_captures_++], moves_[cur_]);
-                    ++cur_;
-                }
-                stage_ = Stage::QuietInit;
-                break;
-
-            case Stage::QuietInit:
-                end_quiets_ = end_captures_;
-                if (!skip_quiets_ || keep_direct_checks_) {
-                    MoveList list;
-                    board_.gen_legal_quiets(list);
-                    end_quiets_ = fill(list, end_captures_);
-                    score_quiets(end_captures_, end_quiets_);
-                    partial_insertion_sort(moves_ + end_captures_, moves_ + end_quiets_,
-                                           KLIT(pick_sort_limit) * depth_);
-                }
-                cur_ = end_captures_;
-                stage_ = Stage::GoodQuiet;
-                break;
-
-            case Stage::GoodQuiet:
-                while ((!skip_quiets_ || keep_direct_checks_) && cur_ < end_quiets_) {
-                    const ScoredMove sm = moves_[cur_++];
-                    if (sm.score > KLIT(pick_good_quiet) && deliverable_quiet(sm.move)) {
-                        last_src_ = Src::Quiet;
-                        return sm.move;
-                    }
-                }
-                cur_ = 0;
-                stage_ = Stage::BadCapture;
-                break;
-
-            case Stage::BadCapture:
-                if (cur_ < end_bad_captures_) {
-                    last_src_ = Src::BadTactical;
-                    return moves_[cur_++].move;
-                }
-                cur_ = end_captures_;
-                stage_ = Stage::BadQuiet;
-                break;
-
-            case Stage::BadQuiet:
-                while ((!skip_quiets_ || keep_direct_checks_) && cur_ < end_quiets_) {
-                    const ScoredMove sm = moves_[cur_++];
-                    if (sm.score <= KLIT(pick_good_quiet) && deliverable_quiet(sm.move)) {
-                        last_src_ = Src::Quiet;
-                        return sm.move;
-                    }
-                }
-                stage_ = Stage::Done;
-                break;
-
-            case Stage::Done:
-                return MOVE_NONE;
+        case Stage::CaptureInit: {
+            MoveList list;
+            board_.gen_legal_captures(list);
+            end_captures_ = fill(list, 0);
+            score_captures(0, end_captures_);
+            partial_insertion_sort(moves_, moves_ + end_captures_, INT_MIN);
+            cur_ = end_bad_captures_ = 0;
+            stage_ = Stage::GoodCapture;
+            [[fallthrough]];
         }
+
+        case Stage::GoodCapture:
+            while (cur_ < end_captures_) {
+                const ScoredMove sm = moves_[cur_];
+                // The donor's threshold, score / 18 in its material units,
+                // in this engine's SEE units (x 0.38): score / 47.
+                if (board_.see_ge(sm.move, -sm.score / KLIT(pick_good_capture_div))) {
+                    ++cur_;
+                    last_src_ = Src::GoodTactical;
+                    return sm.move;
+                }
+                std::swap(moves_[end_bad_captures_++], moves_[cur_]);
+                ++cur_;
+            }
+            stage_ = Stage::QuietInit;
+            [[fallthrough]];
+
+        case Stage::QuietInit:
+            end_quiets_ = end_captures_;
+            if (!skip_quiets_) {
+                MoveList list;
+                board_.gen_legal_quiets(list);
+                end_quiets_ = fill(list, end_captures_);
+                score_quiets(end_captures_, end_quiets_);
+                partial_insertion_sort(moves_ + end_captures_, moves_ + end_quiets_,
+                                       KLIT(pick_sort_limit) * depth_);
+            }
+            cur_ = end_captures_;
+            stage_ = Stage::GoodQuiet;
+            [[fallthrough]];
+
+        case Stage::GoodQuiet:
+            while (!skip_quiets_ && cur_ < end_quiets_) {
+                const ScoredMove sm = moves_[cur_++];
+                if (sm.score > KLIT(pick_good_quiet)) {
+                    last_src_ = Src::Quiet;
+                    return sm.move;
+                }
+            }
+            cur_ = 0;
+            stage_ = Stage::BadCapture;
+            [[fallthrough]];
+
+        case Stage::BadCapture:
+            if (cur_ < end_bad_captures_) {
+                last_src_ = Src::BadTactical;
+                return moves_[cur_++].move;
+            }
+            cur_ = end_captures_;
+            stage_ = Stage::BadQuiet;
+            [[fallthrough]];
+
+        case Stage::BadQuiet:
+            while (!skip_quiets_ && cur_ < end_quiets_) {
+                const ScoredMove sm = moves_[cur_++];
+                if (sm.score <= KLIT(pick_good_quiet)) {
+                    last_src_ = Src::Quiet;
+                    return sm.move;
+                }
+            }
+            stage_ = Stage::Done;
+            [[fallthrough]];
+
+        case Stage::Done:
+            return MOVE_NONE;
     }
+    std::unreachable();
 }
 
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
 Move CoreMovePicker::first_denied_quiet(ScoredMove* scratch) {
-    // A direct check the skip still lets through is not denied.
-    const auto denied = [&](Move m) { return !(keep_direct_checks_ && direct_check(m)); };
     // The quiets above the threshold come from the cursor on, then the rest
     // from the start of the quiets, after the captures set aside.
     const auto first_bad = [&](int from) {
         for (int i = from; i < end_quiets_; ++i)
-            if (moves_[i].score <= KLIT(pick_good_quiet) && denied(moves_[i].move))
+            if (moves_[i].score <= KLIT(pick_good_quiet))
                 return moves_[i].move;
         return MOVE_NONE;
     };
@@ -251,14 +247,11 @@ Move CoreMovePicker::first_denied_quiet(ScoredMove* scratch) {
             quiets.skip_quiets_ = false;
             quiets.end_captures_ = quiets.end_bad_captures_ = 0;
             quiets.stage_ = Stage::QuietInit;
-            for (Move m = quiets.next(); m != MOVE_NONE; m = quiets.next())
-                if (denied(m))
-                    return m;
-            return MOVE_NONE;
+            return quiets.next();
         }
         case Stage::GoodQuiet:
             for (int i = cur_; i < end_quiets_; ++i)
-                if (moves_[i].score > KLIT(pick_good_quiet) && denied(moves_[i].move))
+                if (moves_[i].score > KLIT(pick_good_quiet))
                     return moves_[i].move;
             return first_bad(end_captures_);
         case Stage::BadCapture:

@@ -8,10 +8,12 @@
 ///   ./build/release/test_tt
 
 #include "tt.h"
+#include "large_pages.h"
 #include "move.h"
 #include "types.h"
 #include "test_harness.h"
 
+#include <cstdint>
 #include <cstdio>
 #include <new>
 #include <string>
@@ -39,7 +41,7 @@ static void test_store_probe() {
     end_section();
 
     begin_section("probe: flag == TT_EXACT");
-    EXPECT(found && (e.flag_age & 3) == TT_EXACT);
+    EXPECT(found && e.bound() == TT_EXACT);
     end_section();
 
     begin_section("probe: depth matches");
@@ -295,7 +297,7 @@ static void test_deeper_entry_preferred() {
     end_section();
 
     begin_section("deeper entry: flag == TT_EXACT");
-    EXPECT(found && (e.flag_age & 3) == TT_EXACT);
+    EXPECT(found && e.bound() == TT_EXACT);
     end_section();
 }
 
@@ -340,17 +342,17 @@ static void test_tt_flags() {
 
     begin_section("flag: TT_EXACT stored and retrieved");
     found = tt.probe_copy(key_ex, e);
-    EXPECT(found && (e.flag_age & 3) == TT_EXACT);
+    EXPECT(found && e.bound() == TT_EXACT);
     end_section();
 
     begin_section("flag: TT_ALPHA stored and retrieved");
     found = tt.probe_copy(key_al, e);
-    EXPECT(found && (e.flag_age & 3) == TT_ALPHA);
+    EXPECT(found && e.bound() == TT_ALPHA);
     end_section();
 
     begin_section("flag: TT_BETA stored and retrieved");
     found = tt.probe_copy(key_be, e);
-    EXPECT(found && (e.flag_age & 3) == TT_BETA);
+    EXPECT(found && e.bound() == TT_BETA);
     end_section();
 }
 
@@ -475,22 +477,6 @@ static void test_age_cycle() {
 // Cluster 2's bound-mismatch penalty: the entry loses one ply of depth and
 // nothing else; an entry at depth 0, an evaluation-only entry and a missing
 // key are left as they were.
-static void test_key50_buckets() {
-    const Key key = 0x5A5A5A5A12345678ULL;
-    begin_section("rule-50 key: raw below 14, one key per eight-ply bucket from 14");
-    EXPECT_EQ(tt_key50(key, 0), key);
-    EXPECT_EQ(tt_key50(key, 13), key);
-    EXPECT(tt_key50(key, 14) != key);
-    EXPECT_EQ(tt_key50(key, 21), tt_key50(key, 14));
-    EXPECT(tt_key50(key, 22) != tt_key50(key, 21));
-    EXPECT_EQ(tt_key50(key, 29), tt_key50(key, 22));
-    EXPECT(tt_key50(key, 96) != tt_key50(key, 22));
-    EXPECT_EQ(tt_key50(key, 99), tt_key50(key, 94));
-    // Distinct positions stay distinct within a bucket.
-    EXPECT(tt_key50(key, 30) != tt_key50(key ^ 1, 30));
-    end_section();
-}
-
 static void test_penalize() {
     TranspositionTable tt(1);
     const Key key = 0x5A5A5A5A12345678ULL;
@@ -624,6 +610,80 @@ static void test_resize_keeps_budget() {
 // main
 // ---------------------------------------------------------------------------
 
+// The large-page allocator: zeroed, page-aligned memory under either setting,
+// and a status that follows the option.
+static void test_large_pages_memory() {
+    const bool saved = large_pages::enabled();
+    for (const bool on : {true, false}) {
+        large_pages::set_enabled(on);
+        constexpr std::size_t bytes = (std::size_t{3} << 20) + 123;
+        auto* p = static_cast<unsigned char*>(large_pages::allocate(bytes));
+        begin_section(on ? "large pages: memory asked with the option on is zeroed and aligned"
+                         : "large pages: memory asked with the option off is zeroed and aligned");
+        EXPECT(p != nullptr);
+        if (p) {
+            EXPECT(reinterpret_cast<std::uintptr_t>(p) % 4096 == 0);
+            bool zero = true;
+            for (std::size_t i = 0; i < bytes; i += 4093)
+                zero = zero && p[i] == 0;
+            EXPECT(zero && p[bytes - 1] == 0);
+            p[0] = 1;
+            p[bytes - 1] = 1;  // the whole span is writable
+        }
+        if (!on)
+            EXPECT(large_pages::status() == large_pages::Status::Off);
+        end_section();
+        large_pages::release(p);
+    }
+    large_pages::set_enabled(true);
+    begin_section("large pages: the status names what the live allocations got");
+    {
+        const TranspositionTable tt(4);
+        const auto status = large_pages::status();
+        EXPECT(status != large_pages::Status::Off);
+        std::printf("\n    status with a 4 MiB table: %s\n  %-52s ",
+                    large_pages::status_name(status), "");
+    }
+    end_section();
+    large_pages::set_enabled(saved);
+}
+
+// A table cleared on several workers is empty everywhere, and one resized
+// under either setting keeps the Hash contract and works.
+static void test_parallel_clear_and_both_settings() {
+    const bool saved = large_pages::enabled();
+    TranspositionTable tt(16);
+    const std::size_t clusters = tt.allocated_bytes() / sizeof(TTCluster);
+    // A key per cluster, so every worker's share holds entries.
+    for (std::size_t i = 0; i < clusters; i += 97)
+        tt.store(Key(i) | (Key(0x5A5A) << 48), 4, 100, TT_EXACT, make_move(E2, E4), 0, 100);
+    tt.clear(4);
+    int found = 0;
+    for (std::size_t i = 0; i < clusters; i += 97) {
+        TTEntry e{};
+        found += tt.probe_copy(Key(i) | (Key(0x5A5A) << 48), e);
+    }
+    begin_section("clear: four workers leave no entry anywhere");
+    EXPECT_EQ(found, 0);
+    EXPECT_EQ(tt.hashfull(), 0);
+    end_section();
+
+    for (const bool on : {false, true}) {
+        large_pages::set_enabled(on);
+        begin_section(on ? "resize: with large pages the table keeps Hash and works"
+                         : "resize: without large pages the table keeps Hash and works");
+        EXPECT(tt.resize(8, 4));
+        EXPECT(tt.allocated_bytes() <= std::size_t{8} << 20);
+        EXPECT(tt.allocated_bytes() > std::size_t{4} << 20);
+        const Key key = 0x0123456789ABCDEFULL;
+        tt.store(key, 6, -40, TT_ALPHA, make_move(D2, D4), 0, -30);
+        TTEntry e{};
+        EXPECT(tt.probe_copy(key, e));
+        end_section();
+    }
+    large_pages::set_enabled(saved);
+}
+
 int main() {
     std::printf("Transposition table tests\n");
     std::printf("%s\n", std::string(62, '=').c_str());
@@ -640,6 +700,10 @@ int main() {
     std::printf("\nFailed resize\n");
     test_failed_resize_keeps_a_table();
 
+    std::printf("\nLarge pages\n");
+    test_large_pages_memory();
+    test_parallel_clear_and_both_settings();
+
     std::printf("\nMate score adjustment\n");
     test_mate_score_adjustment();
 
@@ -650,7 +714,6 @@ int main() {
     test_prefetch_is_safe();
 
     std::printf("\nRule-50 key\n");
-    test_key50_buckets();
 
     std::printf("\nReplacement policy\n");
     test_deeper_entry_preferred();

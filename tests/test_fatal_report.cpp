@@ -3,7 +3,7 @@
 /// status of 1 and the CRITICAL ERROR line (CMakeLists.txt); without the
 /// handler the process aborts and prints nothing.
 
-#include "uci_output.h"
+#include "output_sink.h"
 
 #include <stdexcept>
 #include <thread>

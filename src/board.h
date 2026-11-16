@@ -107,7 +107,6 @@ public:
     public:
         PositionSnapshot(const PositionSnapshot&) = default;
         PositionSnapshot& operator=(const PositionSnapshot&) = default;
-        bool operator==(const PositionSnapshot&) const = default;
     };
 
 private:
@@ -186,8 +185,8 @@ public:
     void unmake_null_move();
 
     // ---- Speed telemetry --------------------------------------------------
-    // Counted unconditionally (DiagCounters class: NIL cost, no Diag
-    // branch), one increment at the top of each query. They live HERE rather
+    // Counted in Tune and Diag builds (DIAG_COUNT), one increment at the
+    // top of each query; release builds compile it away. They live HERE rather
     // than at the ~11 search call sites so every caller is captured, including
     // movegen's own gives_check use. `mutable` because both queries are const;
     // race-free because a Board is per-searcher (Searcher::search takes it BY
@@ -228,7 +227,6 @@ public:
     void gen_legal(MoveList& moves) const;
     void gen_legal_captures(MoveList& moves) const;
     void gen_legal_quiets(MoveList& moves) const;
-    void gen_quiet_checks(MoveList& moves) const;  // quiet moves that give check
 
     [[nodiscard]] bool is_legal(Move m) const;
 
@@ -246,12 +244,6 @@ public:
     // set/hashed only when this holds (infra audit 4.5; SF semantics).
     [[nodiscard]] bool ep_capture_legal(Square ep, Color capturer) const;
     [[nodiscard]] bool ep_capture_legal_from(Square from, Square ep, Color capturer) const;
-    // SEE pin support: absolute pins for both colors against the given
-    // occupancy. pinner_of[sq] is valid only where pinned[] has the bit.
-    void see_pins(Bitboard occ, Bitboard pinned[NCOLORS], Square pinner_of[SQUARE_NB]) const;
-    // Whether vacating `s` can pin a piece against either king: `s` shares a
-    // line with the king and an enemy slider of that line's kind is on it.
-    [[nodiscard]] bool see_departure_opens_line(Square s, Bitboard occ) const;
     // A draw by repetition at search_ply plies from the root: the position
     // occurred once since the root (strictly after it), or twice in the
     // reversible history.
@@ -272,21 +264,7 @@ public:
         return (pieces[c][KNIGHT] | pieces[c][BISHOP] | pieces[c][ROOK] | pieces[c][QUEEN]) != 0;
     }
 #endif
-    [[nodiscard]] int see(Move m) const;
     [[nodiscard]] bool see_ge(Move m, int threshold) const;
-#ifdef BASILISK_TUNE
-    // The vector see and see_ge read: 0 the search's values, 1 the evaluation's
-    // material. Tune builds alone; every other build keeps the constants.
-    void set_see_vector(int vector) noexcept {
-        see_values_ = vector ? HCE_PIECE_VALUE : SEE_SEARCH_VALUES;
-    }
-
-private:
-    static constexpr int SEE_SEARCH_VALUES[PIECE_TYPE_NB] = {0, 100, 300, 300, 500, 900, 20000};
-    const int* see_values_ = SEE_SEARCH_VALUES;
-
-public:
-#endif
 
     // Castling permission mask per square (AND onto castling_rights when piece moves from/to sq)
     static constexpr int CASTLING_MASK[SQUARE_NB] = {
@@ -311,7 +289,6 @@ private:
     void gen_legal_untraced(MoveList& moves) const;
     void gen_legal_captures_untraced(MoveList& moves) const;
     void gen_legal_quiets_untraced(MoveList& moves) const;
-    void gen_quiet_checks_untraced(MoveList& moves) const;
     [[nodiscard]] bool see_ge_untraced(Move m, int threshold) const;
     [[nodiscard]] bool gives_check_untraced(Move m) const;
     [[nodiscard]] Bitboard check_squares_untraced(PieceType pt, Color us) const;
@@ -332,16 +309,4 @@ private:
     void move_piece_board(Square from, Square to);
     // restore_position without touching the history or the counters.
     void restore_fields(const PositionSnapshot& snapshot) noexcept;
-#ifdef BASILISK_BOARD_CROSSCHECK
-    // The original forms of rebuilt board operations, which a cross-check
-    // build runs beside the rebuilt ones (board.cpp).
-    void unmake_move_reference(Move m);
-    [[nodiscard]] bool see_ge_rebuilt(Move m, int threshold) const;
-    [[nodiscard]] bool see_ge_reference(Move m, int threshold) const;
-    [[nodiscard]] bool is_draw_rebuilt() const;
-    [[nodiscard]] bool is_draw_reference() const;
-    [[nodiscard]] bool is_repetition_rebuilt(int search_ply) const;
-    [[nodiscard]] bool is_repetition_reference(int search_ply) const;
-#endif
-    [[nodiscard]] Key compute_hash() const;
 };

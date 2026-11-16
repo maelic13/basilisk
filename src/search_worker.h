@@ -35,6 +35,7 @@
 #include "search_types.h"
 #include "syzygy.h"
 #include "tt.h"
+#include "zobrist.h"
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -105,7 +106,7 @@ struct SearchShared {
 // Stack records below the root. The kernel reads (ss - n) for n up to this
 // many plies; those records are sentinels, and the root is stack[STACK_SENTINELS].
 // Seven covers the deepest continuation read (six plies back from a child's
-// update) on either kernel.
+// update).
 inline constexpr int STACK_SENTINELS = 7;
 
 struct SearchState {
@@ -173,6 +174,36 @@ struct SearchState {
     ScoredMove move_buffers[MAX_PLY][2][MoveList::CAPACITY];
 };
 
+// The key of the position `m` reaches from `b`, known before the move is
+// made, so that the child's table cluster is fetched while the make runs.
+// Exact for every move except four kinds, which the made key corrects: a
+// promotion, an en passant capture, a castling, and a pawn's double push
+// that sets an en-passant square.
+[[nodiscard]] inline Key predicted_child_key(const Board& b, Move m) {
+    const Square from = from_sq(m), to = to_sq(m);
+    const Piece piece = b.piece_on(from), victim = b.piece_on(to);
+    Key key = b.position_key() ^ Zobrist::SideKey
+            ^ Zobrist::PieceKeys[color_of(piece)][type_of(piece)][from]
+            ^ Zobrist::PieceKeys[color_of(piece)][type_of(piece)][to];
+    // The empty square's row of the piece keys is random, not zero.
+    if (victim != NO_PIECE)
+        key ^= Zobrist::PieceKeys[color_of(victim)][type_of(victim)][to];
+    const int rights = b.castling();
+    key ^= Zobrist::CastlingKeys[rights]
+         ^ Zobrist::CastlingKeys[rights & Board::CASTLING_MASK[from] & Board::CASTLING_MASK[to]];
+    if (b.ep_square() != SQ_NONE)
+        key ^= Zobrist::EpKeys[file_of(b.ep_square())];
+    return key;
+}
+
+// Whether `m`, at `b`, is one of the four kinds predicted_child_key may miss.
+[[nodiscard]] inline bool predicted_key_may_miss(const Board& b, Move m) {
+    if (move_type(m) != NORMAL)
+        return true;
+    const int step = int(to_sq(m)) - int(from_sq(m));
+    return type_of(b.piece_on(from_sq(m))) == PAWN && (step == 16 || step == -16);
+}
+
 class Searcher {
 public:
     Searcher(TranspositionTable& tt,
@@ -190,7 +221,7 @@ public:
     // because the info callback is thread 0's and the helpers' counters are
     // complete only then. Takes the pool itself so each helper's private
     // counters are read directly and DiagCounters stays private.
-    void print_pool_diag(const std::vector<std::unique_ptr<Searcher>>& pool,
+    void print_pool_diag(const std::vector<LargePagePtr<Searcher>>& pool,
                          int thread_count,
                          const std::vector<int>& completed_depths) const;
 
@@ -297,14 +328,8 @@ private:
                   int static_eval, bool pv);
     // Every TT read in the kernel likewise (a pricing probe reads its own
     // table beside the engine's).
-    // The key the table reads and writes for `b`: the position's, or with
-    // CoreTtKey50 the position's mixed with the rule-50 count's eight-ply
-    // bucket from a count of 14 (the donor's form). Repetition reads the raw
-    // key.
-    Key tt_key(const Board& b) const {
-        return config_.limits.params.tt_key50 ? tt_key50(b.position_key(), b.rule50_count())
-                                              : b.position_key();
-    }
+    // The key the table reads and writes for `b`: the position's.
+    Key tt_key(const Board& b) const { return b.position_key(); }
     bool tt_probe(Key key, TTEntry& out) const {
 #ifdef BASILISK_PRICING
         if (state_.price.probing())
@@ -324,13 +349,12 @@ private:
 
     template<NodeType NT>
     int negamax(int depth, int alpha, int beta, int ply,
-                SearchStack* ss, bool allow_null, bool cut_node);
-    // `counted` marks negamax's own node handed to quiescence (the depth-0
-    // drop, razoring): negamax already counted it and ran the stop, ply and
-    // draw checks, so each node is counted once.
+                SearchStack* ss, bool cut_node);
+    // `checked` marks negamax's own node handed to quiescence (the depth-0
+    // drop, razoring): negamax already ran the stop, ply and draw checks.
     template<NodeType NT>
     int quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss,
-                   bool counted = false);
+                   bool checked = false);
 
     // The single make/unmake seam. Every search-side move execution goes
     // through this pair (negamax, quiescence, evasions, ProbCut, null move),
@@ -339,15 +363,45 @@ private:
     // A move also selects the continuation row its successors read: by
     // whether it was made in check, whether it is from the capture stage, its
     // piece and its destination. The null move selects the sentinel row.
-    void do_move(SearchStack* ss, Move m) {
+    //
+    // The node count is the donor's: one count per move made here, so a
+    // re-search, the exclusion search, the null move and the hand-off to
+    // quiescence add none. `counted` false is a move made only to read the
+    // table one ply down, which the donor makes without counting.
+    void do_move(SearchStack* ss, Move m, bool counted = true) {
         const Square to = Square(to_sq(m));
         const bool capture_stage = is_capture_stage(*state_.board, m);
         ss->move        = m;
         const Piece piece = state_.board->piece_on(from_sq(m));
-        ss->moved_piece = type_of(piece);
         ss->cont_hist   = &hist_.continuation->row[ss->in_check][capture_stage][hist_piece(piece)][to];
         ss->cont_corr   = &hist_.cont_corr->row[hist_piece(piece)][to];
+        // The child's cluster, fetched across the make; a miss is fetched
+        // again once the key is known.
+        const Key predicted = predicted_child_key(*state_.board, m);
+        shared_.tt.prefetch(predicted);
+#if defined(BASILISK_DIAGNOSTIC) || !defined(NDEBUG)
+        const bool may_miss = predicted_key_may_miss(*state_.board, m);
+#endif
         state_.board->make_move(m);
+        if (const Key made = tt_key(*state_.board); made != predicted) {
+            shared_.tt.prefetch(made);
+            DIAG_COUNT(++state_.diag.key_corrected);
+            CORE_NODE_CHECK(may_miss);
+        } else {
+            DIAG_COUNT(++state_.diag.key_predicted);
+        }
+        if (counted)
+            count_node();
+    }
+    // Counts the position a move reached, then looks for a reason to stop:
+    // the node limit, another thread's stop at every count, the clock every
+    // 2048. The main thread waits for every helper before `bestmove`, so a
+    // helper reads the stop at its next move. A reason to stop sets
+    // `stopped`, which every node reads on entry.
+    void count_node() {
+        record_node();
+        if ((state_.nodes & 2047) == 0 || shared_.stop.load(std::memory_order_relaxed))
+            check_stop();
     }
     void undo_move(SearchStack* ss, Move m) {
         state_.board->unmake_move(m);
@@ -355,9 +409,12 @@ private:
     }
     void do_null_move(SearchStack* ss) {
         ss->move        = MOVE_NULL;
-        ss->moved_piece = NO_PIECE_TYPE;
         ss->cont_hist   = hist_.sentinel_row();
         ss->cont_corr   = hist_.sentinel_corr_row();
+        // The null move's key is exact before the make.
+        const Board& b = *state_.board;
+        shared_.tt.prefetch(b.position_key() ^ Zobrist::SideKey
+                            ^ (b.ep_square() != SQ_NONE ? Zobrist::EpKeys[file_of(b.ep_square())] : 0));
         state_.board->make_null_move();
     }
     void undo_null_move(SearchStack* ss) {
@@ -400,8 +457,7 @@ private:
     // quiets and captures searched before it, and the parent's move's reward
     // when the node failed low.
     void update_all_stats(SearchStack* ss, Move best, Move tt_move,
-                          const Move* quiets, int quiet_count,
-                          const Move* captures, int capture_count,
+                          const SearchedMoves& quiets, const SearchedMoves& captures,
                           int depth, bool pv_node);
     void update_fail_low_parent(SearchStack* ss, int depth, int best_score);
 

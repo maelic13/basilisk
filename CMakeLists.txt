@@ -173,7 +173,17 @@ set(BOARD_SOURCES
     src/attacks.cpp
     src/zobrist.cpp
     src/threats.cpp
+    src/large_pages.cpp
 )
+# LargePages' default (src/large_pages.h): ON asks for large pages unless the
+# UCI option turns them off. OFF builds the other arm of a pooled NPS read with
+# the same source.
+option(LARGE_PAGES "Default of the LargePages UCI option" ON)
+if(LARGE_PAGES)
+    set(_basilisk_large_pages_default 1)
+else()
+    set(_basilisk_large_pages_default 0)
+endif()
 # The search-replay trace (src/board_trace.cpp): a measurement build that
 # records every board operation the search makes, in order and with its
 # result, to the file BASILISK_BOARD_TRACE_FILE names; tests/board_replay.cpp
@@ -185,21 +195,16 @@ set(_board_replay_board basilisk_board)
 if(BASILISK_BOARD_TRACE)
     add_library(basilisk_board_untraced STATIC ${BOARD_SOURCES})
     target_include_directories(basilisk_board_untraced PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_compile_definitions(basilisk_board_untraced PRIVATE
+        BASILISK_LARGE_PAGES_DEFAULT=${_basilisk_large_pages_default})
     set(_board_replay_board basilisk_board_untraced)
     list(APPEND BOARD_SOURCES src/board_trace.cpp)
 endif()
 add_library(basilisk_board STATIC ${BOARD_SOURCES})
+target_compile_definitions(basilisk_board PRIVATE
+    BASILISK_LARGE_PAGES_DEFAULT=${_basilisk_large_pages_default})
 if(BASILISK_BOARD_TRACE)
     target_compile_definitions(basilisk_board PUBLIC BASILISK_BOARD_TRACE)
-endif()
-# A check build: each rebuilt board operation runs its original form beside
-# it and aborts on the first difference. Never a release.
-option(BASILISK_BOARD_CROSSCHECK "Run rebuilt board operations beside their originals (a check build)" OFF)
-if(BASILISK_BOARD_CROSSCHECK)
-    target_compile_definitions(basilisk_board PUBLIC BASILISK_BOARD_CROSSCHECK)
-    if(TARGET basilisk_board_untraced)
-        target_compile_definitions(basilisk_board_untraced PUBLIC BASILISK_BOARD_CROSSCHECK)
-    endif()
 endif()
 target_include_directories(basilisk_board PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -327,7 +332,7 @@ target_link_libraries(test_magics PRIVATE basilisk_board)
 # Transposition table tests (TT is header-only)
 # ---------------------------------------------------------------------------
 add_executable(test_tt tests/test_tt.cpp)
-target_include_directories(test_tt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(test_tt PRIVATE basilisk_board)
 
 add_executable(test_fatal_report tests/test_fatal_report.cpp)
 target_include_directories(test_fatal_report PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -381,6 +386,8 @@ target_link_libraries(test_search_path PRIVATE basilisk_engine)
 add_executable(test_kernel_pins tests/test_kernel_pins.cpp
                src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_kernel_pins PRIVATE basilisk_engine_child_log)
+target_compile_definitions(test_kernel_pins PRIVATE
+    BASILISK_TEST_GAME_COHORT="${CMAKE_CURRENT_SOURCE_DIR}/tools/diag/game_cohort_v1.epd")
 
 add_executable(test_cpu_features tests/test_cpu_features.cpp)
 target_include_directories(test_cpu_features PRIVATE
@@ -423,6 +430,13 @@ target_compile_definitions(test_engine_threading PRIVATE
     BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
 )
 target_link_libraries(test_engine_threading PRIVATE basilisk_engine)
+
+# ---------------------------------------------------------------------------
+# Allocation guard: per-node search code never allocates (a counting global
+# operator new over whole searches at two depths, Threads 1 and 4)
+# ---------------------------------------------------------------------------
+add_executable(test_allocation_guard tests/test_allocation_guard.cpp)
+target_link_libraries(test_allocation_guard PRIVATE basilisk_engine)
 
 # ---------------------------------------------------------------------------
 # UCI protocol tests
@@ -477,6 +491,7 @@ add_test(NAME test_eval         COMMAND test_eval)
 add_test(NAME test_search       COMMAND test_search)
 add_test(NAME test_engine_ponder COMMAND test_engine_ponder)
 add_test(NAME test_engine_threading COMMAND test_engine_threading)
+add_test(NAME test_allocation_guard COMMAND test_allocation_guard)
 add_test(NAME test_uci_protocol COMMAND test_uci_protocol)
 add_test(NAME test_endgames     COMMAND test_endgames
          ${CMAKE_CURRENT_SOURCE_DIR}/tests/endgames.epd)
@@ -566,15 +581,11 @@ endif()
 option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets BASILISK_TUNE)" OFF)
 option(DIAGNOSTIC "Expose diagnostics without the tunable parameter surface (sets BASILISK_DIAGNOSTIC)" OFF)
 option(ABLATION "Expose the matched search-ablation instrument (sets BASILISK_ABLATION)" OFF)
-option(RELEASE_DIAG_COUNTERS "Count diagnostic search events in production builds (measurement arm)" OFF)
 # Cluster umbrellas (PROCESS, Cluster delivery shape): a Boolean option that
 # compiles one search cluster in. It defaults OFF until the cluster passes its
 # gate, then ON; OFF then reproduces the previous fingerprint and stays
 # compilable, unmaintained, until it is deleted. Clusters 2, 3 and 4 and the
 # coloured histories passed their gates, and their OFF arms are gone.
-# B6_DONOR_FORMS is B.6.6's adoptions: the donor's razoring and the kings in
-# the non-pawn correction keys, set as defaults by BASILISK_B6_CORE_DEFAULTS.
-option(B6_DONOR_FORMS "Make B.6.6's adopted donor forms the defaults (sets BASILISK_B6_DONOR_FORMS)" OFF)
 # LITERAL_SCREEN is B.6.7's screen of the kernel's literals: on a Tune build it
 # advertises each entry of src/kernel_literals.h as a UCI option (sets
 # BASILISK_LITERAL_SCREEN). Every other build reads them as compile-time constants.
@@ -657,7 +668,7 @@ endif()
 set(_ALL_TARGETS
     basilisk_board basilisk_engine basilisk_launcher basilisk_version
     basilisk board_performance_test board_micro_bench board_replay
-    test_board test_board_v2 test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_uci_protocol test_cpu_features
+    test_board test_board_v2 test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_allocation_guard test_uci_protocol test_cpu_features
     test_endgames test_wac test_invariants test_magics test_threats
     test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch test_b5_root
     basilisk_engine_child_log test_search_path test_kernel_pins
@@ -690,17 +701,6 @@ if(ABLATION)
         target_compile_definitions(${_tgt} PRIVATE BASILISK_ABLATION)
     endforeach()
     message(STATUS "ABLATION build: matched AblationMask UCI option exposed (BASILISK_ABLATION defined)")
-endif()
-
-if(RELEASE_DIAG_COUNTERS)
-    target_compile_definitions(basilisk_engine PRIVATE BASILISK_RELEASE_DIAG_COUNTERS)
-endif()
-
-if(B6_DONOR_FORMS)
-    foreach(_tgt IN LISTS _ALL_TARGETS)
-        target_compile_definitions(${_tgt} PRIVATE BASILISK_B6_DONOR_FORMS)
-    endforeach()
-    message(STATUS "B6_DONOR_FORMS arm: B.6.6's adopted donor forms are the defaults (BASILISK_B6_DONOR_FORMS defined)")
 endif()
 
 if(LITERAL_SCREEN)
@@ -786,6 +786,19 @@ int main() { return 0; }" _basilisk_default_is_baseline)
             endif()
         endforeach()
     endif()
+    # The standard library's own bounds checks where speed does not matter:
+    # libc++'s debug hardening and libstdc++'s assertions, in Debug and
+    # sanitizer builds. Neither changes the library's ABI.
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        if(SANITIZE)
+            target_compile_definitions(${_tgt} PRIVATE
+                _LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG _GLIBCXX_ASSERTIONS)
+        else()
+            target_compile_definitions(${_tgt} PRIVATE
+                $<$<CONFIG:Debug>:_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_DEBUG>
+                $<$<CONFIG:Debug>:_GLIBCXX_ASSERTIONS>)
+        endif()
+    endforeach()
 
 endif()
 
@@ -827,6 +840,41 @@ endif()
 # ---------------------------------------------------------------------------
 include(CheckIPOSupported)
 check_ipo_supported(RESULT _lto_ok OUTPUT _lto_msg)
+# Clang's IPO is ThinLTO; FULL_LTO links the whole program as one module,
+# which read +3.23% on bench and +2.56% on the game cohort (BAS-P43).
+option(FULL_LTO "Link Clang Release builds with full LTO instead of ThinLTO" ON)
+if(_lto_ok AND FULL_LTO AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(CMAKE_CXX_COMPILE_OPTIONS_IPO -flto=full)
+    set(CMAKE_CXX_LINK_OPTIONS_IPO -flto=full)
+    set(CMAKE_C_COMPILE_OPTIONS_IPO -flto=full)
+    set(CMAKE_C_LINK_OPTIONS_IPO -flto=full)
+endif()
+# With full LTO: a higher inline threshold at the compile and at the link,
+# and ext-tsp block placement at the link, Stockfish's build (+0.92% on bench
+# and +0.66% on the game cohort over full LTO alone, BAS-P44).
+# The link takes the LTO options in its own spelling: Apple's ld64 as -mllvm,
+# MinGW's lld as --mllvm=, and an ELF link (GNU ld with Clang's plugin, or
+# lld) as -plugin-opt=. Only a target that links with LTO gets them: the
+# instrumented PGO build links without, and GNU ld has no plugin to take them.
+if(_lto_ok AND FULL_LTO AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    if(APPLE)
+        set(_basilisk_lto_link_options "-Wl$<COMMA>-mllvm$<COMMA>-inline-threshold=500"
+                                       "-Wl$<COMMA>-mllvm$<COMMA>-enable-ext-tsp-block-placement=1")
+    elseif(WIN32)
+        set(_basilisk_lto_link_options "-Wl$<COMMA>--mllvm=-inline-threshold=500"
+                                       "-Wl$<COMMA>--mllvm=-enable-ext-tsp-block-placement=1")
+    else()
+        set(_basilisk_lto_link_options "-Wl$<COMMA>-plugin-opt=-inline-threshold=500"
+                                       "-Wl$<COMMA>-plugin-opt=-enable-ext-tsp-block-placement=1")
+    endif()
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_options(${_tgt} PRIVATE "SHELL:-mllvm -inline-threshold=500")
+        foreach(_opt IN LISTS _basilisk_lto_link_options)
+            target_link_options(${_tgt} PRIVATE
+                "$<$<AND:$<CONFIG:Release>,$<BOOL:$<TARGET_PROPERTY:INTERPROCEDURAL_OPTIMIZATION_RELEASE>>>:${_opt}>")
+        endforeach()
+    endforeach()
+endif()
 if(_lto_ok)
     foreach(_tgt IN LISTS _ALL_TARGETS)
         set_property(TARGET ${_tgt} PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
@@ -843,9 +891,15 @@ endif()
 # ---------------------------------------------------------------------------
 # Profile-guided optimisation
 # ---------------------------------------------------------------------------
+# Clang's PGO instruments the front end's AST by default; IR_PGO instruments
+# the optimiser's IR instead (-fprofile-generate / -fprofile-use).
+option(IR_PGO "Clang PGO at the IR level instead of the front end's" OFF)
 function(_basilisk_apply_pgo _target)
     if(_basilisk_pgo STREQUAL "GENERATE")
-        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND IR_PGO)
+            target_compile_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-generate>)
+            target_link_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-generate>)
+        elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             target_compile_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-instr-generate>)
             target_link_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-instr-generate>)
         elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -859,7 +913,17 @@ function(_basilisk_apply_pgo _target)
         # keep LTO for the final PGO-use build instead.
         set_property(TARGET ${_target} PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE FALSE)
     elseif(_basilisk_pgo STREQUAL "USE")
-        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND IR_PGO)
+            if(NOT EXISTS "${BASILISK_PGO_PROFILE_FILE}")
+                message(FATAL_ERROR "PGO profile file does not exist: ${BASILISK_PGO_PROFILE_FILE}")
+            endif()
+            target_compile_options(${_target} PRIVATE
+                $<$<CONFIG:Release>:-fprofile-use=${BASILISK_PGO_PROFILE_FILE}>
+                $<$<CONFIG:Release>:-Wno-profile-instr-unprofiled>
+                $<$<CONFIG:Release>:-Wno-profile-instr-out-of-date>
+            )
+            target_link_options(${_target} PRIVATE $<$<CONFIG:Release>:-fprofile-use=${BASILISK_PGO_PROFILE_FILE}>)
+        elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             if(NOT BASILISK_PGO_PROFILE_FILE)
                 message(FATAL_ERROR "BASILISK_PGO=USE with Clang requires BASILISK_PGO_PROFILE_FILE")
             endif()
@@ -1038,6 +1102,8 @@ add_custom_target(pgo
         -DPGO_DIAGNOSTIC=${DIAGNOSTIC}
         -DPGO_ABLATION=${ABLATION}
         -DPGO_PROFILE_SYMBOLS=${PROFILE_SYMBOLS}
+        -DPGO_FULL_LTO=${FULL_LTO}
+        -DPGO_IR_PGO=${IR_PGO}
         -DPGO_DEV_ID=${BASILISK_DEV_ID}
         -DPGO_PORTABLE_BUILD=${_basilisk_pgo_portable}
         -DPGO_STATIC_RUNTIME=${STATIC_RUNTIME}

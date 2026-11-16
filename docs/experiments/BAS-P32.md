@@ -70,6 +70,12 @@ stage (13,085 and 13,071).
 
 Composite, ns per node, by the frozen rule:
 
+(Note, 2026-11-15, B.8.7: "per node" here is Basilisk's old count, which ran
+about 8.5% above Stockfish's once-per-move-made count; the call mix's
+`0.92 make_unmake` per node is that ratio. Every column is priced with the same
+mix, so the ranking and the ratios stand; in the donor's unit every column is
+about 1.09 times its figure.)
+
 | | Basilisk | Stockfish 19 | Stockfish classical | Rarog | Reckless |
 |---|---:|---:|---:|---:|---:|
 | ns per node | **60.7** | 76.6 | 61.9 | 69.8 | — |

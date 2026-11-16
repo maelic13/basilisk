@@ -4,7 +4,7 @@
 #include "engine_command.h"
 #include "constants.h"
 #include "parameters.h"
-#include "uci_output.h"
+#include "output_sink.h"
 #include "attacks.h"
 #include "bitboard.h"
 #include "eval.h"
@@ -116,7 +116,7 @@ public:
     }
 
     std::string output() const {
-        std::lock_guard lock(uci_output_mutex());
+        std::lock_guard lock(output_mutex());
         return output_.str();
     }
 

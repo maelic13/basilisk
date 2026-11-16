@@ -186,21 +186,6 @@ Pass staged_generation(Inputs& in) {
     return p;
 }
 
-// Quiescence's quiet checks.
-Pass quiet_check_generation(Inputs& in) {
-    Pass p{0, 0};
-    MoveList ml;
-    for (const Board& b : in.boards) {
-        if (b.is_in_check()) continue;
-        ml.reset();
-        b.gen_quiet_checks(ml);
-        keep(&ml);
-        p.ops += 1;
-        p.sum = p.sum * 31 + uint64_t(ml.size());
-    }
-    return p;
-}
-
 Pass make_unmake(Inputs& in) {
     Pass p{0, 0};
     for (const auto& [i, m] : in.all_moves) {
@@ -424,7 +409,6 @@ int main(int argc, char** argv) {
         {"capture_gen", "positions", [&] { return capture_generation(in); }},
         {"quiet_gen", "positions", [&] { return quiet_generation(in); }},
         {"staged_gen", "positions", [&] { return staged_generation(in); }},
-        {"quiet_check_gen", "positions", [&] { return quiet_check_generation(in); }},
         {"make_unmake", "moves", [&] { return make_unmake(in); }},
         {"see_captures", "moves", [&] { return see_captures(in); }},
         {"see_quiets", "moves", [&] { return see_quiets(in); }},

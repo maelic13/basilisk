@@ -15,6 +15,7 @@
 // under-promotions.
 
 #include "kernel_literals.h"
+#include "large_pages.h"
 #include "types.h"
 
 #include <algorithm>
@@ -150,8 +151,8 @@ struct ContinuationCorrection {
 };
 
 // The storage owner: every table one search thread trains, and their
-// lifecycle. The two large tables are on the heap so a Searcher stays cheap
-// to construct.
+// lifecycle. The three large tables are on large pages where the LargePages
+// option and the system allow, so a Searcher stays cheap to construct.
 struct CoreHistoryTables {
     // Correction histories keyed by pawn, minor-piece and per-colour
     // non-pawn structure, by side to move; the continuation correction is
@@ -163,9 +164,9 @@ struct CoreHistoryTables {
     CaptureHistory capture;
     LowPlyHistory  low_ply;
     TTMoveHistory  tt_move;
-    std::unique_ptr<ContinuationHistory>    continuation;
-    std::unique_ptr<PawnHistory>            pawn;
-    std::unique_ptr<ContinuationCorrection> cont_corr;
+    LargePagePtr<ContinuationHistory>    continuation;
+    LargePagePtr<PawnHistory>            pawn;
+    LargePagePtr<ContinuationCorrection> cont_corr;
 
     int16_t pawn_corr[NCOLORS][CORR_SIZE];
     int16_t minor_corr[NCOLORS][CORR_SIZE];

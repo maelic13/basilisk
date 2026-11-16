@@ -389,6 +389,7 @@ derivations are in the linked records.
 | Behaviour-neutral change = exact fingerprint plus targeted checks plus pooled NPS | `AGENTS.md` |
 | Diagnostic counters: one table, each counter with its unit and denominator; names and units are the cross-engine contract, extended at the end and never renamed | `src/search_diagnostics.h`; `tools/diag/run_suite.py` |
 | Cross-engine board timings are compared only on the `cross-engine-board-v1` profile and its five-position corpus | `tests/board_performance.cpp` |
+| Per-node search code does not allocate or lock: allocations grow per iteration, never per node, at Threads 1 and 4; every allocator, copy or lock call the shipped code can reach from `negamax`, quiescence and the evaluation is a known guarded path | `tests/test_allocation_guard.cpp`; `tools/diag/hot_path_calls.py` on a `PROFILE_SYMBOLS` PGO build; `agents/implementation.md` *Per-node code* |
 
 ### Known defects
 
@@ -4110,7 +4111,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         read in its search as losses (BAS-P31).
       - No component changed the generation order: no SPRT.
       - DESIGN §5 has the final figures.
-- [ ] **B.8** Cleanup and speed pass
+- [x] **B.8** Cleanup and speed pass
   Cleanup: remove the legacy search path, dead parameters, unconsumed switches
   and diagnostics without an owner; exact fingerprint; no game gate. Then
   the allocation guard, large pages and the speed pass (B.7 until
@@ -4138,9 +4139,37 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         passes, and `--verify` reconstructs all seven positions; the
         `tools/diag` tests pass but `test_profile_regions`, which fails on
         master already (`version.cpp` and `version.h` are unmapped).
-    - [ ] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
+    - [x] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
       What B.8.1 and B.8.6 kept (their *Kept* lines). The thirteen zero
       counters leave the counter contract only with the oracle's side of it.
+      Added 2026-11-14 (maintainer: simplify the engine now; the inventory
+      and its reasons are `analysis/b82_switch_inventory_2026-11-14.md`):
+      - Every runtime switch goes, keeping the form in force (§2). A
+        parameter is a run-time `int` in every build, so each switch is a
+        branch in the shipped engine.
+      - A switch whose other form a later leaf tests goes too (§3). Its form
+        is recorded as it stands at `55e3010`, with file and line, and
+        H.6, H.2 and D.1 rebuild it there. This includes `B6_DONOR_FORMS`
+        and its table.
+      - Also deleted (§4):
+        - `Board::see` with `see_pins` and the departure test;
+          `test_board`'s exact SEE values become `see_ge` boundary pairs;
+        - the cross-check build and its four reference forms;
+        - the B3, B4, B5 and B67 override tables, folded into their lines;
+        - `compute_hash`, `RELEASE_DIAG_COUNTERS`, and `gen_quiet_checks`
+          with `B4QuietChecks`.
+      - This settles B.8.6's kept `B4QsDelta` switch: it goes, since
+        nothing asks to restore the old delta rule.
+      - Kept (§5): the measurement flavours, compiled out of release and
+        each read by an open leaf; numeric parameters; the ablation build
+        until B.11's closing leaf removes it.
+      - Every deletion is ledgered in the inventory's §7 (maintainer
+        2026-11-14: nothing needed later may be lost): what went, its file
+        and line at `55e3010`, and when a later leaf would rebuild it.
+        B-13's floor stays: it counted 0 but is reachable at a depth-1 PV
+        node whose TT move is not searched first.
+      - `bench 13` stays 4,247,965 through every deletion. One pooled NPS
+        read after them decides the speed, with the B-63 deletions below.
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
       are its items):
       - Delete the dead shallower re-search (B-63) and the probably-dead PVS
@@ -4187,7 +4216,38 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         futility returning `eval` directly and the "LMR table" heading
         above the child log; `search_worker.h` "on either kernel";
         `constants.h` "in search.cpp"; `search_types.h` "reads zeros".
-    - [ ] **B.8.3** `[I1]` Allocation guard
+      - Closed 2026-11-15, behaviour-neutral (`bench 13` 4,247,965 throughout;
+        the record of what went and where it lives is the inventory's §7):
+        - Deleted: every runtime switch with its other arm (§2, §3), the B6
+          table and the parameter lines only those arms read; `Board::see`,
+          the cross-check build, `compute_hash` and `gen_quiet_checks`; 23
+          counters, five trace events and three price rules nothing wrote
+          (the counter table 196 to 173; `run_suite.py` reads the oracle's
+          fourteen extra counters when present); `allow_null`,
+          `moved_piece`; the shallower re-search with
+          `CoreResearchShallower` (B-63: 0 of 45,108 re-searches, and it
+          cannot fire at margin 1). The override tables are folded into
+          their lines: a Tune build's option list is identical, and every
+          surface starts from the values in force.
+        - Kept after reading: B-13's floor (counted 0 but reachable at a
+          depth-1 PV node whose TT move is not first) and the older
+          aspiration loop (an empty root record).
+        - Release telemetry is counted in Tune and Diag only.
+        - Idioms 1, 4, 5, 7 and 10 of B.6.4's list, with `DIAG_COUNT`
+          under `if constexpr` (item 3 for the counters); `uci_output.h` is
+          `output_sink.h`; the comments corrected. Not done: the trace and
+          price hooks under `if constexpr` (they would add members to the
+          release search state), `negamax`'s helpers (layout risk, B.8.5's
+          profile decides) and further width proofs (B.6.5 proved the
+          widest product; the multi-cut is 64-bit).
+        - Verified: Release, Diag, Tune, Ablate and Texel build with the
+          fingerprint; CTest on Release, Diag and Tune; ASan/UBSan with
+          libc++ hardening 30 of 30; the board trace byte-identical
+          (`4C6643CD9CB43460`) and the decision trace over 8,273 lines; the
+          surfaces, roadmap, citations and every `tools/diag` test.
+        - Speed (BAS-P34): +1.89% [+1.47%, +2.31%] pooled-PGO NPS over
+          master's engine, the no-regression form passed at step 1.
+    - [x] **B.8.3** `[I1]` Allocation guard
       Before the speed pass (B.7.1 until 2026-11-05): a test with a
       counting global `operator new` searches fixed positions at two depths at
       Threads 1 and 4.
@@ -4200,7 +4260,33 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       IDs are its items):
       - Beside the counting allocator, a disassembly search for `memcpy` and
         allocator calls in `negamax`, `quiescence` and `evaluate` (D-23).
-    - [ ] **B.8.4** `[I1]` Large pages on every platform
+      - Closed 2026-11-15, no engine change (`bench 13` 4,247,965):
+        - `tests/test_allocation_guard.cpp`: every replaceable `operator new`
+          counts; four bench positions (the start, two middlegames, an
+          ending) at depths 5 and 13 from a cleared state, after a warm-up
+          search. Measured at most 15 allocations per iteration per thread at
+          Threads 1 and 17 at Threads 4 (six runs; the helpers' timing varies
+          the second); the bound is 32, which still catches an allocation at
+          one node in about 650 at the least sensitive point. The deep search
+          has 22 to 69 times the shallow one's nodes (at least 10 required).
+          Passes on Release, Diag, Tune and ASan/UBSan.
+        - Planted faults, each reverted and the kernel checked unchanged: an
+          allocation at every `negamax` entry fails all eight checks
+          (75,763 to 322,376 extra); one at an interior node in 512 fails five
+          of eight.
+        - D-23: `tools/diag/hot_path_calls.py` walks the binary's call graph
+          from `negamax` (PV and non-PV), quiescence and `evaluate_full`, each
+          call site given its inline chain from the line tables, and reports
+          every reachable allocator, `memcpy`/`memmove` or lock call once per
+          caller. On the shipped code (a `PROFILE_SYMBOLS` PGO build, bench
+          4,247,965) all 14 hits are four known guarded paths: the undo
+          stack's growth (a search's board is a copy that reserves its
+          headroom first), the root table's lock (root ordering only), the
+          KPK bitbase's `call_once` and Fathom's lazy first load of a table.
+          No per-node allocation or lock. The planted allocation is reported
+          (four unknown hits in `negamax`); without line tables one inlined
+          root-table site cannot be attributed and the tool refuses it.
+    - [x] **B.8.4** `[I1]` Large pages on every platform
       Large pages for every allocation big enough to pay, on every platform
       Basilisk ships, behind a `LargePages` UCI option so that one binary
       reads both arms (Rarog RAR-M77: on read +2.7% NPS and +10.3 ± 5.9 Elo
@@ -4242,12 +4328,203 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         (D-9), pinned one thread per physical core: Rarog's fall from 3.72
         to 2.60, unseen by its head-to-head, was later traced to SMT
         packing (BAS-X41), so the check guards placement as well as code.
-    - [ ] **B.8.5** `[I1]` Speed pass
-      Behaviour-neutral throughput work on the new modules, with a pooled-PGO
-      floor of +0.5% per change and B.8.3's guard as the other floor, on
-      B.8.4's large pages. The archived board-speed leaves (7.2–7.8) moved
-      to the board review (B.7) on 2026-11-03; this leaf profiles the board
-      B.7 leaves. It was B.7.2 until 2026-11-05.
+      - Closed 2026-11-15, behaviour-neutral (`bench 13` 4,688,537 on both
+        arms and on Linux; maintainer decisions: the option on by default,
+        Stockfish's full Linux form):
+        - `src/large_pages.{h,cpp}` (`60db617`): Windows x64 and ARM64
+          `VirtualAlloc(MEM_LARGE_PAGES)` with `SeLockMemoryPrivilege`
+          enabled for the call; Linux 1 GiB `MAP_HUGETLB` for an allocation
+          that size, then a 2 MiB-aligned `mmap` with
+          `madvise(MADV_HUGEPAGE)`; macOS and the rest plain pages, reported
+          not available (checked again: Apple silicon has 4 and 16 KiB pages
+          and no userspace superpage; Stockfish 19 asks for none there).
+          Every path falls back silently; `bench` prints `Large pages` (on,
+          partial, off, not available). The `LargePages` check option (CMake
+          `LARGE_PAGES` sets its default, for the Off arm's pool) reallocates
+          the table and rebuilds the threads' state when it moves.
+        - On large pages: the table, each pool thread's `Searcher` (its
+          stack, buffers, evaluator and inline histories) and the three heap
+          history tables.
+        - The table's fill: clusters value-initialised (no sequentially
+          consistent stores) and constructed on `Threads` workers, each its
+          own share; `ucinewgame` clears the same way. Hash 16384: 1,358 ms
+          at Threads 8 against 7,431 ms before; the clear, 848 against
+          1,222 ms, is memory-bound.
+        - Read (BAS-P35): +0.91% [+0.62%, +1.20%] pooled-PGO NPS, on over
+          off, ACCEPT at step 1. Linux, WSL2: huge pages back 1,075,200 of a
+          running engine's 1,081,188 kB at Hash 1024, none with the option
+          off. D-9: four pinned threads 4.11 to 4.25 times one on both arms.
+          The ARM64 platforms ship behind the fallback, unread.
+        - Tests: `test_tt` (zeroed, aligned memory under both settings; the
+          status; a four-worker clear; resizes under both settings); CTest
+          33/33 on Release, Diag and Tune, ASan/UBSan 31/31; Linux
+          `test_tt` and the allocation guard pass.
+        - From here every speed read runs with large pages on, the default.
+    - [x] **B.8.5** `[V]` Speed pass: the baseline reads
+      The speed pass is three leaves (maintainer, 2026-11-15: the reads
+      already named here first, then a Fable packet, then the
+      implementation; the goal is as much speed as can be had, since speed
+      is strength at timed play, about 2 Elo per 1% NPS at `3+0.03`,
+      BAS-P01, and about 145 Elo a doubling in Rarog). This leaf reads; it
+      changes no engine code. B.8.8 is the packet, B.8.9 the
+      implementation.
+      Scope (maintainer, 2026-11-14), for all three:
+      - The search is the main target, with everything around it (the
+        driver, the TT, ordering, the build and link).
+      - The board is not a target: B.7 made it as fast as could be
+        measured (+3.21%, BAS-P30), and B.7.7's second round found nothing.
+      - The evaluation is not a target: the HCE is Phase C's.
+      - A board or evaluation item enters only where the search's profile
+        shows its cost moved.
+      The reads, each on the head at its fingerprint with large pages on
+      (B.8.4's default), on an idle host:
+      - The profile by region and by inline frame (`tools/profile.ps1` on a
+        `-Flavor Profile` build; PROCESS *Profiling*), on two cohorts:
+        `bench 13`, and a frozen EPD of positions sampled from BAS-S64's
+        games searched to a fixed node count, so the profile is the timed
+        game's and not only the bench's. The packet's ranking starts here.
+      - The frames of `negamax` and quiescence in bytes and any `__chkstk`
+        in the hot functions, from the disassembly of the PGO build (TB-11,
+        NODE-5); B.9.1 sizes the thread stacks from it.
+      - The game's NPS against the bench's (B.3.5's P9, the ON arm reading
+        0.96 times the OFF arm's in games): from BAS-S64's record, which
+        has it per move (1.85M at 15 games a time against `bench`'s 2.36M
+        alone); then the profile's two cohorts say whether the gap is the
+        workload or the shared host.
+      - The count NODE-5 asks for: the quiescence nodes whose table move
+        cuts, beside the captures generated before it (a Diag counter if
+        none exists, behaviour-neutral, kept as an instrument).
+      - A four-thread pooled NPS read, built and proved on a self pair
+        before anything is read with it: `nps_read.ps1` reads one thread
+        pinned to one CPU, and B.8.4's pinned `bench 13` at four threads
+        varied by about ±4% run to run (trees differ, runs last a second).
+        It needs a longer deterministic workload per run (a fixed node
+        budget per position) and placement one thread per physical core
+        (BAS-X41). The PGO-training item (a Threads-2 run in the training)
+        and the closing D-9 read need it.
+      - Not repeated: the replay counts of B.7's frontier review (SEE
+        verdicts asked twice, captures generated twice, `check_squares` in
+        the evaluation) stand as sized there, and B.7.2's and A.17's
+        profiles are superseded by this one. A count is re-read only where
+        this profile shows its share moved.
+      Closes with the reads recorded in one analysis file and a BAS-P
+      entry for the four-thread instrument's null.
+      - Closed 2026-11-15 (`analysis/b85_speed_baseline_2026-11-15.md`; no
+        engine behaviour changed, `bench 13` 4,688,537; three Diag counters
+        added, `ee6312d`):
+        - Profile, `bench 13` and a 1,000-position timed-game cohort
+          (`tools/diag/game_cohort_v1.epd`, from BAS-S64's games, 150,000
+          nodes each): ordering 24 to 25%, board 22 to 23%, evaluation 18
+          to 23%, search 16 to 17%; the table 6.1% on `bench` and 13.0% in
+          the cohort (its probe 6.8% against 2.4%; 4% of the cohort's is
+          the profiler's per-position clear).
+        - The game's speed: the cohort reads 2.50M alone and 1.87M with 15
+          engines at once, the games' 1.85M; with a 1 MiB table 2.61M and
+          2.21M. The shared host costs the gates a quarter of the speed, and
+          half of that is the table's memory traffic (4% of a node alone,
+          about 15% under load). Single-engine reads under-weight memory
+          items three to four times against play.
+        - Frames: `negamax` 1,416 bytes at most, quiescence 1,256, the
+          evaluation 1,352; no `__chkstk` (TB-11 does not apply).
+        - NODE-5 closes: the table move cuts first at 1.2% of quiescence's
+          capture-loop nodes, 1.8% of its generated captures.
+        - The four-thread read (`nps_read.ps1 -Threads`, `586e3bf`) failed
+          its null (BAS-P36): the clock's drift disturbed both reads and the
+          builds spread about 2.7%. B.8.9 reads one thread.
+    - [x] **B.8.6** `[I1]` Delete the old search arms (ANY TIME) — before B.5
+      Done 2026-11-08 at the maintainer's request, out of turn, so that
+      Cluster 4 builds on one search path; every gate the arms served is
+      read. Deleted: the `B3_PROOF`, `B4_QSEARCH` and `COLOUR_HISTORY`
+      options and their defines; the kernel's OFF-only paths (null move,
+      ProbCut, IIR and singular extension in their old forms; quiescence's
+      old ordering, pruning, depth cap and in-check search); the colourless
+      history index; CI's two OFF-arm builds; the lines only those paths
+      read (`NullBase`, `NullEvalDiv`, `ProbCutMargin`, `SingularMinDepth`,
+      `SingularBetaMult`, `SingularDoubleMargin`, `DoubleExtMax`,
+      `CoreIirMinDepth`) and the `double_exts` stack field. The default SPSA
+      surface regenerates from 19 coordinates to 12 and the core surface
+      from 49 to 48; the B.3.3 and B.4.6 surfaces are unchanged.
+      - Kept, for B.8.2: the clusters' refit tables
+        (`BASILISK_B3_CORE_DEFAULTS`, `_B4_CORE_DEFAULTS`), which still
+        apply over their X lines, because folding them in moves the core
+        surface's start values; three more zero counters (`sing_cap_bound`,
+        `qs_cap_hits`, `qs_late_pruned`) with the `QsLatePrune` trace event
+        and the `QsLate` price rule. The `B4QsDelta` switch stays: it
+        restores the old delta rule.
+      - `test_search`'s lone-move section bound the deleted singular
+        margin; it now binds the graded extension's boundary (one ply at
+        margins of one, two below). Its count falls by one expectation per
+        deleted line in every build and one more in Tune (Release 735 to
+        728, Tune 804 to 789, each with the section's added check); the
+        other suites' counts are unchanged.
+      - Exact fingerprint: `bench 13` 4,144,790 on fresh Release, Tune and
+        Diag builds, each passing CTest 27/27; the Ablate build's
+        `test_uci_protocol` passes and the Texel build's `--verify`
+        reconstructs all seven positions; `generate_spsa_surface.py
+        --check` and the `tools/diag` tests (177) pass. Not run: the
+        sanitizers, and the macOS and Linux builds, which CI runs.
+      - The gate scripts that built an OFF arm (`tools/run_b32_games.ps1`,
+        `run_b36_gate.ps1`, `run_b45_games.ps1`) reproduce only at the
+        commits their entries record.
+    - [x] **B.8.7** `[I1]` Count nodes as Stockfish does (ANY TIME) — before B.8.4
+      Added and implemented 2026-11-15 at the maintainer's request, out of
+      turn, after reading Rarog's D.6.8 (`638b56d` there: each position
+      counted once, by a move or a null move).
+      - The departure: Basilisk counted every `negamax` entry and every
+        quiescence entry negamax had not handed over, so the null child,
+        re-searches, the exclusion search, the null verification, ProbCut's
+        pair and the root's re-entries counted again. Stockfish 19 counts
+        once per move made (`Search::Worker::do_move`, `search.cpp:658` at
+        `sf_19`), the null move excluded. The old count ran 8.5% above the
+        donor's on `suite_v2` at depth 12, and 10 to 13% at 1 to 8 threads,
+        nearly uniform, so earlier SMP readings were not inflated by more
+        than about 2% at 8 threads. NPS figures against the donors were
+        about 10% high in the donor's unit; BAS-P32's composite uses
+        Basilisk's call mix per old-unit node for every engine, so its
+        ranking stands.
+      - The repair (`838a3c6`): `Searcher::do_move` counts and looks for a
+        stop; the graph-history check's move is not counted; each node
+        reads `stopped` on entry. The pool's total is each thread's count
+        summed at the join, as the donor's `nodes_searched()`. `bench 13`
+        4,688,537 (the tree moves, since the tie rule, the root averages and
+        the effort share read the count).
+      - Gate (BAS-S64): a repair kept unless it harms, `[-5,5]` at
+        `3+0.03`, cap 4,000 pairs, the maintainer's run:
+        `python tools/run_b87_gate.py`. Until it reads, the accepted
+        fingerprint stays 4,247,965.
+      - SMP findings that do not break the count go to D.2; none did.
+      - Closed 2026-11-15 (BAS-S64): the cap, 8,000 games, −0.8 ± 4.5 Elo,
+        LLR −0.92, zero faults; the game record reads equal work (non-mate
+        depth 16.41 against 16.40, 70.1 against 70.2 ms a move) with 8.5%
+        fewer nodes reported. The count stays and the fingerprint record
+        moves to **4,688,537**.
+    - [x] **B.8.8** `[R3]` Speed pass: the research packet
+      Fable's packet on B.8.5's reads (maintainer, 2026-11-15). It ranks
+      every candidate below by its measured or estimated share of a node,
+      in the profile of the timed game's cohort first, and for each one it
+      kept freezes: the mechanism and why it is behaviour-neutral (or the
+      gate it needs if not), its exact semantics and invariants, the
+      shortcut build that runs the original beside it at every node (TM-10)
+      where it replaces a computation, its prediction with an interval, the
+      order of the reads (each member alone before any bundle, D-16), and
+      the rule for a real gain under the +0.5% bar (D-17, the maintainer's
+      decision, asked in the packet). Candidates the profile does not
+      support are closed with their reason. It ends `READY_FOR_IMPLEMENTATION`
+      for B.8.9 with a frozen handoff, or with `NO_CHANGE`.
+      Floors for every item: a pooled-PGO gain of +0.5% (PROCESS *NPS*),
+      B.8.3's allocation guard and hot-path scan, the exact fingerprint.
+      B.8.5's reads (`analysis/b85_speed_baseline_2026-11-15.md`) set two
+      questions of method for the packet:
+      - A memory item (a prefetch, the entry's size, a probe saved) pays
+        three to four times more in the gates' conditions than in a
+        single-engine read: decide how such an item is read, for example a
+        loaded read (the cohort with 15 engines at once, BAS-S64's
+        conditions) beside the pooled one, with its own null first.
+      - The four-thread read failed its null (BAS-P36): decide whether a
+        second design (the clock held, more builds) is worth it, or whether
+        one thread plus the loaded read and B.8.4's pinned scaling check
+        decide.
+      Inputs, from the earlier leaves:
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
       - Uses A.9.4's NPS read and A.9.5's profiler.
@@ -4335,41 +4612,119 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - From B.7.2's deferrals: the stage as a template parameter stays
         refused (RAR-M44(c)); next attacker by index and the quiet-SEE
         exit are B.7.7's.
-    - [x] **B.8.6** `[I1]` Delete the old search arms (ANY TIME) — before B.5
-      Done 2026-11-08 at the maintainer's request, out of turn, so that
-      Cluster 4 builds on one search path; every gate the arms served is
-      read. Deleted: the `B3_PROOF`, `B4_QSEARCH` and `COLOUR_HISTORY`
-      options and their defines; the kernel's OFF-only paths (null move,
-      ProbCut, IIR and singular extension in their old forms; quiescence's
-      old ordering, pruning, depth cap and in-check search); the colourless
-      history index; CI's two OFF-arm builds; the lines only those paths
-      read (`NullBase`, `NullEvalDiv`, `ProbCutMargin`, `SingularMinDepth`,
-      `SingularBetaMult`, `SingularDoubleMargin`, `DoubleExtMax`,
-      `CoreIirMinDepth`) and the `double_exts` stack field. The default SPSA
-      surface regenerates from 19 coordinates to 12 and the core surface
-      from 49 to 48; the B.3.3 and B.4.6 surfaces are unchanged.
-      - Kept, for B.8.2: the clusters' refit tables
-        (`BASILISK_B3_CORE_DEFAULTS`, `_B4_CORE_DEFAULTS`), which still
-        apply over their X lines, because folding them in moves the core
-        surface's start values; three more zero counters (`sing_cap_bound`,
-        `qs_cap_hits`, `qs_late_pruned`) with the `QsLatePrune` trace event
-        and the `QsLate` price rule. The `B4QsDelta` switch stays: it
-        restores the old delta rule.
-      - `test_search`'s lone-move section bound the deleted singular
-        margin; it now binds the graded extension's boundary (one ply at
-        margins of one, two below). Its count falls by one expectation per
-        deleted line in every build and one more in Tune (Release 735 to
-        728, Tune 804 to 789, each with the section's added check); the
-        other suites' counts are unchanged.
-      - Exact fingerprint: `bench 13` 4,144,790 on fresh Release, Tune and
-        Diag builds, each passing CTest 27/27; the Ablate build's
-        `test_uci_protocol` passes and the Texel build's `--verify`
-        reconstructs all seven positions; `generate_spsa_surface.py
-        --check` and the `tools/diag` tests (177) pass. Not run: the
-        sanitizers, and the macOS and Linux builds, which CI runs.
-      - The gate scripts that built an OFF arm (`tools/run_b32_games.ps1`,
-        `run_b36_gate.ps1`, `run_b45_games.ps1`) reproduce only at the
-        commits their entries record.
+      - Closed 2026-11-15 (`analysis/b88_speed_packet_2026-11-15.md`; no
+        engine code changed, `bench 13` 4,688,537):
+        `READY_FOR_IMPLEMENTATION`.
+        - Evidence: B.8.5's samples read by line, and counts from a
+          scratch build on both cohorts (`tools/results/b88`). The table
+          probe's first load is 6.56% of the game cohort's samples, half
+          of it under quiescence, whose own children (31% of its probes)
+          are made with no prefetch.
+        - Kept, in the order of the reads: the table prefetch from a
+          predicted key at every make (A1; exact for 98.5% of moves, as
+          Stockfish, Rarog and Triumviratus do it); the correction cells
+          prefetched before and after the make (A2, A3); a build read
+          (full LTO, IR-level PGO, both); LMR's window division hoisted
+          (B1); the kernel's parameters as constants outside Tune (B2);
+          the picker's stages falling through (B3); the sort's insertion
+          pass by rank on AVX2 (B4); quiet scoring's rows per piece (B5);
+          two free items under D-17 (S1, S2).
+        - Method: a memory item is decided by a loaded cohort read
+          (fourteen engines at once, the arms concurrent; built and proved
+          on a null first), with the pooled read as its no-regression
+          guard. No second four-thread design. A cohort fingerprint,
+          24,421,195 nodes at depth 10, stands beside `bench 13`.
+        - Closed with reasons and retry triggers (packet §7): D-6, D-10,
+          D-11, D-12, the hinted make, lazy selection, the history
+          prefetch, the imbalance cache (built already) and sixteen more.
+        - Prediction, frozen (packet §8): the pass +3.5% [+1.5, +6.0] on
+          `bench` and +6% [+3, +10] under load.
+        - D-17 is the packet's §4.4, accepted by the maintainer
+          2026-11-15 with S1 (the evaluator's verdict hand-back) in scope.
+    - [x] **B.8.9** `[I2]` Speed pass: the implementation
+      B.8.8's frozen handoff, one item at a time in its order (maintainer,
+      2026-11-15). Each item: its shortcut build agrees at every node on
+      `bench 13` where it has one; the exact fingerprint; B.8.3's guard and
+      `tools/diag/hot_path_calls.py`; then its pooled-PGO read against the
+      head before it, kept at +0.5% or more (or by the packet's D-17 rule).
+      A false premise returns the item to B.8.8 with its evidence. Closes
+      with one pooled read of the whole pass against B.8.5's head, the 1T
+      and 4T scaling re-read on B.8.5's four-thread instrument (D-9), and
+      the profile again on both cohorts.
+      - From B.8.8's packet (2026-11-15,
+        `analysis/b88_speed_packet_2026-11-15.md` §4, §10): the loaded
+        cohort read is built and proved on its null first and decides the
+        memory items, with the pooled read as their no-regression guard;
+        every item also reproduces the cohort fingerprint, 24,421,195;
+        the four-thread instrument failed its null (BAS-P36), so D-9 is
+        read on B.8.4's pinned scaling check; sub-bar gains follow D-17,
+        the packet's §4.4 (maintainer, 2026-11-15).
+      - Closed 2026-11-15 (the packet's §12 and Return 1; BAS-P37 to
+        BAS-P53; `bench 13` 4,688,537 throughout, an identical tree):
+        - The pass: +6.05% [+5.55, +6.55] pooled `bench` against B.8.5's
+          head and +4.66% [+4.49, +4.83] under load, fourteen engines on
+          the timed-game cohort (BAS-P53). D-9: four pinned threads 3.95
+          to 4.18 times one (4.03 to 4.08 before).
+        - Kept: full LTO (+3.23%, BAS-P43) with an inline threshold of 500
+          and ext-tsp placement (+0.92%, BAS-P44), the build every preset
+          now takes; the kernel's parameters as constants outside Tune (B2,
+          +0.94%); the picker's stages falling through (B3, +0.81%).
+        - Reverted: the four memory items (A1 +1.38% loaded but −0.62% on
+          `bench`, a no-regression FAIL; A2, A3, A4 at or below 0), the sort
+          by rank (B4, −1.57%), quiet scoring's rows (B5, −1.41%), the
+          verdict hand-back (S1, −0.28%), and B1 and S2, under the bar
+          alone and +0.05% together (D-17's bundle, BAS-P52). IR-level PGO
+          read −0.70%.
+        - The instrument: `tools/cohort_read.py`, the loaded cohort read
+          and the cohort fingerprint, admitted on its null (BAS-P37). Return
+          1 asks whether `bench` is the right guard for a memory item: A1
+          gains +0.71% on the cohort alone and loses on `bench`.
+        - The profile again: the evaluation's share fell about 3 points on
+          both cohorts and `next()`'s by 0.7 to 1.0; the table's wait is a
+          larger share of a faster node (`probe_copy` 7.16% of the
+          cohort's samples).
+    - [x] **B.8.10** `[I1]` Table prefetch across the make, on the game
+      Added 2026-11-16 (maintainer, on Amendment 1 of
+      `analysis/b88_speed_packet_2026-11-15.md`, which answers B.8.9's
+      Return 1). A1 was reverted by a `bench` guard that prices a memory
+      item's instructions and not its waits; it gained on the game's
+      workload in both sessions (about +0.75% alone and +1.45% under
+      load, −0.5% on `bench`). The guard is now PROCESS *NPS*'s rule for
+      a memory item, and A1 is read again on the head under it. The
+      contract is the amendment's §Am1.4 and §Am1.6; behaviour-neutral,
+      no games.
+      - Arms, each alone on the head against `b89-final`: X0, A1 as the
+        packet's §6 states it (`8440f8b` applied again); X2, the predicted
+        key and its corrected prefetch at quiescence's two loops only,
+        `negamax`'s prefetches after the make kept; X1, a prefetch after
+        the make in quiescence's two loops.
+      - Exactness per arm: `bench 13` 4,688,537 on Release, Tune and
+        Diag; the cohort fingerprint 24,421,195; CTest, the allocation
+        guard, `hot_path_calls.py`; A1's pin and counters for X0 and X2.
+      - Reads, each once and registered before it: the one-engine cohort
+        read's null (`b84-on`, `b84-on-null`); one pooled `bench` read of
+        the four pools; one one-engine cohort read of them; a loaded read
+        per arm; X0 against the base at one engine, Hash 1 and Hash 256.
+      - Kept by PROCESS's rule: of the arms that pass, the best loaded
+        estimate, or a smaller arm (X1, then X2) whose loaded estimate
+        lies inside the best one's interval.
+      - Falsifiers: X0's one-engine delta at Hash 1 not below its delta
+        at Hash 64 (nothing kept, Return 2); X0's loaded read under +1.0%
+        (A1 closes, retry with D.2's table).
+      - Closed 2026-11-16 (the packet's §13; BAS-P54 to BAS-P58; `bench 13`
+        4,688,537, an identical tree): **X0 kept**, A1 as the packet
+        stated it.
+        - X0: +1.32% [+1.00, +1.64] with fourteen engines on the game
+          cohort, +0.56% [+0.41, +0.71] at one engine, −0.80% on `bench`
+          (the decider, the guard and the ceiling all hold).
+        - X2 (+0.57% loaded) and X1 (+0.26%) failed the decider and are
+          reverted.
+        - The one-engine cohort read passed its null first (BAS-P54,
+          −0.02% [−0.24, +0.20]).
+        - Neither falsifier fired: X0 reads −1.02% at Hash 1 and +1.13% at
+          Hash 256, so its gain grows with the table; about 1% of a node
+          is the predicted key's cost.
+        - All eleven frozen estimates fell inside their 80% intervals.
 - [ ] **B.9** Robustness, verdicts and protocol before the release
   Added 2026-11-05 (maintainer: every correctness fix before the next
   release): the lifecycle and protocol work that was D.3.2, the
@@ -4863,10 +5218,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.8.2 | RESEARCH | I1 | After the clusters and the board |
-| B.8.3 | READY_FOR_IMPLEMENTATION | I1 | Was B.7.1; before the speed pass, no engine change |
-| B.8.4 | RESEARCH | I1 | Split from the speed pass 2026-11-05; before it |
-| B.8.5 | RESEARCH | I1 | Was B.7.2; after B.8.3 and B.8.4, on the new modules |
 | B.9.1 | RESEARCH | R2 | Was D.3.2, with the release-visible defects (2026-11-05) |
 | B.9.3 | RESEARCH | R2 | Added 2026-11-11; the evaluator's hard verdicts against Syzygy, the evaluation frozen |
 | B.9.4 | RESEARCH | R2 | Added 2026-11-11; known defects owned after B.11, repaired now or justified |
@@ -5556,6 +5907,10 @@ has lost games in both engines (BAS-X02).
   instability extension, helper handling) audited against Stockfish's shape
   and against Manta's ADR-0065 checklist; SPRT `[0,3]` at STC, a `10+0.1`
   direction check and a 4T zero-forfeit run (archived 9.7).
+  The fail-high depth reduction (`B5FailHighReduce`, B.6.6 row 17) is
+  this leaf's. Its switch leaves in B.8.2 and is rebuilt here from
+  `55e3010` (`search_worker.cpp:608`; `analysis/b82_switch_inventory_2026-11-14.md`
+  §3).
   Stockfish's shape: optimum and maximum from clock and increment, with the
   total scaled by falling eval, best-move stability, best-move instability
   across threads and best-move node effort.
@@ -5656,6 +6011,39 @@ has lost games in both engines (BAS-X02).
     −5.54 (RAR-R05); its retry condition is instability as one input to
     a completed-root confidence, and root instability from a completed
     root snapshot read +6.46 (RAR-X06).
+  Node-count and effort inputs (2026-11-15, after B.8.7; maintainer: add
+  what the count change showed):
+  - The effort term is not the donor's form. Basilisk's is the best
+    move's nodes in the iteration's last search over every window's nodes
+    of that iteration (`search_worker.cpp:705-707` at `dfa922c`), read as
+    a step: at or over `TmEffortHi` 80 the total is ×0.80, at or under
+    `TmEffortLo` 25 ×1.20 (`:881-883`). The donor's
+    (`search.cpp:571` and `:588-589` at `sf_19`) is the best root move's
+    effort over the whole search against every node searched,
+    interpolated from 75.8% to 104.5% onto ×0.969 to ×0.714 and clamped
+    to [0.693, 0.838]: it only ever shortens a think.
+  - So Basilisk's low step is in force most of the time: 55.1% of the
+    iterations with a window on `suite_v2` at depth 12 before B.8.7,
+    56.7% after it (the high step 10.5% and 11.1%); B.5's input above
+    read 56.6%. The ×1.20 is close to a constant, not an easy-or-hard
+    signal, and it extends where the donor's term never does.
+  - B.8.7 moved the term's input to the donor's unit (once per move
+    made) and its firing by about a point. The donor's form is now
+    portable exactly: its effort is the root move's own count, summed
+    over iterations.
+  - The audit ticks each of the donor's factors present, absent or
+    different beside Basilisk's: falling eval (Basilisk's score-drop
+    extension, `TmScoredropThr`, `TmScoredropDiv`), the best move's
+    stability over depths (`TmStability`), the previous move's time
+    reduction (absent), instability across threads (D.2's), and node
+    effort (above). The donor's shape is built whole as one arm, then
+    both arms are fitted, as H.6's rule says for a form a fitted arm
+    cannot clear.
+  - Then one SPSA of the clock's coordinates on the chosen form (the
+    default surface's `Tm*` lines and whatever the donor's shape adds),
+    at the control it acts at and against an external engine (TT-3),
+    not in self-play. A change to the effort measure re-reads
+    `B5AspBase` and `B5AspGrowth` (above).
 - [ ] **D.2** `[R2]` Lazy SMP quality
   Self-relative scaling before any design: each engine against itself at
   4T against 1T, and against twice its time at 1T, so that four threads
@@ -5681,6 +6069,14 @@ has lost games in both engines (BAS-X02).
   BAS-C05's TT publication incoherence is a known defect owned here: a
   coherent layout that costs no measured NPS replaces it (both earlier
   repairs cost 3.91% and 1.22%).
+  Speed pass input (2026-11-16, B.8.10, `analysis/b88_speed_packet_2026-11-15.md`
+  §13): the table prefetch across the make (X0, kept) predicts the child's
+  key at every make and costs about 1% of a node where it buys nothing
+  (−1.02% at Hash 1, +0.56% at Hash 64, +1.13% at Hash 256, one engine;
+  +1.32% with fourteen engines). A form that keeps the lead and pays less
+  (the key or the prefetch only where the probe is likely to miss the
+  cache) is a question for the table's redesign, read by PROCESS *NPS*'s
+  rule for a memory item; a new layout moves the cost and the payoff both.
   Engine audit inputs (2026-11-12,
   `analysis/b64_engine_audit_2026-11-12.md` §6): the table's rules
   where they differ from the donor's and no record says why, read at
@@ -6173,6 +6569,10 @@ already repairing or a form it must choose anyway, and says so.
   a decision with no early stop on a lean (Triumviratus's stopped leans
   added up to nothing, TM-4); levers that tune together enter one SPSA
   rather than many SPRTs.
+  Reverse futility's seek-mate cap (`B4RfpSeekMate`, B.6.6 row 16) is
+  this leaf's, on the network. Its switch leaves in B.8.2 and is rebuilt
+  here from `55e3010` (`search_kernel_core.cpp:1108`;
+  `analysis/b82_switch_inventory_2026-11-14.md` §3).
   Triumviratus review inputs (2026-11-03,
   `analysis/triumviratus_review_2026-11-03.md`; IDs are its items):
   - Causal reduction: quiet siblings that touch none of a sibling's
@@ -6356,7 +6756,20 @@ already repairing or a form it must choose anyway, and says so.
     frame (R7, with H.2's frame item); razoring in the donor's form and
     the kings in the non-pawn key (+10.6 ± 9.4 and +11.6 ± 9.3 alone,
     +2.2 ± 4.2 together over 10,000 games, BAS-S60). Their switches
-    and `B6_DONOR_FORMS` are in the source, off.
+    and `B6_DONOR_FORMS` leave in B.8.2 (maintainer, 2026-11-14). Each
+    form is rebuilt here from `55e3010` at the place
+    `analysis/b82_switch_inventory_2026-11-14.md` §3 names, with
+    `B5NegExtMax`'s other two values.
+  - The draw jitter (B.6.6 row 20; added 2026-11-15 at the maintainer's
+    request): the donor scores a draw `VALUE_DRAW - 1 + (nodes & 2)`
+    (`value_draw`, `search.cpp:134` at `sf_19`), Basilisk 0. B.6.6 kept 0
+    with no card: B.5.3's blindness read found 0 of 885 repetition draws
+    with the repeating side at +150 or better, and Rarog's jitter read
+    −1.2. Since B.8.7 its input, the node count, is the donor's, so the
+    form ports exactly. Its population counter is the draw returns
+    (repetition, rule 50, the ply cap in check) on `bench 13` and the
+    gate games; a small expected value, so it is read here and not
+    earlier.
 
 ## 4. Measurement protocols
 

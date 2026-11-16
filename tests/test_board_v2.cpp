@@ -354,24 +354,20 @@ bool root_matches(Board& b, const OracleRow& r, bool report) {
 }
 
 // The staged generators partition the legal moves: captures plus every
-// promotion (the tactical set) and the rest, with quiet checks a subset.
+// promotion (the tactical set) and the rest.
 bool staged_partition_holds(const Board& b) {
-    MoveList legal, tactical, quiet, quiet_checks;
+    MoveList legal, tactical, quiet;
     b.gen_legal(legal);
     b.gen_legal_captures(tactical);
     b.gen_legal_quiets(quiet);
-    b.gen_quiet_checks(quiet_checks);
-    std::vector<std::string> want_tactical, want_quiet, want_quiet_checks;
+    std::vector<std::string> want_tactical, want_quiet;
     for (Move m : legal) {
         const bool tact = is_capture(b, m) || move_type(m) == PROMOTION;
         (tact ? want_tactical : want_quiet).push_back(move_to_uci(m));
-        if (!tact && b.gives_check(m))
-            want_quiet_checks.push_back(move_to_uci(m));
     }
     const std::string n = b.get_fen();
     return same_set("tactical", n, sorted_uci(tactical), want_tactical)
         && same_set("quiet", n, sorted_uci(quiet), want_quiet)
-        && same_set("quiet checks", n, sorted_uci(quiet_checks), want_quiet_checks)
         && tactical.size() + quiet.size() == legal.size();
 }
 
@@ -689,19 +685,8 @@ struct SeeRow {
     int tree = 0, lva = 0, gain = 0;
 };
 
-// see() keeps the gain-array prune (see its comment in board.cpp), so its
-// value may differ from the exact exchange where an X-ray is revealed late;
-// see_ge, which the search uses, is exact. The corpus's known cases, with the
-// value see() returns: a queen stepping onto a pawn-attacked square whose
-// origin opens a bishop's X-ray.
-struct KnownSeeValue { const char* name; int see; };
-constexpr KnownSeeValue KNOWN_SEE_PRUNE[] = {
-    {"test_see_quiet_moves:3:f3f5", -800},
-    {"test_see_quiet_moves:3:f3h5", -800},
-};
-
 void test_see_corpus(const std::string& path) {
-    int compared = 0, disagree = 0, pruned = 0;
+    int compared = 0, disagree = 0;
     begin_section("see_ge's boundary is the legal exchange tree's");
     for (const auto& f : read_rows(path, 8)) {
         SeeRow r{f[0], f[1], f[2], f[3], std::stoi(f[4]), std::stoi(f[5]), std::stoi(f[6])};
@@ -724,21 +709,14 @@ void test_see_corpus(const std::string& path) {
         if (move_type(m) == CASTLING)
             continue;  // outside the exchange model
         ++compared;
-        int expected_see = r.tree;
-        for (const auto& k : KNOWN_SEE_PRUNE)
-            if (r.name == k.name) { expected_see = k.see; ++pruned; }
-        const int v = b.see(m);
-        const bool boundary = b.see_ge(m, r.tree) && !b.see_ge(m, r.tree + 1);
-        if (v != expected_see || !boundary) {
-            std::fprintf(stderr, "  %s [%s] %s %s: see %d see_ge boundary %s, tree %d\n",
-                         r.name.c_str(), r.source.c_str(), r.fen.c_str(), r.uci.c_str(),
-                         v, boundary ? "ok" : "off", r.tree);
+        if (!(b.see_ge(m, r.tree) && !b.see_ge(m, r.tree + 1))) {
+            std::fprintf(stderr, "  %s [%s] %s %s: see_ge's boundary is off the tree's %d\n",
+                         r.name.c_str(), r.source.c_str(), r.fen.c_str(), r.uci.c_str(), r.tree);
             ++disagree;
         }
     }
-    std::printf("\n    %d moves compared, %d see() prune cases\n  %-52s ", compared, pruned, "");
+    std::printf("\n    %d moves compared\n  %-52s ", compared, "");
     EXPECT(compared > 150);
-    EXPECT_EQ(pruned, int(std::size(KNOWN_SEE_PRUNE)));
     EXPECT_EQ(disagree, 0);
     end_section();
 }

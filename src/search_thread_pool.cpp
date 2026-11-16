@@ -61,13 +61,13 @@ int SearchThreadPool::active_thread_count() const {
     return static_cast<int>(searchers_.size());
 }
 
-int SearchThreadPool::resize_threads(int count) {
+int SearchThreadPool::resize_threads(int count, bool rebuild) {
     count = normalize_thread_count(count);
 
     bool already_exact = false;
     {
         std::scoped_lock lock(mutex_);
-        already_exact = !shutdown_
+        already_exact = !rebuild && !shutdown_
             && std::cmp_equal(searchers_.size(), count)
             && static_cast<int>(workers_.size()) + 1 == count;
     }
@@ -101,7 +101,7 @@ int SearchThreadPool::resize_threads(int count) {
     while (std::cmp_less(searchers_.size(), count)) {
         const bool emit_info = searchers_.empty();
         auto cb = emit_info ? info_cb_ : InfoCallback();
-        searchers_.push_back(std::make_unique<Searcher>(tt_, stop_, std::move(cb), ponderhit_));
+        searchers_.push_back(make_large_page<Searcher>(tt_, stop_, std::move(cb), ponderhit_));
     }
 
     while (static_cast<int>(workers_.size()) + 1 < count) {

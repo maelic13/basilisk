@@ -39,7 +39,7 @@ class ClassTest(unittest.TestCase):
         return {("qs_futility", 1, "qs", "1-3"): cell(100, 1),      # a pawn
                 ("qs_futility", 11, "qs", "1-3"): cell(10, 6),      # a queen, recaptured
                 ("qs_futility", 3, "pv", "4-6"): cell(30, 3),       # a bishop
-                ("qs_delta", 0, "qs", "-"): cell(5, 1),             # not a class rule
+                ("multicut", 0, "cut", "-"): cell(5, 1),            # not a class rule
                 ("rfp", 3, "cut", "-"): cell(7, 0)}
 
     def test_summary_splits_class_rules_and_leaves_others_by_depth(self):
@@ -54,7 +54,7 @@ class ClassTest(unittest.TestCase):
         # The class is not a depth: no band is read from it.
         self.assertNotIn("qs_futility depth 1-3", s)
         self.assertEqual(s["rfp depth 1-3"]["decisions"], 7)
-        self.assertEqual(s["qs_delta depth 0"]["decisions"], 5)
+        self.assertEqual(s["multicut depth 0"]["decisions"], 5)
 
     def test_recaptures_share_of_a_rule(self):
         s = pricing.summarise(self.cells())

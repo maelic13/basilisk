@@ -1,6 +1,6 @@
 {
     "B3NmpPerPly": {
-        "value": 16,
+        "value": 11,
         "min_value": 2,
         "max_value": 32,
         "step": 2
@@ -12,43 +12,43 @@
         "step": 3
     },
     "B3NmpBase": {
-        "value": 163,
+        "value": 180,
         "min_value": 50,
         "max_value": 300,
         "step": 16
     },
     "B3NmpRedBase": {
-        "value": 4,
+        "value": 5,
         "min_value": 1,
         "max_value": 10,
         "step": 2
     },
     "B3NmpRedEvalDiv": {
-        "value": 80,
+        "value": 75,
         "min_value": 36,
         "max_value": 256,
         "step": 14
     },
     "B3IirMinDepth": {
-        "value": 5,
+        "value": 8,
         "min_value": 3,
         "max_value": 11,
         "step": 2
     },
     "B3ProbCutBase": {
-        "value": 73,
+        "value": 70,
         "min_value": 34,
         "max_value": 240,
         "step": 13
     },
     "B3ProbCutImproving": {
-        "value": 19,
+        "value": 20,
         "min_value": 0,
         "max_value": 48,
         "step": 3
     },
     "B3SingMargin": {
-        "value": 232,
+        "value": 160,
         "min_value": 13,
         "max_value": 378,
         "step": 23
@@ -60,19 +60,19 @@
         "step": 8
     },
     "B3SingDoubleBase": {
-        "value": -1,
+        "value": 0,
         "min_value": -40,
         "max_value": 40,
         "step": 5
     },
     "B3SingDoublePv": {
-        "value": 60,
+        "value": 58,
         "min_value": 0,
         "max_value": 120,
         "step": 8
     },
     "B3SingDoubleQuiet": {
-        "value": -41,
+        "value": -44,
         "min_value": -90,
         "max_value": 0,
         "step": 6
@@ -84,13 +84,13 @@
         "step": 2
     },
     "B3SingTripleBase": {
-        "value": 20,
+        "value": 23,
         "min_value": -20,
         "max_value": 60,
         "step": 5
     },
     "B3SingTriplePv": {
-        "value": 77,
+        "value": 82,
         "min_value": 0,
         "max_value": 160,
         "step": 10
@@ -102,13 +102,13 @@
         "step": 7
     },
     "B3SingTripleTtPv": {
-        "value": 22,
+        "value": 19,
         "min_value": 0,
         "max_value": 60,
         "step": 4
     },
     "B3SingTripleDeep": {
-        "value": -12,
+        "value": -11,
         "min_value": -30,
         "max_value": 0,
         "step": 2
@@ -120,55 +120,55 @@
         "step": 2
     },
     "CoreQuietFutBase": {
-        "value": 167,
+        "value": 171,
         "min_value": 80,
         "max_value": 300,
         "step": 14
     },
     "CoreCaptFutBase": {
-        "value": 74,
+        "value": 68,
         "min_value": 40,
         "max_value": 270,
         "step": 14
     },
     "CoreCaptSeeCoeff": {
-        "value": 68,
+        "value": 65,
         "min_value": 30,
         "max_value": 200,
         "step": 11
     },
     "CoreContHistPruneSlope": {
-        "value": 3832,
+        "value": 3594,
         "min_value": 1500,
         "max_value": 8000,
         "step": 406
     },
     "CoreRfpCorrMult": {
-        "value": 498,
+        "value": 504,
         "min_value": 0,
         "max_value": 2048,
         "step": 128
     },
     "CoreCorrUpdateScale": {
-        "value": 17,
+        "value": 20,
         "min_value": 4,
         "max_value": 64,
         "step": 4
     },
     "CoreRfpPerPly": {
-        "value": 99,
+        "value": 101,
         "min_value": 40,
         "max_value": 227,
         "step": 12
     },
     "CoreRfpImproving": {
-        "value": 98,
+        "value": 93,
         "min_value": 35,
         "max_value": 160,
         "step": 8
     },
     "CoreRfpDepthCap": {
-        "value": 10,
+        "value": 9,
         "min_value": 6,
         "max_value": 19,
         "step": 2

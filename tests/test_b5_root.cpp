@@ -22,7 +22,6 @@
 #include <fstream>
 #include <map>
 #include <memory>
-#include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -42,6 +41,28 @@ struct Run {
     std::vector<std::string> lines;
 };
 
+// The counters of a `Diag` line, `name=value` words after its prefix. A plain
+// scan: MinGW GCC 16's LTO build of this test miscompiled std::regex, whose
+// constructor rejected this pattern before any engine code ran (B.8.10).
+template <class Map>
+static void read_diag_line(const std::string& line, Map& diag) {
+    const std::string prefix = "info string diag kv ";
+    if (line.compare(0, prefix.size(), prefix) != 0)
+        return;
+    std::istringstream words(line.substr(prefix.size()));
+    for (std::string word; words >> word;) {
+        const auto eq = word.find('=');
+        if (eq == std::string::npos || eq == 0)
+            continue;
+        const std::string name = word.substr(0, eq), value = word.substr(eq + 1);
+        const auto digits = value.find_first_not_of('-') == 1 ? value.substr(1) : value;
+        const bool numeric = !digits.empty() && digits.find_first_not_of("0123456789") == std::string::npos;
+        const bool named = name.find_first_not_of("abcdefghijklmnopqrstuvwxyz_0123456789") == std::string::npos;
+        if (numeric && named)
+            diag[name] = std::stoll(value);
+    }
+}
+
 static long long counter(const Run& run, const std::string& name) {
     const auto it = run.diag.find(name);
     return it == run.diag.end() ? 0 : it->second;
@@ -52,14 +73,9 @@ static Run search_limits(const std::string& fen, SearchLimits lim) {
     TranspositionTable tt(16);
     std::atomic_bool stop{false};
     Run run;
-    const std::regex token("([a-z_0-9]+)=(-?[0-9]+)");
     auto info = [&](const std::string& line) {
         run.lines.push_back(line);
-        const std::string prefix = "info string diag kv ";
-        if (line.compare(0, prefix.size(), prefix) != 0)
-            return;
-        for (std::sregex_iterator it(line.begin(), line.end(), token), end; it != end; ++it)
-            run.diag[(*it)[1].str()] = std::stoll((*it)[2].str());
+        read_diag_line(line, run.diag);
     };
     auto searcher = std::make_unique<Searcher>(tt, stop, info);
     Board b;
@@ -421,37 +437,14 @@ static void test_the_width_grows_everywhere_on_the_ranges() {
     end_section();
 }
 
-static void test_the_adjusted_depth() {
-    begin_section("the fail-high depth reduction");
-    // Off, the iteration's depth whatever has failed.
-    EXPECT_EQ(b5::adjusted_depth(14, 0, false), 14);
-    EXPECT_EQ(b5::adjusted_depth(14, 5, false), 14);
-    // On, a ply less per fail high, at least one ply.
-    EXPECT_EQ(b5::adjusted_depth(14, 0, true), 14);
-    EXPECT_EQ(b5::adjusted_depth(14, 1, true), 13);
-    EXPECT_EQ(b5::adjusted_depth(14, 5, true), 9);
-    EXPECT_EQ(b5::adjusted_depth(5, 4, true), 1);
-    EXPECT_EQ(b5::adjusted_depth(5, 5, true), 1);
-    EXPECT_EQ(b5::adjusted_depth(5, 9, true), 1);
-    end_section();
-}
-
 // ---- The negative-reduction cap ----------------------------------------------
 
 static void test_the_ceiling() {
     begin_section("the negative-reduction ceiling");
-    // Unbounded at 0, whatever the line holds.
-    EXPECT_EQ(b5::negext_ceiling(true, 10, 0, 0), 12);
-    EXPECT_EQ(b5::negext_ceiling(true, 10, 7, 0), 12);
-    // A limit stops the extra plies once the line holds that many.
-    EXPECT_EQ(b5::negext_ceiling(true, 10, 0, 1), 12);
-    EXPECT_EQ(b5::negext_ceiling(true, 10, 1, 1), 10);
-    EXPECT_EQ(b5::negext_ceiling(true, 10, 1, 2), 12);
-    EXPECT_EQ(b5::negext_ceiling(true, 10, 2, 2), 10);
-    EXPECT_EQ(b5::negext_ceiling(true, 10, 5, 2), 10);
-    // Negative reductions switched off is the full depth at any setting.
-    EXPECT_EQ(b5::negext_ceiling(false, 10, 0, 0), 10);
-    EXPECT_EQ(b5::negext_ceiling(false, 10, 0, 2), 10);
+    // Two plies past the full depth while the line holds none, then none.
+    EXPECT_EQ(b5::negext_ceiling(10, 0), 12);
+    EXPECT_EQ(b5::negext_ceiling(10, 1), 10);
+    EXPECT_EQ(b5::negext_ceiling(10, 5), 10);
     end_section();
 }
 
@@ -501,31 +494,20 @@ static void test_every_child_starts_clean(const char* suite) {
     end_section();
 }
 
-// With a limit, no line goes past it.
+// No line holds more than one extension from a negative reduction.
 static void test_the_limit_holds_on_the_line(const char* suite) {
-    begin_section("a line holds no more than its limit");
+    begin_section("a line holds one extension from a negative reduction at most");
     if (kCounters) {
-        int64_t unlimited = 0, at_one = 0, chained_at_one = 0, at_two = 0, chained_at_two = 0;
+        int64_t taken = 0, chained = 0;
         for (const std::string& fen : suite_positions(suite, 20)) {
             SearchLimits lim;
             lim.depth = 10;
-            lim.params.b5_neg_ext_max = 0;
-            const Run open = search_limits(fen, lim);
-            unlimited += counter(open, "negext_chain1") + counter(open, "negext_chain2p");
-            lim.params.b5_neg_ext_max = 1;
             const Run one = search_limits(fen, lim);
-            at_one += counter(one, "negext_total");
-            chained_at_one += counter(one, "negext_chain1") + counter(one, "negext_chain2p");
-            lim.params.b5_neg_ext_max = 2;
-            const Run two = search_limits(fen, lim);
-            at_two += counter(two, "negext_chain1");
-            chained_at_two += counter(two, "negext_chain2p");
+            taken += counter(one, "negext_total");
+            chained += counter(one, "negext_chain1") + counter(one, "negext_chain2p");
         }
-        EXPECT(unlimited > 0);      // the limit has something to bind
-        EXPECT(at_one > 0);
-        EXPECT_EQ(chained_at_one, 0);
-        EXPECT(at_two > 0);
-        EXPECT_EQ(chained_at_two, 0);
+        EXPECT(taken > 0);
+        EXPECT_EQ(chained, 0);
     }
     end_section();
 }
@@ -544,13 +526,9 @@ static void test_the_lines_of_a_multipv_search() {
     std::atomic_bool stop{false};
     std::vector<std::string> lines;
     std::map<std::string, int64_t> diag;
-    const std::regex token("([a-z_0-9]+)=(-?[0-9]+)");
     auto info = [&](const std::string& line) {
         lines.push_back(line);
-        const std::string prefix = "info string diag kv ";
-        if (line.compare(0, prefix.size(), prefix) == 0)
-            for (std::sregex_iterator it(line.begin(), line.end(), token), end; it != end; ++it)
-                diag[(*it)[1].str()] = std::stoll((*it)[2].str());
+        read_diag_line(line, diag);
     };
     auto searcher = std::make_unique<Searcher>(tt, stop, info);
     Board b;
@@ -600,28 +578,38 @@ static void test_a_proven_mate_stands() {
     EXPECT(b5::forgotten_mate(mate_in_8, 2607));
     EXPECT(b5::forgotten_mate(mate_in_8, MATE_SCORE - 19));   // a longer one
     EXPECT(b5::forgotten_mate(-mate_in_8, -2607));      // being mated, likewise
-    // The search proves this mate at depth 19 (in 9) and keeps it to depth 20.
-    // Before B.6.7's fit it proved it at depth 15 and read 2607 at depth 16,
-    // which the rule kept; with the fit, in 8 from depth 17; since a return to
-    // the root needs a second occurrence, in 9 from depth 19 and in 8 from 24.
+    // The search proves this mate by depth 19 and keeps it to depth 20: from
+    // the first exact line that reads a mate, every later one reads a mate no
+    // longer. The proof moves with the tree (before B.6.7's fit it came at
+    // depth 15 and read 2607 at depth 16, which the rule kept; with the fit,
+    // in 8 from depth 17; with a return to the root needing a second
+    // occurrence, in 9 from depth 19; with the donor's node count, in 9 at
+    // depth 16 and in 8 from 17), so this pins the property, not a depth.
     // The tree loses it at no depth after its proof, so this checks the
     // proof's lines, not the rule's rescue.
     const int mate_in_9 = MATE_SCORE - 17;
     SearchLimits lim;
     lim.depth = 20;
     const Run run = search_limits("r1bq1r2/pp4k1/4p2p/3pPp1Q/3N1R1P/2PB4/6P1/6K1 w - - 0 1", lim);
-    EXPECT_EQ(run.result.score, mate_in_9);
+    EXPECT(run.result.score == mate_in_8 || run.result.score == mate_in_9);
     EXPECT_STR(move_to_uci(run.result.bestmove), "f4g4");
-    // Every line from the proof on says so.
-    int after_the_proof = 0;
+    int proof_depth = 0, proof_moves = 0, after_the_proof = 0;
     for (const std::string& line : run.lines) {
-        if ((line.rfind("info depth 19 ", 0) == 0 || line.rfind("info depth 20 ", 0) == 0)
-            && line.find("bound") == std::string::npos) {
-            ++after_the_proof;
-            EXPECT(line.find(" score mate 9 ") != std::string::npos);
+        if (line.rfind("info depth ", 0) != 0 || line.find(" pv ") == std::string::npos
+            || line.find("bound") != std::string::npos)
+            continue;
+        const int depth = std::stoi(line.substr(11));
+        const size_t at = line.find(" score mate ");
+        const int moves = at == std::string::npos ? 0 : std::stoi(line.substr(at + 12));
+        if (proof_depth == 0) {
+            if (moves > 0) { proof_depth = depth; proof_moves = moves; }
+            continue;
         }
+        ++after_the_proof;
+        EXPECT(moves > 0 && moves <= proof_moves);
     }
-    EXPECT_EQ(after_the_proof, 2);
+    EXPECT(proof_depth > 0 && proof_depth <= 19);
+    EXPECT(after_the_proof >= 1);
     end_section();
 }
 
@@ -797,7 +785,6 @@ int main(int argc, char** argv) {
     test_the_root_move_comes_from_the_record();
     test_the_window_arithmetic();
     test_the_width_grows_everywhere_on_the_ranges();
-    test_the_adjusted_depth();
     test_the_ceiling();
     test_every_child_starts_clean(suite);
     test_the_limit_holds_on_the_line(suite);

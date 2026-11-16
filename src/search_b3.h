@@ -5,6 +5,7 @@
 
 #include "kernel_literals.h"
 #include "move.h"
+#include "search_types.h"
 #include <algorithm>
 #include <cstdint>
 
@@ -52,19 +53,14 @@ namespace b3 {
     return 1 + int(value < s_beta - double_margin) + int(value < s_beta - triple_margin);
 }
 
-// Multi-cut: the exclusion search failed high over the node's beta, so the
-// node is pruned. `bound_rule` 0 is the donor's (the searched value clears
-// beta), 1 the alternative (the singular bound itself clears beta); neither
-// admits a decisive value.
-[[nodiscard]] inline bool multicut_admits(int bound_rule, int value, int s_beta, int beta,
-                                          bool value_decisive) {
-    if (value_decisive)
-        return false;
-    return bound_rule == 0 ? value >= beta : s_beta >= beta;
+// Multi-cut, the donor's rule: the exclusion search's value clears the node's
+// beta, so the node is pruned; never on a decisive value.
+[[nodiscard]] inline bool multicut_admits(int value, int beta, bool value_decisive) {
+    return !value_decisive && value >= beta;
 }
 
 // The multi-cut's correction bonus: the gap by which the exclusion search
-// cleared the static eval, in the donor's units (`* 1000 / 282`), times the
+// cleared the static eval, in the donor's units (to_donor_units), times the
 // singular depth and `mult`, in 1/1024, clamped to the correction's +-256.
 // The products are 64-bit: the conversion widens them 3.55 times, and in
 // `int` they pass 2^31 from a singular depth of 54 and train the correction
@@ -72,7 +68,7 @@ namespace b3 {
 // 32-bit form's, so the two agree wherever that one is defined.
 [[nodiscard]] inline int multicut_correction_bonus(int value, int static_eval, int s_depth,
                                                    int mult) {
-    const int64_t product = int64_t(value - static_eval) * 1000 / 282 * s_depth * mult / 1024;
+    const int64_t product = to_donor_units(int64_t(value - static_eval)) * s_depth * mult / 1024;
     return int(std::clamp<int64_t>(product, -256, 256));
 }
 
@@ -103,13 +99,10 @@ namespace b3 {
 
 // IIR, the donor's form: a PV or cut node off the previous iteration's PV,
 // not in check and at least `min_depth` deep, loses a ply when it has no
-// table move, or, with `stale`, when its table entry is more than three
-// plies shallower than the node.
+// table move.
 [[nodiscard]] inline bool iir_applies(bool is_pv, bool cut_node, bool in_check, bool follow_pv,
-                                      int depth, int min_depth, bool has_tt_move, bool stale,
-                                      bool tt_found, int tt_depth) {
-    return !in_check && !follow_pv && (is_pv || cut_node) && depth >= min_depth
-        && (!has_tt_move || (stale && tt_found && tt_depth < depth - 3));
+                                      int depth, int min_depth, bool has_tt_move) {
+    return !in_check && !follow_pv && (is_pv || cut_node) && depth >= min_depth && !has_tt_move;
 }
 
 // The main search takes a table cutoff only while the rule-50 count is below

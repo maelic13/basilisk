@@ -20,6 +20,7 @@ and working as the backup, which PROCESS *Harness* says when to use.
 | `spsa_colosseum.ps1` | One guarded Colosseum SPSA tune under PLAN rule 7c: run to a registered ceiling a checkpoint at a time, each read by `spsa_read.py`, stopped quiet, at the ceiling, on a rail or a fault, or by the maintainer's `STOP` file | PROCESS *Harness*, *SPSA go/no-go* |
 | `spsa_read.py` | A tune read by its gradient test, at a checkpoint or live: every coordinate's z on the runner's own signs, the familywise line, live or quiet with its floor, rails, the tune's own read of its gain and a frozen forecast, scored later; theta at a stop; `--accept-faults` records the maintainer's acceptance of a FAULT read's faults | `spsa_colosseum.ps1`; PLAN rule 7c |
 | `smt_read.py` | Node rates under 15, 28 and 30 busy logical CPUs: each engine's share of a core and whether a pair keeps its speed ratio on SMT siblings | BAS-S58 |
+| `cohort_read.py` | The loaded cohort read: two pools searched at once, fourteen engines, on the timed-game cohort under the gates' load, decided by `nps_read.py`'s estimate; `--engines 1` reads one engine at a time; `fingerprint` prints the cohort's depth-10 node total and digest | B.8.9; BAS-P37 |
 | `diag/replay_compare.py` | Two runs of one pair over the same openings compared opening by opening, with nElo and the decision-speed ratio | BAS-S58 |
 | `diag/colosseum_parity.py` | A Colosseum dry run compared field by field with a recorded `sprt.ps1` manifest | the harness parity of A.3 |
 | `diag/colosseum_recount.py` | A run's paired sample recounted from its PGN | `colosseum.ps1`'s post-run check |
@@ -97,6 +98,8 @@ kept so the run can be reproduced from its ledger entry.
 
 | Tool | Purpose | Used by |
 |---|---|---|
+| `diag/pgn_cohort.py`, `diag/game_cohort_v1.epd` | A deterministic EPD cohort from a PGN, one position a game; the timed-game cohort of BAS-S64's games | B.8.5's profile and loaded reads |
+| `diag/hot_path_calls.py` | Allocator, copy and lock calls the binary can reach from the per-node search, each with its call path and inline chain; known guarded paths named with their reasons | PLAN *Standing contracts* |
 | `diag/run_suite.py`, `diag/suite_v1.epd`, `diag/suite_v2.epd` | The fixed differential suite, run at a fixed depth with per-position counters | PROCESS *Fixed-budget search probes* |
 | `diag/build_suite.py` | Builds the versioned differential suite | `diag/suite_v1.epd` |
 | `diag/baseline_v1.json` | The counter baseline of `suite_v1` at depth 12 | `run_suite.py` comparisons |

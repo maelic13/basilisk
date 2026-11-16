@@ -54,17 +54,15 @@ def _counter_units():
         "calls": "see_ge_calls gives_check_calls",
         "updates": "hist_cutoff_updates hist_reward_updates",
         "events": """
-            check_exts tt_probes tt_hits tt_cutoffs rfp_cuts razor_cuts
+            tt_probes tt_hits tt_cutoffs rfp_cuts razor_cuts
             null_tries null_cuts probcut_tries probcut_cuts fut_prunes
-            lmp_prunes hist_prunes see_prunes lmr_applied lmr_researched
+            lmr_applied lmr_researched
             tt_stores tt_stores_same_key fail_highs fail_high_first
             cutoff_src_tt cutoff_src_goodcap cutoff_src_quiet cutoff_src_badcap
             lmr_eligible lmr_clamped_zero lmr_clamped_high sing_fired
-            sing_double sing_in_check sing_triple sing_ttbeta asp_windows
+            sing_double sing_ttbeta asp_windows
             asp_fail_low asp_fail_high asp_researches asp_giveup
-            hist_prune_tested hist_below_half hist_below_quarter
-            hist_below_eighth lmr_blocked_depth lmr_blocked_searched
-            lmr_blocked_in_check lmr_blocked_movetype lmr_blocked_gives_check
+            lmr_blocked_depth
         """,
     }
     for unit, names in groups.items():
@@ -72,12 +70,27 @@ def _counter_units():
             if name in units:
                 raise AssertionError(f"duplicate counter schema entry: {name}")
             units[name] = unit
-    if len(units) != 57:
-        raise AssertionError(f"counter schema has {len(units)} entries, expected 57")
+    if len(units) != 43:
+        raise AssertionError(f"counter schema has {len(units)} entries, expected 43")
     return units
 
 
 CORE_COUNTER_UNITS = _counter_units()
+
+
+# The oracle's side of the contract: counters it still prints that Basilisk
+# lost with the original kernel and the check extension (B.8.2). Validated
+# when present, all or none; each check reads them as 0 when absent.
+ORACLE_COUNTER_UNITS = {name: "events" for name in """
+    check_exts lmp_prunes hist_prunes see_prunes sing_in_check sing_triple
+    hist_prune_tested hist_below_half hist_below_quarter hist_below_eighth
+    lmr_blocked_searched lmr_blocked_in_check lmr_blocked_movetype
+    lmr_blocked_gives_check
+""".split()}
+assert len(ORACLE_COUNTER_UNITS) == 14
+assert not set(ORACLE_COUNTER_UNITS) & set(CORE_COUNTER_UNITS)
+LMR_BLOCKED = ("lmr_blocked_depth", "lmr_blocked_searched", "lmr_blocked_in_check",
+               "lmr_blocked_movetype", "lmr_blocked_gives_check")
 
 
 # Basilisk's selectivity-core counters. They follow the 57 in the engine's
@@ -87,7 +100,7 @@ B2_COUNTER_UNITS = {
     **{name: "events" for name in """
         rfp_cuts_d1_3 rfp_cuts_d4_7 rfp_cuts_d8p
         razor_cuts_d1_3 razor_cuts_d4_7 razor_cuts_d8p
-        lmr_floor_hits lmr_extended lmr_research_deeper lmr_research_shallower
+        lmr_floor_hits lmr_extended lmr_research_deeper
         hindsight_up hindsight_down corr_cont2_updates corr_cont4_updates
         tt_cutoff_quiet_bonus tt_cutoff_graph_refused
         cont_hist_pruned capture_futility_pruned quiet_see_pruned
@@ -97,7 +110,7 @@ B2_COUNTER_UNITS = {
     "skip_quiets_nodes": "nodes",
     "moveloop_tested": "moves",
 }
-assert len(B2_COUNTER_UNITS) == 26
+assert len(B2_COUNTER_UNITS) == 25
 assert not set(B2_COUNTER_UNITS) & set(CORE_COUNTER_UNITS)
 
 
@@ -105,7 +118,7 @@ assert not set(B2_COUNTER_UNITS) & set(CORE_COUNTER_UNITS)
 # present, all or none.
 B3_COUNTER_UNITS = {
     **{name: "events" for name in """
-        null_verifications null_verify_failed probcut_tt_cuts probcut_pv_tries
+        null_verifications null_verify_failed probcut_pv_tries
         sing_ext3 sing_negative_cut sing_shuffle_refused sing_seekmate_refused
         ext_budget_bound iir_pv_nodes cuckoo_draws tt_penalized
         in_check_lmr_applied in_check_capt_fut in_check_capt_see
@@ -116,7 +129,7 @@ B3_COUNTER_UNITS = {
     "tt_move_absent": "nodes",
     "in_check_skip_quiets": "nodes",
 }
-assert len(B3_COUNTER_UNITS) == 22
+assert len(B3_COUNTER_UNITS) == 21
 assert not set(B3_COUNTER_UNITS) & (set(CORE_COUNTER_UNITS) | set(B2_COUNTER_UNITS))
 
 
@@ -126,25 +139,24 @@ assert not set(B3_COUNTER_UNITS) & (set(CORE_COUNTER_UNITS) | set(B2_COUNTER_UNI
 B4_COUNTER_UNITS = {
     **{name: "nodes" for name in """
         qs_pv_nodes qs_tt_cutoffs qs_standpat_cuts qs_standpat_refined
-        qs_delta_pruned qs_cap_hits qs_fail_highs qs_fail_high_first
+        qs_fail_highs qs_fail_high_first
         qs_fail_lows qs_fail_low_searched qs_evasion_fail_highs
         qs_evasion_fail_high_first qs_evasion_tt_move qs_evasion_tt_cuts
         eval_refined eval_refined_d0 tt_move_d0 rfp_cuts_tt_eval
         rfp_corr_blocked rfp_corr_blocked_tt_eval qs_stalemates
-        rfp_seekmate_capped
     """.split()},
     **{name: "moves" for name in """
-        qs_moves qs_futility_pruned qs_see_pruned qs_late_pruned qs_searched
+        qs_moves qs_futility_pruned qs_see_pruned qs_searched
         qs_evasion_moves qs_fail_high_index_sum qs_evasion_fail_high_index_sum
         qs_count_pruned qs_recapture_exempt qs_evasion_quiets_pruned
-        qs_evasion_see_pruned qs_quiet_checks qs_gain_tested
+        qs_evasion_see_pruned qs_gain_tested
     """.split()},
     **{name: "evaluation units" for name in """
         qs_standpat_excess qs_standpat_refine_mass qs_fail_high_excess
         eval_refine_mass eval_refine_mass_d0
     """.split()},
 }
-assert len(B4_COUNTER_UNITS) == 41
+assert len(B4_COUNTER_UNITS) == 36
 assert not set(B4_COUNTER_UNITS) & (set(CORE_COUNTER_UNITS) | set(B2_COUNTER_UNITS)
                                     | set(B3_COUNTER_UNITS))
 
@@ -255,6 +267,11 @@ def validate_diag(counters):
     missing = sorted(set(CORE_COUNTER_UNITS) - set(counters))
     if missing:
         raise ValueError("missing diagnostic counters: " + ", ".join(missing))
+    present = set(ORACLE_COUNTER_UNITS) & set(counters)
+    if present and present != set(ORACLE_COUNTER_UNITS):
+        raise ValueError("partial oracle counters: missing "
+                         + ", ".join(sorted(set(ORACLE_COUNTER_UNITS) - present)))
+    o = {name: counters.get(name, 0) for name in ORACLE_COUNTER_UNITS}
 
     checks = {
         "tt_hits <= tt_probes": counters["tt_hits"] <= counters["tt_probes"],
@@ -263,7 +280,7 @@ def validate_diag(counters):
             counters["tt_stores_same_key"] <= counters["tt_stores"]
         ),
         "check_exts <= in_check_nodes": (
-            counters["check_exts"] <= counters["in_check_nodes"]
+            o["check_exts"] <= counters["in_check_nodes"]
         ),
         "qs_evasion_nodes <= qs_nodes": (
             counters["qs_evasion_nodes"] <= counters["qs_nodes"]
@@ -282,19 +299,18 @@ def validate_diag(counters):
         ),
         "lmr eligibility partitions exactly": (
             counters["lmr_applied"] + counters["lmr_clamped_zero"]
-            + counters["lmr_blocked_depth"] + counters["lmr_blocked_searched"]
-            + counters["lmr_blocked_in_check"] + counters["lmr_blocked_movetype"]
-            + counters["lmr_blocked_gives_check"] == counters["lmr_eligible"]
+            + sum(counters.get(name, 0) for name in LMR_BLOCKED)
+            == counters["lmr_eligible"]
         ),
         "history thresholds are nested": (
-            counters["hist_below_half"] <= counters["hist_below_quarter"]
-            <= counters["hist_below_eighth"] <= counters["hist_prune_tested"]
+            o["hist_below_half"] <= o["hist_below_quarter"]
+            <= o["hist_below_eighth"] <= o["hist_prune_tested"]
         ),
         "singular subsets are bounded": (
             counters["sing_double"] <= counters["sing_fired"]
-            and counters["sing_in_check"] <= counters["sing_fired"]
-            and counters["sing_triple"] <= counters["sing_double"]
-            and counters["sing_triple"] <= counters["sing_in_check"]
+            and o["sing_in_check"] <= counters["sing_fired"]
+            and o["sing_triple"] <= counters["sing_double"]
+            and o["sing_triple"] <= o["sing_in_check"]
         ),
         "aspiration researches are accounted": (
             counters["asp_researches"] == counters["asp_fail_low"]
@@ -323,8 +339,7 @@ def validate_diag(counters):
                 and c["lmr_extended"] <= c["lmr_clamped_zero"]
             ),
             "re-search depth moves within eligibility": (
-                c["lmr_research_deeper"] + c["lmr_research_shallower"]
-                <= c["lmr_eligible"]
+                c["lmr_research_deeper"] <= c["lmr_eligible"]
             ),
             "node adjustments within interior nodes": (
                 c["hindsight_up"] <= c["interior_nodes"]
@@ -405,25 +420,23 @@ def validate_diag(counters):
         checks.update({
             "quiescence node populations within its nodes": (
                 c["qs_pv_nodes"] <= c["qs_nodes"]
-                and c["qs_tt_cutoffs"] + c["qs_standpat_cuts"] + c["qs_delta_pruned"]
-                + c["qs_cap_hits"] + c["qs_fail_highs"] + c["qs_fail_lows"]
+                and c["qs_tt_cutoffs"] + c["qs_standpat_cuts"]
+                + c["qs_fail_highs"] + c["qs_fail_lows"]
                 + c["qs_evasion_nodes"] <= c["qs_nodes"]
             ),
-            # A quiet check counts as searched and was never a delivered capture.
             "quiescence move rules within its captures": (
-                c["qs_futility_pruned"] + c["qs_see_pruned"] + c["qs_late_pruned"]
-                + c["qs_count_pruned"] + c["qs_searched"] - c["qs_quiet_checks"]
+                c["qs_futility_pruned"] + c["qs_see_pruned"]
+                + c["qs_count_pruned"] + c["qs_searched"]
                 <= c["qs_moves"]
             ),
             "quiescence recaptures exempt and gains tested within what the loop delivered": (
                 c["qs_recapture_exempt"] + c["qs_gain_tested"]
-                <= c["qs_searched"] - c["qs_quiet_checks"]
-                + c["qs_futility_pruned"] + c["qs_see_pruned"] + c["qs_late_pruned"]
+                <= c["qs_searched"]
+                + c["qs_futility_pruned"] + c["qs_see_pruned"]
                 + c["qs_count_pruned"]
             ),
             "quiescence's rare exits within its nodes": (
                 c["qs_stalemates"] <= c["qs_fail_lows"] + c["qs_fail_highs"]
-                and c["qs_quiet_checks"] <= c["qs_searched"]
             ),
             "quiescence fail highs are bounded": (
                 c["qs_fail_high_first"] <= c["qs_fail_highs"] <= c["qs_searched"]
@@ -584,16 +597,13 @@ def main():
     print("\n--- internal breakdown ---")
     for name, _ in DERIVED:
         print(f"  {name:24} {report['derived'][name]:10.3f}")
-    # eligible = applied + clamped_zero + sum(blocked_*). If this fails the
-    # counters are internally inconsistent and nothing derived from them can be
-    # trusted, so it is checked on every run rather than assumed.
+    # eligible = applied + clamped_zero + sum(blocked_*), the oracle's extra
+    # reasons read as 0 where absent. If this fails the counters are
+    # internally inconsistent and nothing derived from them can be trusted,
+    # so it is checked on every run rather than assumed.
     elig = counters.get("lmr_eligible", 0)
     parts = (counters.get("lmr_applied", 0) + counters.get("lmr_clamped_zero", 0)
-             + counters.get("lmr_blocked_depth", 0)
-             + counters.get("lmr_blocked_searched", 0)
-             + counters.get("lmr_blocked_in_check", 0)
-             + counters.get("lmr_blocked_movetype", 0)
-             + counters.get("lmr_blocked_gives_check", 0))
+             + sum(counters.get(name, 0) for name in LMR_BLOCKED))
     ident_ok = elig > 0 and elig == parts
     print(f"  lmr accounting identity  {'HOLDS' if ident_ok else f'BROKEN {elig} != {parts}'}")
     report["lmr_identity_ok"] = ident_ok

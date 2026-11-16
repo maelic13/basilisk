@@ -15,35 +15,28 @@
 #include <string>
 #include <vector>
 
-#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC) \
-    || defined(BASILISK_RELEASE_DIAG_COUNTERS)
-#define DIAG_COUNT(expression) (expression)
-#else
-#define DIAG_COUNT(expression) ((void)0)
-#endif
 
 using InfoCallback = std::function<void(const std::string&)>;
 
 // The diagnostic counters, one X line each. The table generates the fields,
 // reset() and the pool aggregate add(), so a counter cannot be added without
 // being aggregated. Counted in diagnostic and tune builds and printed only
-// when SearchLimits.diag is set; production compiles the increments away (the
-// RELEASE_DIAG_COUNTERS arm exists to reproduce the cost measurement). Names
+// when SearchLimits.diag is set; production compiles the increments away. Names
 // and units are the cross-engine contract of tools/diag/run_suite.py and the
 // oracle's matching build: a renamed counter breaks the differential harness.
 // New counters go at the end of the table, each with the denominator it is
 // read against, and are printed on new `kv` lines, never spliced into old ones.
-// Ten of the contract's counters belonged to the deleted original kernel and
-// read 0: lmp_prunes, hist_prunes, see_prunes, the four hist_* reach counters
-// and lmr_blocked_searched, _movetype and _gives_check.
+// The oracle still prints the fourteen contract counters only the deleted
+// original kernel and the check extension wrote; run_suite.py reads them when
+// present.
 #define BASILISK_DIAG_COUNTERS(X)                                            \
     /* Node population. Shares are of interior (negamax) nodes. */           \
-    X(interior_nodes) X(in_check_nodes) X(check_exts) X(tt_pv_nodes)         \
+    X(interior_nodes) X(in_check_nodes) X(tt_pv_nodes)                      \
     X(tt_probes) X(tt_hits) X(tt_cutoffs)                                    \
     /* Node and move-loop pruning, each with its tries where it has them. */ \
     X(rfp_cuts) X(razor_cuts) X(null_tries) X(null_cuts)                     \
     X(probcut_tries) X(probcut_cuts)                                         \
-    X(fut_prunes) X(lmp_prunes) X(hist_prunes) X(see_prunes)                 \
+    X(fut_prunes)                                                            \
     X(lmr_applied) X(lmr_researched)                                         \
     X(qs_nodes) X(qs_evasion_nodes)                                          \
     X(hist_cutoff_updates) X(hist_reward_updates)                            \
@@ -62,28 +55,20 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(cutoff_src_quiet) X(cutoff_src_bad_tactical)                           \
     /* LMR width. lmr_applied alone cannot separate "rarely eligible" from  \
        "eligible but almost never reduced", which have opposite repairs. The \
-       blocked reasons are exclusive and follow the gate's own short-circuit \
-       order, so eligible = applied + clamped_zero + sum(blocked_*).         \
+       one blocked reason is the depth, so                                  \
+       eligible = applied + clamped_zero + blocked_depth.                    \
        reduction_plies / applied is the mean reduction taken; clamped_high  \
        counts a formula output above the new_depth - 1 ceiling, where the   \
        policy could not have mattered. */                                    \
     X(lmr_eligible) X(lmr_reduction_plies) X(lmr_clamped_zero)               \
     X(lmr_clamped_high)                                                      \
-    /* Singular extensions: fired, the double (+2) path, fired at a node    \
-       that also took the check extension, both (the 3-ply stack), and the  \
+    /* Singular extensions: fired, the double (+2) path, and the            \
        negative-extension branch (TT score at or above beta). */             \
-    X(sing_fired) X(sing_double) X(sing_in_check) X(sing_triple) X(sing_ttbeta) \
+    X(sing_fired) X(sing_double) X(sing_ttbeta)                              \
     /* Aspiration at the root: iterations with a window, the two failure    \
        directions, re-searches in total, and the full-width bail. */         \
     X(asp_windows) X(asp_fail_low) X(asp_fail_high) X(asp_researches) X(asp_giveup) \
-    /* History-pruning reachability: quiets tested, and how many fell below \
-       a half, quarter or eighth of the live threshold, which sizes a looser \
-       candidate before one is built. */                                     \
-    X(hist_prune_tested) X(hist_below_half)                                  \
-    X(hist_below_quarter) X(hist_below_eighth)                               \
-    X(lmr_blocked_depth) X(lmr_blocked_searched)                             \
-    X(lmr_blocked_in_check) X(lmr_blocked_movetype)                          \
-    X(lmr_blocked_gives_check)                                               \
+    X(lmr_blocked_depth)                                                     \
     /* The selectivity core's mechanisms.                                   \
        Node pruning by remaining depth: each bucket set sums to rfp_cuts or  \
        razor_cuts. */                                                        \
@@ -91,10 +76,10 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(razor_cuts_d1_3) X(razor_cuts_d4_7) X(razor_cuts_d8p)                  \
     /* LMR: the reduced depth clamped up to one ply, a negative reduction    \
        taken as an extension, and the full-depth re-search after a reduced   \
-       fail high moved one ply deeper or shallower. Denominator: lmr_eligible \
-       for the first two, lmr_researched for the last two. */                \
+       fail high moved one ply deeper. Denominator: lmr_eligible for the     \
+       first two, lmr_researched for the last. */                            \
     X(lmr_floor_hits) X(lmr_extended)                                        \
-    X(lmr_research_deeper) X(lmr_research_shallower)                         \
+    X(lmr_research_deeper)                                                   \
     /* Hindsight depth adjustment at node entry. Denominator: interior_nodes. */ \
     X(hindsight_up) X(hindsight_down)                                        \
     /* Nodes whose quiet delivery the move-count rule ended. */              \
@@ -119,12 +104,9 @@ using InfoCallback = std::function<void(const std::string&)>;
        own (a PV node, or a TT entry marked PV). Zero once the probe runs   \
        after the node sets its flag. Denominator: tbhits. */                 \
     X(tb_store_stale_pv)                                                     \
-    /* Singular firings whose margin admitted the double extension but whose \
-       path had reached DoubleExtMax. The rule is deleted: 0. */             \
-    X(sing_cap_bound)                                                        \
-    /* IIR: reductions, those taken on a stale TT entry (a TT move present), \
-       and those at a node hindsight had already reduced. */                \
-    X(iir_reductions) X(iir_stale) X(iir_after_hindsight)                 \
+    /* IIR: reductions, and those at a node hindsight had already          \
+       reduced. */                                                          \
+    X(iir_reductions) X(iir_after_hindsight)                              \
     /* Singular exclusion searches attempted, and those that ended in a    \
        multi-cut. Denominator: interior_nodes for the tries; sing_tries   \
        for the outcomes sing_fired, sing_multicut and sing_ttbeta. */     \
@@ -139,9 +121,8 @@ using InfoCallback = std::function<void(const std::string&)>;
        beta (denominator null_verifications), and nodes the region kept   \
        from trying a null move (denominator interior_nodes). */           \
     X(null_verifications) X(null_verify_failed) X(null_region_refusals)    \
-    /* ProbCut: cutoffs of the TT-served form (denominator interior_nodes) \
-       and tries at PV nodes (denominator probcut_tries). */              \
-    X(probcut_tt_cuts) X(probcut_pv_tries)                                 \
+    /* ProbCut: tries at PV nodes (denominator probcut_tries). */          \
+    X(probcut_pv_tries)                                                    \
     /* Singular: three-ply extensions (denominator sing_fired), negative  \
        extensions taken at a cut node whose TT score is below beta        \
        (denominator sing_tries), and entries the shuffling and seek-mate  \
@@ -186,20 +167,18 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(xc_corr_other_ppm)                                                   \
     /* Quiescence's population (denominator qs_nodes): PV nodes, table     \
        cutoffs, stand-pat fail highs and the sum of their margins over    \
-       beta, stand-pats a table bound replaced and the sum of the         \
-       distances it moved them, nodes the delta rule cut, and nodes that  \
-       stopped at the quiescence ply cap. */                              \
+       beta, and stand-pats a table bound replaced and the sum of the     \
+       distances it moved them. */                                        \
     X(qs_pv_nodes) X(qs_tt_cutoffs) X(qs_standpat_cuts) X(qs_standpat_excess) \
     X(qs_standpat_refined) X(qs_standpat_refine_mass)                      \
-    X(qs_delta_pruned) X(qs_cap_hits)                                      \
     /* Its move loop outside check: captures generated at nodes that      \
-       reached it, those each rule pruned and those searched (the four    \
+       reached it, those each rule pruned and those searched (the three   \
        sum to qs_moves at a node that fails low); fail highs, those on    \
        the first searched move, the sum of the searched index at the      \
        cutoff and of the margins over beta (decisive values excluded);    \
        nodes that ended without a cutoff, and those of them that searched \
        a move. */                                                         \
-    X(qs_moves) X(qs_futility_pruned) X(qs_see_pruned) X(qs_late_pruned)   \
+    X(qs_moves) X(qs_futility_pruned) X(qs_see_pruned)                     \
     X(qs_searched)                                                         \
     X(qs_fail_highs) X(qs_fail_high_first) X(qs_fail_high_index_sum)       \
     X(qs_fail_high_excess)                                                 \
@@ -230,17 +209,13 @@ using InfoCallback = std::function<void(const std::string&)>;
        quiet evasions the rule left unsearched at nodes that ended without \
        a cutoff, and evasion captures it skipped on SEE (denominator        \
        qs_evasion_moves plus themselves); stalemates quiescence found       \
-       (denominator qs_nodes); quiet checks searched (denominator           \
-       qs_nodes); reverse-futility cuts the seek_mate cap refused           \
-       (denominator rfp_cuts plus itself); and captures that entered the    \
-       gain rules' block: no check, promotion or exempt recapture, at a     \
-       node where the rules run (denominator the captures the loop          \
-       delivered: qs_searched less qs_quiet_checks plus the rules'          \
-       prunes). */                                                          \
+       (denominator qs_nodes); and captures that entered the gain rules'    \
+       block: no check, promotion or exempt recapture, at a node where the  \
+       rules run (denominator the captures the loop delivered: qs_searched  \
+       plus the rules' prunes). */                                          \
     X(qs_count_pruned) X(qs_recapture_exempt)                              \
     X(qs_evasion_quiets_pruned) X(qs_evasion_see_pruned)                   \
-    X(qs_stalemates) X(qs_quiet_checks) X(rfp_seekmate_capped)             \
-    X(qs_gain_tested)                                                      \
+    X(qs_stalemates) X(qs_gain_tested)                                     \
     /* Cluster 4.                                                           \
        Returns at the ply cap and those in check, in the search (denominator \
        interior_nodes) and in quiescence (denominator qs_nodes);            \
@@ -270,13 +245,23 @@ using InfoCallback = std::function<void(const std::string&)>;
     X(root_tt_probe_fh) X(root_tt_mismatch_fh)                             \
     X(asp_nodes_windowed) X(asp_nodes_failed) X(asp_nodes_giveup)          \
     X(asp_fail_high_research_nodes) X(fhstop_fired)                        \
-    X(root_effort_hi) X(root_effort_lo)
+    X(root_effort_hi) X(root_effort_lo)                                     \
+    /* Quiescence outside check and its table move (the speed pass, B.8.5): \
+       nodes whose table move is among the captures (denominator qs_nodes  \
+       that reached the loop), those where it was searched first and cut,   \
+       and the captures generated and scored at those nodes, which staged   \
+       delivery of the table move would not generate. */                    \
+    X(qs_tt_capture_nodes) X(qs_tt_capture_cuts) X(qs_tt_cut_generated)    \
+    /* The table prefetch from a predicted key (the speed pass, B.8.9):     \
+       moves made whose key was predicted exactly before the make, and      \
+       those whose made key corrected it. Their sum is every move made,     \
+       those made only to read the table one ply down included. */          \
+    X(key_predicted) X(key_corrected)
 
 // The stack's negative-reduction fields are written where a counter or the
 // mechanism reads them.
 inline constexpr bool kDiagCountersCompiled =
-#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC) \
-    || defined(BASILISK_RELEASE_DIAG_COUNTERS)
+#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     true;
 #else
     false;
@@ -303,7 +288,7 @@ struct DiagCounters {
 // aggregate and the field count stay in step with the table.
 static_assert(sizeof(DiagCounters) == DiagCounters::COUNT * sizeof(int64_t),
               "DiagCounters holds something that is not a counter from the table");
-static_assert(DiagCounters::COUNT == 196, "the counter contract has 196 entries; extend, never rename");
+static_assert(DiagCounters::COUNT == 178, "the counter contract has 178 entries; extend, never rename");
 
 // One search's counters as `info string diag` lines, followed by the
 // evaluator's speed telemetry.
@@ -317,17 +302,17 @@ void print_pool_diag(const DiagCounters& main, const DiagCounters& pool, int thr
 
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
 enum class TraceEvent : uint8_t {
-    CheckExtension, TtCutoff, RfpPrune, RazorPrune,
+    TtCutoff, RfpPrune, RazorPrune,
     NullCutoff, ProbcutCutoff, IirReduction,
-    FutilityPrune, LmpPrune, HistoryPrune, QuietSeePrune,
+    FutilityPrune, HistoryPrune, QuietSeePrune,
     CaptureFutilityPrune, CaptureSeePrune,
     SingularExtension, SingularMulticut, SingularNegative,
     LmrReduction, LmrResearch, BetaCutoff,
-    QsTtCutoff, QsStandPatCutoff, QsDeltaPrune,
-    QsFutilityPrune, QsSeePrune, QsLatePrune, QsBetaCutoff,
+    QsTtCutoff, QsStandPatCutoff,
+    QsFutilityPrune, QsSeePrune, QsBetaCutoff,
     SkipQuiets,
     // Cluster 2's events.
-    NullVerify, NullRegionRefused, ProbcutTtCutoff, ExtBudgetTruncate,
+    NullVerify, NullRegionRefused, ExtBudgetTruncate,
     CuckooDraw, TtPenalty,
     // Cluster 3's events.
     QsCountPrune, QsEvasionPrune, QsStalemate,
@@ -363,6 +348,29 @@ struct TraceRecord {
     TraceFamily family = TraceFamily::None;
 };
 
+// One decision as the kernel reports it, named field by field (designated
+// initialisers), so two of its many integers cannot be swapped unnoticed.
+struct TraceDecision {
+    TraceEvent event{};
+    int ply = 0;
+    int depth = 0;
+    Move move = MOVE_NONE;
+    int alpha = 0;
+    int beta = 0;
+    int estimated_score = 0;
+    int improving = 0;
+    int correction = 0;
+    int history = 0;
+    int move_count = 0;
+    int reduction = 0;
+    int margin = 0;
+    int result = 0;
+    int cutoff_count = -1;
+    int lmr_depth = VALUE_NONE;
+    int skip_quiets = -1;
+    TraceFamily family = TraceFamily::None;
+};
+
 // Decision records at plies 1-2 of a single-root search, bounded so a trace
 // cannot grow without limit.
 class DecisionTrace {
@@ -373,12 +381,7 @@ public:
     // `root_only` records the root's decisions instead of plies 1 and 2.
     void start(bool enabled, bool root_only = false);
     [[nodiscard]] bool enabled() const { return enabled_; }
-    void record(TraceEvent event, int ply, int depth, Move move,
-                int alpha, int beta, int estimated_score,
-                int improving, int correction, int history,
-                int move_count, int reduction, int margin, int result,
-                int cutoff_count = -1, int lmr_depth = VALUE_NONE,
-                int skip_quiets = -1, TraceFamily family = TraceFamily::None);
+    void record(const TraceDecision& d);
     // Prints the records; `root_moves` holds the one searched root move.
     void print(const InfoCallback& info, const std::vector<Move>& root_moves) const;
 

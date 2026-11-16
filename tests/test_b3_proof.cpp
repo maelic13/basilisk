@@ -110,14 +110,10 @@ static void test_graded_extension() {
 }
 
 static void test_multicut_and_negative() {
-    begin_section("singular: multi-cut admission under both rules, never decisive");
-    // The donor's rule reads the value, the alternative the bound.
-    EXPECT(b3::multicut_admits(0, 120, 90, 100, false));
-    EXPECT(!b3::multicut_admits(0, 95, 90, 100, false));
-    EXPECT(!b3::multicut_admits(1, 120, 90, 100, false));
-    EXPECT(b3::multicut_admits(1, 110, 105, 100, false));
-    EXPECT(!b3::multicut_admits(0, 31000, 90, 100, true));
-    EXPECT(!b3::multicut_admits(1, 31000, 105, 100, true));
+    begin_section("singular: multi-cut admission by the value, never decisive");
+    EXPECT(b3::multicut_admits(120, 100, false));
+    EXPECT(!b3::multicut_admits(95, 100, false));
+    EXPECT(!b3::multicut_admits(31000, 100, true));
     end_section();
     begin_section("singular: the negative extension at a fail-high TT score or a cut node");
     EXPECT(b3::negative_extension(100, 100, false));
@@ -298,35 +294,12 @@ static void test_history_fill_values() {
     end_section();
 }
 
-// Each switch moves the tree:
-// the fills from the first search, decisive training in a won ending, and
-// training under exclusion in a middlegame where singular searches run.
-static void test_correction_switches_live() {
-    const std::string kqk = "8/8/8/4k3/8/8/8/4K2Q w - - 0 1";
-    const std::string mid(bench_fens()[1]);
-    const long long fills0 = search(mid, 10).result.nodes;
-    const long long fills1 = search(mid, 10, 0, [](SearchParams& p) {
-        p.core_history_fills = 1; }).result.nodes;
-    const long long dec1 = search(kqk, 14).result.nodes;
-    const long long dec0 = search(kqk, 14, 0, [](SearchParams& p) {
-        p.b3_corr_decisive = 0; }).result.nodes;
-    const long long exc1 = search(mid, 12).result.nodes;
-    const long long exc0 = search(mid, 12, 0, [](SearchParams& p) {
-        p.b3_corr_excluded = 0; }).result.nodes;
-    begin_section("correction: CoreHistoryFills, B3CorrDecisive, B3CorrExcluded move the tree");
-    EXPECT(fills0 != fills1);
-    EXPECT(dec0 != dec1);
-    EXPECT(exc0 != exc1);
-    end_section();
-}
-
 // Amendment 4's guard: an exclusion node whose raw static eval is 0 (the
 // wrong-bishop corner the recogniser draws) trains no correction, so the
-// search keeps the draw with exclusion training on (the unguarded tree read
-// 259 here) and off.
+// search keeps the draw (the unguarded tree read 259 here).
 static void test_excluded_training_spares_recognised_draws() {
     const std::string fen = "7k/8/6KP/8/8/8/8/5B2 w - - 0 1";
-    auto run = [&](int excluded) {
+    auto run = [&]() {
         TranspositionTable tt(8);
         std::atomic_bool stop{false};
         auto searcher = std::make_unique<Searcher>(tt, stop);
@@ -335,16 +308,12 @@ static void test_excluded_training_spares_recognised_draws() {
         SearchLimits lim;
         lim.depth = 12;
         lim.nodes = 200000;
-        lim.params.b3_corr_excluded = excluded;
         return searcher->search(b, lim);
     };
-    const SearchResult on = run(1);
-    const SearchResult off = run(0);
+    const SearchResult on = run();
     begin_section("correction: exclusion training spares a recognised draw (KBP-K wrong bishop, depth 12)");
     EXPECT_EQ(on.depth, 12);
-    EXPECT_EQ(off.depth, 12);
     EXPECT(std::abs(on.score) <= 75);
-    EXPECT(std::abs(off.score) <= 75);
     end_section();
 }
 
@@ -494,8 +463,7 @@ static void test_cuckoo_no_false_positive() {
 // returns the draw there, so the root fails low at exactly 0;
 // without it the root fails high on the win. One below, White's alpha is 0
 // and the switch changes nothing.
-static SearchResult search_windowed(const Board& b, int depth, int root_alpha, int root_beta,
-                                    int cuckoo) {
+static SearchResult search_windowed(const Board& b, int depth, int root_alpha, int root_beta) {
     TranspositionTable tt(16);
     std::atomic_bool stop{false};
     auto searcher = std::make_unique<Searcher>(tt, stop);
@@ -504,7 +472,6 @@ static SearchResult search_windowed(const Board& b, int depth, int root_alpha, i
     lim.root_alpha = root_alpha;
     lim.root_beta = root_beta;
     lim.root_moves = {make_move(H8, H7)};
-    lim.params.b3_cuckoo = cuckoo;
     return searcher->search(b, lim);
 }
 
@@ -514,7 +481,7 @@ static SearchResult search_windowed(const Board& b, int depth, int root_alpha, i
 // iteration; its entry then holds no move where the fail-low store is
 // repaired and the best-scored move elsewhere.
 static void test_fail_low_store() {
-    auto root_move = [](int fail_low_store) {
+    auto root_move = []() {
         TranspositionTable tt(16);
         std::atomic_bool stop{false};
         auto searcher = std::make_unique<Searcher>(tt, stop);
@@ -524,40 +491,24 @@ static void test_fail_low_store() {
         lim.depth = 6;
         lim.root_alpha = 5000;
         lim.root_beta = 5001;
-        lim.params.b3_fail_low_store = fail_low_store;
         const SearchResult r = searcher->search(b, lim);
         TTEntry e{};
         const bool found = tt.probe_copy(b.position_key(), e);
         EXPECT(found && e.bound() == TT_ALPHA && r.score <= 5000);
         return found ? move_from_tt(e.move16) : MOVE_NONE;
     };
-    Board b;
-    b.set_fen(std::string(bench_fens()[0]));
-    begin_section("tt: a fail-low root stores no move where B3FailLowStore repairs it");
-    const Move repaired = root_move(1);
-    const Move legacy = root_move(0);
-    EXPECT(is_legal_move_on_board(b, legacy));
-    EXPECT(repaired == MOVE_NONE);
+    begin_section("tt: a fail-low root stores no move");
+    EXPECT(root_move() == MOVE_NONE);
     end_section();
 }
 
-// Both switches move the tree; the penalty fires where it is on, and only
-// there. With the store at 0 the penalty can
-// fire and leave a tree's node count unchanged (bench positions 0, 1, 5, 8
-// and 9 at depth 12), so the read is on a position where it moves the count.
-static void test_tt_switches_live() {
-    const std::string mid(bench_fens()[2]);
-    const Run base = search(mid, 12);
-    const Run store0 = search(mid, 12, 0, [](SearchParams& p) { p.b3_fail_low_store = 0; });
-    const Run store1 = search(mid, 12, 0, [](SearchParams& p) { p.b3_fail_low_store = 1; });
-    const Run pen0 = search(mid, 12, 0, [](SearchParams& p) { p.b3_tt_penalty = 0; });
-    begin_section("tt: B3FailLowStore and B3TtPenalty move the tree");
-    EXPECT(store0.result.nodes != store1.result.nodes);
-    EXPECT(base.result.nodes != pen0.result.nodes);
-    if constexpr (kCounters) {
-        EXPECT_EQ(counter(pen0, "tt_penalized"), 0);
-        EXPECT(counter(base, "tt_penalized") > 0);
-    }
+// The bound-mismatch penalty fires on a middlegame search.
+static void test_tt_penalty_fires() {
+    if constexpr (!kCounters)
+        return;
+    const Run base = search(std::string(bench_fens()[2]), 12);
+    begin_section("tt: the bound-mismatch penalty fires");
+    EXPECT(counter(base, "tt_penalized") > 0);
     end_section();
 }
 
@@ -577,17 +528,8 @@ static void test_cuckoo_terminal() {
     child.make_move(make_move(H8, H7));
     begin_section("cuckoo: the root's null window at the draw reads 0 through the cutoff (depths 1-3)");
     EXPECT(child.upcoming_repetition(1));
-    for (int depth = 1; depth <= 3; ++depth) {
-        const SearchResult at_draw = search_windowed(b, depth, 0, 1, 1);
-        const SearchResult at_draw_off = search_windowed(b, depth, 0, 1, 0);
-        const SearchResult below = search_windowed(b, depth, -1, 0, 1);
-        const SearchResult below_off = search_windowed(b, depth, -1, 0, 0);
-        EXPECT_EQ(at_draw.score, 0);
-        if (depth <= 2)
-            EXPECT(at_draw_off.score > 0);
-        EXPECT_EQ(below.score, below_off.score);
-        EXPECT_EQ(below.nodes, below_off.nodes);
-    }
+    for (int depth = 1; depth <= 3; ++depth)
+        EXPECT_EQ(search_windowed(b, depth, 0, 1).score, 0);
     end_section();
 }
 
@@ -611,13 +553,12 @@ int main() {
     test_shuffling_truth_table();
     test_seek_mate_gate();
     test_history_fill_values();
-    test_correction_switches_live();
     test_excluded_training_spares_recognised_draws();
     test_cuckoo_tables_complete();
     test_cuckoo_no_false_positive();
     test_cuckoo_terminal();
     test_fail_low_store();
-    test_tt_switches_live();
+    test_tt_penalty_fires();
 
     return harness_summary();
 }

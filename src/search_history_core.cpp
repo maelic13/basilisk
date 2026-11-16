@@ -18,12 +18,6 @@
 
 static bool move_made(Move m) { return m != MOVE_NONE && m != MOVE_NULL; }
 
-// A side's non-pawn correction key; with `kings` it includes the side's king,
-// the donor's form, so a bare king no longer shares one entry.
-static Key nonpawn_corr_key(const Board& b, Color c, bool kings) {
-    const Key k = b.nonpawn_key_value(c);
-    return kings ? k ^ Zobrist::PieceKeys[c][KING][b.king_square(c)] : k;
-}
 
 namespace {
 
@@ -177,8 +171,7 @@ int Searcher::cont_hist_score(const SearchStack* ss, int piece, Square to) const
 // history, and every earlier capture loses. The parent's early quiet move
 // that this node refutes loses too.
 void Searcher::update_all_stats(SearchStack* ss, Move best, Move tt_move,
-                                const Move* quiets, int quiet_count,
-                                const Move* captures, int capture_count,
+                                const SearchedMoves& quiets, const SearchedMoves& captures,
                                 int depth, bool pv_node) {
     if (PRICE_PROBING()) return;
     const auto& p = config_.limits.params;
@@ -187,15 +180,15 @@ void Searcher::update_all_stats(SearchStack* ss, Move best, Move tt_move,
               + KLIT(quiet_bonus_tt) * (best == tt_move) + (ss - 1)->stat_score / KLIT(quiet_bonus_stat_den);
     const int malus = std::min(p.malus_slope * depth + KLIT(malus_offset), p.malus_cap);
     if (!pv_node)
-        bonus += int(int64_t(bonus) * (quiet_count + capture_count) / KLIT(bonus_count_den));
+        bonus += int(int64_t(bonus) * (quiets.size() + captures.size()) / KLIT(bonus_count_den));
 
     const bool best_capture_stage = is_capture_stage(b, best);
     if (!best_capture_stage) {
         update_quiet_histories(ss, best, bonus * KLIT(quiet_bonus_share) / 1024);
         int actual_malus = malus * KLIT(malus_share) / 1024;
-        for (int i = 0; i < quiet_count; ++i) {
+        for (const Move m : quiets) {
             actual_malus = actual_malus * p.malus_decay / 1024;
-            update_quiet_histories(ss, quiets[i], -actual_malus);
+            update_quiet_histories(ss, m, -actual_malus);
         }
     } else {
         update_capture_history(best, bonus * KLIT(capt_bonus_share) / 1024);
@@ -209,8 +202,8 @@ void Searcher::update_all_stats(SearchStack* ss, Move best, Move tt_move,
                                       -malus * KLIT(cont_malus_share) / 1024);
     }
 
-    for (int i = 0; i < capture_count; ++i)
-        update_capture_history(captures[i], -malus * KLIT(capt_malus_share) / 1024);
+    for (const Move m : captures)
+        update_capture_history(m, -malus * KLIT(capt_malus_share) / 1024);
 }
 
 // After a fail low: the parent's move caused it. A quiet one is rewarded by
@@ -278,12 +271,11 @@ void Searcher::update_parent_by_eval_difference(SearchStack* ss, int eval_diff, 
 int Searcher::correction_value(const SearchStack* ss) const {
     constexpr Key mask = CoreHistoryTables::CORR_SIZE - 1;
     const Board& b = *state_.board;
-    const bool kings = config_.limits.params.corr_nonpawn_kings;
     const Color us = b.turn();
     const int pawn  = hist_.pawn_corr[us][b.pawn_key_value() & mask];
     const int minor = hist_.minor_corr[us][b.minor_key_value() & mask];
-    const int white = hist_.nonpawn_corr[us][WHITE][nonpawn_corr_key(b, WHITE, kings) & mask];
-    const int black = hist_.nonpawn_corr[us][BLACK][nonpawn_corr_key(b, BLACK, kings) & mask];
+    const int white = hist_.nonpawn_corr[us][WHITE][b.nonpawn_key_value(WHITE) & mask];
+    const int black = hist_.nonpawn_corr[us][BLACK][b.nonpawn_key_value(BLACK) & mask];
     const Move m = (ss - 1)->move;
     int cont = KLIT(corr_cont_none);
     if (move_made(m)) {
@@ -304,13 +296,12 @@ void Searcher::update_correction_history(SearchStack* ss, int bonus) {
     if (PRICE_PROBING()) return;
     constexpr Key mask = CoreHistoryTables::CORR_SIZE - 1;
     const Board& b = *state_.board;
-    const bool kings = config_.limits.params.corr_nonpawn_kings;
     const Color us = b.turn();
     CorrectionBound::update(hist_.pawn_corr[us][b.pawn_key_value() & mask], bonus);
     CorrectionBound::update(hist_.minor_corr[us][b.minor_key_value() & mask], bonus * KLIT(corr_minor_share) / 128);
-    CorrectionBound::update(hist_.nonpawn_corr[us][WHITE][nonpawn_corr_key(b, WHITE, kings) & mask],
+    CorrectionBound::update(hist_.nonpawn_corr[us][WHITE][b.nonpawn_key_value(WHITE) & mask],
                             bonus * KLIT(corr_nonpawn_share) / 128);
-    CorrectionBound::update(hist_.nonpawn_corr[us][BLACK][nonpawn_corr_key(b, BLACK, kings) & mask],
+    CorrectionBound::update(hist_.nonpawn_corr[us][BLACK][b.nonpawn_key_value(BLACK) & mask],
                             bonus * KLIT(corr_nonpawn_share) / 128);
     const Move m = (ss - 1)->move;
     if (move_made(m)) {
