@@ -206,6 +206,11 @@ int Searcher::quiescence(int alpha, int beta, int ply, int qply, SearchStack* ss
 
     bool in_check = state_.board->is_in_check();
     ss->in_check = in_check;
+    // The selective depth counts the principal variation's quiescence plies,
+    // as Stockfish's does: a mate proven through quiescence's evasions
+    // otherwise reports the nominal depth. Display only.
+    if constexpr (is_pv)
+        state_.sel_depth = std::max(state_.sel_depth, ply);
     DIAG_COUNT(state_.diag.qs_nodes++);
     DIAG_COUNT(state_.diag.qs_pv_nodes += is_pv);
 
