@@ -33,7 +33,7 @@ SearchThreadPool::~SearchThreadPool() {
     }
     work_cv_.notify_all();
 
-    for (std::thread& worker : workers_) {
+    for (NativeThread& worker : workers_) {
         if (worker.joinable())
             worker.join();
     }
@@ -81,7 +81,7 @@ int SearchThreadPool::resize_threads(int count, bool rebuild) {
     }
     work_cv_.notify_all();
 
-    for (std::thread& worker : workers_) {
+    for (NativeThread& worker : workers_) {
         if (worker.joinable())
             worker.join();
     }
@@ -107,7 +107,7 @@ int SearchThreadPool::resize_threads(int count, bool rebuild) {
     while (static_cast<int>(workers_.size()) + 1 < count) {
         const int helper_slot = static_cast<int>(workers_.size());
         try {
-            workers_.emplace_back(&SearchThreadPool::worker_loop, this, helper_slot);
+            workers_.emplace_back([this, helper_slot] { worker_loop(helper_slot); });
         } catch (const std::system_error& e) {
             if (info_cb_) {
                 info_cb_("info string Threads reduced to "

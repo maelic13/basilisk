@@ -236,6 +236,7 @@ set(BASILISK_ENGINE_SOURCES
     src/search_pricing.cpp
     src/syzygy.cpp
     src/physical_memory.cpp
+    src/native_thread.cpp
     ${BASILISK_SEARCH_KERNEL_SOURCES}
 )
 add_library(basilisk_engine STATIC ${BASILISK_ENGINE_SOURCES})
@@ -476,6 +477,9 @@ target_compile_definitions(test_tb_root_rank PRIVATE
     BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
 )
 
+add_executable(test_native_thread tests/test_native_thread.cpp)
+target_link_libraries(test_native_thread PRIVATE basilisk_engine)
+
 include(CTest)
 add_test(NAME test_board        COMMAND test_board)
 add_test(NAME test_board_v2     COMMAND test_board_v2 ${CMAKE_SOURCE_DIR}/tests/data)
@@ -562,6 +566,15 @@ foreach(case lifecycle_guards new_game_resets multipv_stopped tablebase_threads 
     basilisk_uci_test(${case})
 endforeach()
 add_test(NAME test_tb_root_rank COMMAND test_tb_root_rank)
+add_test(NAME test_native_thread COMMAND test_native_thread)
+# The negative control: the same stack on a std::thread overflows where the
+# platform's default for a second thread is smaller (Windows' 1 MiB reserve
+# outside a sanitizer build, which reserves 8 MB; macOS's 512 KB).
+if((WIN32 AND NOT SANITIZE) OR APPLE)
+    add_test(NAME test_native_thread_control
+             COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:test_native_thread>" "-DARGS=--std-thread"
+                     -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/expect_failure.cmake)
+endif()
 # The evaluator's hard verdicts on a seeded sample of each fixture class,
 # compared line for line with their reading at B.9.3; exit status 1 while
 # any site is over the line. A repair updates the golden file.
@@ -722,7 +735,7 @@ set(_ALL_TARGETS
     basilisk_board basilisk_engine basilisk_launcher basilisk_version
     basilisk board_performance_test board_micro_bench board_replay
     test_board test_board_v2 test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_allocation_guard test_uci_protocol test_cpu_features
-    test_endgames test_tb_root_rank endgame_verdicts test_same_colour_bishops test_wac test_invariants test_magics test_threats
+    test_endgames test_tb_root_rank test_native_thread endgame_verdicts test_same_colour_bishops test_wac test_invariants test_magics test_threats
     test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch test_b5_root
     basilisk_engine_child_log test_search_path test_kernel_pins
 )

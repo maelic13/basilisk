@@ -6,7 +6,9 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -455,7 +457,10 @@ std::vector<RootMoveInfo> probe_root_moves(const Board& board, bool use_rule50,
                                                 nullptr))
         : MOVE_NONE;
 
-    TbRootMoves moves{};
+    // Fathom's root buffer is about 100 KB: on the heap, not the engine
+    // thread's stack, where this probe and the line extension's stood twice.
+    const auto moves_storage = std::make_unique<TbRootMoves>();
+    TbRootMoves& moves = *moves_storage;
     if (rank_dtz) {
         // Once the game has repeated, every clean win no longer ranks alike:
         // the wins rank by DTZ, so the search makes progress instead of
@@ -472,7 +477,7 @@ std::vector<RootMoveInfo> probe_root_moves(const Board& board, bool use_rule50,
         }
     }
 
-    moves = TbRootMoves{};
+    std::memset(&moves, 0, sizeof(moves));
     const int wdl_ok = tb_probe_root_wdl(pos.white, pos.black, pos.kings, pos.queens,
                                          pos.rooks, pos.bishops, pos.knights,
                                          pos.pawns, rule50, 0, pos.ep, pos.turn,

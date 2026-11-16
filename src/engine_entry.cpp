@@ -10,6 +10,7 @@
 #include "engine.h"
 #include "engine_command.h"
 #include "engine_entry.h"
+#include "native_thread.h"
 #include "eval.h"
 #include "output_sink.h"
 #include "uci_protocol.h"
@@ -55,7 +56,9 @@ int run_engine(int argc, char* argv[]) {
     Engine      engine(command_queue, stop_requested, ponderhit_requested, searching, control_epoch);
     UciProtocol uciProtocol(command_queue, stop_requested, ponderhit_requested, searching, control_epoch);
 
-    std::thread engineThread(&Engine::start, &engine);
+    // The engine thread runs the main searcher: a stated stack, as the
+    // helpers have (native_thread.h).
+    NativeThread engineThread([&engine] { engine.start(); });
     int status = 0;
     if (argc > 1) {
         std::string command_line = argv[1];
