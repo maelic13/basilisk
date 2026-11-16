@@ -877,13 +877,19 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
         // it cannot force mate (KmK, KmKm, KRKm, ...), in Stockfish's form
         // (pawnless_scale). The winning side is the one the score favours, as
         // in Stockfish; by material totals, equal totals always made it White.
+        //
+        // Its 0 is a draw verdict only when neither side has a pawn. Where the
+        // other side has pawns, the side the score favours cannot win, but the
+        // other often can (its pawn runs): the tables call 2.6% to 7.9% of such
+        // positions wins for it, and a verdict would take the search's
+        // correction away from them. The score stays 0, an estimate.
         {
             const Color strong = (score > 0) ? WHITE : BLACK;
             const int scale = pawnless_scale(b, strong);
             if (scale != SCALE_NORMAL) {
                 score = score * scale / SCALE_NORMAL;
                 scaled = true;
-                draw_verdict = scale == 0;
+                draw_verdict = scale == 0 && !b.piece_bb(~strong, PAWN);
             }
         }
     }
