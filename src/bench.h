@@ -1,10 +1,15 @@
 #pragma once
 
+#include "run_control.h"
+
 // bench [depth] [repeats] [threads] — deterministic search fingerprint over a
 // fixed 40-position suite, plus geomean-EBF / median / top-share diagnostics
 // and (for repeats > 1) a best-of-N NPS reading. Kept identical in structure to
 // sibling engine Rarog's bench harness.
-void run_bench(int depth = 13, int repeats = 1, int threads = 1);
+// `control` stops the run between or inside searches; a stopped run says so
+// and prints no summary.
+void run_bench(int depth = 13, int repeats = 1, int threads = 1,
+               const RunControl& control = RunControl{});
 
 // The 40-position suite, exposed for the packaged-FEN legality sweep:
 // every FEN the repo ships must parse under STRICT validation.

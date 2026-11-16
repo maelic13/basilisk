@@ -7,6 +7,7 @@
 #include <string>
 
 #include "engine_command.h"
+#include "run_control.h"
 #include "parameters.h"
 #include "tt.h"
 #include "search.h"
@@ -41,6 +42,7 @@ private:
     void start_search(uint64_t command_epoch,
                       std::chrono::steady_clock::time_point recv_time = {});
     void run_bench_command(const EngineCommand& command);
+    RunControl run_control(uint64_t command_epoch);
     void run_wac_command(const EngineCommand& command);
     void run_perft_command(uint64_t command_epoch);
     void configure_syzygy();

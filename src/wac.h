@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "board.h"
+#include "run_control.h"
 #include "search_params.h"
 
 inline constexpr int DEFAULT_WAC_DEPTH = 10;
@@ -71,5 +72,8 @@ bool parse_wac_request(const std::string& args, WacRequest& request,
 // ignore every UCI-set search parameter, leaving a diagnostic whose purpose
 // is comparing candidates unable to see a candidate at all (byte-identical
 // node counts for genuinely different settings).
+// `control` stops the run between or inside searches; a stopped run says so
+// and prints no summary.
 void run_wac(const WacRequest& request = WacRequest{},
-             const SearchParams& params = SearchParams{});
+             const SearchParams& params = SearchParams{},
+             const RunControl& control = RunControl{});

@@ -258,8 +258,9 @@ std::string joined_best_moves(const std::vector<std::string>& moves) {
 // wac [depth] | wac nodes N | wac depthpv N
 // ---------------------------------------------------------------------------
 
-void run_wac(const WacRequest& request, const SearchParams& params) {
+void run_wac(const WacRequest& request, const SearchParams& params, const RunControl& control) {
     std::atomic_bool stop{false};
+    RunWatch watch(control, stop);
     TranspositionTable tt(16);
     std::vector<WacIteration>* active_iterations = nullptr;
     SearchThreadPool search_pool(tt, stop, [&](const std::string& line) {
@@ -296,9 +297,18 @@ void run_wac(const WacRequest& request, const SearchParams& params) {
         limits.params = params;   // honour UCI-set search parameters
         std::vector<WacIteration> iterations;
         active_iterations = &iterations;
-        stop.store(false, std::memory_order_release);
+        stop.store(false, std::memory_order_seq_cst);
+        if (watch.stopped()) {
+            write_output_line(std::format("wac stopped after {} positions; no summary", i));
+            return;
+        }
         SearchResult r = search_pool.search(board, limits, 1);
         active_iterations = nullptr;
+        if (watch.stopped()) {
+            // A partial search is no record.
+            write_output_line(std::format("wac stopped after {} positions; no summary", i));
+            return;
+        }
 
         total_nodes += r.nodes;
         total_ms    += r.elapsed_ms;

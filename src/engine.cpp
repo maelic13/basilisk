@@ -329,6 +329,17 @@ void Engine::start_search(uint64_t command_epoch,
     stop_requested_.store(false, std::memory_order_release);
 }
 
+// `bench` and `wac` stop on the engine's flag, so `stop` and `quit` reach them
+// as they reach a search, and a command that moved the epoch since the run's
+// own (`stop`, `go`) ends it. A `quit` queued before the run began is cleared
+// with the flag, as for `go`: the run then completes, and the quit follows.
+RunControl Engine::run_control(uint64_t command_epoch) {
+    return RunControl{&stop_requested_, [this, command_epoch] {
+        return command_epoch != 0
+            && control_epoch_.load(std::memory_order_seq_cst) != command_epoch;
+    }};
+}
+
 void Engine::run_wac_command(const EngineCommand& command) {
     WacRequest request;
     std::string error;
@@ -343,7 +354,7 @@ void Engine::run_wac_command(const EngineCommand& command) {
 
     stop_requested_.store(false, std::memory_order_release);
     searching_.store(true, std::memory_order_release);
-    run_wac(request, parameters_.search_params);
+    run_wac(request, parameters_.search_params, run_control(command.epoch));
     if (command.epoch == 0
         || control_epoch_.load(std::memory_order_acquire) == command.epoch)
         searching_.store(false, std::memory_order_release);
@@ -376,7 +387,7 @@ void Engine::run_bench_command(const EngineCommand& command) {
 
     stop_requested_.store(false, std::memory_order_release);
     searching_.store(true, std::memory_order_release);
-    run_bench(depth, repeats, threads);
+    run_bench(depth, repeats, threads, run_control(command.epoch));
     if (command.epoch == 0
         || control_epoch_.load(std::memory_order_acquire) == command.epoch)
         searching_.store(false, std::memory_order_release);
