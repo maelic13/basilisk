@@ -695,3 +695,202 @@ reads put them last.
 4,688,537 here; `check_universal.py` under Intel SDE needs SDE and runs in the release
 workflow. CI and the release take the preset's default, so they build with full LTO
 and the two link options with no flag change.
+
+## Amendment 1 — the guard for a memory item (research, 2026-11-16)
+
+Answers Return 1. No engine code changed and no read was run; every figure is a
+recorded one, recomputed from the archives where named. B.8.9 stays closed and
+BAS-P38's verdict stands.
+
+**Recommendation.** Replace the pooled `bench` guard for a memory item with the
+cohort read at one engine, and read A1 again on the head in a small leaf: `bench`
+prices such an item's instructions and cannot see its waits, and A1 gained on the
+game's workload in both sessions, alone and under load.
+
+### Am1.1 What the records say
+
+| Read of A1 | BAS-P38 | BAS-P40 | Builds |
+|---|---|---|---|
+| pooled `bench`, Hash 16 | −0.62% [−0.83, −0.41] | −0.43% [−0.56, −0.30] | every A1 build below every base build, both sessions |
+| cohort, one engine, Hash 64 | +0.71% [+0.52, +0.90] | +0.81% [+0.46, +1.16] | every A1 build above every base build, both sessions |
+| cohort, 14 engines, Hash 64 | +1.38% [+1.00, +1.76] | +1.54% [+1.11, +1.97] | the same |
+
+About −0.5% on `bench`, +0.75% alone on the cohort, +1.45% under load. The two
+sessions share A1's pool, so they are two reads of one set of binaries, not two
+samples of the change.
+
+### Am1.2 Hypotheses, and what each predicts
+
+- **Noise at the threshold.** Predicts that one pair of pools read twice differs by
+  about what the two verdicts differ.
+  - Evidence: BAS-P40's session also holds `b84-on`, BAS-P38's base. From its
+    per-build medians the same pair, `b84-on` against `b89-a1`, reads −0.47% there
+    and −0.62% in BAS-P38. A1's own four binaries read 0.31% apart between the
+    sessions and the base's 0.15%.
+  - So a delta moves about 0.15% between sessions, which a session's interval
+    (taken over its builds) does not hold. A1's cost on `bench` is about −0.5%,
+    and the line is at −0.5%.
+  - **Held.** The two verdicts are one measurement on its threshold. No threshold
+    is stable for an effect that sits on it; moving the line would move the coin,
+    not remove it.
+- **Workload: the table's reach.** `bench`'s table is 16 MiB, inside one CCD's
+  32 MiB L3, and its first load is 2.23% of `bench`'s samples against 6.56% of the
+  cohort's (§1.1). Predicts that a wait-shortening item reads lowest on `bench`,
+  higher alone on the cohort, highest under load, and that an item which only
+  removes instructions reads the other way.
+  - Evidence, memory items: A1 −0.5%, +0.75%, +1.45%; large pages +0.91% on `bench`
+    and +2.38% under load (BAS-P35, BAS-P37).
+  - Evidence, code items: full LTO +3.23% on `bench` and +2.56% alone on the
+    cohort; the inline threshold and ext-tsp +0.92% and +0.66%; the pass +6.05% and
+    +4.66% under load. IR PGO, which is neither, −0.70% and −0.68%.
+  - **Held, in both directions.**
+- **Cost.** The predicted key is computed at every one of 1.6 makes a node,
+  whatever the probe then waits. This is the same model as the workload's: a read
+  is the wait saved on that workload less the key's cost. `bench`'s −0.5% is the
+  cost less whatever a third of the wait pays back, so the cost alone is −0.5% or
+  worse. **Held; the split is not measured.**
+- **Positions.** The cohort's endings, not its table, turn the sign. No record
+  separates it: `bench` differs from the cohort in the table's size, the positions,
+  the depth and the table's history at once. **Open.**
+
+### Am1.3 Is a test needed before deciding?
+
+No. The guard's question is whether an item kept by the loaded read slows the
+engine a user runs alone. That is answered by changing one thing from the loaded
+read, the load, and `bench` changes four. This holds whether the table or the
+positions turn A1's sign, so no outcome of a table-size read would change the
+guard. The split between cost and payoff decides A1's form, not the rule; it is
+read in the leaf that consumes it, on that leaf's own pools (§Am1.6).
+
+### Am1.4 Decision: the guard
+
+A memory item (a prefetch, an entry's size, a probe saved) is kept when its pooled
+`bench` read accepts it by the standing rule, or when all three hold:
+
+1. **The decider, unchanged.** The loaded cohort read is +1.0% or more with its
+   lower bound above 0.
+2. **The guard, replaced.** The cohort read at one engine (`cohort_read.py
+   --engines 1`, Hash 64, six cycles) shows no resolved loss: its estimate is
+   above −0.5% and its interval's upper bound is at 0 or above.
+3. **The cost's ceiling, new.** The pooled `bench` read's estimate is above −1.0%.
+   Above that it is recorded as the item's cost and decides nothing.
+
+The one-engine form guards only once it has passed a null by BAS-P37's admission
+rule (`b84-on` against `b84-on-null`, both built). Its record so far is BAS-P40's
+level pair, −0.02% [−0.41, +0.37].
+
+Why this is not a way to keep items that cost the engine speed:
+
+- **Two reads must agree on the game's workload**, one alone and one loaded. An
+  item that gains only because fourteen engines contend fails the guard. A4, at
+  −0.02% alone, passes the guard and fails the decider: neither read keeps an item
+  by itself.
+- **The guard is stricter where it applies.** The old form passed any loss short
+  of −0.5% with its upper bound under 0; this one refuses any resolved loss,
+  however small.
+- **The workload is held out.** The build trains on `bench 13`; neither cohort read
+  is trained on.
+- **`bench` is still read.** Its estimate is on the item's record, and a cost of
+  1% of a compute-bound node refuses the item whatever it saves in waits.
+- **No deployment runs `bench`'s table.** The option's default is 64 MiB and the
+  gates use 64.
+- **Applied to B.8.9's items as a check, not a re-score:** A2 (−1.09% loaded), A3
+  (−0.44%) and A4 (−0.16%) fail the decider as they did; A1 passes in both
+  sessions. Only the item whose two verdicts disagreed changes.
+
+The options of Return 1:
+
+1. *Keep the rule.* Refused: under it no memory item with a cost in instructions
+   of 0.5% can be kept whatever it saves, and D.2's table work and the network's
+   prefetches inherit it.
+2. *The one-engine cohort read as the guard.* Adopted, in the form above.
+3. *A prefetch after the make at quiescence's children only.* Not adopted as the
+   answer: after the make the lead is only the child's entry tests, where
+   `negamax`'s prefetched probes still wait 21 ns behind a longer lead (§1.1). It
+   is one arm of the leaf below, since it costs two lines.
+4. *`bench` at Hash 64.* Refused: `bench`'s table is fixed in `bench.cpp`, so it
+   is an engine change; it would still be the workload the build trains on; and
+   the one-engine cohort read is that guard already.
+
+### Am1.5 What this amends
+
+- **Predictions (substantive).** §8's A1 row is superseded for any new read by
+  §Am1.6's table. Its calibration: `bench` predicted +0.8% and read −0.5%, because
+  §1.1's model had no cost term for the key; loaded predicted +3.5% and read
+  +1.45%, the model's lead worth 2.4 times what the reads show.
+- **§4.1's rule, old:** "kept when the pooled `bench` read accepts it by the
+  standing rule; or when the loaded read is +1.0% or more with its lower bound
+  above 0 and the pooled read passes the no-regression form."
+- **New:** §Am1.4.
+- **Proposed for PROCESS *NPS*, for the maintainer to approve:** "A memory item is
+  kept by the loaded cohort read (+1.0% or more, lower bound above 0) when the same
+  read at one engine shows no resolved loss (estimate above −0.5%, upper bound at 0
+  or above) and the pooled `bench` read is above −1.0%. `bench`'s 16 MiB table sits
+  in the cache: it prices such an item's instructions and not its waits (BAS-P38,
+  BAS-P40)."
+
+### Am1.6 A1 again: a leaf proposed, not added
+
+**B.8.10 `[I1]` The table prefetch across the make, read on the game** — after
+B.8.9, before B.9.1, so that B.11.1's checkpoint and every later gate run on it.
+
+- **Why now and not Phase H.** The gain is read twice, about +1.45% in the gates'
+  conditions; `probe_copy` is the head's largest single wait, 7.16% of the cohort's
+  samples (BAS-P53); the code exists (`8440f8b`); no game is owed. If the maintainer holds it to the
+  small-gains rule it goes to H.2 unchanged.
+- **Arms, each alone on the head, against `b89-final`** (the head's release code is
+  `d17a62d`'s):
+  - X0: A1 as §6 states it, `8440f8b`'s engine change applied again.
+  - X2: the predicted key and its corrected prefetch at quiescence's two loops
+    only; `negamax`'s three prefetches after the make stay. The key is then paid
+    at 0.13 to 0.17 makes a node, not 1.6.
+  - X1: Return 1's option 3, a prefetch after the make in quiescence's two loops.
+- **Exactness, per arm:** §4.3, and A1's pin and counters for X0 and X2.
+- **Reads, in order, each once:**
+  1. The one-engine form's null (`b84-on`, `b84-on-null`); admission as BAS-P37's.
+  2. One pooled `bench` read of the four pools: the cost, and the ceiling.
+  3. One one-engine cohort read of the four pools: the guard.
+  4. Three loaded reads, one per arm: the decider.
+  5. X0 against the base at one engine, Hash 1 and Hash 256: reported, and the
+     model's falsifier.
+- **Keep rule.** By §Am1.4. Of the arms that pass, the best loaded estimate is kept;
+  a smaller arm (X1, then X2) is kept instead when its loaded estimate lies inside
+  the best one's interval.
+- **Prediction, frozen (80% intervals):**
+
+  | Arm | `bench` | One engine | Loaded | P(kept) |
+  |---|---|---|---|---:|
+  | X0 | −0.5% [−0.9, −0.2] | +0.8% [+0.4, +1.2] | +1.5% [+1.0, +2.1] | 0.80 |
+  | X2 | −0.1% [−0.3, +0.1] | +0.4% [0.0, +0.9] | +0.8% [+0.2, +1.5] | 0.35 |
+  | X1 | 0.0% [−0.2, +0.2] | +0.2% [−0.1, +0.5] | +0.3% [−0.1, +0.9] | 0.10 |
+  | X0 at Hash 1, one engine | | −0.7% [−1.2, −0.3] | | |
+  | X0 at Hash 256, one engine | | +0.9% [+0.5, +1.4] | | |
+
+- **Falsifiers.**
+  - X0's one-engine delta at Hash 1 is not below its delta at Hash 64: the gain
+    does not grow with the table, so it is not the probe's wait. Nothing is kept,
+    and the leaf returns here as Return 2.
+  - X0's loaded read under +1.0% on the head: the faster node left no lead to buy.
+    A1 closes; retry with D.2's table.
+- **Stop rule.** One registered read each; a second only after a disturbed one.
+- **Cost.** Twelve PGO builds and the reads, about two hours of idle host by
+  B.8.9's pace; no games.
+- **Class.** `I1`: the change is written and its contract fixed; the leaf's work is
+  builds and reads by committed tools under frozen rules.
+- **Non-goals.** The table's layout or size, any other prefetch, `bench`'s table,
+  the PGO corpus.
+
+### Am1.7 Verdict
+
+- **The guard:** decided as §Am1.4; it takes effect, with PROCESS's line, on the
+  maintainer's approval.
+- **A1:** `READY_FOR_IMPLEMENTATION` as the proposed B.8.10, on that approval. Until
+  then `NO_CHANGE`: the head is B.8.9's.
+
+### Am1.8 Found on the way
+
+- **The pooled `bench` read over-reads a code item against the game by about a
+  quarter** (+3.23% against +2.56%, +0.92% against +0.66%, the pass +6.05% against
+  +4.66% loaded): a faster instruction is a larger share of a node that waits
+  less. The standing rule is unchanged by this; a pass's closing reads should hold
+  the one-engine cohort read too, which B.8.9's did not.
