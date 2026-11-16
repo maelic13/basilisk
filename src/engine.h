@@ -64,6 +64,7 @@ private:
 
     void apply_table_state();
     std::string current_syzygy_path_;
+    int reported_map_failures_ = 0;
     FatalHandler fatal_handler_;
 };
 

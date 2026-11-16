@@ -305,7 +305,11 @@ def case_fathom_unmappable_table(exe, args):
                 fate = "hung"
             return False, f"no bestmove; the process {fate}; tail {lines[-2:]}"
         e.ready()
-        return e.alive(), "answered and kept running"
+        if not e.alive():
+            return False, "answered, then the process ended"
+        if not any(l.startswith("info string") and "skipped" in l for l in lines):
+            return False, "answered without saying a table was skipped"
+        return True, "answered, said so and kept running"
     finally:
         e.close()
         shutil.rmtree(tables, ignore_errors=True)

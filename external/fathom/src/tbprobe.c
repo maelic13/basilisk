@@ -714,6 +714,10 @@ static bool test_tb(const char *str, const char *suffix)
   return fd != FD_ERR;
 }
 
+/* Basilisk: tables that could not be mapped, counted under tbMutex (map_tb
+   runs only inside it) and read by tb_map_failures(). */
+static unsigned mapFailures = 0;
+
 static void *map_tb(const char *name, const char *suffix, map_t *mapping)
 {
   FD fd = open_tb(name, suffix);
@@ -721,14 +725,26 @@ static void *map_tb(const char *name, const char *suffix, map_t *mapping)
     return NULL;
 
   void *data = map_file(fd, mapping);
-  if (data == NULL) {
-    fprintf(stderr, "Could not map %s%s into memory.\n", name, suffix);
-    exit(EXIT_FAILURE);
-  }
-
   close_tb(fd);
 
+  /* Basilisk: upstream calls exit() here. A table is mapped at its first
+     probe, mid-search, so a file truncated, replaced or on a lost drive
+     after tb_init ended the engine with no bestmove. The table is skipped
+     instead: the caller marks its entry in error and the probe fails. */
+  if (data == NULL) {
+    fprintf(stderr, "Could not map %s%s into memory; the table is skipped.\n", name, suffix);
+    mapFailures++;
+  }
+
   return data;
+}
+
+unsigned tb_map_failures(void)
+{
+  LOCK(tbMutex);
+  unsigned n = mapFailures;
+  UNLOCK(tbMutex);
+  return n;
 }
 
 static void add_to_hash(struct BaseEntry *ptr, uint64_t key)

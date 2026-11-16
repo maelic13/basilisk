@@ -310,6 +310,15 @@ void Engine::start_search(uint64_t command_epoch,
     searching_.store(true, std::memory_order_release);
 
     SearchResult result = search_pool_.search(board_copy, limits, active_threads);
+    if (Syzygy::enabled()) {
+        // A table that could not be read is skipped, not fatal; say so once.
+        const int map_failures = Syzygy::map_failures();
+        if (map_failures != reported_map_failures_) {
+            write_output_line("info string " + std::to_string(map_failures - reported_map_failures_)
+                           + " tablebase file(s) could not be read and are skipped.");
+            reported_map_failures_ = map_failures;
+        }
+    }
     wait_until_bestmove_allowed(limits, command_epoch);
     publish_tablebase_pv(result, board_copy, limits);
 

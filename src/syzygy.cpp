@@ -343,6 +343,10 @@ int dtz_file_count() {
     return g_dtz_files.load(std::memory_order_acquire);
 }
 
+int map_failures() {
+    return static_cast<int>(tb_map_failures());
+}
+
 std::string path() {
     std::scoped_lock lock(init_mutex());
     return tb_path();
