@@ -4903,9 +4903,10 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           moves were en passant evasions, answered now), `ucinewgame`
           (a new game's search matches a fresh engine's node for node),
           D-73's MultiPV stops, A-67's seeded fuzz.
-        - Decisions for the maintainer (packet §4): a bare `go` and `go
-          mate N` to Stockfish's meaning, search until `stop` and until
-          the mate is found; `go mate 7` misses a mate in 6 today.
+        - Decided by the maintainer 2026-11-16 (packet §4): a bare `go`
+          and `go mate N` take Stockfish's meaning, search until `stop`
+          and until the mate is found; `go mate 7` misses a mate in 6
+          today.
         - Kept with reasons (packet §5): A-57 (4,006 ms on the first
           search with cold tables; a known limitation, read again in
           B.9.4), DRIVER-15 (joins A-46 in B.9.4), TR-3's MultiPV reprint,

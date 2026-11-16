@@ -185,6 +185,9 @@ a race shows only under ThreadSanitizer.
 
 ## 4. Decisions
 
+Both decided by the maintainer on 2026-11-16 as recommended: Stockfish's
+meaning for each.
+
 ### 4.1 A bare `go`
 
 Recommendation: **search until `stop`, as Stockfish does**; answer
@@ -295,7 +298,7 @@ that is the command's meaning.
 
 ## 9. Decision and handoff for B.9.5
 
-`READY_FOR_IMPLEMENTATION`, once the maintainer settles §4. Each repair in
+`READY_FOR_IMPLEMENTATION` (§4 settled 2026-11-16). Each repair in
 its own commit, through the correctness-repair path; the commit drops its
 test's `--expect-defect` (or moves `test_tb_root_rank` to a plain test).
 
