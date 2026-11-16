@@ -886,6 +886,8 @@ B.8.9, before B.9.1, so that B.11.1's checkpoint and every later gate run on it.
   maintainer's approval.
 - **A1:** `READY_FOR_IMPLEMENTATION` as the proposed B.8.10, on that approval. Until
   then `NO_CHANGE`: the head is B.8.9's.
+- **Approved by the maintainer, 2026-11-16,** who left the choice to the
+  research: both. The rule is in PROCESS *NPS* and the leaf is PLAN B.8.10.
 
 ### Am1.8 Found on the way
 

@@ -4111,7 +4111,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         read in its search as losses (BAS-P31).
       - No component changed the generation order: no SPRT.
       - DESIGN §5 has the final figures.
-- [x] **B.8** Cleanup and speed pass
+- [ ] **B.8** Cleanup and speed pass
   Cleanup: remove the legacy search path, dead parameters, unconsumed switches
   and diagnostics without an owner; exact fingerprint; no game gate. Then
   the allocation guard, large pages and the speed pass (B.7 until
@@ -4683,6 +4683,34 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           both cohorts and `next()`'s by 0.7 to 1.0; the table's wait is a
           larger share of a faster node (`probe_copy` 7.16% of the
           cohort's samples).
+    - [ ] **B.8.10** `[I1]` Table prefetch across the make, on the game
+      Added 2026-11-16 (maintainer, on Amendment 1 of
+      `analysis/b88_speed_packet_2026-11-15.md`, which answers B.8.9's
+      Return 1). A1 was reverted by a `bench` guard that prices a memory
+      item's instructions and not its waits; it gained on the game's
+      workload in both sessions (about +0.75% alone and +1.45% under
+      load, −0.5% on `bench`). The guard is now PROCESS *NPS*'s rule for
+      a memory item, and A1 is read again on the head under it. The
+      contract is the amendment's §Am1.4 and §Am1.6; behaviour-neutral,
+      no games.
+      - Arms, each alone on the head against `b89-final`: X0, A1 as the
+        packet's §6 states it (`8440f8b` applied again); X2, the predicted
+        key and its corrected prefetch at quiescence's two loops only,
+        `negamax`'s prefetches after the make kept; X1, a prefetch after
+        the make in quiescence's two loops.
+      - Exactness per arm: `bench 13` 4,688,537 on Release, Tune and
+        Diag; the cohort fingerprint 24,421,195; CTest, the allocation
+        guard, `hot_path_calls.py`; A1's pin and counters for X0 and X2.
+      - Reads, each once and registered before it: the one-engine cohort
+        read's null (`b84-on`, `b84-on-null`); one pooled `bench` read of
+        the four pools; one one-engine cohort read of them; a loaded read
+        per arm; X0 against the base at one engine, Hash 1 and Hash 256.
+      - Kept by PROCESS's rule: of the arms that pass, the best loaded
+        estimate, or a smaller arm (X1, then X2) whose loaded estimate
+        lies inside the best one's interval.
+      - Falsifiers: X0's one-engine delta at Hash 1 not below its delta
+        at Hash 64 (nothing kept, Return 2); X0's loaded read under +1.0%
+        (A1 closes, retry with D.2's table).
 - [ ] **B.9** Robustness, verdicts and protocol before the release
   Added 2026-11-05 (maintainer: every correctness fix before the next
   release): the lifecycle and protocol work that was D.3.2, the
@@ -5176,6 +5204,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
+| B.8.10 | READY_FOR_IMPLEMENTATION | I1 | A1 read again under the amended guard (`analysis/b88_speed_packet_2026-11-15.md`, Amendment 1) |
 | B.9.1 | RESEARCH | R2 | Was D.3.2, with the release-visible defects (2026-11-05) |
 | B.9.3 | RESEARCH | R2 | Added 2026-11-11; the evaluator's hard verdicts against Syzygy, the evaluation frozen |
 | B.9.4 | RESEARCH | R2 | Added 2026-11-11; known defects owned after B.11, repaired now or justified |
