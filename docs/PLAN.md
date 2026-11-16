@@ -4737,7 +4737,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   and protocol audit (B.9.1), the evaluator's hard verdicts read against
   Syzygy (B.9.3) and the known defects that later leaves own (B.9.4);
   then the repairs (B.9.5, which was B.9.2).
-    - [ ] **B.9.1** `[R2]` Lifecycle and protocol audit and tests
+    - [x] **B.9.1** `[R2]` Lifecycle and protocol audit and tests
       Lifecycle and protocol (archived 9.4): worker start, stop and join,
       cancellation, result authority, new-game and option resets, command
       ordering, Syzygy thread and halfmove contracts; deterministic
@@ -4868,6 +4868,52 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         or the stop path fails; and the ordinary PGO path and the
         `gcc-pgo` job fail on a kernel that went untrained, as the
         universal build already does (Rarog's D.5.20).
+      - Closed 2026-11-16, `READY_FOR_IMPLEMENTATION` for B.9.5
+        (`analysis/b91_lifecycle_audit_2026-11-16.md`; no engine source
+        changed, `bench 13` 4,688,537; the closing criterion is still
+        read in B.11.1's gauntlet):
+        - Every input read against the source and, where it shows, the
+          binary over UCI. Fourteen defects confirmed, thirteen with a
+          test that fails on the head (packet §3): DRIVER-12 (`go depth 8` at
+          Threads 4 printed depth 9 in 3 of 12); A-50 with A-65's sweep
+          (`go nodes 1` plays the first legal move at a cut depth 1); F7
+          and the −1 clock (depth 7, `hard_ms=0`); TT-7; the cached
+          `SyzygyPath`; PROTO-11 (exit 1, no `bestmove`); PROTO-24 on
+          Windows; the `ponderhit` ply (`soft_ms` 292 against 316); F1 for
+          `bench` stop, `wac` stop and `bench` quit; F9; B-122 (seldepth 1
+          on a mate proven through quiescence); A-58; PROTO-15 by reading;
+          and one new: a leading space or a tab drops a command, which the
+          UCI specification allows. With the two decisions' tests, 17
+          tests are known defects on Windows, 16 elsewhere.
+        - A-58 reproduced on the head with the 3-6-man tables: BAS-S39's
+          game 4965 replayed to 77...Ke5, the move before the threefold,
+          at depth 10 and 16. The CI test pins it on the KQvK fixture:
+          after a repetition all 20 wins share the best rank, not the five
+          with the shortest DTZ.
+        - The tests: `tests/uci_process_check.py` (the engine as a
+          process) and `tests/test_tb_root_rank.cpp`. A known defect runs
+          with `--expect-defect`, label `known-defect`, and passes only
+          while it prints `KNOWN DEFECT REPRODUCED`; each repair drops its
+          flag. All reproduced on the release and the sanitizer builds;
+          CTest 55 of 55.
+        - Guards that pass: TR-1, TR-2's input forms and output lock,
+          terminal roots at Threads 4, `setoption` mid-search, the end of
+          input during `go infinite` and ponder, a rejected `position`
+          mid-search, `go nodes` at Threads 4, A-69 (1.2.3's two illegal
+          moves were en passant evasions, answered now), `ucinewgame`
+          (a new game's search matches a fresh engine's node for node),
+          D-73's MultiPV stops, A-67's seeded fuzz.
+        - Decisions for the maintainer (packet §4): a bare `go` and `go
+          mate N` to Stockfish's meaning, search until `stop` and until
+          the mate is found; `go mate 7` misses a mate in 6 today.
+        - Kept with reasons (packet §5): A-57 (4,006 ms on the first
+          search with cold tables; a known limitation, read again in
+          B.9.4), DRIVER-15 (joins A-46 in B.9.4), TR-3's MultiPV reprint,
+          TT-4's FEN ply (the donor's form).
+        - Measured for B.9.5 (packet §6): a line to the cap needs about
+          0.19 MB of stack against 512 KB on macOS and 1 MiB on Windows;
+          every search thread gets 8 MB, its test lands with the hook.
+          The ThreadSanitizer cell and D.5.20 are B.9.5's CI changes.
     - [ ] **B.9.3** `[R2]` Hard verdicts against Syzygy
       Added 2026-11-11 (`analysis/rarog_import_2026-11-11.md`;
       Rarog's D.5.19, which found a quarter of one of its own
@@ -4932,7 +4978,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         limitations for 1.11.0's notes.
     - [ ] **B.9.5** `[I2]` Repairs and the repair gate
       It was B.9.2 until 2026-11-11; it now repairs what B.9.1, B.9.3
-      and B.9.4 each found.
+      and B.9.4 each found. B.9.1's handoff is its packet's §9
+      (`analysis/b91_lifecycle_audit_2026-11-16.md`): the tests
+      labelled `known-defect`, each repair dropping its test's
+      `--expect-defect`, and the exposure of D2, D3 and D13 measured
+      before any games.
       Each failing test of those leaves repaired in its own commit, through the
       correctness-repair path: CTest on release and sanitizer builds, the
       exact fingerprint where the search is untouched and a recorded move
@@ -5218,7 +5268,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.9.1 | RESEARCH | R2 | Was D.3.2, with the release-visible defects (2026-11-05) |
 | B.9.3 | RESEARCH | R2 | Added 2026-11-11; the evaluator's hard verdicts against Syzygy, the evaluation frozen |
 | B.9.4 | RESEARCH | R2 | Added 2026-11-11; known defects owned after B.11, repaired now or justified |
 | B.9.5 | RESEARCH | I2 | Was B.9.2; on the failing tests of B.9.1, B.9.3 and B.9.4, one repair gate |
