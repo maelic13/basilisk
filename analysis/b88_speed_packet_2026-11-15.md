@@ -896,3 +896,49 @@ B.8.9, before B.9.1, so that B.11.1's checkpoint and every later gate run on it.
   +4.66% loaded): a faster instruction is a larger share of a node that waits
   less. The standing rule is unchanged by this; a pass's closing reads should hold
   the one-engine cohort read too, which B.8.9's did not.
+
+## 13. Implementation record (B.8.10, 2026-11-16)
+
+The amendment's §Am1.4 and §Am1.6 as frozen, on the idle host. The head's engine code
+was `d17a62d`'s, so every arm was read against `b89-final`. Each arm was built alone
+on the head, pooled, then set aside by a revert so the next started from the head:
+X0 `63b9420` (`8440f8b`'s change again), X2 `898a337`, X1 `f7d208a`. Before any read,
+every arm held `bench 13` 4,688,537 on Release, Tune, Diag and the symbol PGO build,
+the cohort fingerprint on each and on all twelve pool builds, CTest 33/33 on Release
+and Diag, `hot_path_calls.py` 0 unknown. A1's pin passed for X0 and X2. X0's Diag
+counters reproduce §1.2 exactly (`bench` 4,592,276 and 110,206; cohort 145,097,634
+and 2,187,425). X2's count quiescence's own makes, 18,760,248 on the cohort (§1.2's
+figure), 97.86% exact.
+
+| Arm | | `bench` (ceiling) | One engine, Hash 64 (guard) | Loaded (decider) | Passes |
+|---|---|---|---|---|---|
+| X0 | predicted | −0.5% [−0.9, −0.2] | +0.8% [+0.4, +1.2] | +1.5% [+1.0, +2.1] | P 0.80 |
+| | read | −0.80% [−1.02, −0.58], held | +0.56% [+0.41, +0.71], held | +1.32% [+1.00, +1.64], met | **yes, kept** |
+| X2 | predicted | −0.1% [−0.3, +0.1] | +0.4% [0.0, +0.9] | +0.8% [+0.2, +1.5] | P 0.35 |
+| | read | −0.09% [−0.41, +0.22], held | +0.31% [+0.05, +0.56], held | +0.57% [+0.14, +0.99], not met | no |
+| X1 | predicted | 0.0% [−0.2, +0.2] | +0.2% [−0.1, +0.5] | +0.3% [−0.1, +0.9] | P 0.10 |
+| | read | +0.16% [−0.05, +0.37], held | +0.24% [+0.05, +0.43], held | +0.26% [−0.25, +0.76], not met | no |
+
+The reads: BAS-P54 (the one-engine null, −0.02% [−0.24, +0.20], admitted), BAS-P55
+(`bench`), BAS-P56 (the guard), BAS-P57 (the decider), BAS-P58 (X0 at Hash 1, −1.02%
+[−1.36, −0.68], predicted −0.7% [−1.2, −0.3]; at Hash 256, +1.13% [+0.86, +1.39],
+predicted +0.9% [+0.5, +1.4]). Every one of the eleven frozen estimates fell inside
+its 80% interval.
+
+- **Kept: X0** (`dd5a5d4` re-applies `63b9420`). X2 and X1 are reverted; X2's loaded
+  estimate lies outside X0's interval.
+- **Falsifiers.** X0's Hash 1 delta (−1.02%) is below its Hash 64 delta (+0.56%), so
+  the gain grows with the table and is the probe's wait: no Return 2. X0's loaded read
+  is +1.32%, not under +1.0%: A1 does not close.
+- **What the Hash reads say.** At 1 MiB the prefetch buys nothing and X0 costs about
+  1.0% of a node: the key's computation and its loads at 1.6 makes a node. The payoff
+  is then about 1.6% at Hash 64 alone, 2.1% at Hash 256 and 2.3% in the gates'
+  conditions; `bench`'s 16 MiB table returns about 0.2%. This splits by inference
+  what Am1.2 left unmeasured; no read measures the cost alone.
+- **Deviations.** None from the contract. BAS-P55 to BAS-P58 were registered together
+  after the pools and before the first of them ran. No read was repeated; X2's and
+  X1's loaded reads each absorbed one disturbed cycle. `cohort_read.py` gained a
+  `guard` contrast mode with tests (`fe9d69a`).
+- **For later:** X0's cost is about 1% of a node at every make. A form that keeps its
+  lead and pays less (the key only where a probe is likely to miss) is the natural
+  next question, and D.2's table work inherits it.
