@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.9.3** `[R2]` Hard verdicts against Syzygy — Claude Opus
+**Next step:** **B.9.4** `[R2]` Deferred defects: repair now or justify — Claude Opus
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -143,7 +143,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.8.10** `[I1]` Table prefetch across the make, on the game
 - [ ] **B.9** Robustness, verdicts and protocol before the release
     - [x] **B.9.1** `[R2]` Lifecycle and protocol audit and tests
-    - [ ] **B.9.3** `[R2]` Hard verdicts against Syzygy
+    - [x] **B.9.3** `[R2]` Hard verdicts against Syzygy
     - [ ] **B.9.4** `[R2]` Deferred defects: repair now or justify
     - [ ] **B.9.5** `[I2]` Repairs and the repair gate
 - [ ] **B.11** Checkpoint and interim release

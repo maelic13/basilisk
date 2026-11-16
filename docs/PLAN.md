@@ -4915,7 +4915,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           0.19 MB of stack against 512 KB on macOS and 1 MiB on Windows;
           every search thread gets 8 MB, its test lands with the hook.
           The ThreadSanitizer cell and D.5.20 are B.9.5's CI changes.
-    - [ ] **B.9.3** `[R2]` Hard verdicts against Syzygy
+    - [x] **B.9.3** `[R2]` Hard verdicts against Syzygy
       Added 2026-11-11 (`analysis/rarog_import_2026-11-11.md`;
       Rarog's D.5.19, which found a quarter of one of its own
       recogniser's quiet zeros to be wins). A hard verdict is a value the
@@ -4958,6 +4958,40 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - Priors from Rarog's read of its own rules: the wrong-corner
         draw exact over 937,176 positions; `krpkr_scale`'s zeros 1.7%
         wins; its KQ-KP fortress 26.7% of quiet zeros wins.
+      - Closed 2026-11-16 (`analysis/b93_hard_verdicts_2026-11-16.md`;
+        values unchanged, one export for the instrument, `bench 13`
+        4,688,537):
+        - The instrument: `tests/endgame_verdicts.cpp`, each class
+          exhaustive under symmetry or sampled, quiet positions
+          attributed to the site that fired in the evaluator's order,
+          the tables probed where one did, and a depth-8 search without
+          tables on a sample of each site's misses. Every three- and
+          four-man class and KBPP-K and KRP-KR exhaustively; the other
+          five-man classes and KRPP-KRP on 2,000,000 random quiet
+          positions each.
+        - Exact or under the line: the dead-position rule, KPK, KNNK
+          (0.0054%), the wrong-bishop KBP-K and KBPP-K (0 of 168,764),
+          every queen and rook tier, the minor mates but KBN-K, the
+          pawnless 0 without pawns (≤ 0.011%), KRP-KR's rules 2 and 3.
+        - Over the line (packet §2): V1 F6, all 765,152 same-coloured
+          KBB-K positions score ≥ 300; V2 the pawnless 0 where the other
+          side has pawns, 2.6% to 7.9% and 69% of KPP-K's few, the pawn
+          side winning; V3 KRP-KR's rules 1, 4 and 5 and its other
+          scales under the floor, 1.9% to 6.9% of their positions
+          (exhaustive); V4 the KRPP-KRP table, 5.5%; V5 KBN-K's known
+          win, 0.69%, the bare king forking a minor; V6 Stockfish's
+          pawnless scales 4 and 14, 0.8% to 41% by class.
+        - A depth-8 search without tables resolves most misses: 98% to
+          100% for V2 and V3, 79% for V5, 54% to 100% for V6. The
+          search's four wrong-bishop draws read as draws, both existing
+          tests passing.
+        - `READY_FOR_IMPLEMENTATION` for B.9.5 on V1 to V4 (packet §6).
+          Recommended, against the frozen rule's letter (packet §5): V5
+          kept, V6 to Phase C's per-class evaluators, both known
+          limitations for 1.11.0.
+        - Tests: `endgame_verdicts_fixtures`, a golden read of nine
+          fixture classes (seven four-man WDL tables added, 82 KB), and
+          `test_same_colour_bishops` (`known-defect`). CTest 57 of 57.
     - [ ] **B.9.4** `[R2]` Deferred defects: repair now or justify
       Added 2026-11-11 (maintainer: every known correctness fix before
       the next release). PLAN §2's *Known defects* gives some defects to
@@ -4979,7 +5013,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         limitations for 1.11.0's notes.
     - [ ] **B.9.5** `[I2]` Repairs and the repair gate
       It was B.9.2 until 2026-11-11; it now repairs what B.9.1, B.9.3
-      and B.9.4 each found. B.9.1's handoff is its packet's §9
+      and B.9.4 each found. B.9.3's handoff is its packet's §6
+      (`analysis/b93_hard_verdicts_2026-11-16.md`), V5 and V6 pending the
+      maintainer's routing. B.9.1's handoff is its packet's §9
       (`analysis/b91_lifecycle_audit_2026-11-16.md`): the tests
       labelled `known-defect`, each repair dropping its test's
       `--expect-defect`, and the exposure of D2, D3 and D13 measured
@@ -5269,7 +5305,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.9.3 | RESEARCH | R2 | Added 2026-11-11; the evaluator's hard verdicts against Syzygy, the evaluation frozen |
 | B.9.4 | RESEARCH | R2 | Added 2026-11-11; known defects owned after B.11, repaired now or justified |
 | B.9.5 | RESEARCH | I2 | Was B.9.2; on the failing tests of B.9.1, B.9.3 and B.9.4, one repair gate |
 | B.11.1 | RESEARCH | V | Was B.9; programme checkpoint |
