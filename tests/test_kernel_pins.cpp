@@ -25,8 +25,10 @@
 #include <atomic>
 #include <cstdint>
 #include <cstdio>
+#include <fstream>
 #include <memory>
 #include <random>
+#include <sstream>
 #include <string>
 
 #ifndef BASILISK_CHILD_LOG
@@ -193,6 +195,85 @@ void test_capture_predicates() {
     end_section();
 }
 
+// ---- The child's key before the make ----------------------------------------
+
+// Every legal move of `b`, made: the predicted key is the made key outside
+// the four kinds predicted_child_key names, and only those kinds may miss.
+void check_predicted_keys(Board& b, uint64_t& moves, uint64_t& missed, uint64_t& wrong,
+                          uint64_t (&missed_by_kind)[4]) {
+    MoveList legal;
+    b.gen_legal(legal);
+    for (Move m : legal) {
+        const Key predicted = predicted_child_key(b, m);
+        const bool may_miss = predicted_key_may_miss(b, m);
+        b.make_move(m);
+        const bool exact = b.position_key() == predicted;
+        b.unmake_move(m);
+        ++moves;
+        if (!exact) {
+            ++missed;
+            ++missed_by_kind[move_type(m) == NORMAL ? 3 : int(move_type(m)) - 1];
+        }
+        wrong += !exact && !may_miss;
+        // Outside the four kinds a miss is the error the test exists for;
+        // a castling or an en passant capture always misses.
+        wrong += (move_type(m) == CASTLING || move_type(m) == EN_PASSANT) && exact;
+    }
+}
+
+void test_predicted_key() {
+    begin_section("A move's child key before the make: exact outside four kinds");
+    uint64_t moves = 0, missed = 0, wrong = 0, missed_by_kind[4] = {};
+    int positions = 0;
+    std::ifstream cohort(BASILISK_TEST_GAME_COHORT);
+    EXPECT(bool(cohort));
+    for (std::string line; std::getline(cohort, line);) {
+        std::istringstream fields(line.substr(0, line.find(';')));
+        std::string board, side, castling, ep;
+        if (!(fields >> board >> side >> castling >> ep))
+            continue;
+        Board b;
+        b.set_fen(board + " " + side + " " + castling + " " + ep + " 0 1");
+        check_predicted_keys(b, moves, missed, wrong, missed_by_kind);
+        ++positions;
+    }
+    const uint64_t cohort_moves = moves, cohort_missed = missed;
+    // Random walks from positions rich in the four kinds.
+    const char* const seeds[] = {
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1",
+        "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
+        "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
+        "r3k2r/8/8/2pP4/8/8/1p4P1/R3K2R w KQkq c6 0 1",
+    };
+    std::mt19937_64 rng(0x9E7C0DEULL);
+    for (int walk = 0; walk < 2000; ++walk) {
+        Board b;
+        b.set_fen(seeds[size_t(walk) % std::size(seeds)]);
+        for (int p = int(rng() % 24); p >= 0; --p) {
+            check_predicted_keys(b, moves, missed, wrong, missed_by_kind);
+            MoveList legal;
+            b.gen_legal(legal);
+            if (legal.empty())
+                break;
+            b.make_move(legal[int(rng() % uint64_t(legal.size()))]);
+        }
+    }
+    std::printf("%d cohort positions, %llu moves, %llu missed; with the walks %llu moves, missed: "
+                "%llu promotions, %llu en passant, %llu castles, %llu double pushes ",
+                positions, static_cast<unsigned long long>(cohort_moves),
+                static_cast<unsigned long long>(cohort_missed), static_cast<unsigned long long>(moves),
+                static_cast<unsigned long long>(missed_by_kind[0]),
+                static_cast<unsigned long long>(missed_by_kind[1]),
+                static_cast<unsigned long long>(missed_by_kind[2]),
+                static_cast<unsigned long long>(missed_by_kind[3]));
+    EXPECT_EQ(positions, 1000);
+    EXPECT_EQ(wrong, uint64_t(0));
+    for (uint64_t kind : missed_by_kind)
+        EXPECT(kind > 0);
+    end_section();
+}
+
 // ---- IIR's condition --------------------------------------------------------
 
 void test_iir_condition() {
@@ -241,6 +322,7 @@ int main() {
     std::printf("Kernel pins\n");
     std::printf("===========\n");
     test_capture_predicates();
+    test_predicted_key();
     test_iir_condition();
     test_rule50_cutoff_guard();
     test_child_types();
