@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
         "8/8/8/4k3/8/8/2B5/K2B4 b - - 0 1",
         "8/3B4/8/4k3/8/8/2B5/K2B4 w - - 0 1", // d7 as well
         "k2b4/2b5/8/8/4K3/8/8/8 b - - 0 1",   // the same, colours reversed
-        "1b6/8/8/4K3/8/3b4/8/k7 w - - 0 1",   // b8, d3: both dark
+        "1b6/b7/8/8/4K3/8/8/k7 w - - 0 1",    // b8, a7: both dark
     };
     const auto ev = std::make_unique<Evaluator>();
     int broken = 0;

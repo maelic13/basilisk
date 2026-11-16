@@ -103,7 +103,9 @@ tables', both the side to move's):
 ## 3. Reading
 
 - **V1** is a missing rule, not an approximation: the position is dead.
-  Every same-coloured KBB-K position reads 770 to 11,860; the search's rule
+  Every same-coloured KBB-K position scores 300 or more (§2; corrected
+  2026-11-16: the 11,860 first given here came from a test position whose
+  bishops stood on both colours, a real win); the search's rule
   (`board.cpp`, `is_insufficient_material`) covers KB-KB and a lone minor
   only, and the evaluator's KXK gate rightly refuses the pair.
 - **V2** is one cause in five classes. `pawnless_scale` picks the side the
