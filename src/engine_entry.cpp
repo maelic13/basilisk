@@ -23,8 +23,9 @@ int run_engine(int argc, char* argv[]) {
 
 #ifndef _WIN32
     // A GUI closing our stdout pipe must not signal-kill the engine. Windows
-    // has no SIGPIPE; on POSIX, writes to a closed pipe then simply fail and
-    // the reader loop exits cleanly at cin EOF.
+    // has no SIGPIPE; on POSIX, writes to a closed pipe then simply fail, and
+    // the output sink ends the engine at the first failed write
+    // (end_if_output_lost), as on Windows.
     std::signal(SIGPIPE, SIG_IGN);
 #endif
 

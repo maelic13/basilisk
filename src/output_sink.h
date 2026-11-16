@@ -17,16 +17,29 @@ inline std::mutex& output_mutex() {
     return mutex;
 }
 
+// A write that fails means the reader is gone (a GUI that closed our stdout,
+// a closed pipe): nothing the engine does can be seen any more, so it ends
+// here, on every platform, rather than search on unread. The caller holds the
+// output mutex; other threads are still running, hence _Exit.
+inline void end_if_output_lost() {
+    if (std::cout)
+        return;
+    std::cerr << "stdout is closed; exiting.\n";
+    std::_Exit(0);
+}
+
 inline void write_output(std::string_view text) {
     std::scoped_lock lock(output_mutex());
     std::cout << text;
     std::cout.flush();
+    end_if_output_lost();
 }
 
 inline void write_output_line(std::string_view line) {
     std::scoped_lock lock(output_mutex());
     std::cout << line << '\n';
     std::cout.flush();
+    end_if_output_lost();
 }
 
 // An exception that leaves any thread but the UCI thread (the engine thread,
