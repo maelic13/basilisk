@@ -6069,6 +6069,14 @@ has lost games in both engines (BAS-X02).
   BAS-C05's TT publication incoherence is a known defect owned here: a
   coherent layout that costs no measured NPS replaces it (both earlier
   repairs cost 3.91% and 1.22%).
+  Speed pass input (2026-11-16, B.8.10, `analysis/b88_speed_packet_2026-11-15.md`
+  §13): the table prefetch across the make (X0, kept) predicts the child's
+  key at every make and costs about 1% of a node where it buys nothing
+  (−1.02% at Hash 1, +0.56% at Hash 64, +1.13% at Hash 256, one engine;
+  +1.32% with fourteen engines). A form that keeps the lead and pays less
+  (the key or the prefetch only where the probe is likely to miss the
+  cache) is a question for the table's redesign, read by PROCESS *NPS*'s
+  rule for a memory item; a new layout moves the cost and the payoff both.
   Engine audit inputs (2026-11-12,
   `analysis/b64_engine_audit_2026-11-12.md` §6): the table's rules
   where they differ from the donor's and no record says why, read at
