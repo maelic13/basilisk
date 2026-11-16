@@ -5051,6 +5051,31 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       take no games. A verdict repair that a static differential confines
       to its own site takes none either; one that changes a score outside
       it joins the repair SPRT.
+      - Implemented and qualified 2026-11-17, the gate prepared
+        (`analysis/b95_repairs_2026-11-17.md`; head `39982c0`, `bench 13`
+        4,777,412):
+        - Every handed-over item repaired in its own commit, and every
+          `known-defect` test passing plainly: D1 to D14, the two
+          decisions, V1, V2, the 8 MB thread stacks with Fathom's buffer on
+          the heap, the ThreadSanitizer cell and D.5.20.
+        - Release CTest 59 of 59, the sanitizer build 56 of 56, and
+          ThreadSanitizer 9 of 9 on the threading tests (WSL, Clang 20;
+          its wire shown live). D.5.20's rule failed a PGO build on an
+          untrained file, as it must.
+        - `bench 13` 4,688,537 through every repair but V2, the one move
+          (+1.9%): the search's correction now applies where the 0 is no
+          longer a verdict.
+        - D13 needed more than Stockfish's form: in game 4965 the shortest
+          DTZ win repeated a position a third time. A win the game's
+          history draws now ranks as a draw. From the first repetition the
+          repaired engine keeps DTZ falling where the game cycled
+          (packet §4).
+        - Exposure: V2 broad (30.5% of BAS-S64's games reach its material,
+          an upper bound); D2, D3 nil in clock games; D13 nil without
+          tables, one game in 2,286 with them.
+        - The gate, BAS-S66: `[-5,5]` at `3+0.03`, 4,000 pairs, tablebases
+          off, dry run accepted; the maintainer's run. D13 is recommended
+          to take no games (packet §4).
 - [ ] **B.11** Checkpoint and interim release
   The search programme's checkpoint (B.9 until 2026-11-05), the
   originality and licence disclosure (B.11.3, added 2026-11-11), then
@@ -5326,7 +5351,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.9.5 | READY_FOR_IMPLEMENTATION | I2 | Was B.9.2; B.9.1's D1 to D14 and decisions, B.9.3's V1 and V2; B.9.4 sent none |
+| B.9.5 | GAME_GATE | I2 | Repairs done and qualified at `39982c0`; BAS-S66 prepared, the maintainer's run |
 | B.11.1 | RESEARCH | V | Was B.9; programme checkpoint |
 | B.11.3 | RESEARCH | R2 | Added 2026-11-11; the disclosure on the release candidate, before the cut |
 | B.11.4 | RESEARCH | M | Was B.11, then B.11.2; interim release after B.11.3 (maintainer decision 2026-10-24) |
@@ -5875,7 +5900,9 @@ has lost games in both engines (BAS-X02).
         sample) puts it at or under 0.5%, or it is dropped.
       - V6: the pawnless scales 4 and 14, one number per class, which
         the tables contradict in 0.8% (KRP-KR) to 41% (KQ-KRN) of
-        positions. KR-KN is worst for the search: it resolves only 80%
+        positions. KBB-KB's scale 4 joined them after V1 (B.9.5): its
+        same-coloured draws left the site for the dead rule, and the
+        exhaustive read gives 0.507%. KR-KN is worst for the search: it resolves only 80%
         of the sampled misses. A position-dependent rule per class (KR-KN,
         KR-KB, KQ-KR with minors) is read with the same instrument.
     - [ ] **C.7.6** `[R2]` Lower-yield remainder

@@ -370,6 +370,45 @@ and next step).
   those reads. Measured at **+0.3 ± 3.2 Elo** at `10+0.1` with tablebases
   (8,000 games).
 
+- **Commands and clocks follow the protocol.** Any spaces or tabs now
+  separate the words of a command, as the UCI protocol allows. A `go` that
+  names a clock is a timed search even when the clock reads zero, is
+  negative or cannot be read, so the engine moves at once instead of
+  searching on. A bare `go` searches until `stop`, and `go mate N` searches
+  until it finds a mate in N or less, as in Stockfish; before, the first
+  stopped at depth 7 and the second at a depth that could miss the mate.
+  (`basilisk go` on the command line still searches to depth 7.)
+- **A move from every stopped search.** A search stopped at once, for
+  example by `go nodes 1`, used to play the first legal move; it now plays
+  the move of a completed first iteration.
+- **`go depth N` with several threads** reports depth N and plays the main
+  thread's move; a helper could answer with a deeper line.
+- **Tablebases.**
+  - A table file that cannot be read during a game is now skipped with a
+    message, instead of ending the engine without a move.
+  - A tablebase folder whose name has letters outside English (for example
+    Czech diacritics) now loads on Windows.
+  - Sending the same `SyzygyPath` again loads tables added since.
+  - Once a won tablebase game has repeated, the engine plays the wins
+    nearest to progress and avoids a move that repeats a position for the
+    third time. Before, it could shuffle a won ending into a draw by
+    repetition.
+- **Ponder.** After `ponderhit` the engine budgets its time from the
+  position it was asked about, not from deep inside its search.
+- **`bench` and `wac` stop.** `stop` and `quit` now end a running `bench` or
+  `wac` at once, and a stopped run says so.
+- **A closed output** now ends the engine on every platform, instead of
+  leaving it searching unread.
+- **Messages.** A `Hash` the table cannot use exactly (100, say) now says
+  which size it uses (64). The selective depth counts the plies the search
+  looks at beyond its depth, so a mate found there shows its real length.
+- **Deep searches on every platform.** Every search thread now has the same
+  8 MB stack. Before, a second thread got the platform's default, as little
+  as 512 KB on macOS.
+- **Bishops of one colour are a draw.** A position with only bishops left,
+  all on squares of one colour, can never be mated and is now scored as the
+  draw it is. Before, two such bishops against a bare king looked won.
+
 ### Known limitations
 
 These are measured and recorded, each with the later work that owns it:
