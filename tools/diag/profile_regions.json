@@ -36,6 +36,7 @@
                 "uci_protocol.cpp", "uci_protocol.h", "output_sink.h", "bench.cpp", "bench.h",
                 "parameters.cpp", "parameters.h", "wac.cpp", "wac.h", "wac_epd.h", "constants.h", "version.cpp", "version.h",
                 "cpu_features.h", "cpu_detect.h", "physical_memory.cpp", "physical_memory.h",
-                "large_pages.cpp", "large_pages.h"]]
+                "large_pages.cpp", "large_pages.h", "native_thread.cpp", "native_thread.h",
+                "run_control.h"]]
   ]
 }
