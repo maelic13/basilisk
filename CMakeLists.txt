@@ -436,8 +436,12 @@ target_link_libraries(test_engine_threading PRIVATE basilisk_engine)
 # Allocation guard: per-node search code never allocates (a counting global
 # operator new over whole searches at two depths, Threads 1 and 4)
 # ---------------------------------------------------------------------------
-add_executable(test_allocation_guard tests/test_allocation_guard.cpp)
-target_link_libraries(test_allocation_guard PRIVATE basilisk_engine)
+# Not under ThreadSanitizer, whose runtime defines the same operators; the
+# guard counts allocations, not races, and runs in every other build.
+if(NOT SANITIZE_THREAD)
+    add_executable(test_allocation_guard tests/test_allocation_guard.cpp)
+    target_link_libraries(test_allocation_guard PRIVATE basilisk_engine)
+endif()
 
 # ---------------------------------------------------------------------------
 # UCI protocol tests
@@ -514,7 +518,9 @@ add_test(NAME test_eval         COMMAND test_eval)
 add_test(NAME test_search       COMMAND test_search)
 add_test(NAME test_engine_ponder COMMAND test_engine_ponder)
 add_test(NAME test_engine_threading COMMAND test_engine_threading)
-add_test(NAME test_allocation_guard COMMAND test_allocation_guard)
+if(NOT SANITIZE_THREAD)
+    add_test(NAME test_allocation_guard COMMAND test_allocation_guard)
+endif()
 add_test(NAME test_uci_protocol COMMAND test_uci_protocol)
 add_test(NAME test_endgames     COMMAND test_endgames
          ${CMAKE_CURRENT_SOURCE_DIR}/tests/endgames.epd)
@@ -739,6 +745,9 @@ set(_ALL_TARGETS
     test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch test_b5_root
     basilisk_engine_child_log test_search_path test_kernel_pins
 )
+if(SANITIZE_THREAD)
+    list(REMOVE_ITEM _ALL_TARGETS test_allocation_guard)
+endif()
 if(BASILISK_BOARD_TRACE)
     list(APPEND _ALL_TARGETS basilisk_board_untraced)
 endif()
@@ -850,6 +859,20 @@ int main() { return 0; }" _basilisk_default_is_baseline)
             if(WIN32)
                 target_link_options(${_tgt} PRIVATE -Wl,--stack,8388608)
             endif()
+        endforeach()
+    endif()
+    # ThreadSanitizer, CI's tsan cell: an unintended race in the pool, the
+    # counters or the stop path. It cannot be combined with AddressSanitizer,
+    # so it is a build of its own. The table's tolerated incoherence (BAS-C05)
+    # is between atomic words, which ThreadSanitizer does not report, so no
+    # suppression is needed.
+    if(SANITIZE_THREAD)
+        if(SANITIZE)
+            message(FATAL_ERROR "SANITIZE_THREAD and SANITIZE cannot be combined")
+        endif()
+        foreach(_tgt IN LISTS _ALL_TARGETS)
+            target_compile_options(${_tgt} PRIVATE -fsanitize=thread)
+            target_link_options(${_tgt} PRIVATE -fsanitize=thread)
         endforeach()
     endif()
     # The standard library's own bounds checks where speed does not matter:
@@ -1020,21 +1043,23 @@ if(NOT _basilisk_pgo STREQUAL "OFF")
     message(STATUS "PGO phase: ${_basilisk_pgo}")
 endif()
 
-# A universal tier must use its own profile. A file the profile does not cover
-# is an error there, so a tier that silently got no profile fails to build.
+# A PGO build must use its own profile. A file the profile does not cover is
+# an error, so a build whose kernel silently went untrained fails to build:
+# every PGO build, the ordinary one and the gcc-pgo job as well as a universal
+# tier (it was the universal tier only until B.9.5).
 # Clang: only the five files bench never runs (move formatting, Syzygy probing,
 # the search diagnostics, the WAC suite, the physical-memory query behind the
 # Hash limit) are expected to have no data. GCC
 # writes a profile for every instrumented file the training run links, run or
 # not, so a missing one means the profile is not this build's.
-if(BASILISK_UNIVERSAL_TIER AND _basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if(_basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_options(${_tgt} PRIVATE $<$<CONFIG:Release>:-Wprofile-instr-unprofiled>)
     endforeach()
     set_source_files_properties(src/move.cpp src/syzygy.cpp src/search_diagnostics.cpp src/wac.cpp
         src/physical_memory.cpp
         PROPERTIES COMPILE_OPTIONS "-Wno-profile-instr-unprofiled")
-elseif(BASILISK_UNIVERSAL_TIER AND _basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+elseif(_basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_options(${_tgt} PRIVATE $<$<CONFIG:Release>:-Werror=missing-profile>)
     endforeach()
