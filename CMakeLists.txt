@@ -457,6 +457,18 @@ target_compile_definitions(test_endgames PRIVATE
     BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
 )
 
+# The evaluator's hard verdicts against Syzygy WDL (an instrument; its CTest
+# reads the bundled fixtures, the full read takes --tables)
+add_executable(endgame_verdicts tests/endgame_verdicts.cpp)
+target_link_libraries(endgame_verdicts PRIVATE basilisk_engine)
+target_compile_definitions(endgame_verdicts PRIVATE
+    BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
+)
+
+# Bishops on one colour against a bare king are a dead draw
+add_executable(test_same_colour_bishops tests/test_same_colour_bishops.cpp)
+target_link_libraries(test_same_colour_bishops PRIVATE basilisk_engine)
+
 # The root's tablebase ranking after a repetition in the game
 add_executable(test_tb_root_rank tests/test_tb_root_rank.cpp)
 target_link_libraries(test_tb_root_rank PRIVATE basilisk_engine)
@@ -560,6 +572,17 @@ foreach(case IN LISTS _basilisk_uci_defects)
     basilisk_known_defect(uci_${case})
 endforeach()
 add_test(NAME test_tb_root_rank COMMAND test_tb_root_rank --expect-defect)
+# The evaluator's hard verdicts on a seeded sample of each fixture class,
+# compared line for line with their reading at B.9.3; exit status 1 while
+# any site is over the line. A repair updates the golden file.
+add_test(NAME endgame_verdicts_fixtures
+         COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:endgame_verdicts>"
+                 "-DARGS=--tables;fixtures;--threads;1;--random;20000;--golden;KPvK;KQvK;KNNvK;KBNvK;KBvKB;KNvKN;KPPvK;KRvKR;KRvKB"
+                 "-DEXPECT_CODE=1" "-DGOLDEN=${CMAKE_CURRENT_SOURCE_DIR}/tests/data/endgame_verdicts_golden.txt"
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/output_check.cmake)
+set_tests_properties(endgame_verdicts_fixtures PROPERTIES TIMEOUT 600)
+add_test(NAME test_same_colour_bishops COMMAND test_same_colour_bishops --expect-defect)
+basilisk_known_defect(test_same_colour_bishops)
 basilisk_known_defect(test_tb_root_rank)
 # An exception escaping a non-UCI thread is reported on stdout, then exit 1.
 add_test(NAME fatal_report_from_a_thread
@@ -711,7 +734,7 @@ set(_ALL_TARGETS
     basilisk_board basilisk_engine basilisk_launcher basilisk_version
     basilisk board_performance_test board_micro_bench board_replay
     test_board test_board_v2 test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_allocation_guard test_uci_protocol test_cpu_features
-    test_endgames test_tb_root_rank test_wac test_invariants test_magics test_threats
+    test_endgames test_tb_root_rank endgame_verdicts test_same_colour_bishops test_wac test_invariants test_magics test_threats
     test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch test_b5_root
     basilisk_engine_child_log test_search_path test_kernel_pins
 )
