@@ -159,6 +159,26 @@ V5 and V6 defects for B.9.5. Main counter-argument: KR-KN, the worst class
 the search fails on (20% of its sample), is a real ending in games. The
 measured rates stay in the record unchanged either way.
 
+**Decided 2026-11-16 (maintainer).** None of the six stops play: no crash,
+illegal move or protocol fault, only scores. The rule: a wrong evaluation
+goes to Phase C with the other evaluation work, unless it is easy to fix
+now.
+
+- **B.9.5 repairs V1 and V2.** Both are a single condition, change no
+  value, and neither is only an evaluation error. V1 is a game rule: a
+  position no sequence of legal moves can mate is drawn (FIDE 5.2.2), and
+  the search's dead-position rule misses it. V2 is a 0 the search treats
+  as exact, which turns off the correction where the tables say the pawn
+  side wins.
+- **V3, V4 and V6 go to C.7.5.** Each is a rule or class scale to narrow
+  by chess design, read with this instrument, and can move rook endings.
+  That is evaluation work, not an easy fix.
+- **V5 is kept**, with §5's retry trigger, which C.7.6 holds beside the
+  KBN-K drive (C-144).
+
+The V3 and V4 handoff in §6 moves with them unchanged. B.9.4 lists V3 to
+V6 as known limitations for 1.11.0 and does not read them again.
+
 ## 6. Implementation handoff for B.9.5
 
 - **V1.** The search's dead-position rule extended: every non-king piece
@@ -172,7 +192,8 @@ measured rates stay in the record unchanged either way.
   being a verdict, so the correction applies there. The site then reads
   exact (≤ 0.011%) on the pawn-free classes, and KN-KP, KB-KP, KN-KPP,
   KB-KPP and KPP-K leave it.
-- **V3, V4.** §5's rule.
+- **V3, V4.** §5's rule, now C.7.5's by the decision in §5; B.9.5
+  repairs V1 and V2 only.
 - **Invariants.** No value changes; the queen and rook tiers, KPK, KNNK,
   the wrong-bishop draw and the dead rule's existing classes read as today.
   V1 and V2 can move `bench 13` only if its searches reach those classes;

@@ -410,9 +410,10 @@ reason.
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3). The ply cap's static evaluation in check (NODE-8) was repaired in B.5.2 |
 | B.6 | F4 the multi-cut correction bonus's product could pass 32 bits and then trained the wrong way (confirmed by B.6.4, `analysis/b64_engine_audit_2026-11-12.md` §3.1; repaired in B.6.5). The audit confirmed no other defect in the search |
-| B.9 | `go depth N` answered by a deeper helper (DRIVER-12); Fathom's `exit` on a table that fails to map (PROTO-11); A-50 a stop inside the first iteration; A-57 cold table reads on the clock; A-58 the tablebase root ranking ignores the game's repetitions; F1 `stop` and `quit` unseen during `bench` and `wac`; the clock's game ply at `ponderhit` read from the node the search is at (B.6.4, `analysis/b64_engine_audit_2026-11-12.md` §3.2); F6 bishops on one colour against a bare king scored as a win; each hard verdict B.9.3's read finds wrong |
+| B.9 | `go depth N` answered by a deeper helper (DRIVER-12); Fathom's `exit` on a table that fails to map (PROTO-11); A-50 a stop inside the first iteration; A-57 cold table reads on the clock; A-58 the tablebase root ranking ignores the game's repetitions; F1 `stop` and `quit` unseen during `bench` and `wac`; the clock's game ply at `ponderhit` read from the node the search is at (B.6.4, `analysis/b64_engine_audit_2026-11-12.md` §3.2); F6 bishops on one colour against a bare king scored as a win (B.9.3's V1); B.9.3's V2, the pawnless 0 trusted as exact where the other side has pawns |
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
 | C.3, C.5, C.6 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
+| C.7 | B.9.3's V3 KRP-KR's draw rules, V4 the KRPP-KRP table, V6 the pawnless scales 4 and 14 (C.7.5); V5 KBN-K's known win, kept with a retry trigger (C.7.6); decided 2026-11-16, known limitations for 1.11.0 |
 | D.1 | A-46 reserve arithmetic |
 | D.3 | A-59 the tablebase root's DTZ ranking |
 | D.2 | BAS-C05 the TT key and payload published separately |
@@ -4989,6 +4990,12 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           Recommended, against the frozen rule's letter (packet §5): V5
           kept, V6 to Phase C's per-class evaluators, both known
           limitations for 1.11.0.
+        - Decided 2026-11-16 (maintainer; packet §5). None of the six
+          stops play. A wrong evaluation goes to Phase C unless it is easy
+          to fix now. B.9.5 repairs V1, a game rule (a dead position is
+          drawn), and V2, a 0 trusted as exact. Both are one condition and
+          change no value. V3, V4 and V6 go to C.7.5. V5 is kept, with its
+          retry trigger in C.7.6.
         - Tests: `endgame_verdicts_fixtures`, a golden read of nine
           fixture classes (seven four-man WDL tables added, 82 KB), and
           `test_same_colour_bishops` (`known-defect`). CTest 57 of 57.
@@ -5014,8 +5021,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [ ] **B.9.5** `[I2]` Repairs and the repair gate
       It was B.9.2 until 2026-11-11; it now repairs what B.9.1, B.9.3
       and B.9.4 each found. B.9.3's handoff is its packet's §6
-      (`analysis/b93_hard_verdicts_2026-11-16.md`), V5 and V6 pending the
-      maintainer's routing. B.9.1's handoff is its packet's §9
+      (`analysis/b93_hard_verdicts_2026-11-16.md`), V1 and V2 only:
+      V3, V4 and V6 went to C.7.5 and V5 is kept (decided 2026-11-16).
+      B.9.1's handoff is its packet's §9
       (`analysis/b91_lifecycle_audit_2026-11-16.md`): the tests
       labelled `known-defect`, each repair dropping its test's
       `--expect-defect`, and the exposure of D2, D3 and D13 measured
@@ -5846,6 +5854,18 @@ has lost games in both engines (BAS-X02).
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
       - KR-KN and KR-KB at a flat 4/64, and KRP-KB unscaled (C-129).
+      B.9.3's verdicts over its 0.5% line, routed here 2026-11-16
+      (`analysis/b93_hard_verdicts_2026-11-16.md` §2, §5, §6):
+      - V3: KRP-KR's draw rules 1, 4 and 5 and its other scales under the
+        floor call 1.9% to 6.9% of wins drawn. V4: the KRPP-KRP table,
+        5.5%. Each rule is narrowed within its own terms until the
+        instrument's exhaustive KRP-KR read (KRPP-KRP: the seeded 2M
+        sample) puts it at or under 0.5%, or it is dropped.
+      - V6: the pawnless scales 4 and 14, one number per class, which
+        the tables contradict in 0.8% (KRP-KR) to 41% (KQ-KRN) of
+        positions. KR-KN is worst for the search: it resolves only 80%
+        of the sampled misses. A position-dependent rule per class (KR-KN,
+        KR-KB, KQ-KR with minors) is read with the same instrument.
     - [ ] **C.7.6** `[R2]` Lower-yield remainder
       Lower-yield remainder (archived 6.10.a–d): KPs-K and KP-KP first; KQ-KP
       and KQ-KR reconciled across budgets; KR-KN, KNN-KP and KNN-K theory and
@@ -5856,6 +5876,10 @@ has lost games in both engines (BAS-X02).
       - KNN-KP: an additive drive plus a blockade term, never a replacement
         score (C-130); the KXK corner-to-king ratio (C-39); the KBN-K drive's
         speed and a distance-to-mate table option (C-144).
+      - B.9.3's V5, kept 2026-11-16: KBN-K's known win is wrong in 0.69%
+        of positions, where the bare king forks a minor. Depth 8 resolves
+        79% of them. Retry trigger: a KBN-K game lost to a fork or trap in
+        any gate's conversion read.
       - A prior for KQ-KP (2026-11-11, `analysis/rarog_import_2026-11-11.md`;
         Rarog's D.6.24): Rarog's fortress rule zeroed 172,256 positions with
         the pawn on the seventh, and 26.7% of the quiet ones are wins for
