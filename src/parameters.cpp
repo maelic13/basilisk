@@ -400,6 +400,7 @@ void Parameters::set_option(const std::string& args) {
     int parsed = 0;
     if (name_lower == "syzygypath") {
         syzygy_path = (value == "<empty>") ? std::string{} : value;
+        syzygy_path_sent = true;
     } else if (name_lower == "ponder") {
         ponder_enabled = parse_bool_option(value);
     } else if (name_lower == "largepages") {

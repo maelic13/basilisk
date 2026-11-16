@@ -46,6 +46,7 @@ public:
 
     bool new_game    = false;  // set by "ucinewgame", cleared after engine processes it
     bool clear_hash  = false;  // set by "setoption name Clear Hash", cleared after engine clears TT
+    bool syzygy_path_sent = false;  // set by "setoption name SyzygyPath", cleared once the engine loads it
 
     SearchParams search_params; // tunable constants (exposed as UCI options under BASILISK_TUNE)
 

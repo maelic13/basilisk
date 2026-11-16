@@ -101,8 +101,13 @@ SearchLimits Engine::build_limits() const {
     return limits;
 }
 
+// Every SyzygyPath sent is loaded again, as Stockfish does, so tables that
+// appear after a first attempt are found when the same path is sent again.
+// Other options leave the loaded tables alone.
 void Engine::configure_syzygy() {
-    if (parameters_.syzygy_path == current_syzygy_path_)
+    const bool sent = parameters_.syzygy_path_sent;
+    parameters_.syzygy_path_sent = false;
+    if (!sent && parameters_.syzygy_path == current_syzygy_path_)
         return;
 
     current_syzygy_path_ = parameters_.syzygy_path;
