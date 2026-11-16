@@ -33,3 +33,21 @@
 - **Conditions.** One pinned physical core (the last) at High priority, one warm-up
   reading per build, 60 s under 10% host load, no Rarog or other engine, harness or
   build process.
+
+#### RESULT
+
+Idle host, 2026-11-16, CPU 30, no cycle disturbed (`tools/results/b811-universal-bench`;
+step 1 extended on `place`, six cycles).
+
+| Contrast | Delta | 95% interval | Verdict |
+|---|---:|---|---|
+| `hot`: universal over the pext asset | +0.30% | [+0.19%, +0.42%] | no-regression PASS (step 1) |
+| `place`: universal over its pext tier | +0.75% | [−0.32%, +1.83%] | reported |
+| `align`: the pext tier over the pext asset | −0.45% | [−1.52%, +0.63%] | reported |
+
+Means of build medians: pext asset 2.5290M, universal 2.5367M, pext tier 2.5178M (its
+builds spread 2.500M to 2.534M, which widens `place` and `align`).
+
+- **Disposition: PASS.** The universal binary ships with B.8's build: it reads +0.30%
+  over the measured pext asset, so it keeps B.8.9's gain. Prediction `hot` −0.2%
+  [−1.0, +0.6]: inside; `place` and `align` inside their intervals.

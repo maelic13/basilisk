@@ -697,7 +697,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P56](experiments/BAS-P56.md) | B.8.10's arms at one engine on the cohort: the guard (B.8.10). | COMPLETE: X0 +0.56%, X2 +0.31%, X1 +0.24%; every guard held |
 | [BAS-P57](experiments/BAS-P57.md) | B.8.10's arms under load: the decider (B.8.10). | COMPLETE: X0 +1.32% [+1.00, +1.64] kept; X2 +0.57%, X1 +0.26% not |
 | [BAS-P58](experiments/BAS-P58.md) | X0 at one engine, Hash 1 and Hash 256: the model's falsifier (B.8.10). | COMPLETE: −1.02% at Hash 1, +1.13% at Hash 256; the falsifier did not fire |
-| [BAS-P59](experiments/BAS-P59.md) | The universal binary with full LTO, against the pext asset (B.8 delivery). | REGISTERED |
+| [BAS-P59](experiments/BAS-P59.md) | The universal binary with full LTO, against the pext asset (B.8 delivery). | COMPLETE: +0.30% [+0.19, +0.42], PASS; the universal binary keeps B.8's gain |
 
 ## 7. Correctness and protocol lessons
 
