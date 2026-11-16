@@ -1,7 +1,10 @@
 /// The evaluator's hard verdicts read against Syzygy WDL.
 ///
 ///     endgame_verdicts --tables PATH [--threads N] [--random N] [--seed S]
-///                      [--estimates] [--max-rate R] CLASS...
+///                      [--estimates] [--max-rate R] [--dump FILE] CLASS...
+///
+/// --dump writes every judged position (site index, FEN, the side to move's
+/// WDL) to FILE, one tab-separated line each.
 ///
 /// --tables fixtures reads the bundled fixtures (CI); --golden leaves out what
 /// varies between runs (times, examples, the search check), so the output
@@ -60,6 +63,11 @@
 #include <vector>
 
 namespace {
+
+// --dump: every judged position's site, FEN and the side to move's WDL, one
+// line each, for reading a site's errors by its own conditions.
+FILE* g_dump = nullptr;
+std::mutex g_dump_mutex;
 
 enum Claim { DRAW, WIN, SCALE, ESTIMATE };
 
@@ -315,6 +323,10 @@ struct Reader {
             }
             if (std::abs(stm_wdl) == 1)
                 ++tally.cursed[site];
+            if (g_dump && claim != ESTIMATE) {
+                std::scoped_lock lock(g_dump_mutex);
+                std::fprintf(g_dump, "%zu\t%s\t%d\n", site, fen.c_str(), stm_wdl);
+            }
             if (wrong) {
                 ++tally.wrong[site];
                 if (claim == DRAW && (b.turn() == WHITE ? stm_wdl : -stm_wdl) == 2)
@@ -497,6 +509,10 @@ int main(int argc, char** argv) {
         else if (a == "--estimates") estimates = true;
         else if (a == "--golden") golden = true;
         else if (a == "--max-rate") max_rate = std::atof(value().c_str());
+        else if (a == "--dump") {
+            g_dump = std::fopen(value().c_str(), "w");
+            if (!g_dump) { std::fprintf(stderr, "HARNESS ERROR: cannot write the dump\n"); return 2; }
+        }
         else classes.push_back(a);
     }
     if (tables.empty() || classes.empty()) {
