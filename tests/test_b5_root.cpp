@@ -22,7 +22,6 @@
 #include <fstream>
 #include <map>
 #include <memory>
-#include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -42,6 +41,28 @@ struct Run {
     std::vector<std::string> lines;
 };
 
+// The counters of a `Diag` line, `name=value` words after its prefix. A plain
+// scan: MinGW GCC 16's LTO build of this test miscompiled std::regex, whose
+// constructor rejected this pattern before any engine code ran (B.8.10).
+template <class Map>
+static void read_diag_line(const std::string& line, Map& diag) {
+    const std::string prefix = "info string diag kv ";
+    if (line.compare(0, prefix.size(), prefix) != 0)
+        return;
+    std::istringstream words(line.substr(prefix.size()));
+    for (std::string word; words >> word;) {
+        const auto eq = word.find('=');
+        if (eq == std::string::npos || eq == 0)
+            continue;
+        const std::string name = word.substr(0, eq), value = word.substr(eq + 1);
+        const auto digits = value.find_first_not_of('-') == 1 ? value.substr(1) : value;
+        const bool numeric = !digits.empty() && digits.find_first_not_of("0123456789") == std::string::npos;
+        const bool named = name.find_first_not_of("abcdefghijklmnopqrstuvwxyz_0123456789") == std::string::npos;
+        if (numeric && named)
+            diag[name] = std::stoll(value);
+    }
+}
+
 static long long counter(const Run& run, const std::string& name) {
     const auto it = run.diag.find(name);
     return it == run.diag.end() ? 0 : it->second;
@@ -52,14 +73,9 @@ static Run search_limits(const std::string& fen, SearchLimits lim) {
     TranspositionTable tt(16);
     std::atomic_bool stop{false};
     Run run;
-    const std::regex token("([a-z_0-9]+)=(-?[0-9]+)");
     auto info = [&](const std::string& line) {
         run.lines.push_back(line);
-        const std::string prefix = "info string diag kv ";
-        if (line.compare(0, prefix.size(), prefix) != 0)
-            return;
-        for (std::sregex_iterator it(line.begin(), line.end(), token), end; it != end; ++it)
-            run.diag[(*it)[1].str()] = std::stoll((*it)[2].str());
+        read_diag_line(line, run.diag);
     };
     auto searcher = std::make_unique<Searcher>(tt, stop, info);
     Board b;
@@ -510,13 +526,9 @@ static void test_the_lines_of_a_multipv_search() {
     std::atomic_bool stop{false};
     std::vector<std::string> lines;
     std::map<std::string, int64_t> diag;
-    const std::regex token("([a-z_0-9]+)=(-?[0-9]+)");
     auto info = [&](const std::string& line) {
         lines.push_back(line);
-        const std::string prefix = "info string diag kv ";
-        if (line.compare(0, prefix.size(), prefix) == 0)
-            for (std::sregex_iterator it(line.begin(), line.end(), token), end; it != end; ++it)
-                diag[(*it)[1].str()] = std::stoll((*it)[2].str());
+        read_diag_line(line, diag);
     };
     auto searcher = std::make_unique<Searcher>(tt, stop, info);
     Board b;
