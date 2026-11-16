@@ -259,7 +259,12 @@ void Searcher::send_info(int depth, int multipv, int score, const std::vector<Mo
     // time control only the final line is extended (Engine), once per move and
     // within half the Move Overhead, because Basilisk prints a line at every
     // depth. A line that ends in a fifty-move draw shows the draw.
+    //
+    // Only at one thread: the extension's root probes are documented as not
+    // thread safe (Fathom's tb_probe_root), and helpers probe WDL in search
+    // meanwhile. With helpers the final line is extended after they join.
     if (!pv_moves.empty() && is_tablebase_decisive(score) && Syzygy::enabled()
+        && config_.thread_count == 1
         && config_.limits.movetime <= 0 && !config_.limits.clock
         && config_.limits.wtime <= 0 && config_.limits.btime <= 0) {
         Syzygy::PvExtension ext = Syzygy::extend_pv(
