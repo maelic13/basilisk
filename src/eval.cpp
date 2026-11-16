@@ -602,7 +602,11 @@ static int krppkrp_scale(const Board& b, Color strong) {
     return -1;
 }
 
-static int krpkr_scale(const Board& b, Color strong) {
+// `rule`, when given, names the draw rule that fired (1 to 5 in the order
+// below) or 0: what the hard-verdict instrument reads.
+static int krpkr_scale(const Board& b, Color strong, int* rule = nullptr) {
+    if (rule)
+        *rule = 0;
     const Color weak = ~strong;
     const Square wk = relative_square(strong, b.king_square(strong));
     const Square bk = relative_square(strong, b.king_square(weak));
@@ -626,34 +630,49 @@ static int krpkr_scale(const Board& b, Color strong) {
     // square, defending rook cutting along the sixth rank.
     if (r <= int(RANK_5) && dist(bk, queening) <= 1 && wk <= H5
         && (rank_of(br) == RANK_6
-            || (r <= int(RANK_3) && rank_of(wr) != RANK_6)))
+            || (r <= int(RANK_3) && rank_of(wr) != RANK_6))) {
+        if (rule)
+            *rule = 1;
         return SCALE_DRAW;
+    }
 
     // Pawn on the sixth, defender in front, checking from behind.
     if (r == int(RANK_6) && dist(bk, queening) <= 1
         && int(rank_of(wk)) + tempo <= int(RANK_6)
-        && (rank_of(br) == RANK_1 || (!tempo && fdist(br, wp) >= 3)))
+        && (rank_of(br) == RANK_1 || (!tempo && fdist(br, wp) >= 3))) {
+        if (rule)
+            *rule = 2;
         return SCALE_DRAW;
+    }
 
     // Defending king ON the queening square with the rook checking from the
     // first rank: the attacker cannot both shield and advance.
     if (r >= int(RANK_6) && bk == queening && rank_of(br) == RANK_1
-        && (!tempo || dist(wk, wp) >= 2))
+        && (!tempo || dist(wk, wp) >= 2)) {
+        if (rule)
+            *rule = 3;
         return SCALE_DRAW;
+    }
 
     // The rook-pawn special case: pawn a7, rook a8, defending king boxed on
     // the short side. The attacking rook is entombed in front of its own pawn.
     if (wp == A7 && wr == A8 && (bk == H7 || bk == G7)
         && file_of(br) == FILE_A
         && (int(rank_of(br)) <= int(RANK_3) || int(file_of(wk)) >= int(FILE_D)
-            || int(rank_of(wk)) <= int(RANK_5)))
+            || int(rank_of(wk)) <= int(RANK_5))) {
+        if (rule)
+            *rule = 4;
         return SCALE_DRAW;
+    }
 
     // Defending king blockading the pawn with the attacking king too far away
     // to dislodge it.
     if (r <= int(RANK_5) && bk == wp + NORTH
-        && dist(wk, wp) - tempo >= 2 && dist(wk, br) - tempo >= 2)
+        && dist(wk, wp) - tempo >= 2 && dist(wk, br) - tempo >= 2) {
+        if (rule)
+            *rule = 5;
         return SCALE_DRAW;
+    }
 
     // Lucena-side: pawn on the seventh with its own rook behind it and the
     // attacking king close enough. Not a draw -- scale toward the full value,
@@ -702,6 +721,14 @@ static int rook_ending_scale(const Board& b) {
     // wins the tablebase says are won and wreck the search's node counts.
     if (scale >= 0 && scale < SCALE_FLOOR) scale = SCALE_FLOOR;
     return scale;
+}
+
+int krpkr_scale_unfloored(const Board& b, Color strong, int& draw_rule) {
+    return krpkr_scale(b, strong, &draw_rule);
+}
+
+int krppkrp_scale_unfloored(const Board& b, Color strong) {
+    return krppkrp_scale(b, strong);
 }
 
 // ---- Endgame scaling + knowledge -------------------------------------------
