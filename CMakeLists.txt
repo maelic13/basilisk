@@ -852,11 +852,27 @@ endif()
 # With full LTO: a higher inline threshold at the compile and at the link,
 # and ext-tsp block placement at the link, Stockfish's build (+0.92% on bench
 # and +0.66% on the game cohort over full LTO alone, BAS-P44).
+# The link takes the LTO options in its own spelling: Apple's ld64 as -mllvm,
+# MinGW's lld as --mllvm=, and an ELF link (GNU ld with Clang's plugin, or
+# lld) as -plugin-opt=. Only a target that links with LTO gets them: the
+# instrumented PGO build links without, and GNU ld has no plugin to take them.
 if(_lto_ok AND FULL_LTO AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    if(APPLE)
+        set(_basilisk_lto_link_options "-Wl$<COMMA>-mllvm$<COMMA>-inline-threshold=500"
+                                       "-Wl$<COMMA>-mllvm$<COMMA>-enable-ext-tsp-block-placement=1")
+    elseif(WIN32)
+        set(_basilisk_lto_link_options "-Wl$<COMMA>--mllvm=-inline-threshold=500"
+                                       "-Wl$<COMMA>--mllvm=-enable-ext-tsp-block-placement=1")
+    else()
+        set(_basilisk_lto_link_options "-Wl$<COMMA>-plugin-opt=-inline-threshold=500"
+                                       "-Wl$<COMMA>-plugin-opt=-enable-ext-tsp-block-placement=1")
+    endif()
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_options(${_tgt} PRIVATE "SHELL:-mllvm -inline-threshold=500")
-        target_link_options(${_tgt} PRIVATE "LINKER:--mllvm=-inline-threshold=500"
-                            "LINKER:--mllvm=-enable-ext-tsp-block-placement=1")
+        foreach(_opt IN LISTS _basilisk_lto_link_options)
+            target_link_options(${_tgt} PRIVATE
+                "$<$<AND:$<CONFIG:Release>,$<BOOL:$<TARGET_PROPERTY:INTERPROCEDURAL_OPTIMIZATION_RELEASE>>>:${_opt}>")
+        endforeach()
     endforeach()
 endif()
 if(_lto_ok)
