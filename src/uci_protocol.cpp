@@ -25,7 +25,30 @@ UciProtocol::UciProtocol(EngineCommandQueue& commands,
     , searching_(searching)
     , control_epoch_(control_epoch) {}
 
-UciProtocol::Dispatch UciProtocol::dispatch(const std::string& input) {
+// UCI tokens are separated by any run of whitespace, before, between and after
+// them. Every handler below splits on single spaces, so the line is normalised
+// once here, as Stockfish's token stream reads it.
+static std::string normalise_whitespace(const std::string& raw) {
+    std::string out;
+    out.reserve(raw.size());
+    bool pending_space = false;
+    for (const char c : raw) {
+        if (c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\v' || c == '\f') {
+            pending_space = !out.empty();
+            continue;
+        }
+        if (pending_space)
+            out.push_back(' ');
+        pending_space = false;
+        out.push_back(c);
+    }
+    return out;
+}
+
+UciProtocol::Dispatch UciProtocol::dispatch(const std::string& raw_input) {
+    const std::string input = normalise_whitespace(raw_input);
+    if (input.empty())
+        return Dispatch::Handled;
     const auto sep = input.find(' ');
     const std::string command = input.substr(0, sep);
     const std::string args    = (sep != std::string::npos) ? input.substr(sep + 1) : "";
