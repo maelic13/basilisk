@@ -108,6 +108,7 @@ struct SearchLimits {
     int multipv     = 1;   // lines reported per depth; only the main thread searches more than one
     int overhead   = 0;   // move overhead to subtract [ms]
     bool infinite  = false;
+    bool clock     = false;   // a clock search even when every clock reads 0
     bool ponder    = false;
     int syzygy_probe_depth = 0; // 0 = disabled
     int syzygy_probe_limit = 0;

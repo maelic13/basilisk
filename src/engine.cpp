@@ -91,13 +91,8 @@ SearchLimits Engine::build_limits() const {
     limits.ablation_mask = parameters_.ablation_mask;
 #endif
     limits.params    = parameters_.search_params;
-    limits.infinite  = (parameters_.depth == infiniteDepth && parameters_.move_time == 0
-                        && parameters_.white_time == 0 && parameters_.black_time == 0
-                        && parameters_.white_increment == 0 && parameters_.black_increment == 0
-                        && parameters_.movestogo == 0
-                        && parameters_.nodes == 0
-                        && parameters_.mate == 0
-                        && !parameters_.ponder);
+    limits.infinite  = parameters_.infinite && !parameters_.ponder;
+    limits.clock     = parameters_.clock;
     return limits;
 }
 

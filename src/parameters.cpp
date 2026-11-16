@@ -131,6 +131,8 @@ Parameters::Parameters() {
     black_increment = 0;
     depth          = infiniteDepth;
     movestogo      = 0;
+    clock          = false;
+    infinite       = false;
     nodes          = 0;
     mate           = 0;
     perft          = 0;
@@ -172,6 +174,8 @@ void Parameters::reset_temporary_parameters() {
     black_increment = 0;
     depth          = infiniteDepth;
     movestogo      = 0;
+    clock          = false;
+    infinite       = false;
     nodes          = 0;
     mate           = 0;
     perft          = 0;
@@ -260,13 +264,15 @@ int Parameters::max_hash_mb() {
     return machine_hash_limit_mb();
 }
 
+// A `go` with no limit searches until `stop`, or answers at the depth cap, as
+// Stockfish's does; `go infinite` waits for `stop` even there. A `go` that
+// names a clock is a clock search whatever the clock says: an empty, negative
+// or unreadable one moves at once rather than searching without a limit.
 void Parameters::set_search_parameters(const std::string& args) {
     reset_temporary_parameters();
 
-    if (args.empty()) {
-        depth = defaultSearchDepth;
+    if (args.empty())
         return;
-    }
 
     std::vector<std::string> tokens;
     std::istringstream iss(args);
@@ -274,7 +280,6 @@ void Parameters::set_search_parameters(const std::string& args) {
     while (iss >> token)
         tokens.push_back(token);
 
-    bool infinite_requested = false;
     for (size_t i = 0; i < tokens.size(); ++i) {
         const std::string& parameter = tokens[i];
 
@@ -283,7 +288,7 @@ void Parameters::set_search_parameters(const std::string& args) {
             continue;
         }
         if (parameter == "infinite") {
-            infinite_requested = true;
+            infinite = true;
             depth = infiniteDepth;
             continue;
         }
@@ -304,6 +309,8 @@ void Parameters::set_search_parameters(const std::string& args) {
         const auto params = Parameters::search_parameters();
         if (std::find(params.begin(), params.end(), parameter) == params.end())
             continue;
+        if (parameter == "wtime" || parameter == "btime" || parameter == "winc" || parameter == "binc")
+            clock = true;
         if (i + 1 >= tokens.size() || is_go_parameter(tokens[i + 1])) {
             write_output_line("info string Invalid " + parameter + " value.");
             continue;
@@ -311,13 +318,6 @@ void Parameters::set_search_parameters(const std::string& args) {
 
         set_search_parameter(parameter, tokens[++i]);
     }
-
-    const bool has_limit = depth != infiniteDepth
-        || move_time > 0 || white_time > 0 || black_time > 0
-        || white_increment > 0 || black_increment > 0
-        || movestogo > 0 || nodes > 0 || mate > 0 || perft > 0;
-    if (!has_limit && !infinite_requested && !ponder)
-        depth = defaultSearchDepth;
 }
 
 void Parameters::set_search_parameter(const std::string& parameter, const std::string& value) {
@@ -339,12 +339,11 @@ void Parameters::set_search_parameter(const std::string& parameter, const std::s
     if (parameter == "btime")     { black_time      = std::max(0, parsed); return; }
     if (parameter == "binc")      { black_increment = std::max(0, parsed); return; }
     if (parameter == "movestogo") { movestogo      = std::max(0, parsed); return; }
+    // `go mate N` searches until a mate in N or less is proven (the iterative
+    // deepening's mate stop), not to a depth: a mate in N can need far more
+    // than 2N - 1 plies of nominal depth to be seen.
     if (parameter == "mate") {
         mate = std::max(0, parsed);
-        if (mate > 0) {
-            const int capped_mate = std::min(mate, infiniteDepth / 2);
-            depth = std::clamp(2 * capped_mate - 1, 1, infiniteDepth);
-        }
         return;
     }
     if (parameter == "perft") {

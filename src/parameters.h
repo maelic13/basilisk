@@ -25,6 +25,8 @@ public:
     bool    large_pages;    // LargePages: the big allocations ask for large pages
     int64_t nodes;          // node limit (0 = unlimited)
     int     movestogo;      // moves until next time control (0 = sudden death)
+    bool    clock = false;    // the `go` named wtime, btime, winc or binc, whatever its value
+    bool    infinite = false; // the `go` said infinite: wait for stop even when done
     int     mate;           // mate search target in moves (0 = disabled)
     int     perft;          // perft depth requested via go perft (0 = disabled)
     bool    ponder;         // go ponder mode

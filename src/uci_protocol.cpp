@@ -99,7 +99,12 @@ void UciProtocol::UciLoop() {
 }
 
 int UciProtocol::RunArguments(const std::string& command_line) {
-    const Dispatch result = dispatch(command_line);
+    // A bare `go` searches until `stop`, which no command line can send, so
+    // given as an argument it keeps its old meaning, a fixed shallow depth.
+    const std::string command = normalise_whitespace(command_line) == "go"
+        ? "go depth " + std::to_string(defaultSearchDepth)
+        : command_line;
+    const Dispatch result = dispatch(command);
     if (result == Dispatch::Quit)
         return 0;
     if (result == Dispatch::Unknown)
