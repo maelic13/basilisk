@@ -52,6 +52,9 @@ Contrast modes:
   no-regression  nps_read.py's step-2 rule.
   null           the instrument's admission (the packet's 4.1): within +-0.5%,
                  an interval that holds 0, a half-width of 1.0% or less.
+  guard          a memory item's guard at one engine (PROCESS *NPS*): no
+                 resolved loss, the estimate above -0.5% and the interval's
+                 upper bound at 0 or above.
   report         an estimate that decides nothing.
 
 `fingerprint` searches every cohort position to depth 10 at Hash 16 with
@@ -101,11 +104,12 @@ ABSORBED = 2
 LOADED_RULE = 1.0            # percent, the memory items' loaded bar
 NULL_BOUND = 0.5             # percent
 NULL_HALF_WIDTH = 1.0        # percent
+GUARD_FLOOR = -0.5           # percent, the guard's estimate floor
 FINGERPRINT_DEPTH = 10
 FINGERPRINT_HASH = 16
 FINGERPRINT_NODES = 24_421_195
 FINGERPRINT_DIGEST = "8bc7f3c8d1dde0d2"
-MODES = ("gain", "no-regression", "null", "report")
+MODES = ("gain", "no-regression", "null", "guard", "report")
 BUSY_NAMES = ("basilisk", "rarog", "stockfish", "fastchess", "colosseum-cli", "cutechess",
               "clang", "cmake", "ninja")
 WINDOWS = sys.platform == "win32"
@@ -624,6 +628,9 @@ def decide(mode: str, delta: float, lower: float, upper: float, repeat: bool) ->
     if mode == "null":
         admitted = abs(delta) <= NULL_BOUND and lower <= 0.0 <= upper and (upper - lower) / 2 <= NULL_HALF_WIDTH
         return {"verdict": "ADMITTED" if admitted else "NOT_ADMITTED"}
+    if mode == "guard":
+        held = delta > GUARD_FLOOR and upper >= 0.0
+        return {"verdict": "GUARD_HELD" if held else "GUARD_FAILED"}
     if mode == "report":
         return {"verdict": "REPORTED"}
     verdict = nps_read.decide(mode, nps_read.STEP2_CYCLES, delta, lower, upper, {})

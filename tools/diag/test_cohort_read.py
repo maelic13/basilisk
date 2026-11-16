@@ -83,6 +83,17 @@ class DecisionTest(unittest.TestCase):
         self.assertEqual(cohort_read.analyse(cfg, records(cfg, delta=-2.0))["contrasts"][0]["verdict"], "FAIL")
         self.assertEqual(cohort_read.analyse(cfg, records(cfg, delta=0.0))["contrasts"][0]["verdict"], "PASS")
 
+    def test_guard(self):
+        cfg = config(engines=1, mode="guard")
+        held = cohort_read.analyse(cfg, records(cfg, delta=0.0))["contrasts"][0]
+        self.assertEqual(held["verdict"], "GUARD_HELD")
+        lost = cohort_read.analyse(cfg, records(cfg, delta=-0.3))["contrasts"][0]
+        self.assertEqual(lost["verdict"], "GUARD_FAILED")  # small, but resolved
+        deep = cohort_read.analyse(cfg, records(cfg, delta=-0.8))["contrasts"][0]
+        self.assertEqual(deep["verdict"], "GUARD_FAILED")
+        gain = cohort_read.analyse(cfg, records(cfg, delta=1.0))["contrasts"][0]
+        self.assertEqual(gain["verdict"], "GUARD_HELD")
+
     def test_disturbance(self):
         cfg = config(mode="null")
         two = {("a", 2): 1.03, ("a", 5): 0.97}
