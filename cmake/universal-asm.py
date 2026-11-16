@@ -99,12 +99,26 @@ def rename_line(line, renames):
     return TOKEN.sub(replace, code) + comment
 
 
+ELF_OBJECT = re.compile(r"^\s*\.type\s+(_ZT[IS][^\s,]*)\s*,\s*@object")
+ELF_BINDING = re.compile(r"^\s*\.(?:globl|weak)\s+(\S+)")
+
+
 def rename(map_path, source, target):
     renames = load_map(map_path)
     with open(source, encoding="utf-8", errors="surrogateescape", newline="") as handle:
         lines = handle.readlines()
+    # A shared type identity full LTO left local to its COMDAT group: every
+    # tier holds a copy, the linker keeps one group and discards the rest, and
+    # a tier's references to its own local copy point into a discarded
+    # section. Bound weak, as ThinLTO leaves it, every tier binds to the kept
+    # copy, whose contents are the same. ELF only (COFF has no .type @object).
+    bound = {m.group(1) for line in lines if (m := ELF_BINDING.match(line))}
     with open(target, "w", encoding="utf-8", errors="surrogateescape", newline="") as handle:
-        handle.writelines(rename_line(line, renames) for line in lines)
+        for line in lines:
+            match = ELF_OBJECT.match(line)
+            if match and match.group(1) not in renames and match.group(1) not in bound:
+                handle.write(f"\t.weak\t{match.group(1)}\n")
+            handle.write(rename_line(line, renames))
     return 0
 
 
