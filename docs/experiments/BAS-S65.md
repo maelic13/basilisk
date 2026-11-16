@@ -28,3 +28,19 @@
   merged until the cause is found. Any engine fault or time loss past the harness's
   fault rule stops the gate and is a finding. The estimate at the stop is a
   first-crossing estimate, not the effect size.
+
+#### RESULT
+
+The maintainer's run, 2026-11-16, 39 minutes (`tools/results/b8-gate`, result `h1`;
+the wrapper's PGN recount agrees).
+
+| Games | W/D/L (head first) | Pentanomial | Elo | nElo | LLR |
+|---:|---|---|---:|---:|---:|
+| 3,938 | 1,123 / 1,908 / 907 | [38, 417, 878, 563, 73] | +19.1 ± 6.5 | +32.0 ± 10.9 | +2.96 |
+
+- **Disposition: H1 ACCEPTED.** B.8 is delivered as measured. Zero time losses and
+  zero other faults (19 allowed); 32 post-terminal games kept as evidence, outside the
+  sample.
+- The estimate is a first-crossing estimate, not the effect size. Prediction +17
+  [+9, +25]: inside, and the gate stopped at 3,938 games against about 4,700
+  expected at +16.
