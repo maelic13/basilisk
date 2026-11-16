@@ -555,19 +555,14 @@ function(basilisk_known_defect name)
                          PASS_REGULAR_EXPRESSION "KNOWN DEFECT REPRODUCED")
 endfunction()
 foreach(case lifecycle_guards new_game_resets multipv_stopped tablebase_threads fuzz
-             whitespace hash_rounding_notice syzygy_path_retry fathom_unmappable_table)
+             whitespace hash_rounding_notice syzygy_path_retry fathom_unmappable_table
+             syzygy_non_ascii_path)
     basilisk_uci_test(${case})
 endforeach()
 set(_basilisk_uci_defects
     depth_limit_threads abort_sweep clock_zero bare_go go_mate
     ponderhit_game_ply bench_stop wac_stop
     bench_quit closed_stdout seldepth_qsearch)
-# Fathom opens files with the narrow CreateFile on Windows only.
-if(WIN32)
-    list(APPEND _basilisk_uci_defects syzygy_non_ascii_path)
-else()
-    basilisk_uci_test(syzygy_non_ascii_path)
-endif()
 foreach(case IN LISTS _basilisk_uci_defects)
     basilisk_uci_test(${case} --expect-defect)
     basilisk_known_defect(uci_${case})

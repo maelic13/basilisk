@@ -155,11 +155,41 @@ std::vector<std::string> split_paths(const std::string& paths) {
     return out;
 }
 
+// A SyzygyPath is UTF-8 text from the GUI. On Windows a std::string path is
+// read in the ANSI code page, so a valid UTF-8 path is converted explicitly,
+// as Fathom's file layer does; anything else is taken as it is.
+#ifdef _WIN32
+bool is_utf8(const std::string& text) {
+    size_t i = 0;
+    while (i < text.size()) {
+        const auto c = static_cast<unsigned char>(text[i]);
+        const size_t extra = c < 0x80 ? 0 : (c >> 5) == 0x6 ? 1 : (c >> 4) == 0xE ? 2
+                           : (c >> 3) == 0x1E ? 3 : 4;
+        if (extra == 4 || i + extra >= text.size())
+            return false;
+        for (size_t k = 1; k <= extra; ++k)
+            if ((static_cast<unsigned char>(text[i + k]) >> 6) != 0x2)
+                return false;
+        i += extra + 1;
+    }
+    return true;
+}
+#endif
+
+std::filesystem::path filesystem_path(const std::string& path) {
+#ifdef _WIN32
+    if (is_utf8(path))
+        return std::filesystem::path(std::u8string(path.begin(), path.end()));
+#endif
+    return std::filesystem::path(path);
+}
+
 std::pair<int, int> count_tablebase_files(const std::string& paths) {
     int wdl = 0;
     int dtz = 0;
 
-    for (const std::string& path : split_paths(paths)) {
+    for (const std::string& text : split_paths(paths)) {
+        const std::filesystem::path path = filesystem_path(text);
         std::error_code ec;
         if (!std::filesystem::exists(path, ec))
             continue;

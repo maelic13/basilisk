@@ -335,8 +335,18 @@ static FD open_tb(const char *str, const char *suffix)
     fd = CreateFile(ucode_name, GENERIC_READ, FILE_SHARE_READ, NULL,
 			  OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, NULL);
 #else
-    fd = CreateFile(file, GENERIC_READ, FILE_SHARE_READ, NULL,
-			  OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, NULL);
+    /* Basilisk: the path arrives as UTF-8 (a GUI's SyzygyPath), which the
+       narrow CreateFile reads in the ANSI code page, so a directory whose
+       name is not ASCII never opened. It is converted to UTF-16 for
+       CreateFileW; bytes that are not valid UTF-8 keep the narrow call. */
+    wchar_t wide_name[4096];
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, file, -1,
+                            wide_name, 4096) > 0)
+      fd = CreateFileW(wide_name, GENERIC_READ, FILE_SHARE_READ, NULL,
+                       OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, NULL);
+    else
+      fd = CreateFileA(file, GENERIC_READ, FILE_SHARE_READ, NULL,
+                       OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, NULL);
 #endif
 #endif
     free(file);
