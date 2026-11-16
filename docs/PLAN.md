@@ -4111,7 +4111,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         read in its search as losses (BAS-P31).
       - No component changed the generation order: no SPRT.
       - DESIGN §5 has the final figures.
-- [ ] **B.8** Cleanup and speed pass
+- [x] **B.8** Cleanup and speed pass
   Cleanup: remove the legacy search path, dead parameters, unconsumed switches
   and diagnostics without an owner; exact fingerprint; no game gate. Then
   the allocation guard, large pages and the speed pass (B.7 until
@@ -4683,7 +4683,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           both cohorts and `next()`'s by 0.7 to 1.0; the table's wait is a
           larger share of a faster node (`probe_copy` 7.16% of the
           cohort's samples).
-    - [ ] **B.8.10** `[I1]` Table prefetch across the make, on the game
+    - [x] **B.8.10** `[I1]` Table prefetch across the make, on the game
       Added 2026-11-16 (maintainer, on Amendment 1 of
       `analysis/b88_speed_packet_2026-11-15.md`, which answers B.8.9's
       Return 1). A1 was reverted by a `bench` guard that prices a memory
@@ -4711,6 +4711,20 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - Falsifiers: X0's one-engine delta at Hash 1 not below its delta
         at Hash 64 (nothing kept, Return 2); X0's loaded read under +1.0%
         (A1 closes, retry with D.2's table).
+      - Closed 2026-11-16 (the packet's §13; BAS-P54 to BAS-P58; `bench 13`
+        4,688,537, an identical tree): **X0 kept**, A1 as the packet
+        stated it.
+        - X0: +1.32% [+1.00, +1.64] with fourteen engines on the game
+          cohort, +0.56% [+0.41, +0.71] at one engine, −0.80% on `bench`
+          (the decider, the guard and the ceiling all hold).
+        - X2 (+0.57% loaded) and X1 (+0.26%) failed the decider and are
+          reverted.
+        - The one-engine cohort read passed its null first (BAS-P54,
+          −0.02% [−0.24, +0.20]).
+        - Neither falsifier fired: X0 reads −1.02% at Hash 1 and +1.13% at
+          Hash 256, so its gain grows with the table; about 1% of a node
+          is the predicted key's cost.
+        - All eleven frozen estimates fell inside their 80% intervals.
 - [ ] **B.9** Robustness, verdicts and protocol before the release
   Added 2026-11-05 (maintainer: every correctness fix before the next
   release): the lifecycle and protocol work that was D.3.2, the
@@ -5204,7 +5218,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.8.10 | READY_FOR_IMPLEMENTATION | I1 | A1 read again under the amended guard (`analysis/b88_speed_packet_2026-11-15.md`, Amendment 1) |
 | B.9.1 | RESEARCH | R2 | Was D.3.2, with the release-visible defects (2026-11-05) |
 | B.9.3 | RESEARCH | R2 | Added 2026-11-11; the evaluator's hard verdicts against Syzygy, the evaluation frozen |
 | B.9.4 | RESEARCH | R2 | Added 2026-11-11; known defects owned after B.11, repaired now or justified |

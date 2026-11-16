@@ -26,6 +26,14 @@ and next step).
 
 ### Changed
 
+- **About 1% faster in games.** The search now works out the position a
+  move leads to before making it, and asks the memory for that position's
+  hash-table entry early, so the entry is on its way while the move is
+  made. With fourteen engines searching game positions at once it reads
+  +1.32% nodes per second, and +0.56% alone (BAS-P57, BAS-P56). On
+  `bench`'s small table, which already sits in the processor's cache, it
+  costs 0.8%; the gain grows with the hash size. It plays the same moves:
+  `bench 13` is unchanged at 4,688,537.
 - **About 6% faster.** The engine is now linked as one whole program, with
   more inlining and better code layout (Stockfish's build), the search's
   tuned constants are compiled in outside the tuning build, and the move
