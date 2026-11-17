@@ -5283,6 +5283,14 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         PROCESS *Harness*) at the same conditions. B.2.2's replay agreed
         within its interval. It is also the trial for a fastchess-GUI
         switch, which the maintainer is weighing.
+      - Brought forward 2026-11-17 (maintainer): it runs before the release,
+        on master, whose `src/` is the release candidate's, so it need not
+        be repeated after the cut (BAS-M18).
+        - The field is one version per family plus four rated anchors:
+          Stockfish 11, Houdini 6.03, Fire 8.3 and Ethereal 13.07.
+        - Stockfish 15.1 HCE and Komodo 14.1 sit out, as their ratings are
+          already known. Rarog 2.7.0, the maintainer's local build, joins
+          under the latest-release rule.
 - [x] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
   Correctness repair, opened 2026-10-30 at the maintainer's decision when
   B.3.0's counter suite stopped on it (packet §2.3,
@@ -5464,7 +5472,7 @@ leaf's tag. Later phases carry only a class until they open.
 | B.11.1 | RESEARCH | V | Was B.9; programme checkpoint |
 | B.11.3 | RESEARCH | R2 | Added 2026-11-11; the disclosure on the release candidate, before the cut |
 | B.11.4 | RESEARCH | M | Was B.11, then B.11.2; interim release after B.11.3 (maintainer decision 2026-10-24) |
-| B.11.5 | RESEARCH | V | Added 2026-11-17; the HCE frontier field, a rated round robin after the 1.11.0 release |
+| B.11.5 | RESEARCH | V | Added 2026-11-17; the HCE frontier field, a rated round robin, brought forward before the release; BAS-M18 registered |
 
 ## Phase C — Evaluation programme (search frozen)
 
