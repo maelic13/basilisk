@@ -457,7 +457,10 @@ Tally run_random(const ClassSpec& spec, int threads, bool estimates, int64_t tar
         pool.emplace_back([&, t] {
             Reader reader(spec, estimates);
             std::mt19937_64 rng(seed * 1000003u + uint64_t(t));
-            std::uniform_int_distribution<int> square(0, 63);
+            // The top six bits of the engine's output: mt19937_64's sequence is
+            // fixed by the standard, a distribution's is not (libstdc++ and
+            // libc++ draw differently), and the golden sample must match on both.
+            const auto square = [](std::mt19937_64& g) { return int(g() >> 58); };
             while (quiet_seen.load(std::memory_order_relaxed) < target) {
                 std::array<int, 8> squares{};
                 Bitboard used = 0;

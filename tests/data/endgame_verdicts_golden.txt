@@ -1,20 +1,22 @@
-KPvK: 20001 quiet positions (random), 0.0 s
-  KPK draw                                           6323  wrong          0 (0.0000%)  cursed 0
-  KPK win                                           13678  wrong          0 (0.0000%)  cursed 0
-KQvK: 20000 quiet positions (random), 0.0 s
-  bare king, queen tier                             20000  wrong          0 (0.0000%)  cursed 0
-KNNvK: 20001 quiet positions (random), 0.0 s
-  KNNK draw                                         20001  wrong          0 (0.0000%)  cursed 0
-KBNvK: 20001 quiet positions (random), 0.0 s
-  bare king, minor mate                             20001  wrong        117 (0.5850%)  cursed 0  DEFECT
-KBvKB: 20001 quiet positions (random), 0.0 s
-  dead position (search)                             8290  wrong          0 (0.0000%)  cursed 0
-  pawnless scale 0                                  11711  wrong          0 (0.0000%)  cursed 0
-KNvKN: 20001 quiet positions (random), 0.0 s
-  pawnless scale 0                                  20001  wrong          0 (0.0000%)  cursed 0
-KPPvK: 20001 quiet positions (random), 0.0 s
-  estimate (no site)                                20001  wrong          0 (0.0000%)  cursed 0
+KPvK: 20000 quiet positions (random), 0.0 s
+  KPK draw                                           6221  wrong          0 (0.0000%)  cursed 0
+  KPK win                                           13779  wrong          0 (0.0000%)  cursed 0
+KQvK: 20001 quiet positions (random), 0.0 s
+  bare king, queen tier                             20001  wrong          0 (0.0000%)  cursed 0
+KNNvK: 20000 quiet positions (random), 0.0 s
+  KNNK draw                                         20000  wrong          1 (0.0050%)  cursed 0
+      of the wrong, White (the first side) wins 1, Black 0
+KBNvK: 20000 quiet positions (random), 0.0 s
+  bare king, minor mate                             20000  wrong        142 (0.7100%)  cursed 0  DEFECT
+KBvKB: 20000 quiet positions (random), 0.0 s
+  dead position (search)                             8236  wrong          0 (0.0000%)  cursed 0
+  pawnless scale 0                                  11764  wrong          3 (0.0255%)  cursed 0
+      of the wrong, White (the first side) wins 1, Black 2
+KNvKN: 20000 quiet positions (random), 0.0 s
+  pawnless scale 0                                  20000  wrong          0 (0.0000%)  cursed 0
+KPPvK: 20000 quiet positions (random), 0.0 s
+  estimate (no site)                                20000  wrong          0 (0.0000%)  cursed 0
 KRvKR: 20000 quiet positions (random), 0.0 s
-  pawnless scale 14                                 20000  wrong        399 (1.9950%)  cursed 0  DEFECT
-KRvKB: 20000 quiet positions (random), 0.0 s
-  pawnless scale 4                                  20000  wrong       1195 (5.9750%)  cursed 0  DEFECT
+  pawnless scale 14                                 20000  wrong        397 (1.9850%)  cursed 0  DEFECT
+KRvKB: 20001 quiet positions (random), 0.0 s
+  pawnless scale 4                                  20001  wrong       1225 (6.1247%)  cursed 0  DEFECT

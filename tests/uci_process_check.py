@@ -249,9 +249,11 @@ def case_hash_rounding_notice(exe, args):
     e = Engine(exe)
     try:
         e.send("setoption name Hash value 128")
-        quiet = [l for l in e.ready() if l.startswith("info string")]
+        # Only Hash notices count: a build below the CPU's best tier says so
+        # at start-up (main.cpp), and that line is not about the table.
+        quiet = [l for l in e.ready() if l.startswith("info string") and "Hash" in l]
         e.send("setoption name Hash value 100")
-        told = [l for l in e.ready() if l.startswith("info string")]
+        told = [l for l in e.ready() if l.startswith("info string") and "Hash" in l]
         if quiet:
             raise HarnessError(f"Hash 128 is a power of two and needs no notice: {quiet}")
         if not any("Hash" in l and re.search(r"\b64\b", l) for l in told):
