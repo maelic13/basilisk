@@ -40,7 +40,7 @@
     release at the end of its search programme, the same place in its plan
     as this head, and it extends the anchors down to 3281.
 
-  - The anchors span 3281–3532, the field's range bar its top.
+  - The anchors span 3281–3532, the field's range bar its two ends.
   - Stockfish 15.1 HCE (3543) and Komodo 14.1 (3476) sit out. Their
     ratings are already on the scale, so Stockfish 16 and Dragon 3.3 are
     compared with them without playing them.
