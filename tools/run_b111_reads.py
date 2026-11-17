@@ -20,16 +20,19 @@ adjudication, no tablebases, every binary pinned by SHA-256.
   --read pool      The 1T pool gauntlet against the four targets at their Super
                    Rating Tournament ratings (Houdini 3 3287, Critter 1.6a 3192,
                    Fritz 16 3173, Rybka 4.1 3111), 200 cycles, 400 games each.
-  --read rarog     Rarog 2.6.0, Rarog's latest release, as a 400-game fixed
-                   match beside the pool (an external arm B; it has no rating
-                   on the pool's scale).
+  --read rarog     Rarog 2.6.0 as a 400-game fixed match beside the pool (an
+                   external arm B; it has no rating on the pool's scale), the
+                   version BAS-M15 played.
+  --read rarog27   Rarog 2.7.0, Rarog's latest release (2026-11-13), the same
+                   match: the official `rarog-2.7.0-windows-x64.exe`, pinned
+                   by the release's published SHA-256, at its defaults.
 
 A finished read (result.json) is never extended or replaced: the launcher
 exits 2. An interrupted one has only its checkpoint, and the same command
 resumes it.
 
 Usage:
-  python tools/run_b111_reads.py --read <g0-equal|g0-odds|pool|rarog> [--dry-run]
+  python tools/run_b111_reads.py --read <g0-equal|g0-odds|pool|rarog|rarog27> [--dry-run]
 """
 
 from __future__ import annotations
@@ -69,9 +72,14 @@ TARGETS = [
     ("Rybka 4.1", r"D:\chess\engines\rybka\Deep Rybka 4.1 SSE42 x64.exe",
      "15901A12179EBD773871AE556CCFC05CAB85C30D014345F6EA64B77F44DC9923", 3111, "Max CPUs", []),
 ]
-RAROG = {"path": pathlib.Path(r"D:\chess\engines\rarog\rarog-v2.6.0-windows-pext-pgo.exe"),
-         "sha": "274EAB9728432D25EE1E4342EC96F860390AD5AC76CA8C7052407B3BFE011AE1"}
-SEEDS = {"g0-equal": 111101, "g0-odds": 111102, "pool": 111103, "rarog": 111104}
+RAROGS = {
+    "rarog": {"path": pathlib.Path(r"D:\chess\engines\rarog\rarog-v2.6.0-windows-pext-pgo.exe"),
+              "sha": "274EAB9728432D25EE1E4342EC96F860390AD5AC76CA8C7052407B3BFE011AE1", "name": "Rarog 2.6.0"},
+    # The release asset's digest as GitHub publishes it (maelic13/rarog v2.7.0).
+    "rarog27": {"path": pathlib.Path(r"D:\chess\engines\rarog\rarog-2.7.0-windows-x64.exe"),
+                "sha": "C3BB03718680D6D86E4A8366F0D76E05E000D0C12EACB7B249E631AF6C655832", "name": "Rarog 2.7.0"},
+}
+SEEDS = {"g0-equal": 111101, "g0-odds": 111102, "pool": 111103, "rarog": 111104, "rarog27": 111105}
 
 
 def ps(value) -> str:
@@ -183,10 +191,11 @@ def command(read: str, dry_run: bool) -> tuple[str, pathlib.Path]:
                   "ExpectSha256": [e[2] for e in engines], "ThreadOptionNames": [e[4] for e in engines],
                   "ExtraArgs": extra}
     else:
-        check_binary(RAROG["path"], RAROG["sha"])
+        rarog = RAROGS[read]
+        check_binary(rarog["path"], rarog["sha"])
         params = {**common, "Mode": "match", "Games": 400, "EngineA": str(HEAD["path"]), "NameA": "Basilisk head",
-                  "EngineB": str(RAROG["path"]), "NameB": "Rarog 2.6.0",
-                  "ExpectBench": [HEAD["bench"], -1], "ExpectSha256": [HEAD["sha"], RAROG["sha"]]}
+                  "EngineB": str(rarog["path"]), "NameB": rarog["name"],
+                  "ExpectBench": [HEAD["bench"], -1], "ExpectSha256": [HEAD["sha"], rarog["sha"]]}
     parts = [f"& {ps(REPO / 'tools' / 'colosseum.ps1')}"]
     for key, value in params.items():
         parts.append(f"-{key} {ps(value)}")

@@ -136,7 +136,8 @@ X is good/bad”. If conditions or artifacts are unknown, say so.
 | [BAS-M13](experiments/BAS-M13.md) | Frozen before any game, the 1.10.2 verification match against 1.10.1 with tablebases. | WITHDRAWN unplayed |
 | [BAS-M14](experiments/BAS-M14.md) | Loss analysis by cell: stored games judged by Stockfish 19, worst errors re-searched (B.16.3). | Withdrawn unplayed: instrument built, the read moves to D.1 |
 | [BAS-M15](experiments/BAS-M15.md) | "Dev Test": the head after Clusters 1 to 3 in a twelve-engine 1T round robin. | Observation: pool +314.2 over 1.10.2, +74.6 over Rarog 2.5.0 |
-| [BAS-M16](experiments/BAS-M16.md) | B.11.1 1T pool gauntlet: the head against the four targets, Rarog 2.6.0 beside it. | registered |
+| [BAS-M16](experiments/BAS-M16.md) | B.11.1 1T pool gauntlet: the head against the four targets, Rarog 2.6.0 beside it. | COMPLETE: performance 3416.3 [3395.5, 3437.1]; Rarog 2.6.0 −35.7 ± 23.2; no Basilisk fault |
+| [BAS-M17](experiments/BAS-M17.md) | B.11.1 head-to-head against Rarog 2.7.0, Rarog's latest release, beside BAS-M16's 2.6.0 match. | registered |
 
 ## 3. Search and selectivity
 
@@ -165,8 +166,8 @@ fifty-move, 2 stalemate. **Zero forfeits.** Instrument: branch `hybrid`
 
 - [BAS-O04](experiments/BAS-O04.md) — Width attribution. — 20.80
 - [BAS-O05](experiments/BAS-O05.md) — Frozen before any game, A.7.3 search deficit meter G(0) on 1.10.1. — COMPLETE (2026-10-05): G(0) = +312.6 ± 17.8
-- [BAS-O06](experiments/BAS-O06.md) — B.11.1 G(0) on the head at equal time, BAS-O05's protocol. — registered
-- [BAS-O07](experiments/BAS-O07.md) — B.11.1 G(0) at the bridge's measured time odds, RAR-O08's conditions. — registered
+- [BAS-O06](experiments/BAS-O06.md) — B.11.1 G(0) on the head at equal time, BAS-O05's protocol. — COMPLETE: G(0) −70.7 [−78.4, −63.0], 383 recovered from +312.6
+- [BAS-O07](experiments/BAS-O07.md) — B.11.1 G(0) at the bridge's measured time odds, RAR-O08's conditions. — COMPLETE: bridge 2.07% (×1.021); G(0) −53.5 ± 7.6
 - [BAS-D22](experiments/BAS-D22.md) — B.11.1 fixed-node meters: depth at 300k nodes, branching, endgame truth cohort. — observation: 3.3-ply gap (was 12.2), 458/480 converted
 
 **Internal consistency.** Measured directly, full Stockfish beat Basilisk 1.9.3
@@ -703,7 +704,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P57](experiments/BAS-P57.md) | B.8.10's arms under load: the decider (B.8.10). | COMPLETE: X0 +1.32% [+1.00, +1.64] kept; X2 +0.57%, X1 +0.26% not |
 | [BAS-P58](experiments/BAS-P58.md) | X0 at one engine, Hash 1 and Hash 256: the model's falsifier (B.8.10). | COMPLETE: −1.02% at Hash 1, +1.13% at Hash 256; the falsifier did not fire |
 | [BAS-P59](experiments/BAS-P59.md) | The universal binary with full LTO, against the pext asset (B.8 delivery). | COMPLETE: +0.30% [+0.19, +0.42], PASS; the universal binary keeps B.8's gain |
-| [BAS-P60](experiments/BAS-P60.md) | B.11.1 pooled-PGO NPS: the head against 1.10.1, both on clang 23.1.5. | registered |
+| [BAS-P60](experiments/BAS-P60.md) | B.11.1 pooled-PGO NPS: the head against 1.10.1, both on clang 23.1.5. | COMPLETE: −37.36% [−38.02, −36.71] (2.521M against 4.024M); prediction missed, build verified |
 
 ## 7. Correctness and protocol lessons
 

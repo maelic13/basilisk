@@ -63,4 +63,20 @@
 
 #### RESULT — append after exposure
 
-- Registered, not yet run.
+- Run 2026-11-17, 13:53–14:26, by the maintainer on an idle host, at
+  `769ade8` (`tools/results/b111-g0-equal/`). The run is complete: all
+  3,000 games scored, no faults, no time losses; the census agrees and the
+  pentanomial recount agrees.
+- The head **1082-1438-480**, 60.0%, Elo **+70.7**, 95% interval [+63.0,
+  +78.4]; pentanomial [13, 189, 604, 571, 123], nElo +117.2 ± 12.4.
+  **G(0) = −70.7**: the head beats the oracle's search on its own
+  evaluation. Against BAS-O05's +312.6 on 1.10.1, the programme recovered
+  **383 Elo** on this meter.
+- Game meters at `3+0.03`:
+  - the head: 2.10M nodes per second, 139,949 nodes a move, median depth 15;
+  - the oracle: 2.58M nodes per second, 172,691 nodes a move, median
+    depth 16.
+- Calibration: inside the 80% band (−110 to +30). It is 31 Elo beyond the
+  point estimate toward the head, and the head scored above 50% as given
+  0.7. The falsifiers did not fire.
+- Disposition: COMPLETE. This is the checkpoint's G(0) at equal time.

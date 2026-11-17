@@ -58,4 +58,36 @@
 
 #### RESULT — append after exposure
 
-- Registered, not yet run.
+- **Gauntlet.** Run 2026-11-17, 15:00–15:23, by the maintainer on an idle
+  host, at `769ade8` (`tools/results/b111-pool/`). 1,600 games, no faults
+  and no time losses on either side; the census agrees.
+  - Performance **3416.3**, 95% interval [3395.5, 3437.1]; the head scored
+    1249.5/1600 (1104-291-205).
+  - Inside the 80% band (3320 to 3440), 36 above the point.
+
+  | Opponent (rating) | W-D-L | Score | Elo, 95% interval | Implied |
+  |---|---|---:|---|---:|
+  | Houdini 3 (3287) | 253-68-79 | 71.8% | +161.9 [+131.4, +194.9] | 3449 |
+  | Critter 1.6a (3192) | 269-76-55 | 76.8% | +207.5 [+177.8, +240.1] | 3400 |
+  | Fritz 16 (3173) | 281-76-43 | 79.8% | +238.1 [+208.4, +271.3] | 3411 |
+  | Rybka 4.1 (3111) | 301-71-28 | 84.1% | +289.7 [+255.1, +329.7] | 3401 |
+
+  Against Critter 1.6a the head was −198 on 1.10.0 and +148 after
+  Clusters 1 to 3 (BAS-M15); it is +207.5 now. All four rating gaps that
+  PLAN §1's budget sized are closed, Houdini 3's (293) included.
+- **Rarog 2.6.0.** Run 15:23–15:27 (`tools/results/b111-rarog/`), 400 games,
+  no faults, no time losses; the pentanomial recount agrees.
+  - The head 103-153-144, 44.9%, Elo **−35.7 ± 23.2**; pentanomial
+    [15, 63, 78, 36, 8], nElo −52.7 ± 34.0.
+  - Inside the band (−70 to +10), 5.7 below the point. BAS-M15 read −73.2
+    after Clusters 1 to 3.
+- **B.9's criterion.** No Basilisk crash, illegal move or forfeit, given
+  0.9. Held: zero Basilisk faults and zero time losses in this read's 2,000
+  games, and none in BAS-O06's or O07's 6,000.
+- **Deviation.** The registration named Rarog 2.6.0 "Rarog's latest
+  release". It was not: 2.7.0 was published 2026-11-13, four days before
+  this entry, and the preparation did not check. The 2.6.0 match stands as
+  run, and it is the one comparable with BAS-M15. The maintainer added
+  2.7.0 beside it (2026-11-17), registered separately as BAS-M17.
+- The conversion audit on these games is still owed; it is B.11.1's.
+- Disposition: COMPLETE for the gauntlet and the 2.6.0 match.

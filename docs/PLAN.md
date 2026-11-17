@@ -5156,9 +5156,27 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         so a Stockfish-dev arm would read a few months of master; Reckless's
         shape is not one Basilisk will take. The search stays on the latest
         Stockfish shape, and H.1 re-evaluates it.
-      - Left for the close: the conversion audit on BAS-M16's games, the
-        attributed Elo per cluster against the budget table, removing the
-        ablation build and the freeze.
+      Read 2026-11-17 on an idle host, every run clean (no Basilisk fault
+      or time loss in 8,400 games; B.9's criterion holds):
+      - G(0) **−70.7** [−78.4, −63.0] at equal time (BAS-O06): the head now
+        beats the oracle's search on its own evaluation. That is **383**
+        recovered from +312.6.
+      - The bridge costs 2.07% (×1.021, against Rarog's 8.5%), and G(0) at
+        odds is **−53.5 ± 7.6** (BAS-O07). In Rarog's sign that is +53.5,
+        against Rarog's own +59.8.
+      - Pool performance **3416.3** [3395.5, 3437.1] (BAS-M16), every target
+        gap closed: Houdini 3 +161.9, Critter 1.6a +207.5, Fritz 16 +238.1,
+        Rybka 4.1 +289.7. Rarog 2.6.0 **−35.7 ± 23.2**.
+      - NPS −37.4% against 1.10.1 (2.52M against 4.02M at `bench 13`,
+        BAS-P60): the per-node price of the Stockfish-shaped search, already
+        paid by B.8 (BAS-P53 read 2.40M on B.8.4's head).
+      - Rarog 2.7.0 (published 2026-11-13) was Rarog's latest release, not
+        2.6.0. The maintainer added it (2026-11-17): every Rarog comparison
+        includes the latest release. Registered as BAS-M17, launcher
+        `--read rarog27`; it waits for the official asset to be placed.
+      - Left for the close: BAS-M17's match, the conversion audit on
+        BAS-M16's games, the attributed Elo per cluster against the budget
+        table, removing the ablation build and the freeze.
     - [ ] **B.11.3** `[R2]` Originality and licence disclosure
       Added 2026-11-11 (`analysis/rarog_import_2026-11-11.md`;
       Rarog's E.3.0). 1.11.0 is the first release whose search is built

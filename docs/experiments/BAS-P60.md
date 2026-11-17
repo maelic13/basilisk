@@ -39,4 +39,38 @@
 
 #### RESULT — append after exposure
 
-- Registered, not yet run.
+- Read 2026-11-17, 12:50–12:53 UTC, by the maintainer on an idle host
+  (`tools/results/b111-nps/`). Two cycles; host load 4.0% and 4.6%, with no
+  foreign process in either cycle. Every reading ran the pinned hash and
+  the arm's fingerprint.
+- Arm means:
+  - 1.10.1: **4.024M** (builds 4.002M to 4.045M);
+  - the head: **2.521M** (2.508M to 2.526M).
+- Gain form: **−37.36%**, 95% interval [−38.02, −36.71].
+- The tool's verdict is `REPEAT_STEP_1`, because the head's two cycle
+  levels (2.504M, 2.537M) differ by 1.29%, over its 1% agreement rule.
+  - The registration fixed no repeat on the same pools, and the
+    disagreement is a thirtieth of the effect. The read stands, with the
+    flag recorded; a repeat would answer no new question.
+- **Prediction missed: −4%, band −10% to +3%.** The falsifier (beyond
+  ±15%: check the build first) fired, and the build was checked:
+  - The pool reads the level of B.8's delivered head: BAS-P59's pext asset
+    2.529M, BAS-P53's B.8.9 head 2.541M. The fingerprints and the compiler
+    are the registered ones. The build is sound.
+  - The prediction was the error. Its basis ignored the absolute levels on
+    record: B.8.4's head read 2.396M (BAS-P53) against 1.10.1's 4.13M on
+    clang 22 (BAS-P12). The search rebuild had already cost about 42% of
+    nodes per second before B.8's speed pass won 6% back.
+  - Lesson: a prediction about a level reads the last recorded level
+    first, not only the deltas.
+- In context: the head searches 4.78M nodes at `bench 13` against 1.10.1's
+  14.98M. At the clock it plays at 2.10M and the oracle at 2.58M
+  (BAS-O06), and it wins by 70.7 at equal time. Per-node cost is the price
+  of the Stockfish-shaped machinery, and the tree it buys more than pays
+  for it.
+- The 1.10.1 arm reads 2.5% below BAS-P12's 4.127M (clang 22, another
+  session). Session and compiler are confounded here, so that difference
+  is not read as LLVM's.
+- Disposition: COMPLETE. This is the checkpoint's NPS meter (2.52M at
+  `bench 13`). PLAN §1's speed line inside B and C is a cost, not a
+  recovery; the attribution says so.

@@ -66,4 +66,34 @@
 
 #### RESULT — append after exposure
 
-- Registered, not yet run.
+- **Price.** Read 2026-11-17 (finished 13:49) by the maintainer on an idle
+  host (`tools/results/b111-checkpoint/bridge_price.json`).
+  - Three cycles of `bench 16 1 16 default depth`, 15,239,377 nodes at
+    both repeats.
+  - Median 5,263 ms at repeat 1 and 5,481 ms at repeat 3; every cycle is
+    slower at 3, so the wire is live.
+  - Bridge 7.15 ns a node, share **2.07%**, odds **×1.0211**, oracle clock
+    **3063+31 ms**.
+  - Inside the 80% band (1.5% to 6.0%), below the 3.0% point. This is a
+    quarter of Rarog's 8.5%, as the direct field writes predicted.
+- **Match.** Run 14:26–15:00, at `769ade8`
+  (`tools/results/b111-g0-odds/`), 3,000 games, no faults, no time
+  losses; the pentanomial recount agrees.
+  - The head 1025-1408-567, 57.6%, Elo **+53.5 ± 7.6**; pentanomial
+    [20, 215, 649, 519, 97], nElo +89.1 ± 12.4. **G(0) at odds = −53.5**.
+  - Inside the 80% band (−105 to +35), 18.5 beyond the point toward the
+    head.
+  - The oracle's average move took 68.2 ms here and 67.0 ms in BAS-O06,
+    1.8% more, as the odds give.
+- **Against BAS-O06.** The odds cost the head 17.2 Elo, with a difference
+  interval of about ±10.8.
+  - About 2% more time should buy the oracle +3 to +5, so the excess is
+    about 1.2 standard errors. The two runs draw different opening samples
+    (seeds 111101 and 111102). It is read as noise, not as a price of the
+    bridge.
+  - The falsifier (more than 40 from BAS-O06) did not fire.
+- Rarog's sign: the head over the oracle is +53.5 at RAR-O08's conditions.
+  Rarog's O08 read +59.8 for its own head on its evaluation, so the two
+  engines stand at about the same distance past the classical search.
+- Disposition: COMPLETE. G(0) at odds is the figure that compares with
+  Rarog's reads.
