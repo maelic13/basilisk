@@ -5151,6 +5151,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         (BAS-M16). Launcher `tools/run_b111_reads.py`.
       - Rarog 2.6.0 plays a separate 400-game match: a gauntlet fixes every
         opponent's rating, and Rarog has none on the pool's scale.
+      - The optional hybrid arms are declined (maintainer, 2026-11-17). The
+        head already carries `sf_19`'s shape, the latest Stockfish release,
+        so a Stockfish-dev arm would read a few months of master; Reckless's
+        shape is not one Basilisk will take. The search stays on the latest
+        Stockfish shape, and H.1 re-evaluates it.
       - Left for the close: the conversion audit on BAS-M16's games, the
         attributed Elo per cluster against the budget table, removing the
         ablation build and the freeze.
@@ -6753,6 +6758,10 @@ already repairing or a form it must choose anyway, and says so.
   what each would cost to screen, and the screening order, registered
   before any game. Sources: the items the Triumviratus review marks small
   (`analysis/triumviratus_review_2026-11-03.md`) and any later donor read.
+  Added 2026-11-17 (B.11.1 declined its hybrid arms): whether Stockfish's
+  search has moved far enough past `sf_19`, a later release or master, to
+  re-read the donor's shape on the head's evaluation; RAR-O08's method
+  applies, Stockfish only.
 - [ ] **H.2** `[I2]` Search refinements, one at a time
   Each item alone against the head on the same binary, SPRT `[0,3]` run to
   a decision with no early stop on a lean (Triumviratus's stopped leans
