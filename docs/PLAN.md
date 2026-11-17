@@ -37,6 +37,14 @@ stages (maintainer decision 2026-09-28: Rarog's targets):
 1. **Classical stage.** With the hand-crafted evaluation, beat the strongest
    HCE-era engines in the maintainer's own pool: **Critter 1.6a, Houdini 3,
    Rybka 4.1 and Fritz 16**.
+   - The aim, beyond that gate (maintainer, 2026-11-17, after B.11.1 beat
+     all four): Basilisk is to become the **strongest hand-crafted-evaluation
+     engine in the world** before the NNUE stage. That may not work out,
+     and the E.2 gate stays the requirement.
+   - The aim is read in the HCE frontier field (B.11.5). Its likely leader
+     is Stockfish 16 with `Use NNUE=false`, the last Stockfish release
+     with a classical evaluation, which no rating list carries; so the
+     field is measured, not looked up.
 2. **NNUE stage.** Train networks on Basilisk's own data only, then reach the
    **CCRL top 100**, and later the top 50.
 
@@ -5219,6 +5227,62 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       first NNUE release). Cut through A.8.6's tag-driven flow after A.10.4.
       The 4T direction check and the 4T pool read run sibling-free (PROCESS
       *Harness*, BAS-X41); BAS-M11's 4T baseline was played unpinned.
+    - [ ] **B.11.5** `[V]` HCE frontier field
+      Added 2026-11-17 (maintainer). After the 1.11.0 release, a rated
+      Colosseum round robin of the strongest hand-crafted-evaluation engines
+      runs at `3+0.03` 1T, UHO, no adjudication, Hash 64, with move overhead
+      set where an engine has one. Some already-rated engines from the
+      maintainer's pool join it as anchors. It answers how strong each
+      contender really is on the pool's scale, and how far 1.11.0 is from
+      the top. It is §1's aim's meter, and C's and E's checkpoints repeat it.
+      The field, built and pinned 2026-11-17:
+      - Already in Colosseum and rated: Stockfish 11 (3532), Stockfish 15.1
+        with `Use NNUE=false` (3543), Komodo 14.1 (3476), Houdini 6.03
+        (3499), Fire 8.3 (3423), Ethereal 13.07 (3356).
+      - New, in `D:\chess\engines\`, with estimated ratings until the
+        tournament reads them:
+        - **Stockfish 16** with `Use NNUE=false`
+          (`stockfish-16-x64-bmi2-classical-pgo.exe`, `041396A4…`): built
+          from `sf_16` with its PGO trained on `bench … classical`. Bench
+          2,593,605 is SF16's signature. Estimated 3555; the likely
+          leader.
+        - **Dragon 3.3** with `Use Regular Eval=true`: Komodo's
+          hand-crafted evaluation in Dragon's search. It shares Dragon 3.3's
+          binary. Estimated 3510.
+        - **Berserk 4.7.0**, an HCE release: the modern search with 4.6.0's
+          evaluation (`berserk-4.7.0-hce-native-pgo.exe`, `2F1D85FA…`).
+          It is a native static PGO build of tag `4.7.0`, as its release
+          notes advise: same bench, 3,150,010 nodes, and 8% faster than the
+          release asset. CCRL 40/15 3445 at 1 CPU; estimated 3500.
+        - **Ethereal 14.40**, master `0e47e9b` built without a network,
+          the only build of 13.00 onwards that is free
+          (`Ethereal-14.40-pext-pgo.exe`, `317A21DB…`).
+          - A three-way round robin on 2026-11-17 (`3+0.03`, 400 games per
+            pair, no faults; `tools/results/hce-ethereal-rr/`) put it **+83.2
+            [+61.4, +105.6]** over 13.07 and +102.8 over 12.75.
+          - 12.75 against 13.07 read +9.6 [−9.1, +28.3], equal, so 12.75
+            stays out of the field (`22F12797…` is kept on disk).
+          - 14.40 enters at 3449: 13.07's pool rating of 3356 plus the
+            round robin's +92.6 gap.
+        - **Booot 6.5** (`12BF463B…`, CCRL 3310, estimated 3365).
+        - **rofChade 2.3**, BMI2 build (`D68E2AC8…`, CCRL 3290, estimated
+          3345).
+        - **Koivisto 4.83**, its last hand-crafted version (`A42384F3…`;
+          CCRL lists only 4.0, at 3111; estimated 3250).
+      - Ruled out as NNUE, by their authors' own notes:
+        - SlowChess Blitz 2.5 onwards ("2.5+ use neural nets");
+        - rofChade 3.x;
+        - Booot 7.x (a 35 MB binary with the network embedded);
+        - Igel 2.7 onwards;
+        - Koivisto 5 onwards;
+        - Shredder 14, which is also commercial.
+      - The anchor scale is the pool's. Ratings near CCRL's are not CCRL's:
+        the pool reads about 40–110 above CCRL 40/15's single-CPU rows.
+      - A harness cross-check: one pairing is replayed under fastchess
+        (`tools/bin/fastchess.exe` 1.8.0, already the backup path in
+        PROCESS *Harness*) at the same conditions. B.2.2's replay agreed
+        within its interval. It is also the trial for a fastchess-GUI
+        switch, which the maintainer is weighing.
 - [x] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
   Correctness repair, opened 2026-10-30 at the maintainer's decision when
   B.3.0's counter suite stopped on it (packet §2.3,
@@ -5400,6 +5464,7 @@ leaf's tag. Later phases carry only a class until they open.
 | B.11.1 | RESEARCH | V | Was B.9; programme checkpoint |
 | B.11.3 | RESEARCH | R2 | Added 2026-11-11; the disclosure on the release candidate, before the cut |
 | B.11.4 | RESEARCH | M | Was B.11, then B.11.2; interim release after B.11.3 (maintainer decision 2026-10-24) |
+| B.11.5 | RESEARCH | V | Added 2026-11-17; the HCE frontier field, a rated round robin after the 1.11.0 release |
 
 ## Phase C — Evaluation programme (search frozen)
 
@@ -5415,6 +5480,29 @@ master, the evaluator Basilisk's oracle measured (BAS-O02), and the reference
 its maturity audit already compared against (BAS-E07). Modern Stockfish has no
 hand-crafted evaluation. Its families and their conditioning are the donor;
 its constants are seeds on a different scale and ride the next refit.
+
+**Correction, 2026-11-17: `9587eeeb` is not Stockfish's last classical
+evaluation.** It is the last master before NNUE (tag `SF_classical`), so its
+search and evaluation are the last pair tuned together as a classical engine.
+That is why it stays the oracle's search. The classical evaluation itself
+was kept and retuned for five more releases:
+- `af110e02` removed it on 2023-07-11, after Stockfish 16. Its message
+  calls that evaluation "probably the best of its class".
+- Between `SF_classical` and `sf_16`, the pawn, material and PSQT values
+  moved, and terms were added (`DoubledEarly`, `KingOnFile`, a two-phase
+  imbalance).
+- From `sf_16` to the removal's parent `6a8767a0`, the evaluation files
+  differ only in the network's name, so no development build is needed.
+- Stockfish 16 with `Use NNUE=false` evaluates with that evaluation alone.
+- SF11's evaluation is older than `9587eeeb`'s, so SF11 is no donor
+  candidate.
+
+Caveat: from SF12 on, the classical evaluation was only one part of
+Stockfish. Some of its later tuning was done with NNUE on, for the
+lopsided positions it was still used in, and may not help a classical
+engine. So the donor is chosen by measurement in C.0 (the donor choice
+below): Stockfish 16's classical evaluation unless that comparison says
+otherwise. The other evaluation is the second seed column.
 
 **The question C.0 must answer first.** BAS-E07 concluded that the 232.8-Elo
 gap is the *values* of features Basilisk already has, that the six terms it
@@ -5451,6 +5539,31 @@ has lost games in both engines (BAS-X02).
   frozen handoffs for C.1 and the first family. No engine implementation.
   Inputs from A.2.3 (`analysis/parameter_inventory_v1.md`): the 23 all-zero
   groups by kind, and space, which no C cluster names yet.
+  Added 2026-11-17 (maintainer), the donor choice: whether `9587eeeb`'s
+  classical evaluation or `sf_16`'s is the donor (*Correction* above).
+  - B.11.5's ranking cannot decide it: there, search and evaluation move
+    together, and a stronger search can carry a weaker evaluation.
+  - Swapping the evaluation inside one search is not neutral either. A
+    search's margins are tuned to its own evaluation, so a host favours
+    the evaluation it was tuned with.
+  - So each evaluation is played in both hosts:
+    - SF16's search with `9587eeeb`'s evaluation ported in, against stock
+      SF16 at `Use NNUE=false`;
+    - `9587eeeb`'s search with SF16's evaluation ported back, against
+      stock `9587eeeb`.
+  - The two hosts bracket the answer. The same sign in both decides it.
+    Opposite signs say the values are bound to their host, and then the
+    family's refit on Basilisk's own search decides: in C the donor gives
+    terms and seeds, and every value is refit.
+  - The two evaluations' scale ratio is read first (B.0's method), so a
+    margin mismatch is measured, not inferred.
+  - Cost: the two ports, mostly mechanical (the namespace, the score-typed
+    imbalance, the new terms dropped or added), then about 3,000 paired
+    games per host at `3+0.03`, roughly 35 minutes each at 14 concurrent
+    games.
+  - If the donor moves, BAS-O02's evaluation-deficit meter (232.8, read
+    against `9587eeeb`) is re-read against the new donor, and C's budget
+    row moves with it.
   Input from B.10 (`analysis/pst_orientation_2026-10-23.md`): an L2 anchor
   at `1e-6` held seven mirrored tables in place for ten releases, so the
   refit protocol states how a fit can still correct a seed error. The
