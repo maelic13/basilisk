@@ -15,7 +15,7 @@
   and BAS-M17 played. The maintainer built it from the branch at
   `e907e60`, whose `src/` is master's. It reads `id name Basilisk
   dev-20261117-e907e603` and `bench 13` 4,777,412, checked 2026-11-17.
-- **Field**: one version per engine family, plus four already-rated anchors
+- **Field**: one version per engine family, plus five already-rated anchors
   that are themselves contenders. Every engine plays 1 thread, Hash 64, with
   move overhead 10 ms where it has the option.
 
@@ -34,8 +34,13 @@
   | Houdini 6.03 | anchor | 3499 | `E5C0FDC5…` |
   | Fire 8.3 | anchor | 3423 | `C2967A3D…` |
   | Ethereal 13.07 | anchor | 3356 | `61F0270F…` |
+  | Rarog 2.5.0 | anchor | 3281 | `1F584523…` |
 
-  - The anchors span 3356–3532, the field's range bar its two ends.
+  - Rarog 2.5.0 was added by the maintainer before the run. It is Rarog's
+    release at the end of its search programme, the same place in its plan
+    as this head, and it extends the anchors down to 3281.
+
+  - The anchors span 3281–3532, the field's range bar its top.
   - Stockfish 15.1 HCE (3543) and Komodo 14.1 (3476) sit out. Their
     ratings are already on the scale, so Stockfish 16 and Dragon 3.3 are
     compared with them without playing them.
@@ -54,7 +59,7 @@
 - The leader is Stockfish 16 HCE, probability 0.55, at **3555**, 80% band
   3500–3610. Otherwise it is Stockfish 11, Dragon 3.3 HCE or Berserk 4.7.0.
 - The head's gap to the leader: **140**, 80% band **90–190**.
-- The head places 7th to 9th of 13, probability 0.8.
+- The head places 7th to 9th of 14, probability 0.8.
 - No Basilisk crash, illegal move or time loss: probability 0.95. Booot
   6.5 has no overhead option, so it is the most likely engine to lose on
   time.
@@ -75,16 +80,17 @@
   - Colosseum GUI write-back is set to **Chosen engines**, with the nine
     contenders ticked. The anchors' library ratings stay untouched.
   - The agent re-reads the PGN with a joint maximum-likelihood fit with
-    all four anchors fixed. That re-read is the reported rating.
+    all five anchors fixed. That re-read is the reported rating.
 - Full conditions:
   - Colosseum GUI preset `HCE frontier RR 3+0.03`
     (`%APPDATA%\Colosseum\config\presets\hce_frontier_rr.json`).
-  - Round robin of 13 engines, 200 cycles × 2 games: 400 games per pair in
-    colour-reversed pairs, 78 pairs, **31,200 games**.
+  - Round robin of 14 engines, 200 cycles × 2 games: 400 games per pair in
+    colour-reversed pairs, 91 pairs, **36,400 games**.
   - `3+0.03`, 1 thread, Hash 64, concurrency 14, no ponder.
   - No adjudication, no move cap, no tablebases.
   - UHO `UHO_Lichess_4852_v1.epd`, random order, seed `20261117`.
-  - About 6.5 hours at the 4,824 games an hour of the Ethereal round robin.
+  - About 7.5 hours at the 4,824 games an hour of the Ethereal round robin.
+  - PGN written to `tools/results/bas-m18/games.pgn` (not committed).
 - Afterwards, at the maintainer's choice: one pairing is replayed under
   fastchess 1.8.0 at the same conditions, as PLAN B.11.5's harness
   cross-check and fastchess-GUI trial.
