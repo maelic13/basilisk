@@ -1,0 +1,52 @@
+diff --git a/hybrid/basilisk_bridge.cpp b/hybrid/basilisk_bridge.cpp
+index 32e6e51..052e7c4 100644
+--- a/hybrid/basilisk_bridge.cpp
++++ b/hybrid/basilisk_bridge.cpp
+@@ -11,6 +11,7 @@
+ 
+ #include "basilisk_bridge.h"
+ 
++#include <cstdlib>
+ #include <mutex>
+ 
+ #include "attacks.h"
+@@ -87,6 +88,17 @@ bool initialize(std::string& error) {
+     return ok;
+ }
+ 
++// Board builds per evaluation, from BASILISK_HCE_BRIDGE_REPEAT (default 1),
++// read once.
++static int bridge_repeat() {
++    static const int repeat = [] {
++        const char* value = std::getenv("BASILISK_HCE_BRIDGE_REPEAT");
++        const int n = value ? std::atoi(value) : 1;
++        return n < 1 ? 1 : n;
++    }();
++    return repeat;
++}
++
+ std::int32_t evaluate(const std::uint64_t* pieces,
+                       std::uint8_t stm,
+                       std::uint8_t castling,
+@@ -113,6 +125,11 @@ std::int32_t evaluate(const std::uint64_t* pieces,
+     auto& b_board_sq  = b.*get(BoardSq{});
+     auto& b_king_sq   = b.*get(KingSq{});
+ 
++    // Bridge-price instrument (B.11.1, after Rarog's RAR-O08): the board is
++    // built bridge_repeat() times per call, so a fixed-depth bench at repeat 1
++    // and 3 prices one build. The tree and the evaluation are unchanged; the
++    // body is left unindented to keep this patch small.
++    for (int rep = bridge_repeat(); rep > 0; --rep) {
+     for (int sq = 0; sq < SQUARE_NB; ++sq)
+         b_board_sq[sq] = NO_PIECE;
+ 
+@@ -153,6 +170,9 @@ std::int32_t evaluate(const std::uint64_t* pieces,
+     b.*get(SideToMove{}) = static_cast<Color>(stm);
+     b.*get(Castling{})   = static_cast<int>(castling);
+     b.*get(Rule50{})     = static_cast<int>(rule50);
++    // Keeps the optimiser from merging the repeated, identical builds.
++    asm volatile("" ::: "memory");
++    }
+ 
+     return tls_evaluator.evaluate(b);
+ }
