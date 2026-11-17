@@ -408,6 +408,13 @@ and next step).
 - **Bishops of one colour are a draw.** A position with only bishops left,
   all on squares of one colour, can never be mated and is now scored as the
   draw it is. Before, two such bishops against a bare king looked won.
+- **A side that cannot win, against pawns.** When one side has no pawns
+  and at most a minor piece against the other side's pawns, the
+  evaluation scores its winning chances as nil. It also treated that score
+  as a certain draw, so the search never corrected it, even when the pawns
+  were winning. It is now a certain draw only when neither side has pawns.
+  These repairs together measured **−0.8 ± 3.4 Elo** at `3+0.03` (8,000
+  games), no measurable effect on strength. `bench 13` is now 4,777,412.
 
 ### Known limitations
 

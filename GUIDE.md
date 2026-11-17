@@ -11,7 +11,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Item | Value |
 |---|---|
 | Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-08), `bench 13` 14,978,465 |
-| Bench fingerprint | **4,688,537** (`bench 13`, since B.8.7's gate kept the donor's node count; 4,247,965 at B.7.1; 4,278,307 at B.6.7; 3,783,135 at B.5.5; 4,144,790 at B.4.7; 6,090,091 at B.4.2; 5,361,058 at B.3.6; 5,369,042 at B.3.5; 11,880,564 at B.14; 16,615,757 at B.12; 19,470,325 at A.13.2; 19,108,490 at A.13.1; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
+| Bench fingerprint | **4,777,412** (`bench 13`, since B.9.5's gate kept the repairs; 4,688,537 at B.8.7; 4,247,965 at B.7.1; 4,278,307 at B.6.7; 3,783,135 at B.5.5; 4,144,790 at B.4.7; 6,090,091 at B.4.2; 5,361,058 at B.3.6; 5,369,042 at B.3.5; 11,880,564 at B.14; 16,615,757 at B.12; 19,470,325 at A.13.2; 19,108,490 at A.13.1; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
 | Active experiment | None |
 | Long job | None |
 | Next release | **1.11.0** after B (B.11.4), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.9.5** `[I2]` Repairs and the repair gate — Claude Opus
+**Next step:** **B.11.1** `[V]` Search programme checkpoint — Claude Sonnet
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -141,11 +141,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.8.8** `[R3]` Speed pass: the research packet
     - [x] **B.8.9** `[I2]` Speed pass: the implementation
     - [x] **B.8.10** `[I1]` Table prefetch across the make, on the game
-- [ ] **B.9** Robustness, verdicts and protocol before the release
+- [x] **B.9** Robustness, verdicts and protocol before the release
     - [x] **B.9.1** `[R2]` Lifecycle and protocol audit and tests
     - [x] **B.9.3** `[R2]` Hard verdicts against Syzygy
     - [x] **B.9.4** `[R2]` Deferred defects: repair now or justify
-    - [ ] **B.9.5** `[I2]` Repairs and the repair gate
+    - [x] **B.9.5** `[I2]` Repairs and the repair gate
 - [ ] **B.11** Checkpoint and interim release
     - [ ] **B.11.1** `[V]` Search programme checkpoint
     - [ ] **B.11.3** `[R2]` Originality and licence disclosure

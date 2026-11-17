@@ -68,4 +68,22 @@ Measured before the gate, by repair:
 
 #### RESULT
 
-Pending: the maintainer's run.
+Run 2026-11-17, `tools/results/b95-gate/`, 1h19m at 15 games at a time. The
+manifest (`tools/results/colosseum_sprt_b95-gate_20261117_102009.manifest.txt`)
+records a clean repository at `a669288` and both binaries' SHA-256 and bench
+as registered.
+
+- **The cap, inconclusive: 8,000 games, −0.8 ± 3.4 Elo (nElo −1.8 ± 7.6), LLR
+  −1.22 in [−2.94, 2.94].** W/D/L 2,041 / 3,899 / 2,060; pentanomial
+  [41, 655, 2627, 636, 41]; zero faults and zero time losses.
+  `tools/diag/colosseum_recount.py` agrees with the runner's pentanomial.
+- **Equal work, read from the game record:** the candidate's non-mate depth
+  16.68 against 16.65, 69.9 ms a move on both, 141,628 nodes a move against
+  140,831, 2.03M nodes per second against 2.02M.
+- **Disposition by the frozen rule:** the cap with LLR above the lower bound,
+  so the repairs stay. The fingerprint record moves to **4,777,412** (GUIDE,
+  DESIGN, AGENTS) and B.9.5 closes. D13 closes on its replay and fixture test
+  without games (maintainer, 2026-11-17). CLOSED 2026-11-17.
+- **Calibration:** a repair kept unless it harms, read as harmless; V2's
+  exposure (at most 30.5% of games reach its material) shows no cost at this
+  resolution (about ±3.4).

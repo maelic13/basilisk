@@ -410,7 +410,7 @@ reason.
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3). The ply cap's static evaluation in check (NODE-8) was repaired in B.5.2 |
 | B.6 | F4 the multi-cut correction bonus's product could pass 32 bits and then trained the wrong way (confirmed by B.6.4, `analysis/b64_engine_audit_2026-11-12.md` §3.1; repaired in B.6.5). The audit confirmed no other defect in the search |
-| B.9 | `go depth N` answered by a deeper helper (DRIVER-12); Fathom's `exit` on a table that fails to map (PROTO-11); A-50 a stop inside the first iteration; A-57 cold table reads on the clock; A-58 the tablebase root ranking ignores the game's repetitions; F1 `stop` and `quit` unseen during `bench` and `wac`; the clock's game ply at `ponderhit` read from the node the search is at (B.6.4, `analysis/b64_engine_audit_2026-11-12.md` §3.2); F6 bishops on one colour against a bare king scored as a win (B.9.3's V1); B.9.3's V2, the pawnless 0 trusted as exact where the other side has pawns |
+| B.9 | `go depth N` answered by a deeper helper (DRIVER-12); Fathom's `exit` on a table that fails to map (PROTO-11); A-50 a stop inside the first iteration; A-57 cold table reads on the clock; A-58 the tablebase root ranking ignores the game's repetitions; F1 `stop` and `quit` unseen during `bench` and `wac`; the clock's game ply at `ponderhit` read from the node the search is at (B.6.4, `analysis/b64_engine_audit_2026-11-12.md` §3.2); F6 bishops on one colour against a bare king scored as a win (B.9.3's V1); B.9.3's V2, the pawnless 0 trusted as exact where the other side has pawns. All repaired in B.9.5 and kept by BAS-S66 (2026-11-17) |
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
 | C.3, C.5, C.6 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
 | C.7 | B.9.3's V3 KRP-KR's draw rules, V4 the KRPP-KRP table, V6 the pawnless scales 4 and 14 (C.7.5); V5 KBN-K's known win, kept with a retry trigger (C.7.6); decided 2026-11-16, known limitations for 1.11.0 |
@@ -4726,7 +4726,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           Hash 256, so its gain grows with the table; about 1% of a node
           is the predicted key's cost.
         - All eleven frozen estimates fell inside their 80% intervals.
-- [ ] **B.9** Robustness, verdicts and protocol before the release
+- [x] **B.9** Robustness, verdicts and protocol before the release
   Added 2026-11-05 (maintainer: every correctness fix before the next
   release): the lifecycle and protocol work that was D.3.2, the
   release-visible defects of the Rarog sweep and the tablebase root
@@ -5031,7 +5031,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - The *Known defects* table names the owners. The release notes'
           *Known limitations* (`CHANGELOG.md`) list A-57, DRIVER-15,
           BAS-C05 and B.9.3's V3 to V6.
-    - [ ] **B.9.5** `[I2]` Repairs and the repair gate
+    - [x] **B.9.5** `[I2]` Repairs and the repair gate
       It was B.9.2 until 2026-11-11; it now repairs what B.9.1, B.9.3
       and B.9.4 each found. B.9.3's handoff is its packet's §6
       (`analysis/b93_hard_verdicts_2026-11-16.md`), V1 and V2 only:
@@ -5077,6 +5077,10 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           off, dry run accepted; the maintainer's run. D13 takes no games:
           it closes on the game-4965 replay and its fixture test
           (maintainer, 2026-11-17; packet §4).
+        - BAS-S66, maintainer-run 2026-11-17: the cap, 8,000 games,
+          −0.8 ± 3.4 Elo (nElo −1.8 ± 7.6), LLR −1.22, zero faults, the
+          recount agreeing. The repairs stay and the fingerprint record
+          moves to 4,777,412. CLOSED.
 - [ ] **B.11** Checkpoint and interim release
   The search programme's checkpoint (B.9 until 2026-11-05), the
   originality and licence disclosure (B.11.3, added 2026-11-11), then
@@ -5352,7 +5356,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.9.5 | GAME_GATE | I2 | Repairs done and qualified at `39982c0`; BAS-S66 prepared, the maintainer's run |
 | B.11.1 | RESEARCH | V | Was B.9; programme checkpoint |
 | B.11.3 | RESEARCH | R2 | Added 2026-11-11; the disclosure on the release candidate, before the cut |
 | B.11.4 | RESEARCH | M | Was B.11, then B.11.2; interim release after B.11.3 (maintainer decision 2026-10-24) |

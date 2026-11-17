@@ -1,6 +1,6 @@
 # C.7.5 input: what B.9.3's routed verdicts get wrong, and why no quick narrowing fixes them
 
-2026-11-17, branch `c75-rook-verdicts` (from B.9.5's head `a669288`). This is a
+2026-11-17, on B.9.5's branch after `a669288`. This is a
 read for C.7.5, not a leaf: the maintainer asked for an attempt at the
 verdicts routed to Phase C on 2026-11-16 (V3, V4, V6), to be placed in PLAN
 afterwards. **Recommendation: implement none of them now.**
