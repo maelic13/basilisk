@@ -5136,6 +5136,24 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       Added 2026-11-11:
       - B.9's closing criterion is read in this gauntlet: no crash,
         illegal move or forfeit by Basilisk. One reopens B.9.1.
+      Prepared 2026-11-17 (branch `b11-checkpoint-release`):
+      - The head is built at `4c0bc0e`, whose engine source is master's
+        `4d2742f` (bench 4,777,412), and the oracle is rebuilt around its
+        evaluation (conformance 0 mismatches).
+      - Read on the busy host, being deterministic: the fixed-node meters,
+        BAS-D22. The depth gap at 300k nodes is 3.3 plies (12.2 on 1.10.1),
+        the branching factor 1.588 against the oracle's 1.779, and the truth
+        cohort 458/480 (KNN-KP 10/24 the residue).
+      - Registered and dry-run, waiting for an idle host: the bridge price
+        and the NPS read of the head against 1.10.1, both on clang 23
+        (BAS-O07, BAS-P60); then G(0) at equal time and at the price's odds
+        (BAS-O06, BAS-O07) and the pool gauntlet with Rarog 2.6.0 beside it
+        (BAS-M16). Launcher `tools/run_b111_reads.py`.
+      - Rarog 2.6.0 plays a separate 400-game match: a gauntlet fixes every
+        opponent's rating, and Rarog has none on the pool's scale.
+      - Left for the close: the conversion audit on BAS-M16's games, the
+        attributed Elo per cluster against the budget table, removing the
+        ablation build and the freeze.
     - [ ] **B.11.3** `[R2]` Originality and licence disclosure
       Added 2026-11-11 (`analysis/rarog_import_2026-11-11.md`;
       Rarog's E.3.0). 1.11.0 is the first release whose search is built
