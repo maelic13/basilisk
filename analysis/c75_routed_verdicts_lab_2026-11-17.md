@@ -89,7 +89,7 @@ the rook were a clean win, which mis-scores the 81% of draws instead. **The
 repair is a position-graded evaluator per class (KR-KN, KR-KB, the KQ-KR
 pairs), fitted: C.7.5's own work.**
 
-## 5. For PLAN, proposed (the maintainer's to place)
+## 5. For PLAN (placed in C.7.5 by the maintainer, 2026-11-17)
 
 - **C.7.5**, an input: this packet.
   - V3 and V4 are floored discounts, exact for V3 with the defender to move.

@@ -5074,8 +5074,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           an upper bound); D2, D3 nil in clock games; D13 nil without
           tables, one game in 2,286 with them.
         - The gate, BAS-S66: `[-5,5]` at `3+0.03`, 4,000 pairs, tablebases
-          off, dry run accepted; the maintainer's run. D13 is recommended
-          to take no games (packet §4).
+          off, dry run accepted; the maintainer's run. D13 takes no games:
+          it closes on the game-4965 replay and its fixture test
+          (maintainer, 2026-11-17; packet §4).
 - [ ] **B.11** Checkpoint and interim release
   The search programme's checkpoint (B.9 until 2026-11-05), the
   originality and licence disclosure (B.11.3, added 2026-11-11), then
@@ -5905,6 +5906,25 @@ has lost games in both engines (BAS-X02).
         exhaustive read gives 0.507%. KR-KN is worst for the search: it resolves only 80%
         of the sampled misses. A position-dependent rule per class (KR-KN,
         KR-KB, KQ-KR with minors) is read with the same instrument.
+      The 2026-11-17 read of V3, V4 and V6
+      (`analysis/c75_routed_verdicts_lab_2026-11-17.md`, the instrument's
+      `--dump`; nothing shipped):
+      - V3 and V4 are discounts floored at 24/64, not verdicts, and a
+        depth-8 search resolves 98% to 100% of their errors. V3 is exact
+        with the defender to move. With the attacker to move its errors are
+        mostly rook skewers: excluding the skewer gives rule 1 0.55%, rule
+        5 0.70%, the floor region 0.88%, and every further cut tried gives
+        up ten to forty correct draws per error removed.
+      - V4 stays at 3.8% without skewers: the table is indexed by the
+        leading pawn's rank alone and its errors are positional, so it
+        wants a fitted table.
+      - V6, exhaustive: KR-KN's scale 4 is wrong in 18.9%, KR-KB's in 6.0%.
+        The wins follow the minor's distance from its king, the defending
+        king on the edge and the side to move (classical Stockfish's KRKN
+        features). The repair is a fitted, position-graded evaluator per
+        class; narrowing the one number cannot be exact.
+      - Acceptance for a floored site is its search-resolved residual or a
+        gate, not B.9.3's 0.5% share of positions the scale touches.
     - [ ] **C.7.6** `[R2]` Lower-yield remainder
       Lower-yield remainder (archived 6.10.a–d): KPs-K and KP-KP first; KQ-KP
       and KQ-KR reconciled across budgets; KR-KN, KNN-KP and KNN-K theory and
