@@ -131,3 +131,4 @@ fae1d0a	external	Rarog: the live head read for B.8.8's packet at the maintainer'
 8bc7f3c8d1dde0d2	content	The cohort fingerprint's digest at depth 10 (B.8.8's packet, section 1.2)
 348c90f	content	The src/ tree object of 4c0bc0e (equal to 4d2742f's), cited by BAS-O06
 89b4a92	external	Rarog: bridge_price.py's method, ported for B.11.1's bridge price (BAS-O07)
+3c57a899	external	Rarog: the v2.7.0 release tag, BAS-M17's opponent
