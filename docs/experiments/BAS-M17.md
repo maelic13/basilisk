@@ -23,6 +23,23 @@
     2.6.0's strength, "slightly stronger head to head".
 - Research question: where the search programme's head stands against
   Rarog's current release.
+- **Build check before any game** (2026-11-17, maintainer's request, idle
+  host at 1.1% load, `tools/results/b111-rarog27-speed/`):
+  - The maintainer built `rarog-2.7.0-windows-x64-pext.exe` (`9DAD2C99…`)
+    locally from `v2.7.0`, to check that the universal download is as fast
+    as the best local build.
+  - Both report `id name Rarog 2.7.0` and the same `bench 13` fingerprint,
+    9,077,016 nodes.
+  - Twelve interleaved cycles of `bench 13` were run, one process each,
+    pinned to CPU 30 from a suspended start, at High priority, with large
+    pages on for both. The local pext build read **−0.17%**, interval
+    [−0.27, −0.08], against the universal asset: 2.337M against 2.343M
+    medians.
+  - With one build each, that is within build-to-build variation; the
+    universal asset gives away nothing. So the match keeps the official
+    asset as registered, and the prediction is unchanged.
+  - Basilisk also takes large pages, so Rarog's default `LargePages=true`
+    stays.
 
 #### PRE-REGISTERED PREDICTION — freeze before exposure
 
