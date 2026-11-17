@@ -72,4 +72,18 @@
 
 #### RESULT — append after exposure
 
-- Registered, not yet run.
+- Run 2026-11-17, 15:50–15:55, by the maintainer
+  (`tools/results/b111-rarog27/`). 400 games, no faults or time losses on
+  either side; the pentanomial recount agrees.
+- The head **111-143-146**, 45.6%, Elo **−30.5 ± 25.5**; pentanomial
+  [26, 45, 75, 46, 8], nElo −40.9 ± 34.0.
+- Calibration: inside the 80% band (−80 to 0), 9.5 above the point.
+  Against 2.6.0 the head read −35.7 ± 23.2 (BAS-M16); the two Rarog
+  releases are indistinguishable here, as 2.7.0's changelog says.
+- Clock use: 2.7.0 used 67.5 ms a move, where 2.6.0 used 70.7 ms in
+  BAS-M16, so its reworked time management spends about 4.5% less of
+  `3+0.03`. It reads 1.92M nodes per second in play, where 2.6.0 read
+  2.43M; the field did not fire, and no strength change is read from it.
+- B.9's criterion holds over these 400 games too.
+- Disposition: COMPLETE. This is the checkpoint's comparison with Rarog's
+  latest release.

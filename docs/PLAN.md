@@ -5172,11 +5172,11 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         paid by B.8 (BAS-P53 read 2.40M on B.8.4's head).
       - Rarog 2.7.0 (published 2026-11-13) was Rarog's latest release, not
         2.6.0. The maintainer added it (2026-11-17): every Rarog comparison
-        includes the latest release. Registered as BAS-M17, launcher
-        `--read rarog27`; it waits for the official asset to be placed.
-      - Left for the close: BAS-M17's match, the conversion audit on
-        BAS-M16's games, the attributed Elo per cluster against the budget
-        table, removing the ablation build and the freeze.
+        includes the latest release, built locally from now on. Read as
+        BAS-M17: **−30.5 ± 25.5**, the same as 2.6.0's within noise.
+      - Left for the close: the conversion audit on BAS-M16's games, the
+        attributed Elo per cluster against the budget table, removing the
+        ablation build and the freeze.
     - [ ] **B.11.3** `[R2]` Originality and licence disclosure
       Added 2026-11-11 (`analysis/rarog_import_2026-11-11.md`;
       Rarog's E.3.0). 1.11.0 is the first release whose search is built
