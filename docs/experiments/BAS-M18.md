@@ -16,7 +16,7 @@
   `e907e60`, whose `src/` is master's. It reads `id name Basilisk
   dev-20261117-e907e603` and `bench 13` 4,777,412, checked 2026-11-17.
 - **Field**: one version per engine family, plus five already-rated anchors
-  that are themselves contenders. Every engine plays 1 thread, Hash 64, with
+  that are themselves contenders. Every engine plays 1 thread, Hash 128, with
   move overhead 10 ms where it has the option.
 
   | Engine | Role | Library rating | SHA-256 |
@@ -84,12 +84,14 @@
 - Full conditions:
   - Colosseum GUI preset `HCE frontier RR 3+0.03`
     (`%APPDATA%\Colosseum\config\presets\hce_frontier_rr.json`).
-  - Round robin of 14 engines, 200 cycles × 2 games: 400 games per pair in
-    colour-reversed pairs, 91 pairs, **36,400 games**.
-  - `3+0.03`, 1 thread, Hash 64, concurrency 14, no ponder.
+  - Round robin of 14 engines, 300 cycles × 2 games: 600 games per pair in
+    colour-reversed pairs, 91 pairs, **54,600 games**.
+  - `3+0.03`, 1 thread, Hash 128, concurrency 14, no ponder.
   - No adjudication, no move cap, no tablebases.
   - UHO `UHO_Lichess_4852_v1.epd`, random order, seed `20261117`.
-  - About 7.5 hours at the 4,824 games an hour of the Ethereal round robin.
+  - About 11.3 hours at the 4,824 games an hour of the Ethereal round robin.
+  - Maintainer's decisions before any game (2026-11-17): Hash 128 in place
+    of the preset's 64, and 300 cycles in place of 200.
   - PGN written to `tools/results/bas-m18/games.pgn` (not committed).
 - Afterwards, at the maintainer's choice: one pairing is replayed under
   fastchess 1.8.0 at the same conditions, as PLAN B.11.5's harness
