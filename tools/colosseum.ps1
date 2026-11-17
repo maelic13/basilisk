@@ -13,6 +13,13 @@
     at four threads against itself at one, and its time-odds leg at twice the
     time against itself. A null pair and a gauntlet refuse both.
 
+    -ExternalB lets a fixed match's arm B be a foreign engine with no
+    Basilisk build manifest, such as the search oracle at its measured time
+    odds (B.11.1, RAR-O08's conditions). Both arms are pinned by
+    -ExpectSha256, arm A keeps every manifest check, -ExpectBench names arm
+    B as -1, and arm equality (flavor, compiler) is not checked. An SPRT
+    and a null pair refuse it.
+
     Placement is automatic with a core of headroom at one thread. A run in
     which any side has more than one thread is sibling-free: Colosseum's
     automatic slots cut to one logical CPU per physical core and passed as an
@@ -52,6 +59,7 @@ param(
     [long[]]$ExpectBench = @(),
     [string[]]$ExpectSha256 = @(),
     [string[]]$ThreadOptionNames = @(),
+    [switch]$ExternalB,
     [switch]$AllowDirtyTree,
     [switch]$AllowBusyHost,
     [switch]$DryRun,
@@ -98,6 +106,15 @@ $clockOdds = $baseMsB -ne $BaseMs -or $incrementMsB -ne $IncrementMs
 if (($threadOdds -or $clockOdds) -and $Mode -in @('calibrate', 'gauntlet')) {
     throw "-Mode $Mode refuses -ThreadsB, -BaseMsB and -IncrementMsB: " +
         $(if ($Mode -eq 'calibrate') { "a null pair's arms are identical." } else { 'a gauntlet has one thread count and one clock.' })
+}
+if ($ExternalB) {
+    if ($Mode -ne 'match') { throw "-ExternalB is a fixed-match form; -Mode $Mode needs Basilisk builds on both arms." }
+    if ($ExpectSha256.Count -ne 2 -or @($ExpectSha256 | Where-Object { $_ -notmatch '^[0-9a-fA-F]{64}$' }).Count) {
+        throw '-ExternalB requires -ExpectSha256 with a well-formed SHA-256 for each arm.'
+    }
+    if ($ExpectBench.Count -ne 2 -or $ExpectBench[0] -lt 0 -or $ExpectBench[1] -ne -1) {
+        throw '-ExternalB requires -ExpectBench <arm A bench>,-1: arm A is a Basilisk build, arm B has no fingerprint.'
+    }
 }
 $maxThreads = [Math]::Max($Threads, $threadsB)
 if (-not $Placement) { $Placement = if ($maxThreads -gt 1) { 'sibling-free' } else { 'auto' } }
@@ -193,8 +210,16 @@ for ($i = 0; $i -lt $engines.Count; $i++) {
             $manifests[$arm.Label] = $null
         }
     } else {
-        $manifests[$arm.Label] = Assert-EngineProvenance -Path $arm.Path -Label $arm.Label `
-            -AllowDirtyTree:$AllowDirtyTree -ExpectRevision $ExpectRevision -ExpectBench $ExpectBench[$i]
+        if ($ExternalB) {
+            $actualSha = Get-HarnessSha256 $arm.Path
+            if ($actualSha -ne $ExpectSha256[$i]) {
+                throw "PROVENANCE MISMATCH - $($arm.Label) SHA-256 is $actualSha, not registered $($ExpectSha256[$i])."
+            }
+        }
+        $manifests[$arm.Label] = if ($ExternalB -and $i -eq 1) { $null } else {
+            Assert-EngineProvenance -Path $arm.Path -Label $arm.Label `
+                -AllowDirtyTree:$AllowDirtyTree -ExpectRevision $ExpectRevision -ExpectBench $ExpectBench[$i]
+        }
     }
     $details = @(Get-EngineUciOptions -Path $arm.Path -Detailed)
     $threadOption = if ($Mode -eq 'gauntlet') { $ThreadOptionNames[$i] } else { 'Threads' }
@@ -203,7 +228,11 @@ for ($i = 0; $i -lt $engines.Count; $i++) {
     Assert-AdvertisedOptions -Advertised $details -Wanted $arm.Options -Label $arm.Label
 }
 if ($twoArm) {
-    Assert-EngineArmEquality -ManifestA $manifests[$NameA] -ManifestB $manifests[$NameB] -LabelA $NameA -LabelB $NameB
+    if ($ExternalB) {
+        Write-Host "  Arm $NameB is external, pinned by SHA-256; arm equality is not checked."
+    } else {
+        Assert-EngineArmEquality -ManifestA $manifests[$NameA] -ManifestB $manifests[$NameB] -LabelA $NameA -LabelB $NameB
+    }
     $shaA = Get-HarnessSha256 $engines[0].Path
     $shaB = Get-HarnessSha256 $engines[1].Path
     if ($Mode -eq 'calibrate' -and $shaA -ne $shaB) { throw 'A null pair requires byte-identical binaries.' }

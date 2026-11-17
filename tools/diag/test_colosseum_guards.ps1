@@ -283,6 +283,35 @@ try {
     $freshMatch.RunFile = $freshRunFile
     $freshMatch.Dir = Join-Path $scratch 'fresh-match'
     Invoke-Case 'match with fresh engine processes' "engine processes are 'per-game'" { & $wrapper @freshMatch | Out-Null }
+    # A foreign arm B (the search oracle at time odds, B.11.1): pinned by hash,
+    # no manifest read, so a corrupt manifest beside it must not matter.
+    $foreign = Join-Path $scratch 'foreign.exe'
+    Copy-Item -LiteralPath $armB -Destination $foreign
+    'not a build manifest' | Set-Content -LiteralPath ([IO.Path]::ChangeExtension($foreign, '.manifest.txt'))
+    $external = $base.Clone()
+    $external.EngineB = $foreign; $external.ExternalB = $true; $external.ExpectBench = @($benchA, -1)
+    $external.ExpectSha256 = @((Get-FileHash $armA -Algorithm SHA256).Hash, (Get-FileHash $foreign -Algorithm SHA256).Hash)
+    $external.BaseMsB = 3279; $external.IncrementMsB = 33
+    $external.Dir = Join-Path $scratch 'external-odds'
+    Invoke-Case 'control: external arm B at time odds' '' {
+        & $wrapper @external | Out-Null
+        $manifest = Get-ChildItem (Join-Path $repo 'tools\results') -Filter 'colosseum_match_external-odds_*.manifest.txt' |
+            Sort-Object LastWriteTime | Select-Object -Last 1
+        $text = Get-Content -LiteralPath $manifest.FullName -Raw
+        if ($text -notmatch 'external binary; SHA-256 frozen' -or $text -notmatch 'B 3279\+33 ms') { throw "manifest does not record it: $($manifest.Name)" }
+    }
+    $externalHash = $external.Clone()
+    $externalHash.ExpectSha256 = @($external.ExpectSha256[0], ('0' * 64))
+    $externalHash.Dir = Join-Path $scratch 'external-bad-hash'
+    Invoke-Case 'external arm B hash mismatch' 'PROVENANCE MISMATCH' { & $wrapper @externalHash | Out-Null }
+    $externalBench = $external.Clone()
+    $externalBench.ExpectBench = @($benchA, $benchB)
+    $externalBench.Dir = Join-Path $scratch 'external-bench'
+    Invoke-Case 'external arm B with a fingerprint' 'arm B has no fingerprint' { & $wrapper @externalBench | Out-Null }
+    $externalSprt = $external.Clone()
+    $externalSprt.Mode = 'sprt'; $externalSprt.MaxPairs = 10; $externalSprt.Remove('Games')
+    $externalSprt.Dir = Join-Path $scratch 'external-sprt'
+    Invoke-Case 'external arm B in an SPRT' 'fixed-match form' { & $wrapper @externalSprt | Out-Null }
 
     $gauntletExtra = @(
         '--format', 'gauntlet', '--seeds', '1', '--cycles', '1', '--games-per-pair', '2', '--max-engine-faults', '0',
