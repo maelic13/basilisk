@@ -181,6 +181,13 @@ bool tb_init(const char *_path);
 void tb_free(void);
 
 /*
+ * Basilisk: the number of tables that failed to map at their first probe
+ * since the program started; each is skipped (its probes fail) rather than
+ * ending the process.
+ */
+unsigned tb_map_failures(void);
+
+/*
  * Probe the Win-Draw-Loss (WDL) table.
  *
  * PARAMETERS:

@@ -80,7 +80,7 @@ Cutechess, ChessBase/Fritz, Banksia and others.
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `Hash` | `64` | Transposition table size in MB. More memory helps longer searches, and helps more the more threads you use. |
+| `Hash` | `64` | Transposition table size in MB. More memory helps longer searches, and helps more the more threads you use. The table uses the largest power of two that fits (100 gives 64), and says so. |
 | `Clear Hash` | — | Empties the transposition table. |
 | `Threads` | `1` | Search threads. Set to the number of cores you want to use. Applied immediately. |
 | `Ponder` | `false` | Think while the opponent moves. Enabled by the GUI. |

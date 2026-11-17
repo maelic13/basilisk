@@ -6,7 +6,9 @@
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -155,11 +157,41 @@ std::vector<std::string> split_paths(const std::string& paths) {
     return out;
 }
 
+// A SyzygyPath is UTF-8 text from the GUI. On Windows a std::string path is
+// read in the ANSI code page, so a valid UTF-8 path is converted explicitly,
+// as Fathom's file layer does; anything else is taken as it is.
+#ifdef _WIN32
+bool is_utf8(const std::string& text) {
+    size_t i = 0;
+    while (i < text.size()) {
+        const auto c = static_cast<unsigned char>(text[i]);
+        const size_t extra = c < 0x80 ? 0 : (c >> 5) == 0x6 ? 1 : (c >> 4) == 0xE ? 2
+                           : (c >> 3) == 0x1E ? 3 : 4;
+        if (extra == 4 || i + extra >= text.size())
+            return false;
+        for (size_t k = 1; k <= extra; ++k)
+            if ((static_cast<unsigned char>(text[i + k]) >> 6) != 0x2)
+                return false;
+        i += extra + 1;
+    }
+    return true;
+}
+#endif
+
+std::filesystem::path filesystem_path(const std::string& path) {
+#ifdef _WIN32
+    if (is_utf8(path))
+        return std::filesystem::path(std::u8string(path.begin(), path.end()));
+#endif
+    return std::filesystem::path(path);
+}
+
 std::pair<int, int> count_tablebase_files(const std::string& paths) {
     int wdl = 0;
     int dtz = 0;
 
-    for (const std::string& path : split_paths(paths)) {
+    for (const std::string& text : split_paths(paths)) {
+        const std::filesystem::path path = filesystem_path(text);
         std::error_code ec;
         if (!std::filesystem::exists(path, ec))
             continue;
@@ -180,6 +212,28 @@ std::pair<int, int> count_tablebase_files(const std::string& paths) {
     return {wdl, dtz};
 }
 
+// Whether `move` makes a position for the third time, or lets any reply do
+// so: the game's own history draws it, whatever the tables say. DTZ ranking
+// cannot see this, since the tables know no history: game 4965's shortest
+// win repeated a position a third time.
+bool allows_threefold(Board& board, Move move) {
+    board.make_move(move);
+    bool draw = board.is_repetition(1);
+    if (!draw) {
+        MoveList replies;
+        board.gen_legal(replies);
+        for (Move reply : replies) {
+            board.make_move(reply);
+            draw = board.is_repetition(2);
+            board.unmake_move(reply);
+            if (draw)
+                break;
+        }
+    }
+    board.unmake_move(move);
+    return draw;
+}
+
 std::vector<Syzygy::RootMoveInfo> collect_root_moves(const Board& board,
                                                      const TbRootMoves& moves,
                                                      bool used_dtz,
@@ -187,6 +241,9 @@ std::vector<Syzygy::RootMoveInfo> collect_root_moves(const Board& board,
                                                      bool use_rule50) {
     std::vector<Syzygy::RootMoveInfo> out;
     out.reserve(moves.size);
+    // Only a game that has repeated holds a position twice.
+    const bool repeated = board.has_repeated();
+    Board scratch = board;
 
     for (unsigned i = 0; i < moves.size; ++i) {
         const TbRootMove& tb_move = moves.moves[i];
@@ -203,6 +260,12 @@ std::vector<Syzygy::RootMoveInfo> collect_root_moves(const Board& board,
                      ? std::clamp(static_cast<int>(tb_move.tbScore), -49, 49)
                      : info.score;
         info.used_dtz = used_dtz;
+        // A win the history draws ranks and scores as the draw.
+        if (repeated && info.rank > 0 && allows_threefold(scratch, move)) {
+            info.rank = 0;
+            info.score = 0;
+            info.display = 0;
+        }
         out.push_back(std::move(info));
     }
 
@@ -343,6 +406,10 @@ int dtz_file_count() {
     return g_dtz_files.load(std::memory_order_acquire);
 }
 
+int map_failures() {
+    return static_cast<int>(tb_map_failures());
+}
+
 std::string path() {
     std::scoped_lock lock(init_mutex());
     return tb_path();
@@ -390,12 +457,19 @@ std::vector<RootMoveInfo> probe_root_moves(const Board& board, bool use_rule50,
                                                 nullptr))
         : MOVE_NONE;
 
-    TbRootMoves moves{};
+    // Fathom's root buffer is about 100 KB: on the heap, not the engine
+    // thread's stack, where this probe and the line extension's stood twice.
+    const auto moves_storage = std::make_unique<TbRootMoves>();
+    TbRootMoves& moves = *moves_storage;
     if (rank_dtz) {
+        // Once the game has repeated, every clean win no longer ranks alike:
+        // the wins rank by DTZ, so the search makes progress instead of
+        // choosing a repetition the evaluation scores as well (Stockfish's
+        // rank_root_moves passes has_repeated the same way).
         const int dtz_ok = tb_probe_root_dtz(pos.white, pos.black, pos.kings, pos.queens,
                                              pos.rooks, pos.bishops, pos.knights,
                                              pos.pawns, rule50, 0, pos.ep, pos.turn,
-                                             false, use_rule50, &moves);
+                                             board.has_repeated(), use_rule50, &moves);
         if (dtz_ok) {
             auto out = collect_root_moves(board, moves, true, preferred_move, use_rule50);
             if (!out.empty())
@@ -403,7 +477,7 @@ std::vector<RootMoveInfo> probe_root_moves(const Board& board, bool use_rule50,
         }
     }
 
-    moves = TbRootMoves{};
+    std::memset(&moves, 0, sizeof(moves));
     const int wdl_ok = tb_probe_root_wdl(pos.white, pos.black, pos.kings, pos.queens,
                                          pos.rooks, pos.bishops, pos.knights,
                                          pos.pawns, rule50, 0, pos.ep, pos.turn,

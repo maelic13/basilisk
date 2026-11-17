@@ -123,8 +123,13 @@ struct SearchState {
     int64_t  shared_nodes_total = 0;    // pool total as of the last publish
     int      sel_depth = 0;
     bool     stopped = false;
+    // No stop is taken before the first iteration completes, so a stopped
+    // search answers with a searched move; that iteration takes well under
+    // a millisecond.
+    bool     first_iteration_done = false;
     bool     pondering = false;
     Color    root_side = WHITE;
+    int      root_game_ply = 0;   // the root's game ply, for the clock at ponderhit
 
     std::chrono::steady_clock::time_point start_time{};
     double soft_limit = 0.0;  // target time — stop early if best move is stable

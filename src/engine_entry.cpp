@@ -10,6 +10,7 @@
 #include "engine.h"
 #include "engine_command.h"
 #include "engine_entry.h"
+#include "native_thread.h"
 #include "eval.h"
 #include "output_sink.h"
 #include "uci_protocol.h"
@@ -23,8 +24,9 @@ int run_engine(int argc, char* argv[]) {
 
 #ifndef _WIN32
     // A GUI closing our stdout pipe must not signal-kill the engine. Windows
-    // has no SIGPIPE; on POSIX, writes to a closed pipe then simply fail and
-    // the reader loop exits cleanly at cin EOF.
+    // has no SIGPIPE; on POSIX, writes to a closed pipe then simply fail, and
+    // the output sink ends the engine at the first failed write
+    // (end_if_output_lost), as on Windows.
     std::signal(SIGPIPE, SIG_IGN);
 #endif
 
@@ -54,7 +56,9 @@ int run_engine(int argc, char* argv[]) {
     Engine      engine(command_queue, stop_requested, ponderhit_requested, searching, control_epoch);
     UciProtocol uciProtocol(command_queue, stop_requested, ponderhit_requested, searching, control_epoch);
 
-    std::thread engineThread(&Engine::start, &engine);
+    // The engine thread runs the main searcher: a stated stack, as the
+    // helpers have (native_thread.h).
+    NativeThread engineThread([&engine] { engine.start(); });
     int status = 0;
     if (argc > 1) {
         std::string command_line = argv[1];

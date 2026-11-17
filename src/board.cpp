@@ -1606,6 +1606,19 @@ bool Board::BT(is_repetition)(int search_ply) const {
     return false;
 }
 
+bool Board::has_repeated() const {
+    const int hist_size = static_cast<int>(history.size());
+    const int reversible = std::min({halfmove_clock, plies_from_null, hist_size});
+    // The positions of the reversible stretch: history[first..] and this one.
+    const int first = hist_size - reversible;
+    auto key_at = [&](int i) { return i == hist_size ? hash : history[static_cast<size_t>(i)].hash; };
+    for (int j = first + 4; j <= hist_size; ++j)
+        for (int i = j - 4; i >= first; i -= 2)
+            if (key_at(i) == key_at(j))
+                return true;
+    return false;
+}
+
 bool Board::BT(upcoming_repetition)(int search_ply) const {
     const int hist_size = static_cast<int>(history.size());
     const int end = std::min({halfmove_clock, plies_from_null, hist_size});
@@ -1657,20 +1670,16 @@ bool Board::is_insufficient_material() const {
 
     int total = popcount(all_occ);
     if (total == 2) return true; // K vs K
-    if (total == 3) {
-        if (pieces[WHITE][KNIGHT] || pieces[BLACK][KNIGHT]) return true;
-        if (pieces[WHITE][BISHOP] || pieces[BLACK][BISHOP]) return true;
-    }
-    if (total == 4) {
-        // KB vs KB — same color bishops
-        Bitboard wb = pieces[WHITE][BISHOP], bb2 = pieces[BLACK][BISHOP];
-        if (wb && bb2) {
-            // Both light or both dark
-            bool wl = wb & 0x55AA55AA55AA55AAULL;
-            bool bl = bb2 & 0x55AA55AA55AA55AAULL;
-            if (wl == bl) return true;
-        }
-    }
+    if (total == 3 && (pieces[WHITE][KNIGHT] || pieces[BLACK][KNIGHT]))
+        return true;             // a lone knight
+    // Bishops alone, every one on squares of one colour, however many and on
+    // whichever side: no sequence of legal moves can mate, so the position is
+    // dead (FIDE 5.2.2). The lone bishop and same-coloured KB-KB are cases.
+    constexpr Bitboard light_squares = 0x55AA55AA55AA55AAULL;
+    const Bitboard bishops = pieces[WHITE][BISHOP] | pieces[BLACK][BISHOP];
+    if (!(pieces[WHITE][KNIGHT] | pieces[BLACK][KNIGHT])
+        && ((bishops & light_squares) == 0 || (bishops & ~light_squares) == 0))
+        return true;
     return false;
 }
 

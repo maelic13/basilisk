@@ -219,10 +219,24 @@ static void test_line_defaults() {
 static void test_default_go_depth_and_syzygy_options() {
     Parameters params;
 
-    begin_section("parameters: bare go defaults to depth 7");
+    begin_section("parameters: bare go has no limit and does not wait for stop");
     params.set_search_parameters("");
-    EXPECT_EQ(params.depth, defaultSearchDepth);
+    EXPECT_EQ(params.depth, infiniteDepth);
     EXPECT_EQ(params.move_time, 0);
+    EXPECT(!params.infinite);
+    EXPECT(!params.clock);
+    params.set_search_parameters("infinite");
+    EXPECT(params.infinite);
+    end_section();
+
+    begin_section("parameters: a named clock is a clock whatever its value");
+    for (const char* go : {"wtime 0 btime 0", "wtime -1 btime -1", "wtime x btime x", "winc 0"}) {
+        params.set_search_parameters(go);
+        EXPECT(params.clock);
+        EXPECT_EQ(params.white_time, 0);
+    }
+    params.set_search_parameters("depth 3");
+    EXPECT(!params.clock);
     end_section();
 
     begin_section("uci options: exposes SyzygyProbeLimit");
@@ -246,7 +260,7 @@ static void test_default_go_depth_and_syzygy_options() {
 
     begin_section("parameters: invalid numeric values are ignored");
     params.set_search_parameters("depth nope movetime -5 nodes bad");
-    EXPECT_EQ(params.depth, defaultSearchDepth);
+    EXPECT_EQ(params.depth, infiniteDepth);
     EXPECT_EQ(params.move_time, 0);
     EXPECT_EQ(params.nodes, 0);
     params.set_option("name Threads value many");
@@ -259,10 +273,10 @@ static void test_default_go_depth_and_syzygy_options() {
     EXPECT_EQ(params.depth, infiniteDepth);
     end_section();
 
-    begin_section("parameters: go mate converts to mate-search depth");
+    begin_section("parameters: go mate searches for the mate, not to a depth");
     params.set_search_parameters("mate 2");
     EXPECT_EQ(params.mate, 2);
-    EXPECT_EQ(params.depth, 3);
+    EXPECT_EQ(params.depth, infiniteDepth);
     end_section();
 
     begin_section("parameters: go perft records perft depth");

@@ -222,6 +222,13 @@ inline int Evaluator::evaluate(const Board& b) {
         || (is_lone_king(b, BLACK) && is_king_and_n_knights(b, WHITE, 2));
 }
 
+// The rook endings' scales of 64 before their floor, or -1 where the rule does
+// not apply; for KRP-KR also the draw rule that fired (1 to 5, 0 for none).
+// For instruments that read the evaluator's verdicts; the search never calls
+// them.
+int krpkr_scale_unfloored(const Board& b, Color strong, int& draw_rule);
+int krppkrp_scale_unfloored(const Board& b, Color strong);
+
 // Global evaluation parameters. Change fields then call init_eval_tables() to apply.
 extern EvalParams g_eval_params;
 

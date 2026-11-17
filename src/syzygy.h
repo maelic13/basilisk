@@ -43,6 +43,9 @@ int largest();
 int wdl_file_count();
 int dtz_file_count();
 std::string path();
+// Tables that failed to map at their first probe since the program
+// started; each is skipped, its probes failing.
+int map_failures();
 
 bool can_probe_wdl(const Board& board, int probe_limit = 7, bool use_rule50 = true);
 bool can_probe_root(const Board& board, int probe_limit = 7);

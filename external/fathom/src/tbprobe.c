@@ -335,8 +335,18 @@ static FD open_tb(const char *str, const char *suffix)
     fd = CreateFile(ucode_name, GENERIC_READ, FILE_SHARE_READ, NULL,
 			  OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, NULL);
 #else
-    fd = CreateFile(file, GENERIC_READ, FILE_SHARE_READ, NULL,
-			  OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, NULL);
+    /* Basilisk: the path arrives as UTF-8 (a GUI's SyzygyPath), which the
+       narrow CreateFile reads in the ANSI code page, so a directory whose
+       name is not ASCII never opened. It is converted to UTF-16 for
+       CreateFileW; bytes that are not valid UTF-8 keep the narrow call. */
+    wchar_t wide_name[4096];
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, file, -1,
+                            wide_name, 4096) > 0)
+      fd = CreateFileW(wide_name, GENERIC_READ, FILE_SHARE_READ, NULL,
+                       OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, NULL);
+    else
+      fd = CreateFileA(file, GENERIC_READ, FILE_SHARE_READ, NULL,
+                       OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, NULL);
 #endif
 #endif
     free(file);
@@ -714,6 +724,10 @@ static bool test_tb(const char *str, const char *suffix)
   return fd != FD_ERR;
 }
 
+/* Basilisk: tables that could not be mapped, counted under tbMutex (map_tb
+   runs only inside it) and read by tb_map_failures(). */
+static unsigned mapFailures = 0;
+
 static void *map_tb(const char *name, const char *suffix, map_t *mapping)
 {
   FD fd = open_tb(name, suffix);
@@ -721,14 +735,26 @@ static void *map_tb(const char *name, const char *suffix, map_t *mapping)
     return NULL;
 
   void *data = map_file(fd, mapping);
-  if (data == NULL) {
-    fprintf(stderr, "Could not map %s%s into memory.\n", name, suffix);
-    exit(EXIT_FAILURE);
-  }
-
   close_tb(fd);
 
+  /* Basilisk: upstream calls exit() here. A table is mapped at its first
+     probe, mid-search, so a file truncated, replaced or on a lost drive
+     after tb_init ended the engine with no bestmove. The table is skipped
+     instead: the caller marks its entry in error and the probe fails. */
+  if (data == NULL) {
+    fprintf(stderr, "Could not map %s%s into memory; the table is skipped.\n", name, suffix);
+    mapFailures++;
+  }
+
   return data;
+}
+
+unsigned tb_map_failures(void)
+{
+  LOCK(tbMutex);
+  unsigned n = mapFailures;
+  UNLOCK(tbMutex);
+  return n;
 }
 
 static void add_to_hash(struct BaseEntry *ptr, uint64_t key)

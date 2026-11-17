@@ -2,8 +2,8 @@
 
 // The bundled Syzygy fixtures (tests/fixtures/syzygy, base64), each table set
 // written to its own temporary directory on first use: KQvK (WDL and DTZ) for
-// the tests that need real tablebase probes, and KPvK (WDL only) for the KPK
-// truth test. The including target must define BASILISK_TEST_SYZYGY_FIXTURE_DIR.
+// the tests that need real tablebase probes, KPvK (WDL only) for the KPK
+// truth test, and seven four-man WDL tables for the hard-verdict instrument. The including target must define BASILISK_TEST_SYZYGY_FIXTURE_DIR.
 
 #include "syzygy.h"
 
@@ -115,5 +115,14 @@ inline const std::filesystem::path& syzygy_fixture_path() {
 
 inline const std::filesystem::path& kpk_fixture_path() {
     static SyzygyFixtureDirectory fixture{{"KPvK.rtbw", 7824}};
+    return fixture.path;
+}
+
+// The evaluator's hard verdicts (tests/endgame_verdicts.cpp): one small WDL
+// table for each three- and four-man site it reads.
+inline const std::filesystem::path& verdict_fixture_path() {
+    static SyzygyFixtureDirectory fixture{
+        {"KNNvK.rtbw", 1360}, {"KBNvK.rtbw", 7632}, {"KBvKB.rtbw", 1232}, {"KNvKN.rtbw", 1168},
+        {"KPPvK.rtbw", 25104}, {"KRvKR.rtbw", 12944}, {"KRvKB.rtbw", 32912}};
     return fixture.path;
 }

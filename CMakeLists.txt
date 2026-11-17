@@ -236,6 +236,7 @@ set(BASILISK_ENGINE_SOURCES
     src/search_pricing.cpp
     src/syzygy.cpp
     src/physical_memory.cpp
+    src/native_thread.cpp
     ${BASILISK_SEARCH_KERNEL_SOURCES}
 )
 add_library(basilisk_engine STATIC ${BASILISK_ENGINE_SOURCES})
@@ -435,8 +436,12 @@ target_link_libraries(test_engine_threading PRIVATE basilisk_engine)
 # Allocation guard: per-node search code never allocates (a counting global
 # operator new over whole searches at two depths, Threads 1 and 4)
 # ---------------------------------------------------------------------------
-add_executable(test_allocation_guard tests/test_allocation_guard.cpp)
-target_link_libraries(test_allocation_guard PRIVATE basilisk_engine)
+# Not under ThreadSanitizer, whose runtime defines the same operators; the
+# guard counts allocations, not races, and runs in every other build.
+if(NOT SANITIZE_THREAD)
+    add_executable(test_allocation_guard tests/test_allocation_guard.cpp)
+    target_link_libraries(test_allocation_guard PRIVATE basilisk_engine)
+endif()
 
 # ---------------------------------------------------------------------------
 # UCI protocol tests
@@ -456,6 +461,28 @@ target_link_libraries(test_endgames PRIVATE basilisk_engine)
 target_compile_definitions(test_endgames PRIVATE
     BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
 )
+
+# The evaluator's hard verdicts against Syzygy WDL (an instrument; its CTest
+# reads the bundled fixtures, the full read takes --tables)
+add_executable(endgame_verdicts tests/endgame_verdicts.cpp)
+target_link_libraries(endgame_verdicts PRIVATE basilisk_engine)
+target_compile_definitions(endgame_verdicts PRIVATE
+    BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
+)
+
+# Bishops on one colour against a bare king are a dead draw
+add_executable(test_same_colour_bishops tests/test_same_colour_bishops.cpp)
+target_link_libraries(test_same_colour_bishops PRIVATE basilisk_engine)
+
+# The root's tablebase ranking after a repetition in the game
+add_executable(test_tb_root_rank tests/test_tb_root_rank.cpp)
+target_link_libraries(test_tb_root_rank PRIVATE basilisk_engine)
+target_compile_definitions(test_tb_root_rank PRIVATE
+    BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
+)
+
+add_executable(test_native_thread tests/test_native_thread.cpp)
+target_link_libraries(test_native_thread PRIVATE basilisk_engine)
 
 include(CTest)
 add_test(NAME test_board        COMMAND test_board)
@@ -491,7 +518,9 @@ add_test(NAME test_eval         COMMAND test_eval)
 add_test(NAME test_search       COMMAND test_search)
 add_test(NAME test_engine_ponder COMMAND test_engine_ponder)
 add_test(NAME test_engine_threading COMMAND test_engine_threading)
-add_test(NAME test_allocation_guard COMMAND test_allocation_guard)
+if(NOT SANITIZE_THREAD)
+    add_test(NAME test_allocation_guard COMMAND test_allocation_guard)
+endif()
 add_test(NAME test_uci_protocol COMMAND test_uci_protocol)
 add_test(NAME test_endgames     COMMAND test_endgames
          ${CMAKE_CURRENT_SOURCE_DIR}/tests/endgames.epd)
@@ -519,6 +548,49 @@ basilisk_cli_test(cli_unknown_exits_2 2 "Unknown command: 'frobnicate'" frobnica
 add_test(NAME uci_hash_above_machine_limit
          COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:basilisk>" "-DWORK=${CMAKE_CURRENT_BINARY_DIR}"
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/hash_limit_check.cmake)
+# The engine as a process over UCI: lifecycle and protocol contracts
+# (tests/uci_process_check.py). A case given --expect-defect is a known
+# defect awaiting its repair: it passes only while it reproduces the defect,
+# and the repair's commit moves it to the first list.
+find_package(Python3 3.8 REQUIRED COMPONENTS Interpreter)
+function(basilisk_uci_test case)
+    add_test(NAME uci_${case}
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/uci_process_check.py
+                     $<TARGET_FILE:basilisk> ${case}
+                     --fixtures ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy ${ARGN})
+    set_tests_properties(uci_${case} PROPERTIES TIMEOUT 600)
+endfunction()
+function(basilisk_known_defect name)
+    set_tests_properties(${name} PROPERTIES LABELS known-defect
+                         PASS_REGULAR_EXPRESSION "KNOWN DEFECT REPRODUCED")
+endfunction()
+foreach(case lifecycle_guards new_game_resets multipv_stopped tablebase_threads fuzz
+             whitespace hash_rounding_notice syzygy_path_retry fathom_unmappable_table
+             syzygy_non_ascii_path bench_stop wac_stop bench_quit closed_stdout
+             seldepth_qsearch ponderhit_game_ply depth_limit_threads
+             clock_zero bare_go go_mate abort_sweep)
+    basilisk_uci_test(${case})
+endforeach()
+add_test(NAME test_tb_root_rank COMMAND test_tb_root_rank)
+add_test(NAME test_native_thread COMMAND test_native_thread)
+# The negative control: the same stack on a std::thread overflows where the
+# platform's default for a second thread is smaller (Windows' 1 MiB reserve
+# outside a sanitizer build, which reserves 8 MB; macOS's 512 KB).
+if((WIN32 AND NOT SANITIZE) OR APPLE)
+    add_test(NAME test_native_thread_control
+             COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:test_native_thread>" "-DARGS=--std-thread"
+                     -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/expect_failure.cmake)
+endif()
+# The evaluator's hard verdicts on a seeded sample of each fixture class,
+# compared line for line with their reading at B.9.3; exit status 1 while
+# any site is over the line. A repair updates the golden file.
+add_test(NAME endgame_verdicts_fixtures
+         COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:endgame_verdicts>"
+                 "-DARGS=--tables;fixtures;--threads;1;--random;20000;--golden;KPvK;KQvK;KNNvK;KBNvK;KBvKB;KNvKN;KPPvK;KRvKR;KRvKB"
+                 "-DEXPECT_CODE=1" "-DGOLDEN=${CMAKE_CURRENT_SOURCE_DIR}/tests/data/endgame_verdicts_golden.txt"
+                 -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/output_check.cmake)
+set_tests_properties(endgame_verdicts_fixtures PROPERTIES TIMEOUT 600)
+add_test(NAME test_same_colour_bishops COMMAND test_same_colour_bishops)
 # An exception escaping a non-UCI thread is reported on stdout, then exit 1.
 add_test(NAME fatal_report_from_a_thread
          COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:test_fatal_report>" "-DARGS="
@@ -669,10 +741,13 @@ set(_ALL_TARGETS
     basilisk_board basilisk_engine basilisk_launcher basilisk_version
     basilisk board_performance_test board_micro_bench board_replay
     test_board test_board_v2 test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_allocation_guard test_uci_protocol test_cpu_features
-    test_endgames test_wac test_invariants test_magics test_threats
+    test_endgames test_tb_root_rank test_native_thread endgame_verdicts test_same_colour_bishops test_wac test_invariants test_magics test_threats
     test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch test_b5_root
     basilisk_engine_child_log test_search_path test_kernel_pins
 )
+if(SANITIZE_THREAD)
+    list(REMOVE_ITEM _ALL_TARGETS test_allocation_guard)
+endif()
 if(BASILISK_BOARD_TRACE)
     list(APPEND _ALL_TARGETS basilisk_board_untraced)
 endif()
@@ -784,6 +859,20 @@ int main() { return 0; }" _basilisk_default_is_baseline)
             if(WIN32)
                 target_link_options(${_tgt} PRIVATE -Wl,--stack,8388608)
             endif()
+        endforeach()
+    endif()
+    # ThreadSanitizer, CI's tsan cell: an unintended race in the pool, the
+    # counters or the stop path. It cannot be combined with AddressSanitizer,
+    # so it is a build of its own. The table's tolerated incoherence (BAS-C05)
+    # is between atomic words, which ThreadSanitizer does not report, so no
+    # suppression is needed.
+    if(SANITIZE_THREAD)
+        if(SANITIZE)
+            message(FATAL_ERROR "SANITIZE_THREAD and SANITIZE cannot be combined")
+        endif()
+        foreach(_tgt IN LISTS _ALL_TARGETS)
+            target_compile_options(${_tgt} PRIVATE -fsanitize=thread)
+            target_link_options(${_tgt} PRIVATE -fsanitize=thread)
         endforeach()
     endif()
     # The standard library's own bounds checks where speed does not matter:
@@ -954,21 +1043,23 @@ if(NOT _basilisk_pgo STREQUAL "OFF")
     message(STATUS "PGO phase: ${_basilisk_pgo}")
 endif()
 
-# A universal tier must use its own profile. A file the profile does not cover
-# is an error there, so a tier that silently got no profile fails to build.
+# A PGO build must use its own profile. A file the profile does not cover is
+# an error, so a build whose kernel silently went untrained fails to build:
+# every PGO build, the ordinary one and the gcc-pgo job as well as a universal
+# tier (it was the universal tier only until B.9.5).
 # Clang: only the five files bench never runs (move formatting, Syzygy probing,
 # the search diagnostics, the WAC suite, the physical-memory query behind the
 # Hash limit) are expected to have no data. GCC
 # writes a profile for every instrumented file the training run links, run or
 # not, so a missing one means the profile is not this build's.
-if(BASILISK_UNIVERSAL_TIER AND _basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if(_basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_options(${_tgt} PRIVATE $<$<CONFIG:Release>:-Wprofile-instr-unprofiled>)
     endforeach()
     set_source_files_properties(src/move.cpp src/syzygy.cpp src/search_diagnostics.cpp src/wac.cpp
         src/physical_memory.cpp
         PROPERTIES COMPILE_OPTIONS "-Wno-profile-instr-unprofiled")
-elseif(BASILISK_UNIVERSAL_TIER AND _basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+elseif(_basilisk_pgo STREQUAL "USE" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_options(${_tgt} PRIVATE $<$<CONFIG:Release>:-Werror=missing-profile>)
     endforeach()

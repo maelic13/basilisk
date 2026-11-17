@@ -68,11 +68,13 @@ void Searcher::compute_time_limit(const SearchLimits& limits, bool ponder, Color
     const double inc      = (side == WHITE) ? limits.winc : limits.binc;
     const double overhead = limits.overhead;
 
-    // Clock play is on when either side has a clock or an increment, as in
-    // Stockfish; without one, a depth, node or mate limit bounds the search.
-    // An own clock of zero with no increment still takes the formula below,
-    // whose floors give it a budget of one millisecond, not an unbounded one.
-    if (limits.wtime <= 0 && limits.btime <= 0 && limits.winc <= 0 && limits.binc <= 0)
+    // Clock play is on when the `go` named a clock, or either side has a clock
+    // or an increment, as in Stockfish; without one, a depth, node or mate
+    // limit bounds the search. An own clock of zero with no increment takes
+    // the formula below, whose floors give it a budget of one millisecond,
+    // not an unbounded one.
+    if (!limits.clock && limits.wtime <= 0 && limits.btime <= 0 && limits.winc <= 0
+        && limits.binc <= 0)
         return;
 
     const bool   explicit_mtg = limits.movestogo > 0;
@@ -170,11 +172,11 @@ int64_t Searcher::record_node() {
         // one batch would have been missed entirely and overshot ~10x.
         // The comparison is local arithmetic; the atomic is what got batched.
         const int64_t estimate = state_.shared_nodes_total + (state_.nodes - state_.shared_nodes_flushed);
-        if (state_.nodes_limit > 0 && estimate >= state_.nodes_limit)
+        if (state_.nodes_limit > 0 && estimate >= state_.nodes_limit && state_.first_iteration_done)
             state_.stopped = true;
         return estimate;
     }
-    if (state_.nodes_limit > 0 && state_.nodes >= state_.nodes_limit)
+    if (state_.nodes_limit > 0 && state_.nodes >= state_.nodes_limit && state_.first_iteration_done)
         state_.stopped = true;
     return state_.nodes;
 }
@@ -201,6 +203,7 @@ int64_t Searcher::current_tbhits() const {
 
 bool Searcher::check_stop() {
     if (state_.stopped) return true;
+    if (!state_.first_iteration_done) return false;
 
     if (shared_.stop.load(std::memory_order_acquire)) {
         state_.stopped = true;
@@ -209,10 +212,9 @@ bool Searcher::check_stop() {
 
     if (state_.pondering && shared_.ponderhit && shared_.ponderhit->load(std::memory_order_acquire)) {
         state_.pondering = false;
-        const int game_ply = state_.board
-            ? 2 * (state_.board->fullmove() - 1) + (state_.board->turn() == BLACK ? 1 : 0)
-            : 0;
-        compute_time_limit(config_.limits, false, state_.root_side, game_ply);
+        // The budget is the root's, as at the search's start: the board here
+        // is whichever node saw the flag, deeper by a varying number of plies.
+        compute_time_limit(config_.limits, false, state_.root_side, state_.root_game_ply);
         if (state_.soft_limit > 0.0 && elapsed_seconds() >= state_.soft_limit) {
             state_.stopped = true;
             return true;
@@ -257,9 +259,14 @@ void Searcher::send_info(int depth, int multipv, int score, const std::vector<Mo
     // time control only the final line is extended (Engine), once per move and
     // within half the Move Overhead, because Basilisk prints a line at every
     // depth. A line that ends in a fifty-move draw shows the draw.
+    //
+    // Only at one thread: the extension's root probes are documented as not
+    // thread safe (Fathom's tb_probe_root), and helpers probe WDL in search
+    // meanwhile. With helpers the final line is extended after they join.
     if (!pv_moves.empty() && is_tablebase_decisive(score) && Syzygy::enabled()
-        && config_.limits.movetime <= 0 && config_.limits.wtime <= 0
-        && config_.limits.btime <= 0) {
+        && config_.thread_count == 1
+        && config_.limits.movetime <= 0 && !config_.limits.clock
+        && config_.limits.wtime <= 0 && config_.limits.btime <= 0) {
         Syzygy::PvExtension ext = Syzygy::extend_pv(
             *state_.board, pv_moves, config_.limits.syzygy_50_move_rule,
             config_.limits.syzygy_probe_limit, [] { return false; });
@@ -411,6 +418,7 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     state_.shared_nodes_total   = 0;
     state_.sel_depth    = 0;
     state_.stopped      = false;
+    state_.first_iteration_done = false;
     state_.last_line_move = MOVE_NONE;
     state_.longest_window = 0.0;
     state_.longest_window_start = 0.0;
@@ -440,8 +448,8 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     state_.start_time = (limits.go_recv_time.time_since_epoch().count() != 0)
                 ? limits.go_recv_time
                 : std::chrono::steady_clock::now();
-    const int game_ply = 2 * (board.fullmove() - 1) + (board.turn() == BLACK ? 1 : 0);
-    compute_time_limit(limits, limits.ponder, board.turn(), game_ply);
+    state_.root_game_ply = 2 * (board.fullmove() - 1) + (board.turn() == BLACK ? 1 : 0);
+    compute_time_limit(limits, limits.ponder, board.turn(), state_.root_game_ply);
 
     if (config_.update_tt_age)
         shared_.tt.new_search();
@@ -700,7 +708,12 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
             }
         }
 
-        if (state_.stopped && depth > 1) break;
+        // A stop is taken only once an iteration is complete (check_stop), so
+        // the first iteration always stands: a stop at any time answers with
+        // a searched move, never a cut first iteration's or the first legal
+        // one.
+        if (state_.stopped) break;
+        state_.first_iteration_done = true;
 
         if (state_.root_depth_nodes > 0)
             state_.root_best_effort = static_cast<int>(

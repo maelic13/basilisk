@@ -33,7 +33,7 @@ SearchThreadPool::~SearchThreadPool() {
     }
     work_cv_.notify_all();
 
-    for (std::thread& worker : workers_) {
+    for (NativeThread& worker : workers_) {
         if (worker.joinable())
             worker.join();
     }
@@ -81,7 +81,7 @@ int SearchThreadPool::resize_threads(int count, bool rebuild) {
     }
     work_cv_.notify_all();
 
-    for (std::thread& worker : workers_) {
+    for (NativeThread& worker : workers_) {
         if (worker.joinable())
             worker.join();
     }
@@ -107,7 +107,7 @@ int SearchThreadPool::resize_threads(int count, bool rebuild) {
     while (static_cast<int>(workers_.size()) + 1 < count) {
         const int helper_slot = static_cast<int>(workers_.size());
         try {
-            workers_.emplace_back(&SearchThreadPool::worker_loop, this, helper_slot);
+            workers_.emplace_back([this, helper_slot] { worker_loop(helper_slot); });
         } catch (const std::system_error& e) {
             if (info_cb_) {
                 info_cb_("info string Threads reduced to "
@@ -143,8 +143,8 @@ SearchConfig SearchThreadPool::config_for_thread(const SearchLimits& limits,
     // Helpers do not inherit the depth limit: under `go depth N` they would
     // stop at N and idle instead of widening the shared table for the main
     // thread, which keeps the depth contract because its result is the one
-    // reported. Clock-limited games carry no depth limit, and one thread never
-    // reaches this function.
+    // reported (search() below). Clock-limited games carry no depth limit,
+    // and one thread never reaches this function.
     if (thread_id > 0)
         config.limits.depth = infiniteDepth;
 
@@ -255,9 +255,12 @@ SearchResult SearchThreadPool::search(Board board, const SearchLimits& limits, i
         std::chrono::steady_clock::now() - wall_start).count();
 
     SearchResult merged = merge_results(results, thread_count, root_table, elapsed_ms);
-    // With several lines the main thread's first line is the answer, as in
-    // Stockfish: helpers search one line and do not vote.
-    if (limits.multipv > 1 && results[0].bestmove != MOVE_NONE) {
+    // With several lines, or under a depth limit, the main thread's first line
+    // is the answer, as in Stockfish: helpers search one line, and past the
+    // limit, and do not vote. A helper's deeper result answered `go depth N`
+    // with a depth N+1 line and its move.
+    const bool depth_limited = limits.depth < MAX_SEARCH_DEPTH;
+    if ((limits.multipv > 1 || depth_limited) && results[0].bestmove != MOVE_NONE) {
         const SearchResult& main_result = results[0];
         merged.bestmove   = main_result.bestmove;
         merged.pondermove = main_result.pondermove;

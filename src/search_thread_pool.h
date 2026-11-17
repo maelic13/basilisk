@@ -5,6 +5,7 @@
 // merge of the threads' results into the one the engine plays.
 
 #include "board.h"
+#include "native_thread.h"
 #include "search_root.h"
 #include "search_types.h"
 #include "search_worker.h"
@@ -53,7 +54,8 @@ private:
 
     // Each thread's search state, on large pages where they are granted.
     std::vector<LargePagePtr<Searcher>> searchers_;
-    std::vector<std::thread> workers_;
+    // Helpers run on threads with a stated stack (native_thread.h).
+    std::vector<NativeThread> workers_;
 
     mutable std::mutex mutex_;
     std::condition_variable work_cv_;

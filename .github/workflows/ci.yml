@@ -435,6 +435,38 @@ jobs:
       - name: CTest under sanitizers
         run: ctest --test-dir build/debug --output-on-failure --timeout 600 -LE strength --no-tests=error
 
+  # ---- ThreadSanitizer over the threading, ponder and tablebase tests ------
+  # A race in the pool, the counters or the stop path fails here. The table's
+  # tolerated incoherence (BAS-C05) is between atomics and is not reported.
+  tsan:
+    name: sanitize (linux ThreadSanitizer)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Select Clang 22
+        # Preinstalled on the image with its sanitizer runtimes; see the test job.
+        run: |
+          sudo ln -sf /usr/bin/clang-22   /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-22 /usr/local/bin/clang++
+          clang++ --version
+
+      - name: Configure and build (RelWithDebInfo, ThreadSanitizer)
+        run: |
+          cmake -S . -B build/tsan -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSANITIZE_THREAD=ON -DCOMP=clang
+          cmake --build build/tsan
+
+      - name: CTest under ThreadSanitizer
+        env:
+          TSAN_OPTIONS: halt_on_error=1 second_deadlock_stack=1
+        run: >
+          ctest --test-dir build/tsan --output-on-failure --timeout 900 --no-tests=error
+          -R "test_engine_threading|test_engine_ponder|test_tt|test_native_thread|uci_tablebase_threads|uci_depth_limit_threads|uci_multipv_stopped|uci_bench_stop|uci_lifecycle_guards"
+
   # ---- Real GCC PGO generation/consumption smoke ----------------------------
   # A plain GCC compile does not prove that its path-keyed .gcda files were
   # generated and consumed. Exercise the complete orchestrator on every CI run.
@@ -510,7 +542,7 @@ jobs:
   # dependency as passing, so a required job must never be skipped.
   complete:
     name: CI complete
-    needs: [test, flavors, docs, sanitize, gcc-pgo, bench-agreement]
+    needs: [test, flavors, docs, sanitize, tsan, gcc-pgo, bench-agreement]
     if: ${{ always() }}
     runs-on: ubuntu-26.04
     timeout-minutes: 10

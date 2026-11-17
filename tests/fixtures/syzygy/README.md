@@ -1,6 +1,6 @@
 # Syzygy test fixture
 
-These files are base64 encodings of canonical three-piece Syzygy tables from
+These files are base64 encodings of canonical three- and four-piece Syzygy tables from
 `http://tablebase.sesse.net/syzygy/3-4-5/`. Each table set is decoded into its
 own unique temporary directory (`tests/syzygy_fixture.h`): `KQvK` by
 `test_search` and `test_engine_threading`, `KPvK` by `test_endgames`'s KPK
@@ -12,8 +12,20 @@ embed them.
 | `KQvK.rtbw` | 272 | `517667dff787162dbb1ed9d5d6484d30ee854e686ee0675c08d99ecf045d2d50` |
 | `KQvK.rtbz` | 5,392 | `71ea9444fa5bd42897d781a0c356975ea6f23e0f65a4254e470897031c161c8c` |
 | `KPvK.rtbw` | 7,824 | `63ad9e15cd0f5e91e42e6f669a9f6116ae9f9eabd85757e9fb28d2be6074aed9` |
+| `KNNvK.rtbw` | 1,360 | `8b5195abd7f1d4be7aa4b4dca669e9075d61d1c6b02dec8b71f5e9ea21d9eced` |
+| `KBNvK.rtbw` | 7,632 | `76958da65bc243f2f0a16ceb83f1c00cbc4fb6d6e2f43d052c2f9d65bf16fee8` |
+| `KBvKB.rtbw` | 1,232 | `f0bfff470a9775c0f6693d7c1b73a0879cfed64f9b50cb56872cc15dbe8336ad` |
+| `KNvKN.rtbw` | 1,168 | `290b5d295f531ac680e35a3295ff265e89da864fc0363b5d7aca928c8e38faf6` |
+| `KPPvK.rtbw` | 25,104 | `55aa91c460bc5eea322b8a6cde4f94d2e0a244b6fc14f6aca17e6ccfb2e56ef6` |
+| `KRvKR.rtbw` | 12,944 | `797081b5b3fbac20c4baa5453d68bdae1425b63895f5c9a5ac5c68ea63a97712` |
+| `KRvKB.rtbw` | 32,912 | `69b247cb390ffcd729cf5fe5c40f8a24803190bf67b108b8f05b8b08b26a6a72` |
 
 `KPvK` ships its WDL file alone: WDL probes need no DTZ table.
+
+The seven four-man WDL tables listed after KPvK are the hard-verdict instrument's
+(`tests/endgame_verdicts.cpp`, `verdict_fixture_path`): one small table for
+each three- and four-man site it reads, the sites over B.9.3's line among
+them. They are the same canonical tables, 82 KB together.
 
 The fixture is deliberately the smallest WDL+DTZ pair that exercises real
 Fathom initialization, probing, rule-50 normalization, root move metadata,

@@ -91,18 +91,18 @@ SearchLimits Engine::build_limits() const {
     limits.ablation_mask = parameters_.ablation_mask;
 #endif
     limits.params    = parameters_.search_params;
-    limits.infinite  = (parameters_.depth == infiniteDepth && parameters_.move_time == 0
-                        && parameters_.white_time == 0 && parameters_.black_time == 0
-                        && parameters_.white_increment == 0 && parameters_.black_increment == 0
-                        && parameters_.movestogo == 0
-                        && parameters_.nodes == 0
-                        && parameters_.mate == 0
-                        && !parameters_.ponder);
+    limits.infinite  = parameters_.infinite && !parameters_.ponder;
+    limits.clock     = parameters_.clock;
     return limits;
 }
 
+// Every SyzygyPath sent is loaded again, as Stockfish does, so tables that
+// appear after a first attempt are found when the same path is sent again.
+// Other options leave the loaded tables alone.
 void Engine::configure_syzygy() {
-    if (parameters_.syzygy_path == current_syzygy_path_)
+    const bool sent = parameters_.syzygy_path_sent;
+    parameters_.syzygy_path_sent = false;
+    if (!sent && parameters_.syzygy_path == current_syzygy_path_)
         return;
 
     current_syzygy_path_ = parameters_.syzygy_path;
@@ -163,8 +163,10 @@ void Engine::publish_tablebase_pv(SearchResult& result, const Board& root_board,
         || !is_tablebase_decisive(result.score))
         return;
 
+    // A named clock is a clock even when it reads 0: the extension must then
+    // fit in it, which an empty one never allows.
     const int clock_ms = root_board.turn() == WHITE ? limits.wtime : limits.btime;
-    if (clock_ms > 0) {
+    if (clock_ms > 0 || limits.clock) {
         const double elapsed_ms = limits.go_recv_time.time_since_epoch().count() != 0
             ? std::chrono::duration<double, std::milli>(
                   std::chrono::steady_clock::now() - limits.go_recv_time).count()
@@ -182,7 +184,7 @@ void Engine::publish_tablebase_pv(SearchResult& result, const Board& root_board,
     }
 
     const auto start = std::chrono::steady_clock::now();
-    const bool timed = limits.movetime > 0 || limits.wtime > 0 || limits.btime > 0;
+    const bool timed = limits.movetime > 0 || limits.clock || limits.wtime > 0 || limits.btime > 0;
     const int overhead_ms = limits.overhead;
     auto time_abort = [&] {
         if (!timed)
@@ -305,6 +307,15 @@ void Engine::start_search(uint64_t command_epoch,
     searching_.store(true, std::memory_order_release);
 
     SearchResult result = search_pool_.search(board_copy, limits, active_threads);
+    if (Syzygy::enabled()) {
+        // A table that could not be read is skipped, not fatal; say so once.
+        const int map_failures = Syzygy::map_failures();
+        if (map_failures != reported_map_failures_) {
+            write_output_line("info string " + std::to_string(map_failures - reported_map_failures_)
+                           + " tablebase file(s) could not be read and are skipped.");
+            reported_map_failures_ = map_failures;
+        }
+    }
     wait_until_bestmove_allowed(limits, command_epoch);
     publish_tablebase_pv(result, board_copy, limits);
 
@@ -313,6 +324,17 @@ void Engine::start_search(uint64_t command_epoch,
         searching_.store(false, std::memory_order_release);
     send_bestmove(result, board_copy);
     stop_requested_.store(false, std::memory_order_release);
+}
+
+// `bench` and `wac` stop on the engine's flag, so `stop` and `quit` reach them
+// as they reach a search, and a command that moved the epoch since the run's
+// own (`stop`, `go`) ends it. A `quit` queued before the run began is cleared
+// with the flag, as for `go`: the run then completes, and the quit follows.
+RunControl Engine::run_control(uint64_t command_epoch) {
+    return RunControl{&stop_requested_, [this, command_epoch] {
+        return command_epoch != 0
+            && control_epoch_.load(std::memory_order_seq_cst) != command_epoch;
+    }};
 }
 
 void Engine::run_wac_command(const EngineCommand& command) {
@@ -329,7 +351,7 @@ void Engine::run_wac_command(const EngineCommand& command) {
 
     stop_requested_.store(false, std::memory_order_release);
     searching_.store(true, std::memory_order_release);
-    run_wac(request, parameters_.search_params);
+    run_wac(request, parameters_.search_params, run_control(command.epoch));
     if (command.epoch == 0
         || control_epoch_.load(std::memory_order_acquire) == command.epoch)
         searching_.store(false, std::memory_order_release);
@@ -362,7 +384,7 @@ void Engine::run_bench_command(const EngineCommand& command) {
 
     stop_requested_.store(false, std::memory_order_release);
     searching_.store(true, std::memory_order_release);
-    run_bench(depth, repeats, threads);
+    run_bench(depth, repeats, threads, run_control(command.epoch));
     if (command.epoch == 0
         || control_epoch_.load(std::memory_order_acquire) == command.epoch)
         searching_.store(false, std::memory_order_release);
@@ -405,6 +427,14 @@ void Engine::apply_table_state() {
     if (parameters_.hash_mb != current_hash_mb_) {
         if (tt_.resize(static_cast<size_t>(parameters_.hash_mb), parameters_.threads)) {
             current_hash_mb_ = parameters_.hash_mb;
+            // The table holds a power of two of clusters, so any other size
+            // is floored; say what is used rather than leave the GUI's figure
+            // standing.
+            const size_t used_mb = tt_.allocated_bytes() >> 20;
+            if (used_mb != static_cast<size_t>(parameters_.hash_mb))
+                write_output_line("info string Hash " + std::to_string(parameters_.hash_mb)
+                               + " MiB uses a " + std::to_string(used_mb)
+                               + " MiB table (the largest power of two that fits).");
         } else {
             write_output_line("info string Unable to allocate Hash value "
                            + std::to_string(parameters_.hash_mb) + "; keeping "

@@ -410,12 +410,13 @@ reason.
 | B.4 | B-17 the dead SEE clamp |
 | B.5 (with D.1) | the fail-high stop's hole: a window that never returns is never checked (A-47; `analysis/b5_failhigh_stop_2026-10-25.md` §2.3). The ply cap's static evaluation in check (NODE-8) was repaired in B.5.2 |
 | B.6 | F4 the multi-cut correction bonus's product could pass 32 bits and then trained the wrong way (confirmed by B.6.4, `analysis/b64_engine_audit_2026-11-12.md` §3.1; repaired in B.6.5). The audit confirmed no other defect in the search |
-| B.9 | `go depth N` answered by a deeper helper (DRIVER-12); Fathom's `exit` on a table that fails to map (PROTO-11); A-50 a stop inside the first iteration; A-57 cold table reads on the clock; A-58 the tablebase root ranking ignores the game's repetitions; F1 `stop` and `quit` unseen during `bench` and `wac`; the clock's game ply at `ponderhit` read from the node the search is at (B.6.4, `analysis/b64_engine_audit_2026-11-12.md` §3.2); F6 bishops on one colour against a bare king scored as a win; each hard verdict B.9.3's read finds wrong |
+| B.9 | `go depth N` answered by a deeper helper (DRIVER-12); Fathom's `exit` on a table that fails to map (PROTO-11); A-50 a stop inside the first iteration; A-57 cold table reads on the clock; A-58 the tablebase root ranking ignores the game's repetitions; F1 `stop` and `quit` unseen during `bench` and `wac`; the clock's game ply at `ponderhit` read from the node the search is at (B.6.4, `analysis/b64_engine_audit_2026-11-12.md` §3.2); F6 bishops on one colour against a bare king scored as a win (B.9.3's V1); B.9.3's V2, the pawnless 0 trusted as exact where the other side has pawns. All repaired in B.9.5 and kept by BAS-S66 (2026-11-17) |
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
 | C.3, C.5, C.6 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
-| D.1 | A-46 reserve arithmetic |
-| D.3 | A-59 the tablebase root's DTZ ranking |
-| D.2 | BAS-C05 the TT key and payload published separately |
+| C.7 | B.9.3's V3 KRP-KR's draw rules, V4 the KRPP-KRP table, V6 the pawnless scales 4 and 14 (C.7.5); V5 KBN-K's known win, kept with a retry trigger (C.7.6); decided 2026-11-16, known limitations for 1.11.0 |
+| D.1 | A-46 reserve arithmetic; A-45 no sub-second horizon (both kept by B.9.4) |
+| D.3 | A-59 the tablebase root's DTZ ranking; A-57 cold root reads on the clock, a known limitation (both kept by B.9.4) |
+| D.2 | BAS-C05 the TT key and payload published separately; A-46's join before `bestmove` and DRIVER-15, a join behind a table read, a known limitation (kept by B.9.4) |
 
 ## 3. Required evidence
 
@@ -4725,7 +4726,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
           Hash 256, so its gain grows with the table; about 1% of a node
           is the predicted key's cost.
         - All eleven frozen estimates fell inside their 80% intervals.
-- [ ] **B.9** Robustness, verdicts and protocol before the release
+- [x] **B.9** Robustness, verdicts and protocol before the release
   Added 2026-11-05 (maintainer: every correctness fix before the next
   release): the lifecycle and protocol work that was D.3.2, the
   release-visible defects of the Rarog sweep and the tablebase root
@@ -4737,7 +4738,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   and protocol audit (B.9.1), the evaluator's hard verdicts read against
   Syzygy (B.9.3) and the known defects that later leaves own (B.9.4);
   then the repairs (B.9.5, which was B.9.2).
-    - [ ] **B.9.1** `[R2]` Lifecycle and protocol audit and tests
+    - [x] **B.9.1** `[R2]` Lifecycle and protocol audit and tests
       Lifecycle and protocol (archived 9.4): worker start, stop and join,
       cancellation, result authority, new-game and option resets, command
       ordering, Syzygy thread and halfmove contracts; deterministic
@@ -4868,7 +4869,54 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         or the stop path fails; and the ordinary PGO path and the
         `gcc-pgo` job fail on a kernel that went untrained, as the
         universal build already does (Rarog's D.5.20).
-    - [ ] **B.9.3** `[R2]` Hard verdicts against Syzygy
+      - Closed 2026-11-16, `READY_FOR_IMPLEMENTATION` for B.9.5
+        (`analysis/b91_lifecycle_audit_2026-11-16.md`; no engine source
+        changed, `bench 13` 4,688,537; the closing criterion is still
+        read in B.11.1's gauntlet):
+        - Every input read against the source and, where it shows, the
+          binary over UCI. Fourteen defects confirmed, thirteen with a
+          test that fails on the head (packet §3): DRIVER-12 (`go depth 8` at
+          Threads 4 printed depth 9 in 3 of 12); A-50 with A-65's sweep
+          (`go nodes 1` plays the first legal move at a cut depth 1); F7
+          and the −1 clock (depth 7, `hard_ms=0`); TT-7; the cached
+          `SyzygyPath`; PROTO-11 (exit 1, no `bestmove`); PROTO-24 on
+          Windows; the `ponderhit` ply (`soft_ms` 292 against 316); F1 for
+          `bench` stop, `wac` stop and `bench` quit; F9; B-122 (seldepth 1
+          on a mate proven through quiescence); A-58; PROTO-15 by reading;
+          and one new: a leading space or a tab drops a command, which the
+          UCI specification allows. With the two decisions' tests, 17
+          tests are known defects on Windows, 16 elsewhere.
+        - A-58 reproduced on the head with the 3-6-man tables: BAS-S39's
+          game 4965 replayed to 77...Ke5, the move before the threefold,
+          at depth 10 and 16. The CI test pins it on the KQvK fixture:
+          after a repetition all 20 wins share the best rank, not the five
+          with the shortest DTZ.
+        - The tests: `tests/uci_process_check.py` (the engine as a
+          process) and `tests/test_tb_root_rank.cpp`. A known defect runs
+          with `--expect-defect`, label `known-defect`, and passes only
+          while it prints `KNOWN DEFECT REPRODUCED`; each repair drops its
+          flag. All reproduced on the release and the sanitizer builds;
+          CTest 55 of 55.
+        - Guards that pass: TR-1, TR-2's input forms and output lock,
+          terminal roots at Threads 4, `setoption` mid-search, the end of
+          input during `go infinite` and ponder, a rejected `position`
+          mid-search, `go nodes` at Threads 4, A-69 (1.2.3's two illegal
+          moves were en passant evasions, answered now), `ucinewgame`
+          (a new game's search matches a fresh engine's node for node),
+          D-73's MultiPV stops, A-67's seeded fuzz.
+        - Decided by the maintainer 2026-11-16 (packet §4): a bare `go`
+          and `go mate N` take Stockfish's meaning, search until `stop`
+          and until the mate is found; `go mate 7` misses a mate in 6
+          today.
+        - Kept with reasons (packet §5): A-57 (4,006 ms on the first
+          search with cold tables; a known limitation, read again in
+          B.9.4), DRIVER-15 (joins A-46 in B.9.4), TR-3's MultiPV reprint,
+          TT-4's FEN ply (the donor's form).
+        - Measured for B.9.5 (packet §6): a line to the cap needs about
+          0.19 MB of stack against 512 KB on macOS and 1 MiB on Windows;
+          every search thread gets 8 MB, its test lands with the hook.
+          The ThreadSanitizer cell and D.5.20 are B.9.5's CI changes.
+    - [x] **B.9.3** `[R2]` Hard verdicts against Syzygy
       Added 2026-11-11 (`analysis/rarog_import_2026-11-11.md`;
       Rarog's D.5.19, which found a quarter of one of its own
       recogniser's quiet zeros to be wins). A hard verdict is a value the
@@ -4911,7 +4959,47 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - Priors from Rarog's read of its own rules: the wrong-corner
         draw exact over 937,176 positions; `krpkr_scale`'s zeros 1.7%
         wins; its KQ-KP fortress 26.7% of quiet zeros wins.
-    - [ ] **B.9.4** `[R2]` Deferred defects: repair now or justify
+      - Closed 2026-11-16 (`analysis/b93_hard_verdicts_2026-11-16.md`;
+        values unchanged, one export for the instrument, `bench 13`
+        4,688,537):
+        - The instrument: `tests/endgame_verdicts.cpp`, each class
+          exhaustive under symmetry or sampled, quiet positions
+          attributed to the site that fired in the evaluator's order,
+          the tables probed where one did, and a depth-8 search without
+          tables on a sample of each site's misses. Every three- and
+          four-man class and KBPP-K and KRP-KR exhaustively; the other
+          five-man classes and KRPP-KRP on 2,000,000 random quiet
+          positions each.
+        - Exact or under the line: the dead-position rule, KPK, KNNK
+          (0.0054%), the wrong-bishop KBP-K and KBPP-K (0 of 168,764),
+          every queen and rook tier, the minor mates but KBN-K, the
+          pawnless 0 without pawns (≤ 0.011%), KRP-KR's rules 2 and 3.
+        - Over the line (packet §2): V1 F6, all 765,152 same-coloured
+          KBB-K positions score ≥ 300; V2 the pawnless 0 where the other
+          side has pawns, 2.6% to 7.9% and 69% of KPP-K's few, the pawn
+          side winning; V3 KRP-KR's rules 1, 4 and 5 and its other
+          scales under the floor, 1.9% to 6.9% of their positions
+          (exhaustive); V4 the KRPP-KRP table, 5.5%; V5 KBN-K's known
+          win, 0.69%, the bare king forking a minor; V6 Stockfish's
+          pawnless scales 4 and 14, 0.8% to 41% by class.
+        - A depth-8 search without tables resolves most misses: 98% to
+          100% for V2 and V3, 79% for V5, 54% to 100% for V6. The
+          search's four wrong-bishop draws read as draws, both existing
+          tests passing.
+        - `READY_FOR_IMPLEMENTATION` for B.9.5 on V1 to V4 (packet §6).
+          Recommended, against the frozen rule's letter (packet §5): V5
+          kept, V6 to Phase C's per-class evaluators, both known
+          limitations for 1.11.0.
+        - Decided 2026-11-16 (maintainer; packet §5). None of the six
+          stops play. A wrong evaluation goes to Phase C unless it is easy
+          to fix now. B.9.5 repairs V1, a game rule (a dead position is
+          drawn), and V2, a 0 trusted as exact. Both are one condition and
+          change no value. V3, V4 and V6 go to C.7.5. V5 is kept, with its
+          retry trigger in C.7.6.
+        - Tests: `endgame_verdicts_fixtures`, a golden read of nine
+          fixture classes (seven four-man WDL tables added, 82 KB), and
+          `test_same_colour_bishops` (`known-defect`). CTest 57 of 57.
+    - [x] **B.9.4** `[R2]` Deferred defects: repair now or justify
       Added 2026-11-11 (maintainer: every known correctness fix before
       the next release). PLAN §2's *Known defects* gives some defects to
       leaves that run after 1.11.0. Each is read once here against one
@@ -4930,9 +5018,29 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         in no release and stay C.2.1's and C.2.2's.
       - It closes with the table corrected and a list of known
         limitations for 1.11.0's notes.
-    - [ ] **B.9.5** `[I2]` Repairs and the repair gate
+      - Closed 2026-11-16 (`analysis/b94_deferred_defects_2026-11-16.md`;
+        no engine source changed, `bench 13` 4,688,537): no defect meets
+        the rule, so B.9.5 takes nothing from this leaf.
+        - A-45 and A-46's reserve are time formulas D.1 refits. A-46's
+          join before `bestmove` is Stockfish's form, and changing it is a
+          D.2 redesign. A-59 is Stockfish's ranking, and D13's repair
+          covers the repetition case that cost game 4965.
+        - A-57 and DRIVER-15 cannot be repaired in any engine, since
+          they are disk waits. C-10 to C-13 need Phase C's refits. BAS-C05
+          was refused on measured cost.
+        - The *Known defects* table names the owners. The release notes'
+          *Known limitations* (`CHANGELOG.md`) list A-57, DRIVER-15,
+          BAS-C05 and B.9.3's V3 to V6.
+    - [x] **B.9.5** `[I2]` Repairs and the repair gate
       It was B.9.2 until 2026-11-11; it now repairs what B.9.1, B.9.3
-      and B.9.4 each found.
+      and B.9.4 each found. B.9.3's handoff is its packet's §6
+      (`analysis/b93_hard_verdicts_2026-11-16.md`), V1 and V2 only:
+      V3, V4 and V6 went to C.7.5 and V5 is kept (decided 2026-11-16).
+      B.9.1's handoff is its packet's §9
+      (`analysis/b91_lifecycle_audit_2026-11-16.md`): the tests
+      labelled `known-defect`, each repair dropping its test's
+      `--expect-defect`, and the exposure of D2, D3 and D13 measured
+      before any games.
       Each failing test of those leaves repaired in its own commit, through the
       correctness-repair path: CTest on release and sanitizer builds, the
       exact fingerprint where the search is untouched and a recorded move
@@ -4943,6 +5051,36 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       take no games. A verdict repair that a static differential confines
       to its own site takes none either; one that changes a score outside
       it joins the repair SPRT.
+      - Implemented and qualified 2026-11-17, the gate prepared
+        (`analysis/b95_repairs_2026-11-17.md`; head `39982c0`, `bench 13`
+        4,777,412):
+        - Every handed-over item repaired in its own commit, and every
+          `known-defect` test passing plainly: D1 to D14, the two
+          decisions, V1, V2, the 8 MB thread stacks with Fathom's buffer on
+          the heap, the ThreadSanitizer cell and D.5.20.
+        - Release CTest 59 of 59, the sanitizer build 56 of 56, and
+          ThreadSanitizer 9 of 9 on the threading tests (WSL, Clang 20;
+          its wire shown live). D.5.20's rule failed a PGO build on an
+          untrained file, as it must.
+        - `bench 13` 4,688,537 through every repair but V2, the one move
+          (+1.9%): the search's correction now applies where the 0 is no
+          longer a verdict.
+        - D13 needed more than Stockfish's form: in game 4965 the shortest
+          DTZ win repeated a position a third time. A win the game's
+          history draws now ranks as a draw. From the first repetition the
+          repaired engine keeps DTZ falling where the game cycled
+          (packet §4).
+        - Exposure: V2 broad (30.5% of BAS-S64's games reach its material,
+          an upper bound); D2, D3 nil in clock games; D13 nil without
+          tables, one game in 2,286 with them.
+        - The gate, BAS-S66: `[-5,5]` at `3+0.03`, 4,000 pairs, tablebases
+          off, dry run accepted; the maintainer's run. D13 takes no games:
+          it closes on the game-4965 replay and its fixture test
+          (maintainer, 2026-11-17; packet §4).
+        - BAS-S66, maintainer-run 2026-11-17: the cap, 8,000 games,
+          −0.8 ± 3.4 Elo (nElo −1.8 ± 7.6), LLR −1.22, zero faults, the
+          recount agreeing. The repairs stay and the fingerprint record
+          moves to 4,777,412. CLOSED.
 - [ ] **B.11** Checkpoint and interim release
   The search programme's checkpoint (B.9 until 2026-11-05), the
   originality and licence disclosure (B.11.3, added 2026-11-11), then
@@ -5218,10 +5356,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.9.1 | RESEARCH | R2 | Was D.3.2, with the release-visible defects (2026-11-05) |
-| B.9.3 | RESEARCH | R2 | Added 2026-11-11; the evaluator's hard verdicts against Syzygy, the evaluation frozen |
-| B.9.4 | RESEARCH | R2 | Added 2026-11-11; known defects owned after B.11, repaired now or justified |
-| B.9.5 | RESEARCH | I2 | Was B.9.2; on the failing tests of B.9.1, B.9.3 and B.9.4, one repair gate |
 | B.11.1 | RESEARCH | V | Was B.9; programme checkpoint |
 | B.11.3 | RESEARCH | R2 | Added 2026-11-11; the disclosure on the release candidate, before the cut |
 | B.11.4 | RESEARCH | M | Was B.11, then B.11.2; interim release after B.11.3 (maintainer decision 2026-10-24) |
@@ -5761,6 +5895,39 @@ has lost games in both engines (BAS-X02).
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
       - KR-KN and KR-KB at a flat 4/64, and KRP-KB unscaled (C-129).
+      B.9.3's verdicts over its 0.5% line, routed here 2026-11-16
+      (`analysis/b93_hard_verdicts_2026-11-16.md` §2, §5, §6):
+      - V3: KRP-KR's draw rules 1, 4 and 5 and its other scales under the
+        floor call 1.9% to 6.9% of wins drawn. V4: the KRPP-KRP table,
+        5.5%. Each rule is narrowed within its own terms until the
+        instrument's exhaustive KRP-KR read (KRPP-KRP: the seeded 2M
+        sample) puts it at or under 0.5%, or it is dropped.
+      - V6: the pawnless scales 4 and 14, one number per class, which
+        the tables contradict in 0.8% (KRP-KR) to 41% (KQ-KRN) of
+        positions. KBB-KB's scale 4 joined them after V1 (B.9.5): its
+        same-coloured draws left the site for the dead rule, and the
+        exhaustive read gives 0.507%. KR-KN is worst for the search: it resolves only 80%
+        of the sampled misses. A position-dependent rule per class (KR-KN,
+        KR-KB, KQ-KR with minors) is read with the same instrument.
+      The 2026-11-17 read of V3, V4 and V6
+      (`analysis/c75_routed_verdicts_lab_2026-11-17.md`, the instrument's
+      `--dump`; nothing shipped):
+      - V3 and V4 are discounts floored at 24/64, not verdicts, and a
+        depth-8 search resolves 98% to 100% of their errors. V3 is exact
+        with the defender to move. With the attacker to move its errors are
+        mostly rook skewers: excluding the skewer gives rule 1 0.55%, rule
+        5 0.70%, the floor region 0.88%, and every further cut tried gives
+        up ten to forty correct draws per error removed.
+      - V4 stays at 3.8% without skewers: the table is indexed by the
+        leading pawn's rank alone and its errors are positional, so it
+        wants a fitted table.
+      - V6, exhaustive: KR-KN's scale 4 is wrong in 18.9%, KR-KB's in 6.0%.
+        The wins follow the minor's distance from its king, the defending
+        king on the edge and the side to move (classical Stockfish's KRKN
+        features). The repair is a fitted, position-graded evaluator per
+        class; narrowing the one number cannot be exact.
+      - Acceptance for a floored site is its search-resolved residual or a
+        gate, not B.9.3's 0.5% share of positions the scale touches.
     - [ ] **C.7.6** `[R2]` Lower-yield remainder
       Lower-yield remainder (archived 6.10.a–d): KPs-K and KP-KP first; KQ-KP
       and KQ-KR reconciled across budgets; KR-KN, KNN-KP and KNN-K theory and
@@ -5771,6 +5938,10 @@ has lost games in both engines (BAS-X02).
       - KNN-KP: an additive drive plus a blockade term, never a replacement
         score (C-130); the KXK corner-to-king ratio (C-39); the KBN-K drive's
         speed and a distance-to-mate table option (C-144).
+      - B.9.3's V5, kept 2026-11-16: KBN-K's known win is wrong in 0.69%
+        of positions, where the bare king forks a minor. Depth 8 resolves
+        79% of them. Retry trigger: a KBN-K game lost to a fork or trap in
+        any gate's conversion read.
       - A prior for KQ-KP (2026-11-11, `analysis/rarog_import_2026-11-11.md`;
         Rarog's D.6.24): Rarog's fortress rule zeroed 172,256 positions with
         the pawn on the seventh, and 26.7% of the quiet ones are wins for

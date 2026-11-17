@@ -80,8 +80,11 @@ const std::array<std::string_view, 40>& bench_fens() { return BENCH_FENS; }
 //             (default 1 -> per-position detail is printed)
 //   threads : search workers (default 1; the fingerprint is only deterministic
 //             single-threaded, as Lazy SMP helpers add non-deterministic work)
-void run_bench(int depth, int repeats, int threads) {
+void run_bench(int depth, int repeats, int threads, const RunControl& control) {
     std::atomic_bool stop{false};
+    RunWatch watch(control, stop);
+    bool stopped = false;
+    size_t positions_done = 0;
     TranspositionTable tt(16);
     threads = std::max(1, threads);
     repeats = std::max(1, repeats);
@@ -104,7 +107,7 @@ void run_bench(int depth, int repeats, int threads) {
     nps_samples.reserve(static_cast<size_t>(repeats));
 
     write_output_line("");
-    for (int repeat = 0; repeat < repeats; ++repeat) {
+    for (int repeat = 0; repeat < repeats && !stopped; ++repeat) {
         // Clean, identical starting state each repeat (TT + histories) so every
         // run is the same deterministic workload — the only NPS variation is
         // machine noise — and the fingerprint is independent of prior state.
@@ -125,8 +128,17 @@ void run_bench(int depth, int repeats, int threads) {
             SearchLimits limits;
             limits.depth = depth;
 
-            stop.store(false, std::memory_order_release);
+            stop.store(false, std::memory_order_seq_cst);
+            if (watch.stopped()) {
+                stopped = true;
+                break;
+            }
             SearchResult r = search_pool.search(board, limits, threads);
+            if (watch.stopped()) {
+                stopped = true;     // a partial search is no record
+                break;
+            }
+            ++positions_done;
 
             total_nodes += r.nodes;
             total_ms    += r.elapsed_ms;
@@ -151,6 +163,8 @@ void run_bench(int depth, int repeats, int threads) {
             }
         }
 
+        if (stopped)
+            break;
         const int64_t run_nps = total_nodes * 1000 / std::max<int64_t>(1, total_ms);
         nps_samples.push_back(run_nps);
 
@@ -169,6 +183,11 @@ void run_bench(int depth, int repeats, int threads) {
             write_output_line(std::format("run {}/{}  nodes {}  time {}ms  nps {}",
                                        repeat + 1, repeats, total_nodes, total_ms, run_nps));
         }
+    }
+
+    if (stopped) {
+        write_output_line(std::format("bench stopped after {} searches; no summary", positions_done));
+        return;
     }
 
     // Robust diagnostics so the node total is read as a fingerprint, not a
