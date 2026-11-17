@@ -12,15 +12,16 @@
 - Timing: the maintainer runs it before the 1.11.0 release (2026-11-17),
   on master. Master's engine source is the release candidate's: `src/` is
   identical between master `4d2742f` and the head `4c0bc0e` that BAS-M16
-  and BAS-M17 played. The maintainer builds it, and the build must read
-  `bench 13` 4,777,412 before the run.
+  and BAS-M17 played. The maintainer built it from the branch at
+  `e907e60`, whose `src/` is master's. It reads `id name Basilisk
+  dev-20261117-e907e603` and `bench 13` 4,777,412, checked 2026-11-17.
 - **Field**: one version per engine family, plus four already-rated anchors
   that are themselves contenders. Every engine plays 1 thread, Hash 64, with
   move overhead 10 ms where it has the option.
 
   | Engine | Role | Library rating | SHA-256 |
   |---|---|---|---|
-  | Basilisk master (`4d2742f`) | contender | 3416, BAS-M16's performance | recorded at the run |
+  | Basilisk `dev-20261117-e907e603` | contender | 3416, BAS-M16's performance | `685D0E06…` |
   | Stockfish 16, `Use NNUE=false` | contender | 3555 est. | `041396A4…` |
   | Dragon 3.3, `Use Regular Eval=true` | contender | 3510 est. | `90CA3D6A…` |
   | Berserk 4.7.0 | contender | 3500 est. | `2F1D85FA…` |
