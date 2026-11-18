@@ -14,6 +14,10 @@ and next step).
 
 ## [Unreleased]
 
+---
+
+## [1.11.0] - 2026-11-18
+
 The search programme's release. Basilisk's search has been rebuilt to modern
 Stockfish's design, one part at a time, and each part tuned. Against 1.10.2 it
 measured **+407 ± 39 Elo** at `3+0.03` (536 games, a sequential test stopped
@@ -1779,6 +1783,8 @@ First public release.
 - `bench [depth]` command — 16-position built-in benchmark, prints per-position NPS and total node-count fingerprint
 - GitHub Actions release workflow — builds for Linux x86_64, Linux aarch64, Windows x86_64, Windows aarch64, macOS aarch64; all built with Clang; PEXT variant produced for x86_64 platforms
 
+[1.11.0]: https://github.com/maelic13/basilisk/compare/v1.10.2...v1.11.0
+[1.10.2]: https://github.com/maelic13/basilisk/compare/v1.10.1...v1.10.2
 [1.10.1]: https://github.com/maelic13/basilisk/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/maelic13/basilisk/compare/v1.9.3...v1.10.0
 [1.9.3]: https://github.com/maelic13/basilisk/compare/v1.9.2...v1.9.3
