@@ -112,6 +112,7 @@ kept so the run can be reproduced from its ledger entry.
 | `diag/scale_ratio.py` | The evaluation scale ratios and the search-minus-static residual | B.0; BAS-C14 |
 | `diag/winrate_fit.py` | Stockfish's win-rate model fitted to Basilisk's own games | BAS-C14 |
 | `diag/source_census.py` | A mechanical census of the engine source for an architecture review | B.2.0 |
+| `diag/originality_scan.py` | Shared numeric runs, scaled tables and token runs between the engine's source and a donor's (ported from Rarog) | B.11.3; C.13, E.3, F.9 |
 | `diag/uci_probe.py` | Black-box UCI probes for protocol and clock defects | A.8 |
 | `oracle/build_oracle.ps1`, `oracle/bridge-board-access.patch` | The classical-Stockfish search oracle rebuilt around a Basilisk revision's evaluation | BAS-O05, BAS-S18 |
 | `generate_spsa_surface.py` | The SPSA inputs generated from the search-parameter X-macro, and with `--rule7c` a run's tune file at its ceiling, the perturbation graded by room | BAS-S22; PLAN rule 7c |
