@@ -98,3 +98,97 @@
   cross-check and fastchess-GUI trial.
 
 #### RESULT — append after exposure
+
+- Run 2026-11-17 20:38 to 2026-11-18 07:37 (9 h 58 min), by the maintainer
+  (PGN `tools/results/bas-m18/games.pgn`; fit `fit.txt` beside it). All
+  54,600 games were played and paired, 27,300 colour-reversed pairs over
+  91 pairings, with no unpaired game.
+- Every game ended naturally: 38,677 mates, 9,595 repetitions, 3,857
+  insufficient material, 2,192 fifty-move draws and 279 stalemates. There
+  were no time losses, crashes or illegal moves by any engine.
+- Draws were 29.2%; White scored 53.3%.
+- Ratings come from a joint maximum-likelihood logistic fit with the five
+  anchors fixed, with 95% intervals from 200 pentanomial resamples per
+  pairing. The intervals omit the anchors' own error. The GUI's Chosen
+  write-back reads the same values to within 0.5.
+
+  | # | Engine | Five anchors fixed | Only Stockfish 11 fixed | Estimate before |
+  |---|---|---|---|---|
+  | 1 | Stockfish 16 HCE | **3605** [3599, 3612] | 3593 | 3555 |
+  | 2 | Berserk 4.7.0 HCE | **3545** [3538, 3550] | 3533 | 3500 |
+  | 3 | Stockfish 11 | 3532 fixed | 3532 fixed | — |
+  | 4 | Houdini 6.03 | 3499 fixed | 3452 | — |
+  | 5 | Ethereal 14.40 HCE | **3467** [3461, 3473] | 3456 | 3449 |
+  | 6 | Rarog 2.7.0 | **3445** [3438, 3451] | 3434 | 3415 |
+  | 7 | Dragon 3.3 HCE | **3425** [3418, 3430] | 3413 | 3510 |
+  | 8 | Fire 8.3 | 3423 fixed | 3374 | — |
+  | 9 | **Basilisk `e907e603`** | **3403** [3397, 3409] | 3393 | 3416 |
+  | 10 | Ethereal 13.07 | 3356 fixed | 3391 | — |
+  | 11 | rofChade 2.3 | **3281** [3275, 3287] | 3271 | 3345 |
+  | 12 | Rarog 2.5.0 | 3281 fixed | 3290 | — |
+  | 13 | Koivisto 4.83 | **3196** [3188, 3203] | 3186 | 3250 |
+  | 14 | Booot 6.5 | **3138** [3130, 3146] | 3128 | 3365 |
+
+- The head's matches, 600 games each, with Elo and 95% intervals from the
+  pentanomial:
+
+  | Opponent | Head's W-D-L | Elo |
+  |---|---|---|
+  | Stockfish 16 HCE | 67-163-370 | −193.2 [−217.7, −170.3] |
+  | Berserk 4.7.0 HCE | 105-153-342 | −145.1 [−169.2, −122.3] |
+  | Stockfish 11 | 107-176-317 | −127.0 [−149.5, −105.4] |
+  | Ethereal 14.40 HCE | 146-187-267 | −71.0 [−92.3, −50.3] |
+  | Houdini 6.03 | 163-197-240 | −44.8 [−64.9, −25.1] |
+  | Rarog 2.7.0 | 169-197-234 | −37.8 [−59.3, −16.5] |
+  | Ethereal 13.07 | 194-196-210 | −9.3 [−31.0, +12.4] |
+  | Dragon 3.3 HCE | 198-191-211 | −7.5 [−28.2, +13.1] |
+  | Fire 8.3 | 204-220-176 | +16.2 [−2.9, +35.4] |
+  | Rarog 2.5.0 | 275-214-111 | +97.4 [+77.9, +117.6] |
+  | rofChade 2.3 | 315-185-100 | +130.3 [+109.2, +152.3] |
+  | Koivisto 4.83 | 386-152-62 | +209.9 [+185.4, +236.4] |
+  | Booot 6.5 | 397-143-60 | +220.7 [+195.0, +248.7] |
+
+- Calibration against the registered predictions:
+  - Head at 3403: inside the band (3385–3450), 13 below the point.
+  - The leader is Stockfish 16 HCE, as predicted (probability 0.55), at
+    3605, at the top edge of its band (3500–3610).
+  - **Missed**: the head's gap to the leader is **202** (−193 head to
+    head), above the band of 90–190.
+  - The head placed 9th of 14 by rating and 8th by points; the band was
+    7th to 9th.
+  - No Basilisk fault, as predicted at 0.95. Booot 6.5 lost nothing on
+    time.
+- **The scale-transfer falsifier fired.** With only Stockfish 11 fixed:
+  - Houdini 6.03 lands 47.5 below its library rating, and Fire 8.3 49.3
+    below;
+  - Ethereal 13.07 lands 34.8 above;
+  - only Rarog 2.5.0 lands within 30 (+8.7).
+
+  So the pool's ratings do not carry over to this field to better than
+  about ±50. The five-anchor fit averages that out, but its ratings carry
+  that much uncertainty on the pool's scale. **Distances inside this field
+  are the robust reading**: the two fits agree on every gap to within 12.
+- Readings:
+  - **Stockfish 16 HCE is the strongest hand-crafted-evaluation engine in
+    this field.** It leads Berserk 4.7.0 by 60 and Stockfish 11 by 73
+    (+69 head to head).
+    - Its library rating stands about 60 above Stockfish 15.1 HCE's
+      (3543), across the scale caveat.
+    - C.0's donor choice expects SF16's evaluation. This field cannot
+      separate its evaluation from its search.
+  - **The head is 202 below the top and 142 below second.** It is level
+    with Dragon 3.3 HCE and Ethereal 13.07, and 38 below Rarog 2.7.0.
+  - **Against Rarog 2.5.0**, Rarog's release at the end of its own search
+    programme, the head reads **+97.4**. BAS-M15 read +74.6 after Clusters
+    1 to 3.
+  - **Dragon 3.3's regular evaluation** reads 85 below its estimate. On
+    library ratings Komodo 14.1 (3476) stands above it, so 14.1 is the
+    Komodo family's stronger hand-crafted engine on this evidence.
+  - **Booot 6.5** read 227 below its estimate, and rofChade and Koivisto
+    about 60 below. These are older engines at `3+0.03` 1T.
+    - Booot exposes no UCI options at all, Hash and Threads included, so
+      its setup was never checked.
+    - Its rating here is not read as its strength until that is checked.
+- Disposition: COMPLETE. It is §1's aim's first meter reading: about 200
+  below Stockfish 16 HCE. PLAN B.11.5's fastchess replay of one pairing is
+  still open.

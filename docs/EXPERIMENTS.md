@@ -138,7 +138,7 @@ X is good/bad”. If conditions or artifacts are unknown, say so.
 | [BAS-M15](experiments/BAS-M15.md) | "Dev Test": the head after Clusters 1 to 3 in a twelve-engine 1T round robin. | Observation: pool +314.2 over 1.10.2, +74.6 over Rarog 2.5.0 |
 | [BAS-M16](experiments/BAS-M16.md) | B.11.1 1T pool gauntlet: the head against the four targets, Rarog 2.6.0 beside it. | COMPLETE: performance 3416.3 [3395.5, 3437.1]; Rarog 2.6.0 −35.7 ± 23.2; no Basilisk fault |
 | [BAS-M17](experiments/BAS-M17.md) | B.11.1 head-to-head against Rarog 2.7.0, Rarog's latest release, beside BAS-M16's 2.6.0 match. | COMPLETE: −30.5 ± 25.5 (111-143-146); no Basilisk fault |
-| [BAS-M18](experiments/BAS-M18.md) | B.11.5 HCE frontier field: a rated 14-engine round robin, nine contenders and five anchors. | REGISTERED: 54,600 games, maintainer-run overnight |
+| [BAS-M18](experiments/BAS-M18.md) | B.11.5 HCE frontier field: a rated 14-engine round robin, nine contenders and five anchors. | COMPLETE: head 3403, 9th of 14; Stockfish 16 HCE leads at 3605 (+193 head to head); no faults or time losses; the scale-transfer falsifier fired (±50) |
 
 ## 3. Search and selectivity
 

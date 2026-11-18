@@ -5291,6 +5291,15 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - Stockfish 15.1 HCE and Komodo 14.1 sit out, as their ratings are
           already known. Rarog 2.7.0, the maintainer's local build, joins
           under the latest-release rule.
+      - Read 2026-11-18 (BAS-M18, 54,600 games, no faults or time losses):
+        - Stockfish 16 HCE leads at **3605**. Berserk 4.7.0 follows at
+          3545, then Stockfish 11 (3532, fixed).
+        - The head rates **3403**, 9th of 14. It is **202** below the top:
+          −193 head to head with Stockfish 16 HCE, and −145 with Berserk.
+        - The pool's scale transfers only to about ±50: with Stockfish 11
+          alone fixed, Houdini 6.03 and Fire 8.3 land about 48 below their
+          ratings. So gaps inside the field are the reading.
+        - Open: the fastchess replay of one pairing.
 - [x] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
   Correctness repair, opened 2026-10-30 at the maintainer's decision when
   B.3.0's counter suite stopped on it (packet §2.3,
