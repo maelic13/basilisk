@@ -189,6 +189,23 @@
     - Booot exposes no UCI options at all, Hash and Threads included, so
       its setup was never checked.
     - Its rating here is not read as its strength until that is checked.
+- **Conversion, read afterwards** (not registered; B.11.1's close,
+  2026-11-18, BAS-M08's settings). Draws and losses after a persistent
+  piece-up advantage, per 1,000 of each engine's 7,800 games:
+
+  | Engine | Draws | Losses | Thrown |
+  |---|---:|---:|---:|
+  | Stockfish 16 HCE | 11.4 | 0.1 | 11.5 |
+  | Basilisk `e907e603` | 10.6 | 5.4 | 16.0 |
+  | Rarog 2.7.0 | 15.4 | 3.2 | 18.6 |
+  | Berserk 4.7.0 HCE | 22.4 | 2.8 | 25.3 |
+  | Ethereal 14.40 HCE | 28.6 | 3.5 | 32.1 |
+
+  - A stronger engine reaches more piece-up positions, so a rate per game
+    is not a rate per chance.
+  - The head draws no more often than the leader. It loses five times as
+    many such games (42 against 1), which is the evaluation's or the
+    endgame's share for C.
 - Disposition: COMPLETE. It is §1's aim's first meter reading: about 200
   below Stockfish 16 HCE. PLAN B.11.5's fastchess replay of one pairing is
   still open.

@@ -127,6 +127,15 @@ Houdini 3 (293) falls, if at all, only with C. Each
 programme's checkpoint re-measures its deficit meter, so a miss is seen as a
 miss and this table is corrected rather than defended.
 
+**Corrected at B's checkpoint (B.11.1, 2026-11-18).**
+
+- B's band was low by about a factor of two. Its clusters and fits
+  delivered about +387 by their gates, and G(0) recovered 383, ending
+  70.7 past the oracle's search.
+- All four targets fell at 1T after B, Houdini 3 by +161.9.
+- C's band stands until C.0 re-reads it against the donor its
+  comparison picks (`analysis/b111_checkpoint_2026-11-18.md`).
+
 ## 2. Operating rules
 
 `AGENTS.md` and its `agents/` task files are authoritative for how agents work and `DESIGN.md` for what must
@@ -5093,7 +5102,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   The search programme's checkpoint (B.9 until 2026-11-05), the
   originality and licence disclosure (B.11.3, added 2026-11-11), then
   the 1.11.0 release (B.11 until 2026-11-05, B.11.2 until 2026-11-11).
-    - [ ] **B.11.1** `[V]` Search programme checkpoint
+    - [x] **B.11.1** `[V]` Search programme checkpoint
       Checkpoint: re-measure every deficit meter.
       G(0) is read twice (maintainer, 2026-11-14), so that the gain compares
       both with Basilisk's own baseline and with Rarog's reads:
@@ -5182,9 +5191,31 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         2.6.0. The maintainer added it (2026-11-17): every Rarog comparison
         includes the latest release, built locally from now on. Read as
         BAS-M17: **−30.5 ± 25.5**, the same as 2.6.0's within noise.
-      - Left for the close: the conversion audit on BAS-M16's games, the
-        attributed Elo per cluster against the budget table, removing the
-        ablation build and the freeze.
+      Closed 2026-11-18:
+      - Conversion (BAS-M16): **10.6 draws and 0.6 losses per 1,000**
+        after a persistent piece-up advantage, against 1.10.0's 16.67 /
+        6.67 (BAS-M08).
+        - In BAS-M18's frontier field the head throws 16.0 per 1,000,
+          against Stockfish 16 HCE's 11.5. The losses are the gap: 42
+          against 1.
+      - Attributed Elo (`analysis/b111_checkpoint_2026-11-18.md`):
+        - per cluster: Cluster 1 +194.9 (+136.2 for the mechanisms, +58.7
+          for the fit), Cluster 2 +92.8 with +4.7 for the coloured
+          histories, Cluster 3 +31.7, Cluster 4 +15.6;
+        - the joint fit +28.2, and the cleanup and speed pass +19.1;
+        - repairs +54.4.
+        - The gates sum to +441; against the same four targets the
+          gain measures +422 (2994 to 3416.3).
+      - Against the budget: B planned 150–250 and delivered about 387,
+        with G(0) 383 recovered, past the oracle. All four targets fell
+        after B, where the table had Houdini 3 waiting for C. §1's
+        table carries the correction.
+      - The ablation build is removed. `bench 13` stays 4,777,412 on
+        Release, Tune and Diag, and the deletion is ledgered in
+        `analysis/b82_switch_inventory_2026-11-14.md` §7.5.
+      - **The search head is frozen for C** at `bench 13` 4,777,412: the
+        engine of `4d2742f`, less the ablation flavour. From here to H a
+        search change is a correctness repair with its own gate.
     - [ ] **B.11.3** `[R2]` Originality and licence disclosure
       Added 2026-11-11 (`analysis/rarog_import_2026-11-11.md`;
       Rarog's E.3.0). 1.11.0 is the first release whose search is built
@@ -5478,7 +5509,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.11.1 | RESEARCH | V | Was B.9; programme checkpoint |
 | B.11.3 | RESEARCH | R2 | Added 2026-11-11; the disclosure on the release candidate, before the cut |
 | B.11.4 | RESEARCH | M | Was B.11, then B.11.2; interim release after B.11.3 (maintainer decision 2026-10-24) |
 | B.11.5 | RESEARCH | V | Added 2026-11-17; the HCE frontier field, a rated round robin, brought forward before the release; BAS-M18 registered |

@@ -89,5 +89,16 @@
   this entry, and the preparation did not check. The 2.6.0 match stands as
   run, and it is the one comparable with BAS-M15. The maintainer added
   2.7.0 beside it (2026-11-17), registered separately as BAS-M17.
-- The conversion audit on these games is still owed; it is B.11.1's.
+- **Conversion audit** (B.11.1's close, 2026-11-18;
+  `tools/diag/conversion_audit.py`, BAS-M08's settings: 12 persistent plies,
+  3 material units, lone minors excluded; `tools/results/b111-checkpoint/conversion/`):
+  - The gauntlet, 1,600 games: **17 draws and 1 loss** after a persistent
+    piece-up advantage, **10.6 / 0.6 per 1,000** (11.3 thrown). 1.10.0
+    read 16.67 / 6.67 (23.33) in BAS-M08 against six HCE-era anchors.
+    - Against Critter 1.6a and Fritz 16, the two anchors the reads share,
+      the head threw 6 draws and no loss in 800 games.
+  - Against Rarog 2.6.0, 400 games: 4 draws and 4 losses, 10.0 / 10.0 per
+    1,000.
+  - The head also saved 20 games and won 13 from a persistent deficit in
+    the gauntlet.
 - Disposition: COMPLETE for the gauntlet and the 2.6.0 match.
