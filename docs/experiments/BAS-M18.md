@@ -210,5 +210,5 @@
   - Booot 6.5 is removed from the field.
   - Stockfish 16 HCE becomes the pre-NNUE target (PLAN §1).
 - Disposition: COMPLETE. It is §1's aim's first meter reading: about 200
-  below Stockfish 16 HCE. PLAN B.11.5's fastchess replay of one pairing is
-  still open.
+  below Stockfish 16 HCE. B.11.5's fastchess replay of one pairing was
+  dropped as not needed (maintainer, 2026-11-18).

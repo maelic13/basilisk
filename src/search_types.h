@@ -87,8 +87,7 @@ struct SearchStack {
     int       ext_plies   = 0;
     int       ext_taken   = 0;
     // The extensions from a negative reduction on the line to this node, and
-    // the one the move searched from here takes, written where the counters
-    // are compiled in.
+    // the one the move searched from here takes.
     int       negext_path  = 0;
     int       negext_taken = 0;
 };
@@ -120,8 +119,9 @@ struct SearchLimits {
     bool trace_root = false;     // a test's trace of the root's searches alone
     int pricing_every = 0;       // probe every N-th pruning decision (0 = off)
 #endif
-    // Instant the `go` command was parsed off UCI input (default = unset). Used
-    // only to report dispatch latency in tm_debug; does not affect timing yet.
+    // Instant the `go` command was parsed off UCI input (default = unset). When
+    // set, the search's clock starts here, so the dispatch latency counts
+    // against the move; tm_debug also reports it.
     std::chrono::steady_clock::time_point go_recv_time{};
     std::vector<Move> root_moves;
     std::vector<Syzygy::RootMoveInfo> syzygy_root_moves;

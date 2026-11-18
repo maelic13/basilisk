@@ -227,7 +227,7 @@ static void test_quiet_table_move_outside_check() {
 // ---- Evasions -------------------------------------------------------------------
 
 // Re5+ loses the rook to Nxe5; the king has three quiet evasions besides. The
-// capture holds, so the arm searches no quiet after it.
+// capture holds, so the search tries no quiet after it.
 static NodeRead knight_takes_rook() {
     NodeRead r;
     r.fen = "4k3/5n2/8/R7/8/8/8/K7 w - - 0 1";
@@ -262,7 +262,7 @@ static void test_a_holding_evasion_ends_the_quiets() {
     end_section();
 }
 
-// The arm stores an evasion node at depth 0 with no static evaluation and the
+// The search stores an evasion node at depth 0 with no static evaluation and the
 // move that raised alpha.
 static void test_exit_store_in_check() {
     Board child;
@@ -441,7 +441,7 @@ static void test_en_passant_is_credited_a_pawn() {
 // loss by the static eval. The capture ends the ending in a draw, and it is
 // no recapture, so only the band's guard keeps the gain rules from reading it
 // as a bishop against that eval. (The wrong-bishop draws of test_endgames end
-// in a recapture, which the arm exempts either way.)
+// in a recapture, which the search exempts either way.)
 static void test_the_known_loss_band_stands_down() {
     NodeRead r;
     r.fen = "8/7K/8/8/8/7B/8/3kB3 w - - 0 1";
@@ -502,7 +502,7 @@ static void test_blend_arithmetic() {
 }
 
 // The node stands pat 100 above beta. The root reads the node's value, and
-// the table's lower bound is the value returned, on the arm the blend.
+// the table's lower bound is the value returned, the blend.
 static void test_stand_pat_returns_and_stores_the_blend() {
     NodeRead r;
     r.fen = "3qk3/8/8/8/4P3/8/8/6K1 b - - 0 1";

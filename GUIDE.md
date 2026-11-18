@@ -11,10 +11,10 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Item | Value |
 |---|---|
 | Released baseline | **1.11.0** on `master`, tagged `v1.11.0` (2026-11-18), `bench 13` 4,777,412 |
-| Bench fingerprint | **4,777,412** (`bench 13`, since B.9.5's gate kept the repairs; 4,688,537 at B.8.7; 4,247,965 at B.7.1; 4,278,307 at B.6.7; 3,783,135 at B.5.5; 4,144,790 at B.4.7; 6,090,091 at B.4.2; 5,361,058 at B.3.6; 5,369,042 at B.3.5; 11,880,564 at B.14; 16,615,757 at B.12; 19,470,325 at A.13.2; 19,108,490 at A.13.1; 16,092,165 at A.11.11; 8,913,394 at A.11.10; 7,857,713 at A.11.9; 7,384,101 at A.11.7; 7,233,823 at A.11.6; 8,753,339 at A.11.2; 9,260,429 at A.11.1; 8,437,148 at B.10; 11,099,210 at B.2.4; 14,978,465 for 1.10.0 to 1.10.2) |
+| Bench fingerprint | **4,777,412** (`bench 13`, since B.9.5's gate kept the repairs; HISTORY's 1.11.0 record lists the earlier counts) |
 | Active experiment | None |
 | Long job | None |
-| Next release | **1.11.0** after B (B.11.4), then 1.12.0 after C, 1.13.0 after E; **2.0.0** is the first NNUE release |
+| Next release | **1.12.0** after C (C.13), then 1.13.0 after E; **2.0.0** is the first NNUE release |
 
 ## Model by class
 
@@ -36,124 +36,25 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.11.4** `[M]` Interim release 1.11.0 — Claude Sonnet
+**Next step:** **C.0** `[R3]` Evaluation programme investigation — Claude Fable
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
 A.1–A.7 closed between 2026-09-28 and 2026-10-06; their text is in
 [`docs/archive/PLAN-closed-2026-10-07.md`](docs/archive/PLAN-closed-2026-10-07.md).
-They reset the documents (A.1); cleaned the repository, branches and tags and
-inventoried features, options and parameters (A.2); made the Colosseum CLI
-the main harness with its SPSA path (A.3); refreshed and froze the toolchain
-with build flavours for arms (A.4); built the search programme's
-instruments: fixed-budget probe, reference-anchored branching profile,
-counter summation and decision trace, matched ablation mask, PGN conversion
-instrument and canaries (A.5); mapped the codebase consolidation (A.6); and
-measured the 1.10.1 baselines (A.7): the 1T pool census (BAS-M08), 4T
-performance **3040** [3026, 3054] (BAS-M11), G(0) **+312.6 ± 17.8**
-(BAS-O05) and pooled-PGO NPS **4.127M** (BAS-P12).
 
 A.8–A.17 closed between 2026-10-07 and 2026-10-30; their text is in
 [`docs/archive/PLAN-closed-2026-10-30.md`](docs/archive/PLAN-closed-2026-10-30.md).
-They brought Basilisk to Rarog's parity: the last Rarog import, CI on pull
-requests, the tag-driven release, UCI and MultiPV conformance, tablebase
-score bands and probes, the won-endgame time sink and the 1.10.2 patch
-release (A.8); rebuilt the harness and the instruments, among them the
-pooled-build NPS read and the inline-attributing profiler (A.9); repaired
-delivery and the repository (A.10); fixed the correctness defects of the
-Rarog audit (A.11) and of the code audit (A.13), with the roadmap rules
-(A.12) and one simplification (A.14) the audits asked for; shipped one
-universal x86-64 binary per OS, four PGO tiers behind a CPU dispatcher,
-buildable with Clang or GCC by Stockfish's assembly route, every trap
-guarded (A.15); deleted the evaluation's zero-weight terms and their
-parameters, **+2.35%** NPS (BAS-P25, A.16); and found no instruction-specific code that
-makes the engine faster, the native build's 1% loss being Zen 3's tuning
-model (BAS-P26, A.17).
 
 ### Phase B — Search programme (evaluation frozen)
 
 B.0–B.2 and B.10 closed between 2026-10-06 and 2026-10-24; their text is
 in [`docs/archive/PLAN-closed-2026-10-30.md`](docs/archive/PLAN-closed-2026-10-30.md).
-B.0 pinned the donor (`sf_19`, `edb0d9db`), measured the deficit and fixed
-the cluster order: razoring's depth reach read +2.4 Elo [−7.5, +12.3]
-(B.0.1), and the oracle's move-loop pruning family is about two thirds of
-its lead, G(0) − G(32) = 210.3 ± 23.9 of 312.6 (B.0.2). B.1 restructured the
-search behaviour-neutrally, +1.21% NPS (BAS-P16). B.2, Cluster 1, rebuilt
-the selectivity core in the donor's shape behind `B2_CORE` and fitted it:
-+136.2 ± 33.6 Elo unfitted and +58.7 ± 20.9 fitted, about +195 over the
-B.1 head (BAS-S23); the legacy kernel and the switch were later deleted
-(B.8.1). B.10 repaired seven rank-mirrored piece-square
-tables, +18.3 ± 12.9 Elo (BAS-S26).
 
-- [x] **B.3** Cluster 2 — pruning and extensions
-    - [x] **B.3.0** `[R2]` Research and handoff on the B.2 head
-    - [x] **B.3.1** `[I2]` Implement behind the umbrella switch
-    - [x] **B.3.2** `[V]` Diagnostics and the unfitted paired run
-    - [x] **B.3.3** `[V]` Curvature sweep, then SPSA in blocks
-    - [x] **B.3.4** `[V]` Basilisk's forms re-read on the fitted arm
-    - [x] **B.3.5** `[V]` Cluster 2 gates
-    - [x] **B.3.6** `[I2]` Colour-indexed histories (S2)
-- [x] **B.16** Search-programme instruments
-    - [x] **B.16.1** `[V]` Wall-clock overhead read (ANY TIME) — before B.4
-    - [x] **B.16.2** `[I2]` Pruning and reduction pricing (ANY TIME) — before B.4
-    - [x] **B.16.3** `[V]` Loss analysis by cell (ANY TIME) — before B.4
-    - [x] **B.16.4** `[I1]` Identical-tree counter read (ANY TIME) — before B.4
-    - [x] **B.16.5** `[I1]` Prompt helper stop (ANY TIME) — before B.4
-- [x] **B.4** Cluster 3 — quiescence
-    - [x] **B.4.1** `[I1]` Legal positions in the floors' generator
-    - [x] **B.4.2** `[I2]` SEE's created pins and promotion recaptures
-    - [x] **B.4.3** `[R2]` Research and handoff on the repaired head
-    - [x] **B.4.4** `[I2]` Implement behind the umbrella switch
-    - [x] **B.4.5** `[V]` Diagnostics and the unfitted paired run
-    - [x] **B.4.6** `[V]` Curvature sweep, then SPSA in blocks
-    - [x] **B.4.7** `[V]` Cluster 3 gates
-- [x] **B.5** Cluster 4 — root and aspiration
-    - [x] **B.5.1** `[R3]` Research and handoff on the entry head
-    - [x] **B.5.2** `[I2]` Implement behind the umbrella switch
-    - [x] **B.5.3** `[V]` Diagnostics, M1 and the unfitted paired run
-    - [x] **B.5.4** `[V]` Curvature sweep, then SPSA in blocks
-    - [x] **B.5.5** `[V]` Cluster 4 gates
-    - [x] **B.5.6** `[R3]` SPSA method investigation and redesign
-    - [x] **B.5.7** `[R2]` Two games per core on SMT siblings
-    - [x] **B.5.8** `[I1]` SPSA read tool and checkpoint wrapper
-- [x] **B.6** Engine audit, reconciliation, then joint search SPSA
-    - [x] **B.6.3** `[I1]` Search-path perft and kernel pins
-    - [x] **B.6.4** `[R3]` Engine audit on the four-cluster head
-    - [x] **B.6.5** `[I1]` Audit repairs before the fit
-    - [x] **B.6.6** `[R2]` Donor-form reconciliation
-    - [x] **B.6.7** `[V]` Joint search SPSA
-- [x] **B.7** Board review and rebuild
-    - [x] **B.7.1** `[R2]` Board contract audit and instruments
-    - [x] **B.7.2** `[R2]` Board review against Stockfish and Triumviratus
-    - [x] **B.7.5** `[I2]` Board instruments: replay and engine screen
-    - [x] **B.7.6** `[I2]` Rebuild behind the board contract
-    - [x] **B.7.7** `[R2]` Second round: candidates on the instruments
-    - [x] **B.7.8** `[I2]` Second rebuild: the candidates that cleared
-    - [x] **B.7.9** `[V]` Board speed read and gate
-- [x] **B.8** Cleanup and speed pass
-    - [x] **B.8.1** `[I1]` Delete the legacy search kernel (ANY TIME) — before the A.11 gates
-    - [x] **B.8.2** `[I1]` Dead parameters, switches and diagnostics
-    - [x] **B.8.3** `[I1]` Allocation guard
-    - [x] **B.8.4** `[I1]` Large pages on every platform
-    - [x] **B.8.5** `[V]` Speed pass: the baseline reads
-    - [x] **B.8.6** `[I1]` Delete the old search arms (ANY TIME) — before B.5
-    - [x] **B.8.7** `[I1]` Count nodes as Stockfish does (ANY TIME) — before B.8.4
-    - [x] **B.8.8** `[R3]` Speed pass: the research packet
-    - [x] **B.8.9** `[I2]` Speed pass: the implementation
-    - [x] **B.8.10** `[I1]` Table prefetch across the make, on the game
-- [x] **B.9** Robustness, verdicts and protocol before the release
-    - [x] **B.9.1** `[R2]` Lifecycle and protocol audit and tests
-    - [x] **B.9.3** `[R2]` Hard verdicts against Syzygy
-    - [x] **B.9.4** `[R2]` Deferred defects: repair now or justify
-    - [x] **B.9.5** `[I2]` Repairs and the repair gate
-- [ ] **B.11** Checkpoint and interim release
-    - [x] **B.11.1** `[V]` Search programme checkpoint
-    - [x] **B.11.3** `[R2]` Originality and licence disclosure
-    - [ ] **B.11.4** `[M]` Interim release 1.11.0
-    - [x] **B.11.5** `[V]` HCE frontier field (ANY TIME) — before B.11.4
-- [x] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
-- [x] **B.13** `[I1]` Colosseum re-pinned to 0.5.0 (ANY TIME)
-- [x] **B.14** `[I2]` Correction added to recognised draws (ANY TIME) — before B.3.2
+B.3–B.16 closed by 2026-11-18; their text, and the phase's design notes
+(why this shape, what "Stockfish-shaped" means, the scale conversion and
+the six-stage gating shape), are in
+[`docs/archive/PLAN-closed-2026-11-18.md`](docs/archive/PLAN-closed-2026-11-18.md).
 
 ### Phase C — Evaluation programme (search frozen)
 

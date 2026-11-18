@@ -39,9 +39,9 @@ gate, not a failure to deliver. See `agents/research.md`, "Refutation and refusa
 
 ## 2. Evaluation philosophy
 
-- **Hand-crafted.** Frozen at the 1.10.1 evaluation while the search
-  programme runs (PLAN Phase B), unfrozen for structural work and refits in
-  the evaluation programme (Phase C), and frozen again at C.11. NNUE is
+- **Hand-crafted.** Frozen at the 1.10.1 evaluation through the search
+  programme (Phase B, closed with 1.11.0), unfrozen for structural work and
+  refits in the evaluation programme (Phase C), and frozen again at C.11. NNUE is
   Phase F and does not license HCE shortcuts now.
 - **Game-result labels only.** No engine-evaluation labels in any corpus.
 - **Categorical knowledge earns its place by measurement, not by taxonomy.**
@@ -138,26 +138,9 @@ line names where it lives.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
 - **Bench signature** of the accepted head: `bench 13` = **4,777,412**
-  nodes (since B.9.5's gate, which kept the repairs, V2's the one that moves
-  the bench. Earlier: 4,688,537 at B.8.7's gate, which kept the donor's node
-  count, once per move made, 4,247,965 at B.7.1's gate, which kept the
-  root-repetition repair, 4,278,307 at B.6's gate, which accepted B.6.7's joint fit,
-  3,783,135 at B.5.5's gates, which turned Cluster 4's root and aspiration on, 4,144,790 at B.4.7's gates, which turned Cluster 3's quiescence on, 6,090,091 at B.4.2's SEE repairs of promotion recaptures and
-  created pins, 5,361,058 at B.3.6's gate, which indexed the histories
-  by coloured piece, 5,369,042 at B.3.5's gate, which turned Cluster 2's proof
-  searches and extensions on; 11,880,564 at B.14's verdict guard, 16,615,757 at B.12's quiescence repair, 19,470,325 at A.13.2's
-  pawnless scaler, 19,108,490 at A.13.1's
-  won KPK, 16,092,165 at A.11.11's
-  fail-soft quiescence, 8,913,394 at
-  A.11.10's tier damping, 7,857,713 at A.11.9's bare-king tiers, where the
-  legacy kernel, deleted at B.8.1, read 23,696,970; 7,384,101 at A.11.7's
-  pawnless-scaler repair, 7,233,823 at
-  A.11.6's node count and root tie repair, 8,753,339 at A.11.2's singular
-  lone-move repair, 9,260,429 at A.11.1's rule-50 TT-eval
-  repair, 8,437,148 at B.10's PST orientation repair,
-  11,099,210 at B.2.4, 14,978,465 for 1.10.0 to
-  1.10.2, 12,568,898 before the 15.0.a SEE repair, 12,709,666 before
-  6.5.a). GUIDE's *Now* table declares it; `check_roadmap.py` holds this
+  nodes (since B.9.5's gate, which kept the repairs; V2's is the one that
+  moves the bench). HISTORY's Phase B record lists every earlier count.
+  GUIDE's *Now* table declares it; `check_roadmap.py` holds this
   line to it. Exact bench identity is a provenance fingerprint, **not** proof
   of behavioural identity: evaluation activation, terminal logic and time
   handling can change play while bench stays equal.

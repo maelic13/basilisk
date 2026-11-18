@@ -518,8 +518,8 @@ static int kxk_score(const Board& b, Color strong) {
     // vary within the class, exactly as in KBNK, so a drive spanning
     // thousands of centipawns can never outrank a piece. Edge first, then
     // corner, then close the kings -- the order the technique is executed in.
-    // Every weight clears the razoring margin (243) so the walk survives
-    // pruning, which is the whole point of the step.
+    // Every weight clears the razoring margin so the walk survives pruning,
+    // which is the whole point of the step.
     constexpr int w_edge   = 900;
     constexpr int w_corner = 250;
     constexpr int w_king   = 300;
@@ -733,8 +733,7 @@ int krppkrp_scale_unfloored(const Board& b, Color strong) {
 
 // ---- Endgame scaling + knowledge -------------------------------------------
 // Receives the white-perspective tapered score and returns it after applying
-// known-endgame overrides and draw scaling. Reproduces the previous OCB and
-// KNNK behaviour exactly for every position they used to touch.
+// known-endgame overrides and draw scaling.
 // Rule-50 eval damping: drain the static eval toward zero as the 50-move
 // counter grows. A (100 - clock)/100 line retains only 1% at clock 99 --
 // through RFP/null-margin/stand-pat that tells the search nearly every
@@ -1202,11 +1201,10 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
     g_trace.phase = phase;
 #endif
 
-    // ---- Material imbalance (Step 3.8; SF-style quadratic, seeded inert) ----
+    // ---- Material imbalance (Step 3.8; SF-style quadratic) ----------------
     // Linear in its coefficients (feature = piece-count products), so traced
-    // normally and fit by the linear tuner in Phase 4. All coefficients seeded 0
-    // -> contributes exactly 0 today (bench unchanged, --verify exact). Added
-    // equally to mg and eg (a non-tapered material correction).
+    // normally and fit by the linear tuner. Added equally to mg and eg (a
+    // non-tapered material correction).
     {
         int ic[NCOLORS][6];
         for (int c = 0; c < NCOLORS; c++) {
@@ -1368,9 +1366,6 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
     //   attacked_by[c][pt] : union of attacks by all of color c's pieces of pt
     //   attacked[c]        : full union == is_attacked_by(sq, all_occ, c) as bb
     //   attacked2[c]       : squares attacked 2+ times by color c
-    // attacked_by[] and attacked2[] are substrate seeded here for later Phase 3
-    // steps (threats, king-safety v2, per-count mobility); only attacked[] and
-    // the mobility / king-attacker accumulation below feed the current eval.
     Bitboard attacked_by[NCOLORS][PIECE_TYPE_NB] = {};
     Bitboard attacked[NCOLORS]  = {0, 0};
     Bitboard attacked2[NCOLORS] = {0, 0};
@@ -1537,11 +1532,8 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
         }
     }
 
-    // ---- Threats package (Step 3.1; SF-style, seeded inert) ----------------
-    // Uses the Step 3.0 attack maps. Every weight is seeded 0 (bench identical);
-    // the loops compute + trace so the Phase-4.2 fit can activate the group. It
-    // coexists with the flat pawn-threat term above until Phase 4.2 swaps the
-    // tuned replacement in.
+    // ---- Threats package (Step 3.1; SF-style) -------------------------------
+    // Uses the Step 3.0 attack maps, beside the flat pawn-threat term above.
     for (int c = 0; c < NCOLORS; c++) {
         int sign   = (c == WHITE) ? 1 : -1;
         Color us   = Color(c);
@@ -1620,8 +1612,8 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
     // ---- King safety v2 (finalization) -------------------------------------
     // safety_table[units] is a one-hot lookup. Piece-attack pressure
     // (attack_units / n_attackers) was gathered in the attack-map sweep; here we
-    // add the Step-3.2 danger inputs (all seeded 0, so bench is unchanged), apply
-    // the no-queen relief and open-file penalty, and look up the table. The new
+    // add the Step-3.2 danger inputs, apply the no-queen relief and open-file
+    // penalty, and look up the table. The new
     // unit weights and the existing ks_unit/coord/open-file/no-queen knobs are
     // composite (they shape the index), so only SafetyTable carries a trace; they
     // are tuned by the Phase-4.3 finite-difference path.
@@ -1822,9 +1814,8 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
         }
     }
 
-    // ---- Small positional terms (Step 3.7; seeded inert) -------------------
-    // Uses the Step-3.0 attack maps + king_zone. Every weight is seeded 0 (bench
-    // unchanged); traced so the Phase-4.5 fit can activate the batch.
+    // ---- Small positional terms (Step 3.7) ---------------------------------
+    // Uses the Step-3.0 attack maps + king_zone; traced for the fit.
     for (int c = 0; c < NCOLORS; c++) {
         int sign = (c == WHITE) ? 1 : -1;
         Color us = Color(c), them = ~us;

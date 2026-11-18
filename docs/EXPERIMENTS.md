@@ -846,18 +846,18 @@ and refuse; they never accept a Basilisk change.
 
 | Prior IDs | Retry condition | PLAN destination |
 |---|---|---|
-| BAS-S08, BAS-S09, BAS-S11 | Unified pre-move evidence and prospective-depth model implemented; consumers included in a single justified joint fit; post-fit ablations registered. | B.0 (2026-10-06) records: the trigger fires at B.3 on the accepted B.2 head, where pruning is history-informed (BAS-D21) and the check policy, `gives_check` evidence and `cutoffCnt` are fitted jointly; not before |
-| BAS-S07, BAS-S10, BAS-S12 | Diagnostics show a distinct source/consumer gap that existing histories cannot represent. | B.0 (2026-10-06) records: fires for BAS-S07 and BAS-S10 at B.2, which re-indexes the continuation histories by in-check and capture context at plies 1–6 and adopts the donor's exact-node update policy as a unit; BAS-S12's cuckoo repetition is not fired (no missing consumer named) and stays with D.3/D.4 |
 | BAS-R02, BAS-R03 | Root-confidence inputs or evaluator score scale materially change. | D.1; re-audit at F.6 |
-| BAS-P04, BAS-P05, BAS-P06 | A new profile demonstrates changed reuse, cache pressure or PGO coverage. | B.7.2, C.12 or B.2 (TT and caches) by owner |
-| BAS-C05 (both encodings) | A measured 4T-only strength anomaly traced to TT publication, OR a TT redesign that widens the slot for an independent reason (e.g. the multiply-hi indexing deferred in PLAN section 6), OR a pooled `nps_ab.ps1` run showing a coherent layout inside +/-0.5% of plain-key. Reasoning alone does not reopen it: both prior repairs were correct and both lost Elo. | B.0 and B.2 (the TT is part of cluster 1) |
+| BAS-P04, BAS-P05, BAS-P06 | A new profile demonstrates changed reuse, cache pressure or PGO coverage. | C.12 for the evaluation's caches, D.2 for the TT |
+| BAS-C05 (both encodings) | A measured 4T-only strength anomaly traced to TT publication, OR a TT redesign that widens the slot for an independent reason (e.g. the multiply-hi indexing deferred in PLAN section 6), OR a pooled `nps_ab.ps1` run showing a coherent layout inside +/-0.5% of plain-key. Reasoning alone does not reopen it: both prior repairs were correct and both lost Elo. | D.2, which owns the TT publication repair (PLAN §2 *Standing contracts*) |
 | BAS-P07, BAS-X07 | Production ARM64 artifacts show missing prefetch or measured hot-state contention; isolate one valid variant per target-native A/B. | A.4.1, E.3.2, G.2 |
-| BAS-E03, BAS-E04, BAS-E06 | NNUE data/teacher experiment, not another unchanged-surface HCE constant fit; frozen teacher and holdout are available. | C.2.6 and C.8 only on a changed search and surface; F.2–F.3 for teacher data |
-| BAS-E36 Arm B (bishop proximity) | A current instrument run shows bishop shuffling remains the dominant residual failure mode and the candidate clears promotion closure and all mate floors. | C.5.2/C.5.6 only if re-ranked |
-| BAS-E36 Arm C (escape-square count) | The stalemate-adjacency hypothesis is tested directly, shown to reinforce rather than compete with the corner drive, and clears deterministic KBN-K/promotion-closure floors. | C.5.2/C.5.6 only if re-ranked |
+| BAS-E03, BAS-E04, BAS-E06 | NNUE data/teacher experiment, not another unchanged-surface HCE constant fit; frozen teacher and holdout are available. | C.2.8 and C.8 only on a changed search and surface; F.2–F.3 for teacher data |
+| BAS-E36 Arm B (bishop proximity) | A current instrument run shows bishop shuffling remains the dominant residual failure mode and the candidate clears promotion closure and all mate floors. | C.7.2/C.7.6 only if re-ranked |
+| BAS-E36 Arm C (escape-square count) | The stalemate-adjacency hypothesis is tested directly, shown to reinforce rather than compete with the corner drive, and clears deterministic KBN-K/promotion-closure floors. | C.7.2/C.7.6 only if re-ranked |
 
 Anything not meeting its trigger stays closed. A retry is a new experiment with
-a new ID and manifest; it does not overwrite the historical row. Destinations
+a new ID and manifest; it does not overwrite the historical row. Fired and
+consumed, so no longer open: BAS-S07 and BAS-S10 at B.2 (BAS-S23), and
+BAS-S08, BAS-S09, BAS-S11 and BAS-S12's cuckoo repetition at B.3 (BAS-S43). Destinations
 were remapped to the lettered roadmap on 2026-09-28; the retired destinations
 resolve through HISTORY's number map.
 

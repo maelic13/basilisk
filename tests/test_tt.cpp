@@ -159,7 +159,7 @@ static void test_mate_score_adjustment() {
     // A tablebase win 4 plies from the root (tablebaseValue - 4) at ply 5.
     // A tablebase win 9 plies from the root, found 4 plies below the node at
     // ply 5. (One 4 plies from the root cannot lie below a node at ply 5, and
-    // stored at that node it would encode into the mate band, which this arm
+    // stored at that node it would encode into the mate band, which this encoding
     // reads as a mate the rule-50 clock may spoil.)
     const int tb_win = MATE_SCORE - MAX_PLY - 1 - 9;
     begin_section("tablebase score: stored relative to the node, read back exactly");
@@ -171,7 +171,7 @@ static void test_mate_score_adjustment() {
     // Mate in 3 (MATE_SCORE - 3 = 31997).  At ply 5:
     //   to_tt:   31997 + 5 = 32002
     //   from_tt: 32002 - 5 = 31997
-    // On this arm 32002 is VALUE_NONE, the evaluation-only slot, which a real
+    // Here 32002 is VALUE_NONE, the evaluation-only slot, which a real
     // store never produces: a mate below a node at ply p is at least p plies
     // from the root. The round trip uses a mate a store can hold (7 plies from
     // the root, 2 from the node at ply 5).

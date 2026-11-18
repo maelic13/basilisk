@@ -205,7 +205,7 @@ std::string Parameters::uci_options() {
     opts +=
         // TM diagnostic: advertised only in tune/dev builds so a
         // harness/GUI will actually send the setoption (fastchess/LB skip
-        // unadvertised options); release builds keep a clean 9-option list.
+        // unadvertised options); release builds keep a clean option list.
         "option name TM_Debug type check default false\n"
         // Diagnostic counters + lazy dual-eval audit.
         "option name Diag type check default false\n"
@@ -245,7 +245,7 @@ std::string Parameters::uci_options() {
 }
 
 // The advertised maximum must be exactly what the pool will actually accept,
-// so both read the single definition in search.cpp. Advertising a
+// so both read the single definition in search_thread_pool.cpp. Advertising a
 // maximum the pool then silently clamps is a protocol lie; advertising one it
 // would honour is a 2 GB allocation waiting for a curious operator.
 int Parameters::max_threads() {

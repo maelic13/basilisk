@@ -57,7 +57,7 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc or llvm" FORCE)
 
-project(basilisk VERSION 1.11.0 LANGUAGES CXX)
+project(basilisk VERSION 1.12.0 LANGUAGES CXX)
 
 if(MSVC)
     message(FATAL_ERROR "MSVC is not supported; build with Clang or GCC")
@@ -374,7 +374,7 @@ target_link_libraries(test_b3_proof PRIVATE basilisk_engine)
 add_executable(test_b4_qsearch tests/test_b4_qsearch.cpp
                src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_b4_qsearch PRIVATE basilisk_engine)
-# Cluster 4's arithmetic and mechanisms, and the ply cap on both arms.
+# Cluster 4's arithmetic and mechanisms, and the ply cap.
 add_executable(test_b5_root tests/test_b5_root.cpp
                src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_b5_root PRIVATE basilisk_engine)
