@@ -1,9 +1,10 @@
 #pragma once
 
 // Search tuning parameters. Under the BASILISK_TUNE build flag each field is
-// exposed as a UCI spin option so an external SPSA tool can tune it. Every
-// build holds them as plain `int` fields of the search's limits, read at run
-// time, so a line here costs the release build a load wherever it is read.
+// exposed as a UCI spin option so an external SPSA tool can tune it. Outside a
+// Tune build the kernel's lines are compile-time constants that fold where
+// they are read; the comment after `BASILISK_SEARCH_PARAMS` below names the
+// lines that stay run-time fields.
 //
 // One X-macro line per tunable generates the three sites that used to be
 // hand-synced: the struct field with its compiled-in default (this header),

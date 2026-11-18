@@ -159,9 +159,9 @@ struct EvalParams {
     int backward_mg = -1;
     int backward_eg = -11;
 
-    // ---- Pawn-structure refinement (Step 3.4; seeded INERT, tuned Phase 4.5) ----
-    // Pawn-cache-safe (depend only on pawns); seeded 0 so bench is unchanged. The
-    // existing flat doubled/isolated/connected/backward terms stay active.
+    // ---- Pawn-structure refinement (Step 3.4) ----------------------------------
+    // Pawn-cache-safe (depend only on pawns). The flat doubled/isolated/
+    // connected/backward terms stay active beside them.
     int connected_rank_mg[8] = { 0, 2, 6, -3, 0, 1, 0, 0 };  // connected/phalanx by rel rank
     int connected_rank_eg[8] = { 0, 0, -2, 1, 5, 6, 0, 0 };
     int weak_unopposed_mg = -9;  // weak (isolated/backward) pawn on a half-open file
@@ -171,13 +171,13 @@ struct EvalParams {
     int pawn_majority_mg = 4;  // own pawn majority on a flank (breakthrough potential)
     int pawn_majority_eg = 11;
 
-    // ---- Passed-pawn promotion-path safety (Step 3.4; piece-dependent, seeded 0) ----
+    // ---- Passed-pawn promotion-path safety (Step 3.4; piece-dependent) ----
     int passed_path_safe_eg = 9;  // promotion path free of enemy attack (x rel rank)
     int passed_block_defended_eg = 5;  // immediate block square defended by us
     int passed_king_block_eg = 19;  // (enemy - own) king distance to the block square
 
-    // ---- Small positional terms (Step 3.7; seeded INERT, tuned Phase 4.5) ----
-    // All seeded 0 so bench is unchanged; traced one-hot/linear, tuner decides.
+    // ---- Small positional terms (Step 3.7) ---------------------------------
+    // Traced one-hot/linear and fitted by the tuner.
     int reachable_outpost_mg = 7;  // per outpost square a knight can hop to
     int reachable_outpost_eg = 2;
     int bad_bishop_mg = -7;  // per own pawn on the bishop's colour
@@ -195,26 +195,25 @@ struct EvalParams {
     int bishop_pair_pawns_mg = 3;  // bishop pair scaled by own pawn count
     int bishop_pair_pawns_eg = 1;
 
-    // ---- Material imbalance (Step 3.8; SF-style quadratic, seeded INERT) ----
+    // ---- Material imbalance (Step 3.8; SF-style quadratic) ----------------
     // Piece index: 0 = bishop pair, 1 = pawn, 2 = knight, 3 = bishop, 4 = rook,
     // 5 = queen. `imb_our[t]`/`imb_their[t]` are lower-triangular (t = i*(i+1)/2+j,
     // j <= i) coefficients of own-vs-own and own-vs-enemy piece-count products;
     // `imb_linear[i]` is the per-piece linear term. The eval is LINEAR in these
     // coefficients (feature = count products), so they are traced normally and
-    // fit by the linear tuner in Phase 4. All seeded 0 -> contributes 0 today.
+    // fit by the linear tuner.
     int imb_linear[6] = { 0, 0, 0, 4, 8, 2 };
     int imb_our[21] = { 0, 2, 5, 0, 10, -2, 0, 9, 2, 3, 0, 9, 4, 6, 6, 0, 18, 1, 3, 5, 2 };
     int imb_their[21] = { 0, 3, 0, 0, 9, 0, 1, 12, 0, 0, -1, 16, 2, -4, 0, 1, 27, 5, 4, 3, 0 };
 
-    // ---- HCE survey additions (Step 3.9; SF11-classical, seeded INERT) ------
-    // All seeded 0 so bench is unchanged; traced, tuned in Phase 4.5.
+    // ---- HCE survey additions (Step 3.9; SF11-classical) --------------------
+    // Traced and fitted.
     int minor_behind_pawn_mg = 5;  // minor shielded by a friendly pawn directly ahead
     int minor_behind_pawn_eg  = 0;
     // ---- Simpler-form repairs (seeded to preserve behaviour) --------------
     // king_protector was ONE scalar applied to both knights and bishops, so the
     // fit could never learn that the two pieces value king proximity
-    // differently. Split per piece type, both seeded at the shared value so
-    // bench is unchanged; the fit can then separate them.
+    // differently. Split per piece type, so the fit can separate them.
     int king_protector_n_mg = 1;   // knight distance-to-own-king
     int king_protector_n_eg = 0;
     int king_protector_b_mg = -2;   // bishop distance-to-own-king
@@ -222,11 +221,10 @@ struct EvalParams {
     // Outposts were priced for knights only. A bishop on a protected advanced
     // square the enemy cannot challenge with a pawn is the same concept and was
     // simply missing. Seeded inert.
-    // ---- Coverage close-out (seeded INERT; to be fitted) -------------------
+    // ---- Coverage close-out -------------------------------------------------
     // The six concepts BAS-E07 found absent from our evaluator plus the
-    // safe-square qualifier our pawn threats lacked. Every weight is 0, so the
-    // terms compute and trace but do not change bench 11,941,440. Values come
-    // from a joint fit, never from hand-reasoning: BAS-X11 records
+    // safe-square qualifier our pawn threats lacked. Values come from a joint
+    // fit, never from hand-reasoning: BAS-X11 records
     // Manta losing ~-23 Elo across two gates by hand-scaling exactly this class
     // of reference-family concept.
 
@@ -256,9 +254,9 @@ struct EvalParams {
     int knight_outpost_eg = 15;
 
     // ---- Mobility: per-count one-hot tables (Step 3.3) ---------------------
-    // Indexed by the safe-mobility square count. Seeded table[i] = i * old linear
-    // weight (knight/bishop/rook/queen mg = 5/5/1/2, eg = 5/7/7/12) so the eval is
-    // byte-identical to the previous linear `mob * w` form; tuned in Phase 4.4.
+    // Indexed by the safe-mobility square count. First seeded as table[i] = i *
+    // the old linear weight (knight/bishop/rook/queen mg = 5/5/1/2, eg =
+    // 5/7/7/12), then fitted.
     // (The mobility *area* is unchanged here — its SF-style refinement, excluding
     // own K/Q, blocked pawns, and pinned pieces via blockers_for_king, is a
     // behaviour change deferred to Phase 4.4 where it interacts with the fit.)
@@ -279,10 +277,8 @@ struct EvalParams {
     int threat_queen_mg = 58;
     int threat_queen_eg = 25;
 
-    // ---- Threats package (Step 3.1; SF-style, seeded INERT, tuned in Phase 4.2) ----
-    // Every weight seeded 0 so the structure computes + traces but does not change
-    // eval (bench identical); the Phase-4.2 fit activates them. Per-type arrays are
-    // indexed by the attacked PieceType [0..6].
+    // ---- Threats package (Step 3.1; SF-style) -------------------------------
+    // Per-type arrays are indexed by the attacked PieceType [0..6].
     // (Phase 4.2 fit; it absorbed the old flat hanging-piece penalty.)
     int threat_by_minor_mg[7] = { 0, 2, 38, 47, 59, 51, 0 };  // weak/defended enemy attacked by N/B
     int threat_by_minor_eg[7] = { 0, 26, 3, 11, 22, 30, 0 };
@@ -306,12 +302,10 @@ struct EvalParams {
     // Penalty lookup: index = clamped attack_units [0..24]
     int safety_table[25] = { -3, 0, 0, 12, 28, 31, 45, 59, 76, 88, 105, 121, 156, 167, 189, 226, 256, 293, 301, 331, 339, 360, 393, 393, 430 };
 
-    // ---- King safety v2 danger inputs (Step 3.2; seeded INERT, tuned Phase 4.3) ----
+    // ---- King safety v2 danger inputs (Step 3.2) ----------------------------
     // These feed the attack_units -> safety_table funnel as extra index
-    // contributions. All seeded 0 (and the no-queen scaling originally seeded
-    // at the old frozen *2/3; retuned since) so bench was unchanged at
-    // introduction; the Phase-4.3 nonlinear
-    // (finite-difference) tuner activates them. They are composite/index inputs,
+    // contributions, fitted by the Phase-4.3 nonlinear (finite-difference)
+    // tuner. They are composite/index inputs,
     // not pure-linear, so they carry no linear trace (only SafetyTable is traced).
     int ks_safe_check[7] = { 0, 0, 5, 3, 6, 4, 0 };  // per safe check, by checker type (Phase 4.1)
     int ks_weak_ring = 1;  // per king-ring square attacked and not solidly defended
@@ -334,7 +328,7 @@ struct EvalParams {
 
     // ---- Space evaluation --------------------------------------------------
     int space_mg = 0;
-    // Step 3.6 space refinement (seeded 0; tuned in Phase 4.5):
+    // Step 3.6 space refinement:
     int space_piece_mg = 0;  // space weighted by own non-pawn piece count
     int space_blocked_mg = -2;  // space weighted by own blocked-pawn count
 
@@ -539,7 +533,7 @@ constexpr int eval_param_offset(int g) {
     return off;
 }
 
-// Total flat element count across all groups (should be 900).
+// Total flat element count across all groups.
 constexpr int EVAL_PARAM_FLAT_SIZE = eval_param_offset(EPG_COUNT);
 
 // Per-trace record populated by Evaluator::evaluate() when TEXEL_TRACE is

@@ -258,8 +258,6 @@ using InfoCallback = std::function<void(const std::string&)>;
        those made only to read the table one ply down included. */          \
     X(key_predicted) X(key_corrected)
 
-// The stack's negative-reduction fields are written where a counter or the
-// mechanism reads them.
 inline constexpr bool kDiagCountersCompiled =
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     true;
@@ -325,7 +323,6 @@ enum class TraceFamily : uint8_t {
     None, Razor, Rfp, SkipQuiets, ContHist, QuietFutility, QuietSee,
     CaptureFutility, CaptureSee
 };
-// Whether this kernel produces cutoff_count; the trace header states it.
 struct TraceRecord {
     TraceEvent event{};
     Move move = MOVE_NONE;
@@ -340,7 +337,7 @@ struct TraceRecord {
     int history = VALUE_NONE;
     int move_count = 0;
     int reduction = 0;
-    int cutoff_count = -1; // -1 where the kernel has no producer
+    int cutoff_count = -1; // -1 until set
     int margin = VALUE_NONE;
     int result = VALUE_NONE;
     int lmr_depth = VALUE_NONE;  // the reduced depth move-loop pruning read

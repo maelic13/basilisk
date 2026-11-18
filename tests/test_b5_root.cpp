@@ -1,5 +1,5 @@
 /// Cluster 4, the root and the aspiration window: its arithmetic read directly,
-/// its mechanisms driven through whole searches; and the ply cap, on both arms.
+/// its mechanisms driven through whole searches; and the ply cap.
 ///
 /// In Diag and Tune builds the counter sections read the search's `Diag` lines
 /// through the info callback; release builds compile the counters out and skip
@@ -275,10 +275,9 @@ static void test_the_record_arithmetic() {
     end_section();
 }
 
-// The arm's root takes its first move from its own line once an iteration
+// The root takes its first move from its own line once an iteration
 // completed, whatever the table holds: rewriting the root entry's move at every
-// depth line, its score and bound kept, leaves the arm's tree as it was, and
-// moves the OFF arm's.
+// depth line, its score and bound kept, leaves the tree as it was.
 static int64_t nodes_with_a_foreign_root_move(const std::string& fen, int depth, bool rewrite) {
     TranspositionTable tt(16);
     std::atomic_bool stop{false};

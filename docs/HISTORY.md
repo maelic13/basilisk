@@ -20,7 +20,7 @@ them reused; the map resolves those too. Retired identifiers stay valid in `EXPE
 | Phases 1–4 (releases 1.0.0–1.9.3) | changelog, the oldest ledger rows | *Releases* below |
 | Phases 5–14 (`5.9.22`, `6.6.a`, `8.4.b`, …) | ledger rows, analyses and commits up to 2026-09-09 | [docs/archive/PLAN-2026-09-09.md](archive/PLAN-2026-09-09.md) and [docs/archive/GUIDE-2026-09-09.md](archive/GUIDE-2026-09-09.md); that PLAN's §15 maps the numbers used before 2026-09-07 |
 | Phase 15 and the 1.10.1 patch (`15.0.a`, `15.1.c`) | BAS-C08–C13, BAS-E55–E57, commits to 2026-09-27 | [docs/archive/PLAN-2026-09-28.md](archive/PLAN-2026-09-28.md) and [docs/archive/GUIDE-2026-09-28.md](archive/GUIDE-2026-09-28.md) |
-| Current roadmap (`A`–`G`) | `PLAN.md`, `GUIDE.md`, ledger rows from BAS-X30 on | `PLAN.md` |
+| Current roadmap (`A`–`G`) | `PLAN.md`, `GUIDE.md`, ledger rows from BAS-X30 on | `PLAN.md`; a closed step's text in the `docs/archive/PLAN-closed-*.md` file its phase summary links |
 
 Where a retired open leaf continues in the current roadmap, the *Number map*
 below says where.
@@ -335,6 +335,40 @@ day: Chess960 (handoff item C7, TB-9, G.2's bullet).
   verifies its manifest (`e948979`), Rarog's measurements of Basilisk were
   imported as BAS-X34, and two bundles of Rarog's full history were kept in
   ignored storage with a tested restore recipe.
+- **2026-11-18 — PLAN Phase B CLOSED: the search programme and 1.11.0.**
+  The search was rebuilt in modern Stockfish's design (`sf_19`) in four
+  clusters, each fitted and gated, then audited, tuned jointly, cleaned of
+  its arms and switches, and made faster. B.11.1's checkpoint attributed
+  +441.4 Elo of gates since 1.10.2 against +422 measured on the four
+  targets (`analysis/b111_checkpoint_2026-11-18.md`). PLAN keeps the
+  phase's summary; the steps' text is in
+  `docs/archive/PLAN-closed-2026-10-30.md` (B.0–B.2, B.10) and
+  `docs/archive/PLAN-closed-2026-11-18.md` (the rest). `bench 13` was
+  14,978,465 for 1.10.0 to 1.10.2, then 11,099,210 at B.2.4, 8,437,148 at
+  B.10, 9,260,429 at A.11.1, 8,753,339 at A.11.2, 7,233,823 at A.11.6,
+  7,384,101 at A.11.7, 7,857,713 at A.11.9, 8,913,394 at A.11.10,
+  16,092,165 at A.11.11, 19,108,490 at A.13.1, 19,470,325 at A.13.2,
+  16,615,757 at B.12, 11,880,564 at B.14, 5,369,042 at B.3.5, 5,361,058 at
+  B.3.6, 6,090,091 at B.4.2, 4,144,790 at B.4.7, 3,783,135 at B.5.5,
+  4,278,307 at B.6.7, 4,247,965 at B.7.1, 4,688,537 at B.8.7 and
+  4,777,412 since B.9.5. Older still: 12,709,666 before 6.5.a, and
+  12,568,898 before the 15.0.a SEE repair. The legacy kernel, deleted at
+  B.8.1, read 23,696,970 at A.11.9.
+
+## Release record — 1.11.0
+
+| Item | Value |
+|---|---|
+| Version | **1.11.0** (2026-11-18) |
+| Scope | PLAN Phase B: the search rebuilt in Stockfish's design (Clusters 1–4, B.2–B.5), the joint search SPSA (B.6), the board rebuild (B.7), the cleanup and speed pass (B.8), the robustness, verdict and protocol repairs (B.9), and the evaluation repairs of B.10, B.12 and B.14. Releases now ship as archives with the GPL and Fathom licences (B.11.3) |
+| Bench-13 fingerprint | **4,777,412** (1.10.2: 14,978,465) |
+| Strength | BAS-S67, SPRT `[0,3]` over 1.10.2 at `3+0.03` 1T: H1 at 536 games, +406.9 ± 39.2. BAS-M19's direction checks, 1,000 games each: `10+0.1` +371.3 [+348.8, +396.4]; 4T sibling-free +386.6 [+363.7, +412.1]. On the four targets' scale the head rates 3416.3 at 1T (BAS-M16); it is ninth of fourteen in the HCE frontier field, 202 below Stockfish 16 HCE (BAS-M18) |
+| Qualification | PR #30's CI (the test matrix, the sanitizers, GCC PGO and bench agreement) and its release candidate run: all five assets and every x86 tier at 4,777,412, tier selection under SDE, `release_check.py check v1.11.0`; then the tag run's rebuild |
+
+The release revision is the `Version 1.11.0` commit on `master`
+(`f1e31f4`, squashed from PR #30), tagged **`v1.11.0`**. Its assets are
+five archives, each holding the binary, the GPL, Fathom's licence, the
+README and the changelog, with `SHA256SUMS`.
 
 ## Release record — 1.10.2
 

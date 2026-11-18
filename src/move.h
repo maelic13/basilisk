@@ -11,7 +11,7 @@
 // bits 14-15: promo piece type - KNIGHT offset (0=N,1=B,2=R,3=Q)
 // The encoding always fit 16 bits (the TT has stored move16 forever); the
 // carrier type now matches it. uint16_t, not int16_t: a queen promotion sets
-// bit 15. Halves MoveList, the PV table, countermove and killer storage.
+// bit 15. Halves MoveList and the PV table.
 using Move = std::uint16_t;
 
 enum MoveType : int {

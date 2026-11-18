@@ -243,7 +243,7 @@ private:
     // `searched_depth` is how deep this root search goes; `depth` is the iteration's,
     // which is what the kernel's own depth tests read.
     int  root_search(int depth, int alpha, int beta, int searched_depth);
-    // The kernel's root loop, on the arm: the record of a root move the search
+    // The kernel's root loop: the record of a root move the search
     // may play (null when the limits forbid it), and its bookkeeping after a
     // search that cost `nodes`, the line taken from the child's table.
     [[nodiscard]] RootMove* root_record_find(Move m);
@@ -277,7 +277,7 @@ private:
     // last completed iteration's best, by what the window before it did
     // (0 none, 1 failed low, 2 failed high).
     void   diag_root_tt(int last_window, Move best);
-    // The record, on the arm: every root move the limits allow in generation
+    // The record: every root move the limits allow in generation
     // order, each with a line of one move; and an iteration's start, which saves
     // the last one's scores and lines and takes line 1's for the search to follow.
     void   root_record_init(const Board& board);

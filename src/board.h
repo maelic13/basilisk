@@ -190,8 +190,7 @@ public:
     // than at the ~11 search call sites so every caller is captured, including
     // movegen's own gives_check use. `mutable` because both queries are const;
     // race-free because a Board is per-searcher (Searcher::search takes it BY
-    // VALUE). Snapshotted into DiagCounters at search teardown, since
-    // board_ptr_ is nulled before print_diag() runs.
+    // VALUE). Snapshotted into DiagCounters at search teardown.
     //
     // What they answer: SEE calls-per-node (how much SEE work is
     // recomputed) and the full-gives_check rate (the check-hint candidate).
