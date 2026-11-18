@@ -120,9 +120,6 @@ struct SearchLimits {
     bool trace_root = false;     // a test's trace of the root's searches alone
     int pricing_every = 0;       // probe every N-th pruning decision (0 = off)
 #endif
-#ifdef BASILISK_ABLATION
-    int ablation_mask = 0;
-#endif
     // Instant the `go` command was parsed off UCI input (default = unset). Used
     // only to report dispatch latency in tm_debug; does not affect timing yet.
     std::chrono::steady_clock::time_point go_recv_time{};

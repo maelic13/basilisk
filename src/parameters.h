@@ -42,9 +42,6 @@ public:
     bool    decision_trace;  // bounded plies 1-2 search-decision trace
     int     pricing_every;   // probe every N-th pruning decision (0 = off)
 #endif
-#ifdef BASILISK_ABLATION
-    int     ablation_mask;   // matched search-family removal mask, 0..255
-#endif
 
     bool new_game    = false;  // set by "ucinewgame", cleared after engine processes it
     bool clear_hash  = false;  // set by "setoption name Clear Hash", cleared after engine clears TT

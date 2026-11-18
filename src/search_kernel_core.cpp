@@ -21,7 +21,7 @@
 #include <cstdlib>
 #include <utility>
 
-// ---- Flavour hooks: the child log, the trace, ablation and pricing ----------
+// ---- Flavour hooks: the child log, the trace and pricing --------------------
 
 #ifdef BASILISK_CHILD_LOG
 ChildLog& child_log() {
@@ -34,12 +34,6 @@ ChildLog& child_log() {
 #define TRACE_DECISION(...) state_.trace.record(TraceDecision{__VA_ARGS__})
 #else
 #define TRACE_DECISION(...) ((void)0)
-#endif
-
-#ifdef BASILISK_ABLATION
-#define ABLATED(bit) (((config_.limits.ablation_mask >> (bit)) & 1) != 0)
-#else
-#define ABLATED(bit) false
 #endif
 
 // A probed WDL as a search value and the bound it proves (Stockfish's form):
@@ -976,7 +970,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         const int razor_bar = kp.razor_margin * depth;
         const bool razor_admits = depth <= kp.razor_depth_cap
                                && (tt_move == MOVE_NONE || tt_capture) && tt_flag != TT_BETA;
-        if (!bare && !ABLATED(0) && razor_admits && eval < alpha - razor_bar) {
+        if (!bare && razor_admits && eval < alpha - razor_bar) {
             // Priced before the quiescence search, whose stores at this
             // position the probe would otherwise read.
 #ifdef BASILISK_PRICING
@@ -1004,7 +998,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // or the opponent's position worsens, and grows with the size of the
         // correction (off at a multiplier of 0). Not near a PV, not when the
         // table suggests a quiet move, and never on a decisive bound.
-        if (!bare && !ABLATED(1) && !ss->tt_pv && depth <= kp.rfp_depth_cap && eval >= beta
+        if (!bare && !ss->tt_pv && depth <= kp.rfp_depth_cap && eval >= beta
             && (tt_move == MOVE_NONE || tt_capture)
             && beta > -tablebaseWinInMaxPly && eval < tablebaseWinInMaxPly) {
             int margin = kp.rfp_per_ply * depth
@@ -1043,7 +1037,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // is an all node, and a win is never returned unproven. A deep cut
         // outside a verification is verified at this ply with null moves
         // barred above a region of plies below it.
-        if (!bare && !ABLATED(2) && cut_node
+        if (!bare && cut_node
             && (ss - 1)->move != MOVE_NULL
             && static_eval >= beta - kp.b3_nmp_per_ply * depth
                               - kp.b3_nmp_improving * improving + kp.b3_nmp_base
@@ -1124,9 +1118,8 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
 
     // IIR, the donor's form: a PV or cut node off the previous
     // iteration's PV, not in check, without a TT move loses a ply.
-    if (!ABLATED(4)
-        && b3::iir_applies(is_pv, cut_node, in_check, ss->follow_pv, depth, kp.b3_iir_min_depth,
-                           tt_move != MOVE_NONE)) {
+    if (b3::iir_applies(is_pv, cut_node, in_check, ss->follow_pv, depth, kp.b3_iir_min_depth,
+                        tt_move != MOVE_NONE)) {
         TRACE_DECISION(.event = TraceEvent::IirReduction, .ply = ply, .depth = depth,
                        .move = tt_move, .alpha = alpha, .beta = beta, .estimated_score = eval,
                        .improving = improving, .correction = correction, .history = VALUE_NONE,
@@ -1142,7 +1135,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     // quiescence and at a reduced depth proves the node, which returns the
     // value less the margin; a valid TT score below the margin says none will.
     const int pc_beta = beta + kp.b3_probcut_base - kp.b3_probcut_improving * improving;
-    if (!bare && !ABLATED(3) && !is_root && !in_check
+    if (!bare && !is_root && !in_check
         && depth >= kp.b3_probcut_min_depth && !is_decisive(beta)
         && !(tt_score != VALUE_NONE && tt_score < pc_beta)) {
         const int pc_depth = depth - (improving ? kp.b3_probcut_depth_improving
@@ -1321,7 +1314,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // the best score is a proven loss, and not for a side left with king
         // and pawns. Each test reads the depth the move's reduced search
         // would have, adjusted by the quiet move's history (`lmr_depth`).
-        if (!ABLATED(5) && !is_root && searched > 0
+        if (!is_root && searched > 0
             && best_score > -tablebaseWinInMaxPly
             && state_.board->has_non_pawn_material(state_.board->turn())) {
             DIAG_COUNT(++state_.diag.moveloop_tested);
@@ -1494,7 +1487,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
         // node deepens; when they clear the node's beta it is a multi-cut;
         // otherwise a move the table says fails high, or one at an expected
         // cut node, is searched shallower.
-        if (!ABLATED(6) && !is_root && m == tt_move && ss->excluded == MOVE_NONE
+        if (!is_root && m == tt_move && ss->excluded == MOVE_NONE
             && ply < MAX_PLY - 2 && depth >= kp.b3_sing_min_depth + int(ss->tt_pv)
             && tt_score != VALUE_NONE && !is_decisive(tt_score) && proves_lower(tt_flag)
             && tt_depth >= depth - KLIT(sing_tt_depth)) {
@@ -1679,7 +1672,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
             // searched one or two plies shallower (never at the root), as later
             // moves without LMR are.
             int step = 0;
-            if (!is_pv && !ABLATED(7) && !is_root) {
+            if (!is_pv && !is_root) {
                 const int rr = r + (tt_move == MOVE_NONE ? KLIT(lmr_no_tt_step) : 0);
                 step = (rr > KLIT(lmr_step1)) + (rr > KLIT(lmr_step2) && new_depth > KLIT(lmr_step2_depth));
             }
@@ -1696,12 +1689,9 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                                       !is_pv && !cut_node);
         } else {
             // The root reduces as any PV node, and in-check nodes as the donor's.
-            const bool reducible = !ABLATED(7);
-            if (reducible) {
-                DIAG_COUNT(++state_.diag.lmr_eligible);
-                if (depth < KLIT(lmr_min_depth)) DIAG_COUNT(++state_.diag.lmr_blocked_depth);
-            }
-            if (reducible && depth >= KLIT(lmr_min_depth)) {
+            DIAG_COUNT(++state_.diag.lmr_eligible);
+            if (depth < KLIT(lmr_min_depth)) DIAG_COUNT(++state_.diag.lmr_blocked_depth);
+            if (depth >= KLIT(lmr_min_depth)) {
                 // The reduced depth: at least one ply, at most two beyond the
                 // full depth (a negative reduction) while the line holds none
                 // yet, plus one at PV nodes.
@@ -1782,7 +1772,7 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
                 // Without LMR the move is searched at full depth, one or two
                 // plies less when its reduction would have been large.
                 int step = 0;
-                if (reducible && !is_root) {
+                if (!is_root) {
                     const int rr = r + (tt_move == MOVE_NONE ? KLIT(lmr_no_tt_step) : 0);
                     step = (rr > KLIT(lmr_step1)) + (rr > KLIT(lmr_step2) && new_depth > KLIT(lmr_step2_depth));
                 }
