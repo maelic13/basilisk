@@ -150,7 +150,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.11.1** `[V]` Search programme checkpoint
     - [x] **B.11.3** `[R2]` Originality and licence disclosure
     - [ ] **B.11.4** `[M]` Interim release 1.11.0
-    - [ ] **B.11.5** `[V]` HCE frontier field
+    - [x] **B.11.5** `[V]` HCE frontier field
 - [x] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
 - [x] **B.13** `[I1]` Colosseum re-pinned to 0.5.0 (ANY TIME)
 - [x] **B.14** `[I2]` Correction added to recognised draws (ANY TIME) — before B.3.2

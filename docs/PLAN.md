@@ -5306,7 +5306,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - About 2.5 hours of maintainer-run games. The release packaging, which
         makes each asset an archive with the GPL and Fathom notices, waits
         for the maintainer's approval.
-    - [ ] **B.11.5** `[V]` HCE frontier field
+    - [x] **B.11.5** `[V]` HCE frontier field
       Added 2026-11-17 (maintainer). After the 1.11.0 release, a rated
       Colosseum round robin of the strongest hand-crafted-evaluation engines
       runs at `3+0.03` 1T, UHO, no adjudication, Hash 64, with move overhead
@@ -5380,7 +5380,10 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         - The pool's scale transfers only to about ±50: with Stockfish 11
           alone fixed, Houdini 6.03 and Fire 8.3 land about 48 below their
           ratings. So gaps inside the field are the reading.
-        - Open: the fastchess replay of one pairing.
+      Closed 2026-11-18. The maintainer dropped the fastchess replay from
+      the leaf: it was for his own interest in fastchess-GUI, not a
+      requirement. BAS-M18 is the field's read. C's and E's checkpoints
+      repeat it against the Stockfish 16 HCE target (§1).
 - [x] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
   Correctness repair, opened 2026-10-30 at the maintainer's decision when
   B.3.0's counter suite stopped on it (packet §2.3,
@@ -5560,7 +5563,6 @@ leaf's tag. Later phases carry only a class until they open.
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
 | B.11.4 | RESEARCH | M | Was B.11, then B.11.2; interim release after B.11.3 (maintainer decision 2026-10-24) |
-| B.11.5 | RESEARCH | V | Added 2026-11-17; the HCE frontier field, a rated round robin, brought forward before the release; BAS-M18 registered |
 
 ## Phase C — Evaluation programme (search frozen)
 
