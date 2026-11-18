@@ -27,6 +27,24 @@ four threads (1,000 games each). It searches about a third fewer positions per s
 fewer of them, so compare strength, not speed. The `bench` fingerprint is now
 **4,777,412**.
 
+### Highlights
+
+- **A rebuilt search.** Pruning, reductions, extensions, move ordering, the
+  capture search at the end of each line and the root search now follow
+  Stockfish's design, and the whole search was tuned together.
+- **Faster where it counts.** Whole-program linking, cached evaluation work
+  and a leaner board pay back part of the new search's cost, a few percent
+  each.
+- **Large pages** for the hash table wherever the system offers them (the
+  new `LargePages` option, on by default).
+- **One download per system.** The `x64` download starts the fastest build
+  the processor runs. Every download is now an archive with the licences,
+  the README and the changelog.
+- **Many fixes**: tablebase probing, ponder and time handling, protocol
+  conformance, and the judgement of several endings (repetitions,
+  promotions, drawn and won endgames).
+- **MSVC is no longer supported**; build with Clang or GCC.
+
 ### Added
 
 - **Large pages.** The hash table and each search thread's tables now use

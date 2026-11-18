@@ -7,8 +7,10 @@
       CHANGELOG.md has a dated, non-empty `## [X.Y.Z] - YYYY-MM-DD` section;
       GUIDE's Released baseline row names X.Y.Z (the release commit marks
       itself released) and states the `bench 13` count GUIDE declares for
-      the head; HEAD is on the release line (see `line`). With
-      --notes, the CHANGELOG section is written there as release notes.
+      the head; HEAD is on the release line (see `line`). The section
+      opens with a summary and a `### Highlights` list. With --notes, the
+      release page's text is written there: the summary, the highlights and
+      a link to the full CHANGELOG at the tag.
   line vX.Y.Z [--base REF]
       HEAD is an ancestor of REF (default `origin/master`), or the tag is a
       patch (Z > 0) whose commit descends from the `vX.Y.0` tag on REF: a
@@ -40,6 +42,8 @@ CMAKE_VERSION = re.compile(r"^project\(basilisk VERSION (\d+\.\d+\.\d+)\b", re.M
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 BOLD_VERSION = re.compile(r"\*\*(\d+\.\d+\.\d+)\*\*")
 ROW_BENCH = re.compile(r"`bench 13` (\d{1,3}(?:,\d{3})+)")
+CHANGELOG_URL = "https://github.com/maelic13/basilisk/blob/{tag}/CHANGELOG.md"
+HIGHLIGHTS = "### Highlights"
 
 
 class CheckError(Exception):
@@ -84,6 +88,48 @@ def changelog_section(changelog: str, version: str) -> str:
     if not text:
         raise CheckError(f"the CHANGELOG section for {version} is empty")
     return text + "\n"
+
+
+LIST_ITEM = re.compile(r"\s*(?:[-*+]|\d+\.)\s")
+
+
+def unwrap(text: str) -> str:
+    """Join each paragraph's and list item's wrapped lines into one: GitHub
+    renders every newline in a release's notes as a line break. A fenced block
+    is left as written."""
+    if "```" in text:
+        return text
+    out: list[str] = []
+    for line in text.splitlines():
+        joins = (out and out[-1].strip() and line.strip() and not line.startswith("#")
+                 and not LIST_ITEM.match(line) and not out[-1].startswith("#"))
+        if joins:
+            out[-1] = out[-1].rstrip() + " " + line.strip()
+        else:
+            out.append(line.rstrip())
+    return "\n".join(out)
+
+
+def release_notes(section: str, tag: str) -> str:
+    """The release page's text: the section's summary and its highlights, then
+    a link to the whole section, which keeps every detail."""
+    lines = section.splitlines()
+    first = next((n for n, line in enumerate(lines) if line.startswith("### ")), len(lines))
+    summary = "\n".join(lines[:first]).strip()
+    if not summary:
+        raise CheckError("the CHANGELOG section has no summary before its first `###` heading")
+    start = next((n for n, line in enumerate(lines) if line.strip() == HIGHLIGHTS), None)
+    if start is None:
+        raise CheckError(f"the CHANGELOG section has no `{HIGHLIGHTS}` list; "
+                         "the release page shows the summary and the highlights")
+    end = next((n for n in range(start + 1, len(lines)) if lines[n].startswith("### ")), len(lines))
+    highlights = "\n".join(lines[start + 1:end]).strip()
+    if not highlights:
+        raise CheckError(f"the CHANGELOG section's `{HIGHLIGHTS}` list is empty")
+    url = CHANGELOG_URL.format(tag=tag)
+    return (f"{unwrap(summary)}\n\n{HIGHLIGHTS}\n\n{unwrap(highlights)}\n\n"
+            f"Every change, with its measurement, is in [CHANGELOG.md]({url}), "
+            "which every download also includes.\n")
 
 
 def released_in_guide(guide: str, version: str) -> int:
@@ -150,6 +196,7 @@ def check(root: Path, tag: str, base: str, notes: Path | None) -> str:
     if declared != version:
         raise CheckError(f"tag {tag} names {version}, but the sources declare {declared}")
     body = changelog_section((root / "CHANGELOG.md").read_text(encoding="utf-8"), version)
+    page = release_notes(body, tag)
     released_nodes = released_in_guide((root / "GUIDE.md").read_text(encoding="utf-8"), version)
     nodes = declared_fingerprint(root)
     if released_nodes != nodes:
@@ -157,7 +204,7 @@ def check(root: Path, tag: str, base: str, notes: Path | None) -> str:
                          f"head declares {nodes}: the release commit must state its own fingerprint")
     where = ensure_on_line(root, version, base)
     if notes is not None:
-        notes.write_text(body, encoding="utf-8")
+        notes.write_text(page, encoding="utf-8")
     return (f"release check {tag}: both version sources read {version}, CHANGELOG section "
             f"dated, GUIDE marks it released, bench 13 declared {nodes}, {where}")
 
