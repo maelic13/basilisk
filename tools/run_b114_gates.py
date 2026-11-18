@@ -18,18 +18,15 @@ no tablebases.
                 seed 114002.
   --run 4t      BAS-M19 (b): a 1,000-game fixed match at 3+0.03, 4 threads a
                 side, Hash 512, sibling-free, seed 114003.
-  --run pool4t  BAS-M20: the 4T pool read, a gauntlet against the four targets
-                at their 1T Super Rating Tournament ratings (fixed), 200
-                cycles, 400 games each, 4 threads a side, Hash 512,
-                sibling-free, seed 114004.
 
-Multi-thread runs are sibling-free through colosseum.ps1's placement rule
+BAS-M20's 4T pool read (seed 114004) was withdrawn unplayed, and its mode is
+gone. Multi-thread runs are sibling-free through colosseum.ps1's placement rule
 (PROCESS *Harness*, BAS-X41). A finished run (result.json) is never extended
 or replaced: the launcher exits 2. An interrupted one resumes from its
 checkpoint with the same command.
 
 Usage:
-  python tools/run_b114_gates.py --run <sprt|ltc|4t|pool4t> [--dry-run]
+  python tools/run_b114_gates.py --run <sprt|ltc|4t> [--dry-run]
 """
 
 from __future__ import annotations
@@ -41,14 +38,14 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from run_b66_games import Refused, powershell  # noqa: E402
-from run_b111_reads import HEAD, TARGETS, check_binary, check_head, gauntlet_args, ps  # noqa: E402
+from run_b111_reads import HEAD, check_binary, check_head, ps  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 RESULTS = REPO / "tools" / "results"
 BASE = {"path": REPO / "tools" / "test_engines" / "basilisk-b114-v1102-pgo1-pext-pgo.exe",
         "sha": "21BE11923F0012F865662606647D067C2E3706481CA2B1B56DA812F73CAF7A94",
         "bench": 14978465, "revision": "fac506446364ee229e7aa18c9c4fb107dfafc57a"}
-SEEDS = {"sprt": 114001, "ltc": 114002, "4t": 114003, "pool4t": 114004}
+SEEDS = {"sprt": 114001, "ltc": 114002, "4t": 114003}
 
 
 def check_base() -> None:
@@ -80,20 +77,9 @@ def command(run: str, dry_run: bool) -> tuple[str, pathlib.Path]:
         params = {**common, "Mode": "match", "Games": 1000, "Hash": 64, "Threads": 1,
                   "BaseMs": 10000, "IncrementMs": 100,
                   "RunFile": str(REPO / "tools" / "colosseum" / "match-fixed-ltc.toml"), **pair}
-    elif run == "4t":
+    else:
         params = {**common, "Mode": "match", "Games": 1000, "Hash": 512, "Threads": 4,
                   "BaseMs": 3000, "IncrementMs": 30, "Placement": "sibling-free", **pair}
-    else:
-        for target in TARGETS:
-            check_binary(pathlib.Path(target[1]), target[2])
-        head = ("Basilisk 1.11.0 candidate", str(HEAD["path"]), HEAD["sha"], 3400, "Threads", [])
-        engines = [head] + TARGETS
-        # Foreign games earn the runner its 1% fault cap (colosseum.ps1 checks the value).
-        extra = gauntlet_args(engines, 200) + ["--max-engine-faults", "16"]
-        params = {**common, "ExpectRevision": HEAD["revision"], "Mode": "gauntlet", "Hash": 512, "Threads": 4, "BaseMs": 3000, "IncrementMs": 30,
-                  "Placement": "sibling-free", "ExpectBench": [HEAD["bench"]] + [-1] * len(TARGETS),
-                  "ExpectSha256": [e[2] for e in engines], "ThreadOptionNames": [e[4] for e in engines],
-                  "ExtraArgs": extra}
     parts = [f"& {ps(REPO / 'tools' / 'colosseum.ps1')}"]
     for key, value in params.items():
         parts.append(f"-{key} {ps(value)}")

@@ -64,4 +64,4 @@
   - A shared thread-scaling loss is D.2's self-relative read.
   - A 4T performance against the field is E.2's target gate.
   - PLAN §5 drops the 4T pool read from the classical release rule.
-  - The launcher's `pool4t` mode stays, unused.
+  - The launcher's `pool4t` mode was removed once BAS-M19's runs finished.
