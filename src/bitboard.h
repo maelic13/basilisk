@@ -9,9 +9,7 @@
 // C++23 <bit> replaces the hand-rolled compiler builtins. std::countr_zero
 // / std::countl_zero / std::popcount are portable and constexpr, and lower to the
 // same TZCNT/LZCNT/POPCNT on x86-64 and RBIT+CLZ/CNT on aarch64 — so this is a
-// portability and clarity win at identical codegen, not a trade. It also fixes a
-// real break: popcount() called __builtin_popcountll unguarded, so the MSVC
-// branch the rest of this header carefully maintained could never compile anyway.
+// portability and clarity win at identical codegen, not a trade.
 //
 // lsb/msb have no meaningful answer for an empty bitboard (std::countr_zero(0)
 // is a well-defined 64, but 64 is not a square), and sq_bb shifts by its

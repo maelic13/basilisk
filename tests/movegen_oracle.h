@@ -284,7 +284,7 @@ inline void gen_pseudo_legal_captures(const Board& b, std::vector<Move>& moves) 
         Bitboard pawns = pieces[us][PAWN];
         Bitboard promo_rank = (us == WHITE) ? BB_RANKS[RANK_7] : BB_RANKS[RANK_2];
 
-        // Promotion pushes (queen only for now — queen captures ordering in qsearch)
+        // Promotion pushes (all four pieces)
         Bitboard promo_push = (us == WHITE) ? shift<NORTH>(pawns & promo_rank) & ~all_occ
                                             : shift<SOUTH>(pawns & promo_rank) & ~all_occ;
         Bitboard tmp = promo_push;

@@ -132,9 +132,6 @@ int Searcher::isolated_probe(SearchStack* ss, int ply, int64_t& nodes, Probe&& p
 
 // ---- Move loop bookkeeping ----------------------------------------------
 
-// The quiets and captures searched before a node's best move are remembered
-// from its first SearchedMoves::CAPACITY moves only.
-
 // Per depth (1..16, deeper reads the last), the history that adds one ply to
 // a quiet move's reduced depth for move-loop pruning.
 static constexpr int LMR_HISTORY_DIVISOR[16] = {
@@ -1979,15 +1976,13 @@ int Searcher::negamax(int depth, int alpha, int beta, int ply,
     best_score = std::min(best_score, tb_cap);
 
 
-    // Correction training: never in check, under exclusion, from a decisive
-    // score or from a node whose best move is a capture. The default
-    // admission takes the error only where its sign agrees with the bound:
-    // above the static eval exactly when a move raised alpha. It also
-    // trains on decisive scores and under exclusion, as the donor does,
-    // except at an exclusion node whose
-    // raw static eval is 0: that is the evaluator's verdict (a recognised
-    // draw), and the value without the only move is no error of it. The
-    // bonus is clamped either way.
+    // Correction training: never in check, and never where a capture raised
+    // alpha. It takes the error only where its sign agrees with the bound:
+    // above the static eval exactly when a move raised alpha. It trains on
+    // decisive scores and under exclusion, as the donor does, except at an
+    // exclusion node whose raw static eval is 0: that is the evaluator's
+    // verdict (a recognised draw), and the value without the only move is no
+    // error of it. The bonus is clamped either way.
     const bool raised_alpha = best_score > orig_alpha;
     if (!in_check && (ss->excluded == MOVE_NONE || ss->raw_eval != 0)
         && static_eval != VALUE_NONE

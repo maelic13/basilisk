@@ -36,7 +36,7 @@ Searcher::Searcher(TranspositionTable& tt,
     : shared_{tt, stop_flag, ponderhit_flag, std::move(info_cb), {}}
     , evaluator_()
 {
-    // hist_ constructs cleared (history.h); clear() also resets the age counter.
+    // hist_ constructs cleared (history_core.h); clear() also resets the age counter.
     clear();
 }
 

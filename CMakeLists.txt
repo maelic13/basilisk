@@ -374,7 +374,7 @@ target_link_libraries(test_b3_proof PRIVATE basilisk_engine)
 add_executable(test_b4_qsearch tests/test_b4_qsearch.cpp
                src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_b4_qsearch PRIVATE basilisk_engine)
-# Cluster 4's arithmetic and mechanisms, and the ply cap on both arms.
+# Cluster 4's arithmetic and mechanisms, and the ply cap.
 add_executable(test_b5_root tests/test_b5_root.cpp
                src/parameters.cpp src/bench.cpp src/wac.cpp)
 target_link_libraries(test_b5_root PRIVATE basilisk_engine)
