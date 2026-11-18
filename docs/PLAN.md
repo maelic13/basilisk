@@ -5289,23 +5289,24 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       rule: the search programme's head is released when B.11.1 closes, as
       Rarog cut 2.5.0 at the end of its search programme. Licensed by an
       accepted SPRT over 1.10.2 at `3+0.03` 1T with `10+0.1` and 4T direction
-      checks whose 95% intervals exclude a loss, and a 4T pool read beside
-      them: a head-to-head read cannot see a thread-scaling loss both
-      versions share (Rarog RAR-M74, RAR-M76). Version 1.11.0 (maintainer
+      checks whose 95% intervals exclude a loss. Version 1.11.0 (maintainer
       decision 2026-10-24: releases follow B, C and E, and 2.0.0 is the
       first NNUE release). Cut through A.8.6's tag-driven flow after A.10.4.
-      The 4T direction check and the 4T pool read run sibling-free (PROCESS
-      *Harness*, BAS-X41); BAS-M11's 4T baseline was played unpinned.
-      Prepared 2026-11-18. Launcher `tools/run_b114_gates.py`; all four dry
-      runs are accepted:
-      - the SPRT (BAS-S67);
-      - the `10+0.1` and 4T direction checks (BAS-M19);
-      - the 4T pool read (BAS-M20).
+      The 4T direction check runs sibling-free (PROCESS *Harness*, BAS-X41).
+      Prepared 2026-11-18. Launcher `tools/run_b114_gates.py`, with every dry
+      run accepted:
+      - the SPRT (BAS-S67): H1 at 536 games, +406.9 ± 39.2;
+      - the `10+0.1` and 4T direction checks (BAS-M19).
       - The candidate is B.11.1's head binary. 1.10.2 was rebuilt from
         `fac5064` with the same Clang 23.1.5.
-      - About 2.5 hours of maintainer-run games. The release packaging, which
-        makes each asset an archive with the GPL and Fathom notices, waits
-        for the maintainer's approval.
+      - The 4T pool read (BAS-M20) was dropped unplayed (maintainer,
+        2026-11-18). It could not block the release under its own
+        registration. The 4T direction check guards against a regression,
+        D.2 measures thread scaling self-relatively, and E.2 plays the field
+        at 4T.
+      - The release packaging is approved and committed (`0ff744d`): each
+        asset is an archive with the GPL and Fathom notices, the README and
+        the changelog.
     - [x] **B.11.5** `[V]` HCE frontier field (ANY TIME) — before B.11.4
       Added 2026-11-17 (maintainer). After the 1.11.0 release, a rated
       Colosseum round robin of the strongest hand-crafted-evaluation engines
@@ -6330,8 +6331,8 @@ has lost games in both engines (BAS-X02).
   Maintainer decision 2026-10-24: the evaluation programme's head is released
   as 1.12.0 once C.12 closes, as Rarog cut 2.6.0 from its C head. Licensed as
   B.11.4 is: an accepted SPRT over the 1.11.0 release at `3+0.03` 1T, `10+0.1`
-  and 4T direction checks whose 95% intervals exclude a loss, and a 4T pool
-  read beside them, the 4T reads sibling-free. Cut through A.8.6's tag-driven
+  and 4T direction checks whose 95% intervals exclude a loss, the 4T check
+  sibling-free. Cut through A.8.6's tag-driven
   flow, after B.11.3's scans are repeated on the candidate (PLAN §5).
 
 ## Phase D — Clock, threads, tablebases
@@ -6663,7 +6664,8 @@ has lost games in both engines (BAS-X02).
     B.11.3's scans repeated on the candidate and its disclosure brought up
     to date (the PeSTO-derived tables until C.2.8's refit retires them,
     Stockfish 19's time-manager constants as D.1 leaves them); short
-    user-facing text (D-71); a 4T pool read beside the head-to-head (D-43).
+    user-facing text (D-71); E.2's 4T pool read beside the head-to-head
+    (D-43).
 
 ## Phase F — NNUE (own data only)
 
@@ -7254,9 +7256,12 @@ adjudication never change after games are seen.
   first NNUE release (F.9). Between them nothing is released unless a
   correctness repair forces a patch.
 - A classical release requires an accepted SPRT over the previous release at
-  `3+0.03` 1T, `10+0.1` and 4T direction checks whose 95% intervals exclude
-  a loss, and a 4T pool read beside them: a head-to-head read cannot see a
-  thread-scaling loss both versions share (RAR-M76).
+  `3+0.03` 1T, and `10+0.1` and 4T direction checks whose 95% intervals
+  exclude a loss. There is no 4T pool read at a release: a head-to-head cannot see a thread-scaling loss both versions share,
+  and D.2's self-relative scaling read measures exactly that against
+  Stockfish's and Reckless's references; E.2's target gate plays the field
+  at 4T (maintainer decision 2026-11-18, replacing the 4T pool read beside
+  every classical release; RAR-M76).
 - An NNUE release requires a win over the last classical release at STC, LTC
   and 4T and a clean platform matrix. Whether versions from 2.0.0 on are
   integers, as Stockfish's are, is decided at F.9.

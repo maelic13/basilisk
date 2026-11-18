@@ -140,7 +140,7 @@ X is good/bad”. If conditions or artifacts are unknown, say so.
 | [BAS-M17](experiments/BAS-M17.md) | B.11.1 head-to-head against Rarog 2.7.0, Rarog's latest release, beside BAS-M16's 2.6.0 match. | COMPLETE: −30.5 ± 25.5 (111-143-146); no Basilisk fault |
 | [BAS-M18](experiments/BAS-M18.md) | B.11.5 HCE frontier field: a rated 14-engine round robin, nine contenders and five anchors. | COMPLETE: head 3403, 9th of 14; Stockfish 16 HCE leads at 3605 (+193 head to head); no faults or time losses; the scale-transfer falsifier fired (±50) |
 | [BAS-M19](experiments/BAS-M19.md) | B.11.4 direction checks: the 1.11.0 candidate against 1.10.2 at `10+0.1` 1T and at 4T sibling-free. | REGISTERED, dry runs accepted |
-| [BAS-M20](experiments/BAS-M20.md) | B.11.4 4T pool read: the 1.11.0 candidate against the four targets, sibling-free. | REGISTERED, dry run accepted |
+| [BAS-M20](experiments/BAS-M20.md) | B.11.4 4T pool read: the 1.11.0 candidate against the four targets, sibling-free. | WITHDRAWN unplayed (maintainer 2026-11-18): the 4T pool read left the release rule |
 
 ## 3. Search and selectivity
 

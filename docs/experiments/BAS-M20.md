@@ -56,3 +56,12 @@
   NPS, not to the release decision, unless a fault caused it.
 
 #### RESULT — append after exposure
+
+- **Withdrawn unplayed** (maintainer, 2026-11-18), before any game.
+  - It could not block the release under its own falsifier, so it licensed
+    nothing.
+  - A regression at 4T is BAS-M19 (b)'s to catch.
+  - A shared thread-scaling loss is D.2's self-relative read.
+  - A 4T performance against the field is E.2's target gate.
+  - PLAN §5 drops the 4T pool read from the classical release rule.
+  - The launcher's `pool4t` mode stays, unused.
