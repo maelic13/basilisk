@@ -12,7 +12,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 |---|---|
 | Released baseline | **1.11.0** on `master`, tagged `v1.11.0` (2026-11-18), `bench 13` 4,777,412 |
 | Bench fingerprint | **4,777,412** (`bench 13`, since B.9.5's gate kept the repairs; HISTORY's 1.11.0 record lists the earlier counts) |
-| Active experiment | BAS-O08 and BAS-O09 (C.0), prepared and dry-run, the maintainer starts them |
+| Active experiment | None |
 | Long job | None |
 | Next release | **1.12.0** after C (C.13), then 1.13.0 after E; **2.0.0** is the first NNUE release |
 
@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.0** `[R3]` Evaluation programme investigation — Claude Fable
+**Next step:** **C.1** `[I1]` Evaluation restructure, behaviour-neutral — Claude Sonnet
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -58,7 +58,7 @@ the six-stage gating shape), are in
 
 ### Phase C — Evaluation programme (search frozen)
 
-- [ ] **C.0** `[R3]` Evaluation programme investigation
+- [x] **C.0** `[R3]` Evaluation programme investigation
 - [ ] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
 - [ ] **C.2** Fit pipeline, corpus, labels and gate instruments
     - [ ] **C.2.1** `[I1]` Fit-tooling contract and Texel handbook

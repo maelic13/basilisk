@@ -42,3 +42,40 @@
   `sf9587-eval16` receives it from `9587eeeb`'s root loop (one line of
   `search.cpp`). Details: the packet's §5.1.
 - Dry runs accepted 2026-11-18 for both hosts.
+- Run 2026-11-18 by the maintainer (`tools/results/c0-donor-sf16`, PGN
+  `1ae0a005…`; `tools/results/c0-donor-9587`, PGN `202aff7d…`): 3,000
+  games each, no faults, no time losses; the recounts agree.
+- `sf_16`'s search: `sf16-eval9587` against `sf16-stock` 784-1464-752,
+  +3.7 [−3.5, +10.9], pentanomial [33, 355, 696, 379, 37]. So `a16` =
+  −3.7.
+- `9587eeeb`'s search: `sf9587-eval16` against `sf9587-stock`
+  826-1334-840, −1.6 [−9.4, +6.1], pentanomial [56, 374, 648, 372, 50].
+  So `a95` = −1.6.
+- `A` = −2.7 [−8.0, +2.6]; `H` = −1.0 [−6.3, +4.3].
+- **By the frozen rule `sf_16` stays the donor**: `9587eeeb`'s evaluation
+  is ahead in both hosts, but `A`'s interval includes zero. In play the
+  two are equal within about 8 Elo in either search, and neither search
+  favours its own evaluation.
+- One host effect: `sf9587-eval16` drew seven elementary mates by the
+  fifty-move rule (KR-K 4, KBN-K 2, KRB-K 1), about 0.8 Elo of `a95`.
+  `sf_16` damps specialised endings by the halfmove clock, which takes
+  the score under the value below which `9587eeeb`'s search cuts a node
+  off on its static score. The port is as registered.
+- Disposition: COMPLETE. `sf_16`'s classical evaluation is Phase C's
+  donor and `9587eeeb`'s the second seed column.
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- `a16` +15 (band −10 to +45): −3.7, inside the band, the sign missed.
+  `a95` −10 (band −40 to +20): −1.6, held.
+- Opposite signs were given 0.50 and did not occur; `9587eeeb` ahead in
+  both was given 0.20 and is the nominal outcome; the rule moving the
+  donor was given 0.08 and did not.
+- What the model had wrong: a host binding of about 12 Elo. None is
+  measurable. The two evaluations differ by 1.7% in scale, and a search's
+  margins do not see that.
+- Conditional lesson: "a host favours the evaluation it was tuned with"
+  is a statement about scale (B.0), not about two tunings of one
+  evaluation.
+- Objective retry trigger: none. A term's form is chosen per family by
+  the family screen, with both evaluations read.
