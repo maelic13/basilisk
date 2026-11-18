@@ -5306,7 +5306,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - About 2.5 hours of maintainer-run games. The release packaging, which
         makes each asset an archive with the GPL and Fathom notices, waits
         for the maintainer's approval.
-    - [x] **B.11.5** `[V]` HCE frontier field
+    - [x] **B.11.5** `[V]` HCE frontier field (ANY TIME) — before B.11.4
       Added 2026-11-17 (maintainer). After the 1.11.0 release, a rated
       Colosseum round robin of the strongest hand-crafted-evaluation engines
       runs at `3+0.03` 1T, UHO, no adjudication, Hash 64, with move overhead
