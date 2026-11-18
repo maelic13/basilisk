@@ -104,7 +104,7 @@ Each leaf rebuilds its form from `55e3010` at the place named.
 | Tune and Diag flavours | every SPSA and every counter read; compiled out of release |
 | Pricing (`BASILISK_PRICING`) | B.11.1's bridge price for G(0) |
 | Texel | C's evaluation fits |
-| Ablation (`ABLATED(n)`, the Ablate flavour) | B.11's closing leaf removes it after its last read |
+| Ablation (`ABLATED(n)`, the Ablate flavour) | removed at B.11.1's close, 2026-11-18 (§7.5) |
 | Literal screen | the next joint tune of the kernel's literals; compiled only on Tune |
 | Child log | `test_kernel_pins` |
 | Board trace | B.8.5's replay reads |
@@ -186,3 +186,32 @@ first-move floor beside it (`:1797`) likewise.
 | `test_board`'s `test_see_on_the_second_vector`; `test_board_v2`'s `KNOWN_SEE_PRUNE` | `tests/test_board.cpp:1231`; `tests/test_board_v2.cpp:698` | their subjects are deleted; the exact SEE values are still checked through the oracle and `see_ge`'s boundary |
 | `test_b4_qsearch`'s `test_the_rules_the_arm_removes`; `test_run_suite`'s quiet-check test | `tests/test_b4_qsearch.cpp:536`; `tools/diag/test_run_suite.py:118` | they asserted counters that no longer exist |
 | The surface generator's table readers (`b3_core_defaults` and the rest) and their tests | `tools/generate_spsa_surface.py:113`, `:194` | every surface now starts from its lines' defaults. The head's seeds are unchanged; the per-cluster surfaces (`config_core.json`, `config_b3.json` and the rest, and the B.3.3, B.4.6 and B.5.4 fit surfaces) now start from the values in force instead of their cluster's start. A rerun of a closed leaf's exact tune uses its registered surface at its own commit |
+
+### 7.5 The ablation build (removed at B.11.1's close, 2026-11-18)
+
+The search froze for C, so the matched ablation mask's last reader is gone.
+Everything below is intact at **`4d2742f`** on `master`, and the lines are
+that revision's. Bit order, A.5.4's:
+
+- 0 razoring;
+- 1 reverse futility;
+- 2 null move;
+- 3 ProbCut;
+- 4 IIR;
+- 5 move-loop pruning;
+- 6 singular extension;
+- 7 LMR, which also covers the first move's step and the step without
+  LMR.
+
+| Deleted | At `4d2742f` | Rebuild from it when |
+|---|---|---|
+| `ABLATED(bit)` and its eight uses in the kernel | `src/search_kernel_core.cpp:39`; uses `:979`, `:1007`, `:1046`, `:1127`, `:1145`, `:1324`, `:1497`, `:1682`, `:1699` (the LMR gate also guarded `:1775`) | a deficit is decomposed again by mechanism against the oracle (PROCESS *Matched ablation*); the oracle keeps its mask (`oracle-hybrid-ablate.patch`) |
+| The `AblationMask` option, its field and its limit | `src/parameters.cpp:158`, `:220`, `:452`; `src/parameters.h:45`; `src/search_types.h:123`; `src/engine.cpp:90` | with the macro |
+| The `ABLATION` CMake option, its `-ablate` suffix, its flavour exclusions and its PGO pass-through | `CMakeLists.txt:135`, `:655`, `:774`, `:793`, `:1194`, `:1305`; `cmake/pgo-build.cmake:41`, `:89` | with the macro |
+| `test_uci_protocol`'s ablation sections | `tests/test_uci_protocol.cpp:210`, `:462` | with the option |
+| The Ablate flavour of `build_test.ps1` and CI's ablation job | `tools/build_test.ps1:13`, `:52`, `:112`, `:129`, `:143`; `.github/workflows/ci.yml:355` | with the flavour |
+
+`tools/diag/ablation_liveness.py` stays: it proves a mask's bits live on any
+engine that exposes one, today the oracle's ablate build. `bench 13` stays
+4,777,412 on Release, Tune and Diag after the removal, and no build exposes
+`AblationMask`.

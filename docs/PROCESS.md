@@ -286,8 +286,29 @@ Rarog repository.
 - **How:** read the donor, close the file, then design from Basilisk's own
   code and its measured evidence. If a change cannot be justified without
   pointing at the donor, it is not understood well enough to ship.
-- `README.md`'s posture stays accurate: an independent engine, with thanks
-  for the inspiration.
+- `README.md`'s acknowledgements name what crossed, by category (B.11.3,
+  2026-11-18), and each release's check keeps them true (C.13, E.3, F.9).
+  What crossed unchanged into 1.11.0:
+  - Stockfish 19's time-manager formula and its constants;
+  - three small search tables:
+    - the LMR history divisors;
+    - the history-consistency multipliers;
+    - the piece values inside the histories;
+  - the search constants that kept their Stockfish seed: those B.6.7's fit
+    left out or rounded back to it;
+  - several of classical Stockfish's endgame scaling rules;
+  - the piece-square tables: still largely PeSTO's values (attribution
+    under CC BY-SA 3.0), with part of one pawn row from classical
+    Stockfish.
+  - Three small routines with one natural form also stay close to
+    Stockfish's code: the Windows large-page set-up, the cuckoo table and
+    the compile date.
+
+  Everything else from the donors is mechanism and structure in Basilisk's
+  own code. The scan record is `analysis/b113_originality_2026-11-18.md`.
+  Rarog, the oracle and Triumviratus need no disclosure: Rarog is the
+  maintainer's own engine, the oracle never ships, and Triumviratus gave
+  mechanisms and lessons only.
 - Do not merge the `oracle/hybrid` package into Basilisk or read the oracle as
   permission for an unmeasured rewrite.
 - Similarity is never a reason to accept anything, and a counter that diverges
@@ -636,6 +657,11 @@ an already oversized shallow tree.
 One shared bit mask on Basilisk and on the oracle build, so the same number
 ablates the same mechanism on each side (A.5.4 fixes the order), compiled
 away in a shipped build.
+
+Basilisk's side, the Ablate flavour, was removed when the search froze at
+B.11.1's close (2026-11-18); the oracle keeps its mask. A new decomposition
+rebuilds Basilisk's side from `4d2742f`
+(`analysis/b82_switch_inventory_2026-11-14.md` §7.5).
 
 1. The harness refuses an option an engine does not expose. A run that sets a
    missing option plays the whole match at the default and measures nothing.

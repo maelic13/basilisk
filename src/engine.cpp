@@ -87,9 +87,6 @@ SearchLimits Engine::build_limits() const {
     limits.decision_trace = parameters_.decision_trace;
     limits.pricing_every  = parameters_.pricing_every;
 #endif
-#ifdef BASILISK_ABLATION
-    limits.ablation_mask = parameters_.ablation_mask;
-#endif
     limits.params    = parameters_.search_params;
     limits.infinite  = parameters_.infinite && !parameters_.ponder;
     limits.clock     = parameters_.clock;

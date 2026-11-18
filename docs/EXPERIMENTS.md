@@ -136,6 +136,11 @@ X is good/bad”. If conditions or artifacts are unknown, say so.
 | [BAS-M13](experiments/BAS-M13.md) | Frozen before any game, the 1.10.2 verification match against 1.10.1 with tablebases. | WITHDRAWN unplayed |
 | [BAS-M14](experiments/BAS-M14.md) | Loss analysis by cell: stored games judged by Stockfish 19, worst errors re-searched (B.16.3). | Withdrawn unplayed: instrument built, the read moves to D.1 |
 | [BAS-M15](experiments/BAS-M15.md) | "Dev Test": the head after Clusters 1 to 3 in a twelve-engine 1T round robin. | Observation: pool +314.2 over 1.10.2, +74.6 over Rarog 2.5.0 |
+| [BAS-M16](experiments/BAS-M16.md) | B.11.1 1T pool gauntlet: the head against the four targets, Rarog 2.6.0 beside it. | COMPLETE: performance 3416.3 [3395.5, 3437.1]; Rarog 2.6.0 −35.7 ± 23.2; no Basilisk fault; conversion 10.6 / 0.6 per 1,000 |
+| [BAS-M17](experiments/BAS-M17.md) | B.11.1 head-to-head against Rarog 2.7.0, Rarog's latest release, beside BAS-M16's 2.6.0 match. | COMPLETE: −30.5 ± 25.5 (111-143-146); no Basilisk fault |
+| [BAS-M18](experiments/BAS-M18.md) | B.11.5 HCE frontier field: a rated 14-engine round robin, nine contenders and five anchors. | COMPLETE: head 3403, 9th of 14; Stockfish 16 HCE leads at 3605 (+193 head to head); no faults or time losses; the scale-transfer falsifier fired (±50) |
+| [BAS-M19](experiments/BAS-M19.md) | B.11.4 direction checks: the 1.11.0 candidate against 1.10.2 at `10+0.1` 1T and at 4T sibling-free. | COMPLETE: `ltc` +371.3 [+348.8, +396.4], `4t` +386.6 [+363.7, +412.1], 1,000 games each, zero faults; both pass |
+| [BAS-M20](experiments/BAS-M20.md) | B.11.4 4T pool read: the 1.11.0 candidate against the four targets, sibling-free. | WITHDRAWN unplayed (maintainer 2026-11-18): the 4T pool read left the release rule |
 
 ## 3. Search and selectivity
 
@@ -164,6 +169,9 @@ fifty-move, 2 stalemate. **Zero forfeits.** Instrument: branch `hybrid`
 
 - [BAS-O04](experiments/BAS-O04.md) — Width attribution. — 20.80
 - [BAS-O05](experiments/BAS-O05.md) — Frozen before any game, A.7.3 search deficit meter G(0) on 1.10.1. — COMPLETE (2026-10-05): G(0) = +312.6 ± 17.8
+- [BAS-O06](experiments/BAS-O06.md) — B.11.1 G(0) on the head at equal time, BAS-O05's protocol. — COMPLETE: G(0) −70.7 [−78.4, −63.0], 383 recovered from +312.6
+- [BAS-O07](experiments/BAS-O07.md) — B.11.1 G(0) at the bridge's measured time odds, RAR-O08's conditions. — COMPLETE: bridge 2.07% (×1.021); G(0) −53.5 ± 7.6
+- [BAS-D22](experiments/BAS-D22.md) — B.11.1 fixed-node meters: depth at 300k nodes, branching, endgame truth cohort. — observation: 3.3-ply gap (was 12.2), 458/480 converted
 
 **Internal consistency.** Measured directly, full Stockfish beat Basilisk 1.9.3
 by 364-33-3, ≈ **+516.1 ±59**. Composing the two isolated legs gives
@@ -570,6 +578,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 - [BAS-S65](experiments/BAS-S65.md) — B.8's delivery gate: the cleanup and speed pass against B.7's head, `[0,3]` — CLOSED 2026-11-16: H1 accepted at 3,938 games, +19.1 ± 6.5 Elo (first-crossing), zero faults
 - [BAS-S66](experiments/BAS-S66.md) — B.9.5's repair gate: the lifecycle, protocol and verdict repairs, `[-5,5]` — CLOSED 2026-11-17: the cap, 8,000 games, −0.8 ± 3.4 Elo, LLR −1.22; the repairs stay, `bench 13` 4,777,412
 - [BAS-S63](experiments/BAS-S63.md) — B.7.1's repair gate: a return to the root counts as a repetition only when it recurs, `[-5,5]` — CLOSED 2026-11-14: the cap, 8,000 games, +1.9 ± 4.1 Elo, LLR +2.29; the repair stays, `bench 13` 4,247,965
+- [BAS-S67](experiments/BAS-S67.md) — B.11.4: the 1.11.0 candidate against 1.10.2, SPRT `[0,3]`, the release licence — COMPLETE: H1 at 536 games, +406.9 ± 39.2 Elo, zero faults
 
 | ID | Title | Disposition |
 |---|---|---|
@@ -699,6 +708,7 @@ not accept any new feature, vector or label policy by themselves.
 | [BAS-P57](experiments/BAS-P57.md) | B.8.10's arms under load: the decider (B.8.10). | COMPLETE: X0 +1.32% [+1.00, +1.64] kept; X2 +0.57%, X1 +0.26% not |
 | [BAS-P58](experiments/BAS-P58.md) | X0 at one engine, Hash 1 and Hash 256: the model's falsifier (B.8.10). | COMPLETE: −1.02% at Hash 1, +1.13% at Hash 256; the falsifier did not fire |
 | [BAS-P59](experiments/BAS-P59.md) | The universal binary with full LTO, against the pext asset (B.8 delivery). | COMPLETE: +0.30% [+0.19, +0.42], PASS; the universal binary keeps B.8's gain |
+| [BAS-P60](experiments/BAS-P60.md) | B.11.1 pooled-PGO NPS: the head against 1.10.1, both on clang 23.1.5. | COMPLETE: −37.36% [−38.02, −36.71] (2.521M against 4.024M); prediction missed, build verified |
 
 ## 7. Correctness and protocol lessons
 

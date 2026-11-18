@@ -11,10 +11,11 @@ from a chess GUI or an engine-testing tool.
 
 ## Highlights
 
-- **Strong modern search** — iterative deepening with principal variation
-  search, aspiration windows, null-move pruning, razoring, ProbCut, singular
-  extensions, late move reductions and a quiescence search that handles checks
-  and prunes losing captures.
+- **Strong modern search** — built to modern Stockfish's design: principal
+  variation search with aspiration windows around each root move's average,
+  null-move pruning, razoring, ProbCut, singular extensions, late move
+  reductions, history tables that order the moves and correct the evaluation,
+  and a quiescence search that prunes losing captures.
 - **Multi-threaded** — parallel search across cores with a shared transposition
   table, enabled with the standard `Threads` option, with coordinated clock
   handling and efficient shared node accounting.
@@ -28,7 +29,9 @@ from a chess GUI or an engine-testing tool.
   and spends longer on unstable positions than on obvious moves.
 - **Pondering** — thinks on the opponent's clock when the GUI enables it.
 - **Optimized binaries** — published for Windows, Linux and macOS, on both
-  x86-64 and ARM64, and profile-guided-optimized.
+  x86-64 and ARM64, and profile-guided-optimized. The one Intel/AMD download
+  starts the fastest build the processor runs, and the engine uses large
+  memory pages where the system offers them.
 - **Built-in benchmark** — a `bench` command for reproducible speed and search
   comparisons.
 
@@ -39,16 +42,16 @@ from a chess GUI or an engine-testing tool.
 - [Latest release](https://github.com/maelic13/basilisk/releases/latest)
 - [All releases](https://github.com/maelic13/basilisk/releases)
 
-Every release provides ready-to-run executables — no installation needed. Pick
-the one for your computer:
+Every release provides ready-to-run archives — no installation needed. Pick
+the one for your computer; each archive holds the program, its licences, this README and the changelog:
 
 | Your computer | Download |
 | --- | --- |
-| Windows, Intel or AMD processor | `basilisk-{version}-windows-x64.exe` |
-| Linux, Intel or AMD processor | `basilisk-{version}-linux-x64` |
-| Windows on ARM | `basilisk-{version}-windows-arm64.exe` |
-| Linux on ARM | `basilisk-{version}-linux-arm64` |
-| Mac with Apple silicon | `basilisk-{version}-macos-arm64` |
+| Windows, Intel or AMD processor | `basilisk-{version}-windows-x64.zip` |
+| Linux, Intel or AMD processor | `basilisk-{version}-linux-x64.tar.gz` |
+| Windows on ARM | `basilisk-{version}-windows-arm64.zip` |
+| Linux on ARM | `basilisk-{version}-linux-arm64.tar.gz` |
+| Mac with Apple silicon | `basilisk-{version}-macos-arm64.tar.gz` |
 
 **One download for every Intel or AMD processor.** It contains builds for
 several processor generations and, when it starts, runs the fastest one your
@@ -80,8 +83,9 @@ Cutechess, ChessBase/Fritz, Banksia and others.
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `Hash` | `64` | Transposition table size in MB. More memory helps longer searches, and helps more the more threads you use. The table uses the largest power of two that fits (100 gives 64), and says so. |
+| `Hash` | `64` | Transposition table size in MB. More memory helps longer searches, and helps more the more threads you use. The table uses the largest power of two that fits (100 gives 64), and says so. The maximum is this computer's physical memory; a larger value is refused with a message, and the current table is kept. |
 | `Clear Hash` | — | Empties the transposition table. |
+| `LargePages` | `true` | Uses large memory pages for the hash table and the search tables where the system allows it: Linux, and Windows with the "Lock pages in memory" right. About 1% faster. `bench` says whether they were used. |
 | `Threads` | `1` | Search threads. Set to the number of cores you want to use. Applied immediately. |
 | `Ponder` | `false` | Think while the opponent moves. Enabled by the GUI. |
 | `Move Overhead` | `10` | Milliseconds reserved for GUI and network delay. Raise it if you lose on time. |
@@ -283,7 +287,24 @@ MIT-licensed Fathom library under [external/fathom/LICENSE](external/fathom/LICE
 
 ## Acknowledgements
 
-Basilisk is an independent engine, but it benefits from the open chess-engine
-community's published ideas, testing practices and protocol conventions. Special
-thanks to Stockfish and its team for the inspiration their work provides to
-chess engine authors and testers.
+Basilisk is written independently, in its own structure, but several parts of
+it come from other people's published work:
+
+- **Stockfish** (GPL-3, the Stockfish developers). Basilisk's search is a
+  reimplementation of Stockfish's design: its search, transposition table,
+  histories, move ordering and time management follow Stockfish 19. Many
+  search constants started from Stockfish's values; most have since been
+  refitted for Basilisk, and some are still Stockfish's. The time manager's
+  formula and constants are Stockfish's, as are a few small tables in the
+  search's histories. Several endgame scaling rules follow classical
+  Stockfish's, and a few small utility routines stay close to Stockfish's
+  code. Classical Stockfish's evaluation is the model for Basilisk's
+  evaluation work.
+- **PeSTO** (Ronald Friederich, published on the Chess Programming Wiki under
+  CC BY-SA 3.0). Basilisk's piece-square tables are derived from PeSTO's,
+  with a few values from classical Stockfish's.
+- **Fathom** (MIT). Syzygy tablebase probing; see *License* above.
+- **The Chess Programming Wiki and the open chess-engine community**, for
+  published ideas, testing practice and protocol conventions.
+
+Thanks to all of them.

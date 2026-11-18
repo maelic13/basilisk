@@ -155,9 +155,6 @@ Parameters::Parameters() {
     decision_trace    = false;
     pricing_every     = 0;
 #endif
-#ifdef BASILISK_ABLATION
-    ablation_mask     = 0;
-#endif
 }
 
 void Parameters::reset() {
@@ -216,9 +213,6 @@ std::string Parameters::uci_options() {
         "option name DecisionTrace type check default false\n"
         // What pruning and reductions hide: probe every N-th decision.
         "option name Pricing type spin default 0 min 0 max 1000000\n";
-#endif
-#ifdef BASILISK_ABLATION
-    opts += "option name AblationMask type spin default 0 min 0 max 255\n";
 #endif
 #ifdef BASILISK_TUNE
     // Generated from the SearchParams X-macro table — the advertised
@@ -448,10 +442,6 @@ void Parameters::set_option(const std::string& args) {
 #if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
     } else if (name_lower == "pricing") {
         pricing_every = std::clamp(parsed, 0, 1'000'000);
-#endif
-#ifdef BASILISK_ABLATION
-    } else if (name_lower == "ablationmask") {
-        ablation_mask = std::clamp(parsed, 0, 255);
 #endif
     }
 #ifdef BASILISK_TUNE

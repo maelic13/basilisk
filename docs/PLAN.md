@@ -37,6 +37,21 @@ stages (maintainer decision 2026-09-28: Rarog's targets):
 1. **Classical stage.** With the hand-crafted evaluation, beat the strongest
    HCE-era engines in the maintainer's own pool: **Critter 1.6a, Houdini 3,
    Rybka 4.1 and Fritz 16**.
+   - The aim, beyond that gate (maintainer, 2026-11-17, after B.11.1 beat
+     all four): Basilisk is to become the **strongest hand-crafted-evaluation
+     engine in the world** before the NNUE stage. That may not work out,
+     and the E.2 gate stays the requirement.
+   - The aim is read in the HCE frontier field (B.11.5). Its likely leader
+     is Stockfish 16 with `Use NNUE=false`, the last Stockfish release
+     with a classical evaluation, which no rating list carries; so the
+     field is measured, not looked up.
+   - **The target before NNUE** (maintainer, 2026-11-18; the maintainer may
+     change it later): Stockfish 16 with `Use NNUE=false`. BAS-M18
+     measured it as the field's leader, at 3604 on the pool's scale.
+     - Basilisk is to get as close to it as possible, and to beat it if it
+       can.
+     - The meter is the gap to it, read head to head and in the field. At
+       B.11.1's head that gap is 202, and −193 head to head.
 2. **NNUE stage.** Train networks on Basilisk's own data only, then reach the
    **CCRL top 100**, and later the top 50.
 
@@ -118,6 +133,15 @@ Rybka 4.1 (117), Fritz 16 (179) and Critter 1.6a (198) at 1T after B, and
 Houdini 3 (293) falls, if at all, only with C. Each
 programme's checkpoint re-measures its deficit meter, so a miss is seen as a
 miss and this table is corrected rather than defended.
+
+**Corrected at B's checkpoint (B.11.1, 2026-11-18).**
+
+- B's band was low by about a factor of two. Its clusters and fits
+  delivered about +387 by their gates, and G(0) recovered 383, ending
+  70.7 past the oracle's search.
+- All four targets fell at 1T after B, Houdini 3 by +161.9.
+- C's band stands until C.0 re-reads it against the donor its
+  comparison picks (`analysis/b111_checkpoint_2026-11-18.md`).
 
 ## 2. Operating rules
 
@@ -5085,7 +5109,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
   The search programme's checkpoint (B.9 until 2026-11-05), the
   originality and licence disclosure (B.11.3, added 2026-11-11), then
   the 1.11.0 release (B.11 until 2026-11-05, B.11.2 until 2026-11-11).
-    - [ ] **B.11.1** `[V]` Search programme checkpoint
+    - [x] **B.11.1** `[V]` Search programme checkpoint
       Checkpoint: re-measure every deficit meter.
       G(0) is read twice (maintainer, 2026-11-14), so that the gain compares
       both with Basilisk's own baseline and with Rarog's reads:
@@ -5136,7 +5160,70 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       Added 2026-11-11:
       - B.9's closing criterion is read in this gauntlet: no crash,
         illegal move or forfeit by Basilisk. One reopens B.9.1.
-    - [ ] **B.11.3** `[R2]` Originality and licence disclosure
+      Prepared 2026-11-17 (branch `b11-checkpoint-release`):
+      - The head is built at `4c0bc0e`, whose engine source is master's
+        `4d2742f` (bench 4,777,412), and the oracle is rebuilt around its
+        evaluation (conformance 0 mismatches).
+      - Read on the busy host, being deterministic: the fixed-node meters,
+        BAS-D22. The depth gap at 300k nodes is 3.3 plies (12.2 on 1.10.1),
+        the branching factor 1.588 against the oracle's 1.779, and the truth
+        cohort 458/480 (KNN-KP 10/24 the residue).
+      - Registered and dry-run, waiting for an idle host: the bridge price
+        and the NPS read of the head against 1.10.1, both on clang 23
+        (BAS-O07, BAS-P60); then G(0) at equal time and at the price's odds
+        (BAS-O06, BAS-O07) and the pool gauntlet with Rarog 2.6.0 beside it
+        (BAS-M16). Launcher `tools/run_b111_reads.py`.
+      - Rarog 2.6.0 plays a separate 400-game match: a gauntlet fixes every
+        opponent's rating, and Rarog has none on the pool's scale.
+      - The optional hybrid arms are declined (maintainer, 2026-11-17). The
+        head already carries `sf_19`'s shape, the latest Stockfish release,
+        so a Stockfish-dev arm would read a few months of master; Reckless's
+        shape is not one Basilisk will take. The search stays on the latest
+        Stockfish shape, and H.1 re-evaluates it.
+      Read 2026-11-17 on an idle host, every run clean (no Basilisk fault
+      or time loss in 8,400 games; B.9's criterion holds):
+      - G(0) **−70.7** [−78.4, −63.0] at equal time (BAS-O06): the head now
+        beats the oracle's search on its own evaluation. That is **383**
+        recovered from +312.6.
+      - The bridge costs 2.07% (×1.021, against Rarog's 8.5%), and G(0) at
+        odds is **−53.5 ± 7.6** (BAS-O07). In Rarog's sign that is +53.5,
+        against Rarog's own +59.8.
+      - Pool performance **3416.3** [3395.5, 3437.1] (BAS-M16), every target
+        gap closed: Houdini 3 +161.9, Critter 1.6a +207.5, Fritz 16 +238.1,
+        Rybka 4.1 +289.7. Rarog 2.6.0 **−35.7 ± 23.2**.
+      - NPS −37.4% against 1.10.1 (2.52M against 4.02M at `bench 13`,
+        BAS-P60): the per-node price of the Stockfish-shaped search, already
+        paid by B.8 (BAS-P53 read 2.40M on B.8.4's head).
+      - Rarog 2.7.0 (published 2026-11-13) was Rarog's latest release, not
+        2.6.0. The maintainer added it (2026-11-17): every Rarog comparison
+        includes the latest release, built locally from now on. Read as
+        BAS-M17: **−30.5 ± 25.5**, the same as 2.6.0's within noise.
+      Closed 2026-11-18:
+      - Conversion (BAS-M16): **10.6 draws and 0.6 losses per 1,000**
+        after a persistent piece-up advantage, against 1.10.0's 16.67 /
+        6.67 (BAS-M08).
+        - In BAS-M18's frontier field the head throws 16.0 per 1,000,
+          against Stockfish 16 HCE's 11.5. The losses are the gap: 42
+          against 1.
+      - Attributed Elo (`analysis/b111_checkpoint_2026-11-18.md`):
+        - per cluster: Cluster 1 +194.9 (+136.2 for the mechanisms, +58.7
+          for the fit), Cluster 2 +92.8 with +4.7 for the coloured
+          histories, Cluster 3 +31.7, Cluster 4 +15.6;
+        - the joint fit +28.2, and the cleanup and speed pass +19.1;
+        - repairs +54.4.
+        - The gates sum to +441; against the same four targets the
+          gain measures +422 (2994 to 3416.3).
+      - Against the budget: B planned 150–250 and delivered about 387,
+        with G(0) 383 recovered, past the oracle. All four targets fell
+        after B, where the table had Houdini 3 waiting for C. §1's
+        table carries the correction.
+      - The ablation build is removed. `bench 13` stays 4,777,412 on
+        Release, Tune and Diag, and the deletion is ledgered in
+        `analysis/b82_switch_inventory_2026-11-14.md` §7.5.
+      - **The search head is frozen for C** at `bench 13` 4,777,412: the
+        engine of `4d2742f`, less the ablation flavour. From here to H a
+        search change is a correctness repair with its own gate.
+    - [x] **B.11.3** `[R2]` Originality and licence disclosure
       Added 2026-11-11 (`analysis/rarog_import_2026-11-11.md`;
       Rarog's E.3.0). 1.11.0 is the first release whose search is built
       in a donor's shape, and B.6.7's screen names a few dozen literals
@@ -5144,13 +5231,21 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       named only the PeSTO-derived tables and Stockfish 19's
       time-manager constants. B.11.4 does not cut until this closes. A
       small research step with its implementation:
-      - Scans on the release candidate's source, built or ported here as
-        tools with tests: shared token runs against `sf_19` and
-        `9587eeeb`; the constants census, from B.6.7's list of literals
-        and the search parameters whose fitted value is still the
-        donor's seed; the evaluation's tables against both donors; the
-        move-similarity screen against the donors and unrelated
-        controls.
+      - **Lean scope** (maintainer, 2026-11-18). The disclosure names
+        categories of donor material, not single constants. It goes beyond
+        1.10.2's two items, because the search was seeded from the donor
+        and parts of it remain unchanged.
+        - One scan only: Rarog's `originality_scan.py`, ported with tests.
+          It reads shared code, numeric runs and tables in the frozen
+          head's source against `sf_19` and `9587eeeb`. It is the one check
+          a categorical disclosure cannot replace: for copied code and for
+          tables such as magics or hash keys.
+        - The constants census, the evaluation-table scan and the
+          move-similarity screen are not run here. C.13, E.3 and F.9 decide
+          again for their candidates.
+        - Rarog (the maintainer's own engine) and the oracle (never
+          shipped) need no disclosure. Neither does Triumviratus, which
+          gave mechanisms and measured lessons only.
       - The licence: Basilisk, Stockfish and Triumviratus are GPL-3 and
         Fathom is MIT. The maintainer confirms that nothing the scans
         find needs more than naming; it is not legal advice.
@@ -5165,19 +5260,133 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         is a strength experiment with its own registration.
       - C.13, E.3 and F.9 repeat the scans on their own candidates
         (PLAN §5).
+      Closed 2026-11-18 (`analysis/b113_originality_2026-11-18.md`):
+      - The scan: `tools/diag/originality_scan.py`, with 14 tests, run
+        against `sf_19` and `9587eeeb`. The code is Basilisk's own.
+        - Three small routines with one natural form stay close to
+          Stockfish's: the Windows large-page set-up, the cuckoo table and
+          the compile date.
+        - Donor data used unchanged:
+          - the time manager;
+          - three small search tables: the LMR history divisors, the
+            consistency multipliers and the piece values in the histories;
+          - several classical endgame scaling rules;
+          - part of one pawn piece-square row.
+        - The magics and Zobrist keys are Basilisk's own.
+      - The disclosure:
+        - README's acknowledgements now name Stockfish, PeSTO (CC BY-SA
+          3.0), Fathom and the Chess Programming Wiki by category.
+        - PROCESS's independence boundary lists what crossed unchanged.
+        - The analysis note gives the donor list for registrations.
+      - Licences: until now no release shipped the GPL text or Fathom's
+        notice. Every release now carries both as assets
+        (`.github/workflows/release.yml`).
+      - The maintainer confirmed the lean scope and that Rarog, the oracle
+        and Triumviratus need no disclosure.
     - [ ] **B.11.4** `[M]` Interim release 1.11.0
       It was B.11.2 until 2026-11-11, and cuts after B.11.3.
       Maintainer decision 2026-10-24, replacing 2026-09-28's no-interim
       rule: the search programme's head is released when B.11.1 closes, as
       Rarog cut 2.5.0 at the end of its search programme. Licensed by an
       accepted SPRT over 1.10.2 at `3+0.03` 1T with `10+0.1` and 4T direction
-      checks whose 95% intervals exclude a loss, and a 4T pool read beside
-      them: a head-to-head read cannot see a thread-scaling loss both
-      versions share (Rarog RAR-M74, RAR-M76). Version 1.11.0 (maintainer
+      checks whose 95% intervals exclude a loss. Version 1.11.0 (maintainer
       decision 2026-10-24: releases follow B, C and E, and 2.0.0 is the
       first NNUE release). Cut through A.8.6's tag-driven flow after A.10.4.
-      The 4T direction check and the 4T pool read run sibling-free (PROCESS
-      *Harness*, BAS-X41); BAS-M11's 4T baseline was played unpinned.
+      The 4T direction check runs sibling-free (PROCESS *Harness*, BAS-X41).
+      Prepared 2026-11-18. Launcher `tools/run_b114_gates.py`, with every dry
+      run accepted:
+      - the SPRT (BAS-S67): H1 at 536 games, +406.9 ± 39.2;
+      - the `10+0.1` and 4T direction checks (BAS-M19), both passed:
+        `ltc` +371.3 [+348.8, +396.4] and `4t` +386.6 [+363.7, +412.1],
+        1,000 games each, zero faults.
+      - The candidate is B.11.1's head binary. 1.10.2 was rebuilt from
+        `fac5064` with the same Clang 23.1.5.
+      - The 4T pool read (BAS-M20) was dropped unplayed (maintainer,
+        2026-11-18). It could not block the release under its own
+        registration. The 4T direction check guards against a regression,
+        D.2 measures thread scaling self-relatively, and E.2 plays the field
+        at 4T.
+      - The release packaging is approved and committed (`0ff744d`): each
+        asset is an archive with the GPL and Fathom notices, the README and
+        the changelog.
+    - [x] **B.11.5** `[V]` HCE frontier field (ANY TIME) — before B.11.4
+      Added 2026-11-17 (maintainer). After the 1.11.0 release, a rated
+      Colosseum round robin of the strongest hand-crafted-evaluation engines
+      runs at `3+0.03` 1T, UHO, no adjudication, Hash 64, with move overhead
+      set where an engine has one. Some already-rated engines from the
+      maintainer's pool join it as anchors. It answers how strong each
+      contender really is on the pool's scale, and how far 1.11.0 is from
+      the top. It is §1's aim's meter, and C's and E's checkpoints repeat it.
+      The field, built and pinned 2026-11-17:
+      - Already in Colosseum and rated: Stockfish 11 (3532), Stockfish 15.1
+        with `Use NNUE=false` (3543), Komodo 14.1 (3476), Houdini 6.03
+        (3499), Fire 8.3 (3423), Ethereal 13.07 (3356).
+      - New, in `D:\chess\engines\`, with estimated ratings until the
+        tournament reads them:
+        - **Stockfish 16** with `Use NNUE=false`
+          (`stockfish-16-x64-bmi2-classical-pgo.exe`, `041396A4…`): built
+          from `sf_16` with its PGO trained on `bench … classical`. Bench
+          2,593,605 is SF16's signature. Estimated 3555; the likely
+          leader.
+        - **Dragon 3.3** with `Use Regular Eval=true`: Komodo's
+          hand-crafted evaluation in Dragon's search. It shares Dragon 3.3's
+          binary. Estimated 3510.
+        - **Berserk 4.7.0**, an HCE release: the modern search with 4.6.0's
+          evaluation (`berserk-4.7.0-hce-native-pgo.exe`, `2F1D85FA…`).
+          It is a native static PGO build of tag `4.7.0`, as its release
+          notes advise: same bench, 3,150,010 nodes, and 8% faster than the
+          release asset. CCRL 40/15 3445 at 1 CPU; estimated 3500.
+        - **Ethereal 14.40**, master `0e47e9b` built without a network,
+          the only build of 13.00 onwards that is free
+          (`Ethereal-14.40-pext-pgo.exe`, `317A21DB…`).
+          - A three-way round robin on 2026-11-17 (`3+0.03`, 400 games per
+            pair, no faults; `tools/results/hce-ethereal-rr/`) put it **+83.2
+            [+61.4, +105.6]** over 13.07 and +102.8 over 12.75.
+          - 12.75 against 13.07 read +9.6 [−9.1, +28.3], equal, so 12.75
+            stays out of the field (`22F12797…` is kept on disk).
+          - 14.40 enters at 3449: 13.07's pool rating of 3356 plus the
+            round robin's +92.6 gap.
+        - Booot 6.5 was in the first run, BAS-M18. The maintainer removed
+          it from the field (2026-11-18): it exposes no UCI options, so its
+          setup could not be checked, and it read 227 below its estimate.
+        - **rofChade 2.3**, BMI2 build (`D68E2AC8…`, CCRL 3290, estimated
+          3345).
+        - **Koivisto 4.83**, its last hand-crafted version (`A42384F3…`;
+          CCRL lists only 4.0, at 3111; estimated 3250).
+      - Ruled out as NNUE, by their authors' own notes:
+        - SlowChess Blitz 2.5 onwards ("2.5+ use neural nets");
+        - rofChade 3.x;
+        - Booot 7.x (a 35 MB binary with the network embedded);
+        - Igel 2.7 onwards;
+        - Koivisto 5 onwards;
+        - Shredder 14, which is also commercial.
+      - The anchor scale is the pool's. Ratings near CCRL's are not CCRL's:
+        the pool reads about 40–110 above CCRL 40/15's single-CPU rows.
+      - A harness cross-check: one pairing is replayed under fastchess
+        (`tools/bin/fastchess.exe` 1.8.0, already the backup path in
+        PROCESS *Harness*) at the same conditions. B.2.2's replay agreed
+        within its interval. It is also the trial for a fastchess-GUI
+        switch, which the maintainer is weighing.
+      - Brought forward 2026-11-17 (maintainer): it runs before the release,
+        on master, whose `src/` is the release candidate's, so it need not
+        be repeated after the cut (BAS-M18).
+        - The field is one version per family plus four rated anchors:
+          Stockfish 11, Houdini 6.03, Fire 8.3 and Ethereal 13.07.
+        - Stockfish 15.1 HCE and Komodo 14.1 sit out, as their ratings are
+          already known. Rarog 2.7.0, the maintainer's local build, joins
+          under the latest-release rule.
+      - Read 2026-11-18 (BAS-M18, 54,600 games, no faults or time losses):
+        - Stockfish 16 HCE leads at **3605**. Berserk 4.7.0 follows at
+          3545, then Stockfish 11 (3532, fixed).
+        - The head rates **3403**, 9th of 14. It is **202** below the top:
+          −193 head to head with Stockfish 16 HCE, and −145 with Berserk.
+        - The pool's scale transfers only to about ±50: with Stockfish 11
+          alone fixed, Houdini 6.03 and Fire 8.3 land about 48 below their
+          ratings. So gaps inside the field are the reading.
+      Closed 2026-11-18. The maintainer dropped the fastchess replay from
+      the leaf: it was for his own interest in fastchess-GUI, not a
+      requirement. BAS-M18 is the field's read. C's and E's checkpoints
+      repeat it against the Stockfish 16 HCE target (§1).
 - [x] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
   Correctness repair, opened 2026-10-30 at the maintainer's decision when
   B.3.0's counter suite stopped on it (packet §2.3,
@@ -5356,8 +5565,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.11.1 | RESEARCH | V | Was B.9; programme checkpoint |
-| B.11.3 | RESEARCH | R2 | Added 2026-11-11; the disclosure on the release candidate, before the cut |
 | B.11.4 | RESEARCH | M | Was B.11, then B.11.2; interim release after B.11.3 (maintainer decision 2026-10-24) |
 
 ## Phase C — Evaluation programme (search frozen)
@@ -5374,6 +5581,29 @@ master, the evaluator Basilisk's oracle measured (BAS-O02), and the reference
 its maturity audit already compared against (BAS-E07). Modern Stockfish has no
 hand-crafted evaluation. Its families and their conditioning are the donor;
 its constants are seeds on a different scale and ride the next refit.
+
+**Correction, 2026-11-17: `9587eeeb` is not Stockfish's last classical
+evaluation.** It is the last master before NNUE (tag `SF_classical`), so its
+search and evaluation are the last pair tuned together as a classical engine.
+That is why it stays the oracle's search. The classical evaluation itself
+was kept and retuned for five more releases:
+- `af110e02` removed it on 2023-07-11, after Stockfish 16. Its message
+  calls that evaluation "probably the best of its class".
+- Between `SF_classical` and `sf_16`, the pawn, material and PSQT values
+  moved, and terms were added (`DoubledEarly`, `KingOnFile`, a two-phase
+  imbalance).
+- From `sf_16` to the removal's parent `6a8767a0`, the evaluation files
+  differ only in the network's name, so no development build is needed.
+- Stockfish 16 with `Use NNUE=false` evaluates with that evaluation alone.
+- SF11's evaluation is older than `9587eeeb`'s, so SF11 is no donor
+  candidate.
+
+Caveat: from SF12 on, the classical evaluation was only one part of
+Stockfish. Some of its later tuning was done with NNUE on, for the
+lopsided positions it was still used in, and may not help a classical
+engine. So the donor is chosen by measurement in C.0 (the donor choice
+below): Stockfish 16's classical evaluation unless that comparison says
+otherwise. The other evaluation is the second seed column.
 
 **The question C.0 must answer first.** BAS-E07 concluded that the 232.8-Elo
 gap is the *values* of features Basilisk already has, that the six terms it
@@ -5410,6 +5640,31 @@ has lost games in both engines (BAS-X02).
   frozen handoffs for C.1 and the first family. No engine implementation.
   Inputs from A.2.3 (`analysis/parameter_inventory_v1.md`): the 23 all-zero
   groups by kind, and space, which no C cluster names yet.
+  Added 2026-11-17 (maintainer), the donor choice: whether `9587eeeb`'s
+  classical evaluation or `sf_16`'s is the donor (*Correction* above).
+  - B.11.5's ranking cannot decide it: there, search and evaluation move
+    together, and a stronger search can carry a weaker evaluation.
+  - Swapping the evaluation inside one search is not neutral either. A
+    search's margins are tuned to its own evaluation, so a host favours
+    the evaluation it was tuned with.
+  - So each evaluation is played in both hosts:
+    - SF16's search with `9587eeeb`'s evaluation ported in, against stock
+      SF16 at `Use NNUE=false`;
+    - `9587eeeb`'s search with SF16's evaluation ported back, against
+      stock `9587eeeb`.
+  - The two hosts bracket the answer. The same sign in both decides it.
+    Opposite signs say the values are bound to their host, and then the
+    family's refit on Basilisk's own search decides: in C the donor gives
+    terms and seeds, and every value is refit.
+  - The two evaluations' scale ratio is read first (B.0's method), so a
+    margin mismatch is measured, not inferred.
+  - Cost: the two ports, mostly mechanical (the namespace, the score-typed
+    imbalance, the new terms dropped or added), then about 3,000 paired
+    games per host at `3+0.03`, roughly 35 minutes each at 14 concurrent
+    games.
+  - If the donor moves, BAS-O02's evaluation-deficit meter (232.8, read
+    against `9587eeeb`) is re-read against the new donor, and C's budget
+    row moves with it.
   Input from B.10 (`analysis/pst_orientation_2026-10-23.md`): an L2 anchor
   at `1e-6` held seven mirrored tables in place for ten releases, so the
   refit protocol states how a fit can still correct a seed error. The
@@ -5644,9 +5899,20 @@ has lost games in both engines (BAS-X02).
       Initialization control (archived 8.6): fit from the accepted and from
       neutral starts under identical K, data and schedule; register the
       production rule before the test split opens.
-      The piece-square tables start from B.10's flipped values, whatever
-      B.10's gate reads (maintainer decision 2026-10-23). A neutral PST start
-      is not required, and replacing PeSTO-derived values is not a goal.
+      **The piece-square tables start from classical Stockfish 16's**
+      (maintainer decision 2026-11-18, replacing 2026-10-23's start from
+      B.10's PeSTO-derived values).
+      - The seed is `sf_16`'s `psqt.cpp` (GPL-3, like Basilisk), converted
+        to Basilisk's evaluation scale by B.0's measured ratio. Its
+        mirrored half-board piece tables are expanded to 64 squares; its
+        pawn tables are already full width.
+      - Why: the refit then carries no PeSTO derivation, so PeSTO's CC
+        BY-SA attribution and its share-alike question both end when the
+        tables land. The values follow the evaluation donor Phase C ports.
+      - If C.0's donor comparison picks another evaluation, the seed
+        follows that donor.
+      - A neutral start stays not required. The fit's other terms keep
+        their own starts.
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
       - Rarog's control: a neutral start fitted 2.38% worse (-13.2 clustered
@@ -6067,8 +6333,8 @@ has lost games in both engines (BAS-X02).
   Maintainer decision 2026-10-24: the evaluation programme's head is released
   as 1.12.0 once C.12 closes, as Rarog cut 2.6.0 from its C head. Licensed as
   B.11.4 is: an accepted SPRT over the 1.11.0 release at `3+0.03` 1T, `10+0.1`
-  and 4T direction checks whose 95% intervals exclude a loss, and a 4T pool
-  read beside them, the 4T reads sibling-free. Cut through A.8.6's tag-driven
+  and 4T direction checks whose 95% intervals exclude a loss, the 4T check
+  sibling-free. Cut through A.8.6's tag-driven
   flow, after B.11.3's scans are repeated on the candidate (PLAN §5).
 
 ## Phase D — Clock, threads, tablebases
@@ -6342,6 +6608,22 @@ has lost games in both engines (BAS-X02).
     extension and the root gate on the loaded tables' size or on
     `SyzygyProbeLimit`; whether `SyzygyProbeDepth` gates every probe
     where the donor gates only the largest loaded size.
+  - Added 2026-11-18 (maintainer): **Stockfish's probing code as an
+    option, not a plan.**
+    - Fathom stays the prober while it works. Fathom is the MIT-licensed
+      standalone form of Ronald de Man's code, from which Stockfish's
+      `tbprobe.cpp` also grew.
+    - It is replaced only if this leaf measures a reason:
+      - a probe cost that shows in NPS or time to depth with tables
+        loaded;
+      - or Fathom causing thread or integration defects again, after
+        B.9's repairs (its `exit()` on a failed map, non-ASCII paths, its
+        root buffer).
+    - The replacement would port `sf_16`'s or `sf_19`'s `tbprobe.cpp`
+      (GPL-3) onto Basilisk's board, under Stockfish's existing
+      attribution, with B.9.3's hard-verdict tests and the truth cohort as
+      its correctness bar.
+    - It removes only Fathom's MIT notice: the GPL text ships regardless.
 
 ## Phase E — Classical checkpoint and release
 
@@ -6384,7 +6666,8 @@ has lost games in both engines (BAS-X02).
     B.11.3's scans repeated on the candidate and its disclosure brought up
     to date (the PeSTO-derived tables until C.2.8's refit retires them,
     Stockfish 19's time-manager constants as D.1 leaves them); short
-    user-facing text (D-71); a 4T pool read beside the head-to-head (D-43).
+    user-facing text (D-71); E.2's 4T pool read beside the head-to-head
+    (D-43).
 
 ## Phase F — NNUE (own data only)
 
@@ -6735,6 +7018,10 @@ already repairing or a form it must choose anyway, and says so.
   what each would cost to screen, and the screening order, registered
   before any game. Sources: the items the Triumviratus review marks small
   (`analysis/triumviratus_review_2026-11-03.md`) and any later donor read.
+  Added 2026-11-17 (B.11.1 declined its hybrid arms): whether Stockfish's
+  search has moved far enough past `sf_19`, a later release or master, to
+  re-read the donor's shape on the head's evaluation; RAR-O08's method
+  applies, Stockfish only.
 - [ ] **H.2** `[I2]` Search refinements, one at a time
   Each item alone against the head on the same binary, SPRT `[0,3]` run to
   a decision with no early stop on a lean (Triumviratus's stopped leans
@@ -6971,9 +7258,12 @@ adjudication never change after games are seen.
   first NNUE release (F.9). Between them nothing is released unless a
   correctness repair forces a patch.
 - A classical release requires an accepted SPRT over the previous release at
-  `3+0.03` 1T, `10+0.1` and 4T direction checks whose 95% intervals exclude
-  a loss, and a 4T pool read beside them: a head-to-head read cannot see a
-  thread-scaling loss both versions share (RAR-M76).
+  `3+0.03` 1T, and `10+0.1` and 4T direction checks whose 95% intervals
+  exclude a loss. There is no 4T pool read at a release: a head-to-head cannot see a thread-scaling loss both versions share,
+  and D.2's self-relative scaling read measures exactly that against
+  Stockfish's and Reckless's references; E.2's target gate plays the field
+  at 4T (maintainer decision 2026-11-18, replacing the 4T pool read beside
+  every classical release; RAR-M76).
 - An NNUE release requires a win over the last classical release at STC, LTC
   and 4T and a clean platform matrix. Whether versions from 2.0.0 on are
   integers, as Stockfish's are, is decided at F.9.

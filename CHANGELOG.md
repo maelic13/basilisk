@@ -14,6 +14,15 @@ and next step).
 
 ## [Unreleased]
 
+The search programme's release. Basilisk's search has been rebuilt to modern
+Stockfish's design, one part at a time, and each part tuned. Against 1.10.2 it
+measured **+407 ± 39 Elo** at `3+0.03` (536 games, a sequential test stopped
+when it was sure), **+371 ± 24** at the longer `10+0.1`, and **+387 ± 24** on
+four threads (1,000 games each). It searches about a third fewer positions per second than
+1.10 did: the new search does more work at each position so that it needs far
+fewer of them, so compare strength, not speed. The `bench` fingerprint is now
+**4,777,412**.
+
 ### Added
 
 - **Large pages.** The hash table and each search thread's tables now use
@@ -25,139 +34,6 @@ and next step).
   the same moves.
 
 ### Changed
-
-- **About 1% faster in games.** The search now works out the position a
-  move leads to before making it, and asks the memory for that position's
-  hash-table entry early, so the entry is on its way while the move is
-  made. With fourteen engines searching game positions at once it reads
-  +1.32% nodes per second, and +0.56% alone (BAS-P57, BAS-P56). On
-  `bench`'s small table, which already sits in the processor's cache, it
-  costs 0.8%; the gain grows with the hash size. It plays the same moves:
-  `bench 13` is unchanged at 4,688,537.
-- **About 6% faster.** The engine is now linked as one whole program, with
-  more inlining and better code layout (Stockfish's build), the search's
-  tuned constants are compiled in outside the tuning build, and the move
-  picker steps through its stages without going back to the start each
-  time. It reads +6.05% nodes per second alone on `bench` and +4.66% with
-  fourteen engines searching game positions at once (BAS-P53). It plays the
-  same moves: `bench 13` is unchanged at 4,688,537.
-- **Nodes are counted as Stockfish counts them**, once for each move the
-  search makes. Re-searches of a position and the null move no longer add
-  to the count, so the reported nodes and nodes per second read about 9%
-  lower for the same search, and `go nodes N` searches that much more. The
-  engine plays as strongly (BAS-S64: −0.8 ± 4.5 Elo over 8,000 games).
-  `bench 13` is now 4,688,537.
-- **About 2% faster again.** The engine carried alternative versions of
-  many search rules, kept to measure them against each other, and checked
-  at every position which one to use; it also counted statistics nobody
-  read. Those are gone (BAS-P34: +1.89% nodes per second). It plays the
-  same moves: `bench 13` is unchanged at 4,247,965.
-- **About 3% faster.** Taking a move back no longer recomputes the
-  position's keys only to throw them away, and the exchange evaluator works
-  out pinned pieces when it needs them instead of in advance (BAS-P30:
-  +3.21% nodes per second). It plays the same moves: `bench 13` is
-  unchanged at 4,247,965.
-- **Repetitions at the root of the search follow Stockfish.** A line that
-  returns to the position the engine is thinking about was scored as a draw
-  at once, although the game had seen that position only once more and the
-  opponent could still go elsewhere. Now it takes a second return, the same
-  rule the engine's look-ahead for repetitions already used. Measured
-  against the engine before it at `3+0.03`: **+1.9 ± 4.1 Elo** over 8,000
-  games, no measured harm. `bench 13` is now 4,247,965.
-- **Tuned the whole search together.** Each part of the search had been
-  tuned on its own as it was rebuilt. This time 170 of its numbers were
-  tuned at once over a night of self-play: 69 settings and 101 constants
-  that had been fixed in the code, most of them Stockfish's own values
-  carried over unchanged. The biggest changes: a move the transposition
-  table suggests is extended more readily when the alternatives fall
-  short, quiet moves that fail are penalised harder in the move-ordering
-  history, and ordinary late moves are searched a little shallower.
-  Measured against the search before it at `3+0.03`, it gained **+28 ± 8
-  Elo** (2,620 games, a sequential test stopped when it was sure, which
-  tends to overstate the gain). `bench 13` is now 4,278,307.
-- **Rebuilt the search at the root.** The engine's first move of each line
-  and its aspiration windows now follow modern Stockfish:
-  - it keeps a record of every move at the root: its last score, its average
-    and how much its scores vary;
-  - each search starts with a narrow window around the move's average,
-    widened by how much its scores have varied, so level positions search
-    narrowly and unclear ones widely; with several lines (`MultiPV`) each line
-    gets its own window;
-  - moves after the first at the root are searched at reduced depth, as
-    everywhere else in the tree, and searched again in full if they surprise;
-  - a line may take only one of the extensions a promising move earns past
-    full depth, so lines no longer grow without bound;
-  - when the best move keeps failing high, the search stops at twice its
-    planned time instead of at it.
-
-  Its constants, and five from earlier rebuilds, were then fitted by tuning.
-  Measured against the previous search at `3+0.03`, it gained **+16 ± 6
-  Elo** (5,006 games, a sequential test stopped when it was sure), of which
-  the tuning gave **+11 ± 5 Elo** (6,000 games). At `10+0.1` it gained **+20
-  ± 9 Elo** (2,000 games). `bench 13` is now 3,783,135.
-- **Rebuilt the search of captures at the end of each line.** Where the main
-  search stops, the engine plays out captures until the position is quiet.
-  That step now follows modern Stockfish:
-  - it tries only the first few captures, and skips those that lose
-    material or cannot reach the score it needs, unless they check, promote
-    or recapture;
-  - out of check it stops looking once a reply holds, but keeps searching
-    while every reply so far loses, so a mate it reports is proven;
-  - it pulls a score above the search window back toward the window;
-  - it sees stalemate when a bare king and blocked pawns have no move.
-
-  Its constants were then fitted by tuning. Measured against the previous
-  search at `3+0.03`, it gained **+32 ± 9 Elo** (2,460 games, a sequential
-  test stopped when it was sure), of which the tuning gave **+7 ± 4 Elo**
-  (12,632 games). At `10+0.1` it gained **+38 ± 9 Elo** (2,000 games). In
-  the same time it searches one to one and a half plies (half-moves) deeper.
-  `bench 13` is now 4,144,790.
-- **About 4% faster.** The evaluation caches its material imbalance and sums
-  material in one pass, and the exchange evaluator recomputes less (BAS-P29:
-  +4.16% nodes per second). It plays the same moves: `bench 13` is unchanged at
-  6,090,091.
-- **About 2% faster.** The evaluation no longer computes terms whose weight
-  was zero (BAS-P25: +2.35% nodes per second). It plays the same moves:
-  `bench 13` is unchanged at 19,470,325.
-- **One Intel/AMD download per system.** Windows and Linux on Intel or AMD
-  now have a single download, `x64`, in place of the plain (and slowest),
-  `-avx2` and `-pext` ones. It holds four builds of the engine and starts
-  the fastest one the processor runs: `pext` on Intel Haswell and newer and
-  AMD Zen 3 and newer, `avx2` on AMD Zen 1 and Zen 2 (whose `PEXT` is slow)
-  and other AVX2 processors, `sse41-popcnt` on Intel Nehalem to Ivy Bridge
-  and AMD Bulldozer to Steamroller, which before had only the slowest
-  download, and `base` on anything older, so there is nothing to choose.
-  The first line it prints names the one it chose, and the environment
-  variable `BASILISK_ISA` (`base`, `sse41-popcnt`, `avx2` or `pext`) forces
-  one. A release has five downloads instead of nine.
-  Every build plays identically (`bench 13` 19,470,325 in each). Measured on
-  a Ryzen 9 5950X, the executable runs as fast as the former `-pext`
-  download, and its `pext` build is 8.5% faster than `base` (BAS-P20,
-  BAS-P21).
-- **Three build presets.** `release` builds the fastest engine for the
-  computer that builds it: it checks the processor and builds the
-  download's build for it (with PEXT where that runs fast), which measured
-  1% faster than `-march=native` on a Ryzen 9 5950X; `-DNATIVE=ON` builds
-  with `-march=native` instead. Add `--target pgo` for the profile-guided
-  binary. `universal` builds the release's Intel/AMD download and `debug` a
-  sanitized debug build. The `release-pext`, `release-avx2` and
-  `relwithdebinfo` presets are gone. `release` and `universal` now build the
-  profile-guided binary by default; `--target nopgo` builds the engine
-  without the profile step.
-- **Shorter, clearer file names.** Downloads are named
-  `basilisk-<version>-<system>-<x64|arm64>`, for example
-  `basilisk-1.11.0-windows-x64.exe` (`x86_64` and `aarch64` before). A build
-  of your own lands in `build/dist` named with the version the engine
-  reports (`dev-<date>-<commit>` between releases), the build it holds
-  (`-pext`, `-avx2` and so on) and any kind other than a profile-guided
-  release (`-nopgo`, `-debug`), so it can never be taken for a download.
-- **MSVC is no longer supported.** It built an engine 14% slower than Clang
-  on the same instructions; build with Clang (the fastest) or GCC.
-- A build compiled for one instruction set (with `-DUSE_AVX2` or
-  `-DUSE_PEXT` and `-DPORTABLE_BUILD=ON`) started on a CPU without its instructions now says
-  so on standard output as well (`info string`), where a GUI records it, and
-  names the build to use; a build slower than the CPU allows, or a `pext`
-  build on AMD Zen 1 and Zen 2, says which one would be faster.
 
 - **A rebuilt search core.** The search now follows modern Stockfish's
   design in the parts that decide which moves it looks at, and how deeply:
@@ -202,6 +78,157 @@ and next step).
   this gained **+4.7 ± 3.0 Elo** (19,236 games, a sequential test). Each
   search thread's history tables grow from about 9 MiB to 21 MiB.
   `bench 13` is now 5,361,058.
+
+- **Rebuilt the search of captures at the end of each line.** Where the main
+  search stops, the engine plays out captures until the position is quiet.
+  That step now follows modern Stockfish:
+  - it tries only the first few captures, and skips those that lose
+    material or cannot reach the score it needs, unless they check, promote
+    or recapture;
+  - out of check it stops looking once a reply holds, but keeps searching
+    while every reply so far loses, so a mate it reports is proven;
+  - it pulls a score above the search window back toward the window;
+  - it sees stalemate when a bare king and blocked pawns have no move.
+
+  Its constants were then fitted by tuning. Measured against the previous
+  search at `3+0.03`, it gained **+32 ± 9 Elo** (2,460 games, a sequential
+  test stopped when it was sure), of which the tuning gave **+7 ± 4 Elo**
+  (12,632 games). At `10+0.1` it gained **+38 ± 9 Elo** (2,000 games). In
+  the same time it searches one to one and a half plies (half-moves) deeper.
+  `bench 13` is now 4,144,790.
+
+- **Rebuilt the search at the root.** The engine's first move of each line
+  and its aspiration windows now follow modern Stockfish:
+  - it keeps a record of every move at the root: its last score, its average
+    and how much its scores vary;
+  - each search starts with a narrow window around the move's average,
+    widened by how much its scores have varied, so level positions search
+    narrowly and unclear ones widely; with several lines (`MultiPV`) each line
+    gets its own window;
+  - moves after the first at the root are searched at reduced depth, as
+    everywhere else in the tree, and searched again in full if they surprise;
+  - a line may take only one of the extensions a promising move earns past
+    full depth, so lines no longer grow without bound;
+  - when the best move keeps failing high, the search stops at twice its
+    planned time instead of at it.
+
+  Its constants, and five from earlier rebuilds, were then fitted by tuning.
+  Measured against the previous search at `3+0.03`, it gained **+16 ± 6
+  Elo** (5,006 games, a sequential test stopped when it was sure), of which
+  the tuning gave **+11 ± 5 Elo** (6,000 games). At `10+0.1` it gained **+20
+  ± 9 Elo** (2,000 games). `bench 13` is now 3,783,135.
+
+- **Tuned the whole search together.** Each part of the search had been
+  tuned on its own as it was rebuilt. This time 170 of its numbers were
+  tuned at once over a night of self-play: 69 settings and 101 constants
+  that had been fixed in the code, most of them Stockfish's own values
+  carried over unchanged. The biggest changes: a move the transposition
+  table suggests is extended more readily when the alternatives fall
+  short, quiet moves that fail are penalised harder in the move-ordering
+  history, and ordinary late moves are searched a little shallower.
+  Measured against the search before it at `3+0.03`, it gained **+28 ± 8
+  Elo** (2,620 games, a sequential test stopped when it was sure, which
+  tends to overstate the gain). `bench 13` is now 4,278,307.
+
+- **Repetitions at the root of the search follow Stockfish.** A line that
+  returns to the position the engine is thinking about was scored as a draw
+  at once, although the game had seen that position only once more and the
+  opponent could still go elsewhere. Now it takes a second return, the same
+  rule the engine's look-ahead for repetitions already used. Measured
+  against the engine before it at `3+0.03`: **+1.9 ± 4.1 Elo** over 8,000
+  games, no measured harm. `bench 13` is now 4,247,965.
+
+- **Nodes are counted as Stockfish counts them**, once for each move the
+  search makes. Re-searches of a position and the null move no longer add
+  to the count, so the reported nodes and nodes per second read about 9%
+  lower for the same search, and `go nodes N` searches that much more. The
+  engine plays as strongly (BAS-S64: −0.8 ± 4.5 Elo over 8,000 games).
+  `bench 13` is now 4,688,537.
+
+- **About 6% faster.** The engine is now linked as one whole program, with
+  more inlining and better code layout (Stockfish's build), the search's
+  tuned constants are compiled in outside the tuning build, and the move
+  picker steps through its stages without going back to the start each
+  time. It reads +6.05% nodes per second alone on `bench` and +4.66% with
+  fourteen engines searching game positions at once (BAS-P53). It plays the
+  same moves: `bench 13` is unchanged at 4,688,537.
+
+- **About 4% faster.** The evaluation caches its material imbalance and sums
+  material in one pass, and the exchange evaluator recomputes less (BAS-P29:
+  +4.16% nodes per second). It plays the same moves: `bench 13` is unchanged at
+  6,090,091.
+
+- **About 3% faster.** Taking a move back no longer recomputes the
+  position's keys only to throw them away, and the exchange evaluator works
+  out pinned pieces when it needs them instead of in advance (BAS-P30:
+  +3.21% nodes per second). It plays the same moves: `bench 13` is
+  unchanged at 4,247,965.
+
+- **About 2% faster again.** The engine carried alternative versions of
+  many search rules, kept to measure them against each other, and checked
+  at every position which one to use; it also counted statistics nobody
+  read. Those are gone (BAS-P34: +1.89% nodes per second). It plays the
+  same moves: `bench 13` is unchanged at 4,247,965.
+
+- **About 2% faster.** The evaluation no longer computes terms whose weight
+  was zero (BAS-P25: +2.35% nodes per second). It plays the same moves:
+  `bench 13` is unchanged at 19,470,325.
+
+- **About 1% faster in games.** The search now works out the position a
+  move leads to before making it, and asks the memory for that position's
+  hash-table entry early, so the entry is on its way while the move is
+  made. With fourteen engines searching game positions at once it reads
+  +1.32% nodes per second, and +0.56% alone (BAS-P57, BAS-P56). On
+  `bench`'s small table, which already sits in the processor's cache, it
+  costs 0.8%; the gain grows with the hash size. It plays the same moves:
+  `bench 13` is unchanged at 4,688,537.
+
+- **One Intel/AMD download per system.** Windows and Linux on Intel or AMD
+  now have a single download, `x64`, in place of the plain (and slowest),
+  `-avx2` and `-pext` ones. It holds four builds of the engine and starts
+  the fastest one the processor runs: `pext` on Intel Haswell and newer and
+  AMD Zen 3 and newer, `avx2` on AMD Zen 1 and Zen 2 (whose `PEXT` is slow)
+  and other AVX2 processors, `sse41-popcnt` on Intel Nehalem to Ivy Bridge
+  and AMD Bulldozer to Steamroller, which before had only the slowest
+  download, and `base` on anything older, so there is nothing to choose.
+  The first line it prints names the one it chose, and the environment
+  variable `BASILISK_ISA` (`base`, `sse41-popcnt`, `avx2` or `pext`) forces
+  one. A release has five downloads instead of nine.
+  Every build plays identically (`bench 13` 19,470,325 in each). Measured on
+  a Ryzen 9 5950X, the executable runs as fast as the former `-pext`
+  download, and its `pext` build is 8.5% faster than `base` (BAS-P20,
+  BAS-P21).
+
+- **Shorter, clearer file names.** Downloads are named
+  `basilisk-<version>-<system>-<x64|arm64>`, for example
+  `basilisk-1.11.0-windows-x64.zip` (`x86_64` and `aarch64` before). Each
+  download is now a `.zip` (Windows) or `.tar.gz` (Linux, macOS) archive that
+  holds the program with the GPL licence, Fathom's MIT notice, the README
+  and this changelog. A build
+  of your own lands in `build/dist` named with the version the engine
+  reports (`dev-<date>-<commit>` between releases), the build it holds
+  (`-pext`, `-avx2` and so on) and any kind other than a profile-guided
+  release (`-nopgo`, `-debug`), so it can never be taken for a download.
+
+- **Three build presets.** `release` builds the fastest engine for the
+  computer that builds it: it checks the processor and builds the
+  download's build for it (with PEXT where that runs fast), which measured
+  1% faster than `-march=native` on a Ryzen 9 5950X; `-DNATIVE=ON` builds
+  with `-march=native` instead. Add `--target pgo` for the profile-guided
+  binary. `universal` builds the release's Intel/AMD download and `debug` a
+  sanitized debug build. The `release-pext`, `release-avx2` and
+  `relwithdebinfo` presets are gone. `release` and `universal` now build the
+  profile-guided binary by default; `--target nopgo` builds the engine
+  without the profile step.
+
+- **MSVC is no longer supported.** It built an engine 14% slower than Clang
+  on the same instructions; build with Clang (the fastest) or GCC.
+
+- A build compiled for one instruction set (with `-DUSE_AVX2` or
+  `-DUSE_PEXT` and `-DPORTABLE_BUILD=ON`) started on a CPU without its instructions now says
+  so on standard output as well (`info string`), where a GUI records it, and
+  names the build to use; a build slower than the CPU allows, or a `pext`
+  build on AMD Zen 1 and Zen 2, says which one would be faster.
 
 - **Development builds name their commit**, as Stockfish's do. A build
   between releases reports `Basilisk dev-20261025-8b3f151c`: the commit's

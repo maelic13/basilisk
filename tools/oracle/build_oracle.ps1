@@ -52,6 +52,10 @@ if ($LASTEXITCODE -ne 0) { throw "Unknown revision $BasiliskRevision." }
 $work = Join-Path ([IO.Path]::GetTempPath()) ("basilisk-oracle-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
 Invoke-Checked 'git worktree add' { git -C $repo worktree add --detach $work $oracleCommit 2>&1 | Out-Null }
 try {
+    # Clear src/ first: `git checkout <rev> -- src` only adds and overwrites,
+    # so a file the revision deleted (the head dropped search.cpp and
+    # history.* in B.8) would linger and fail the identity check below.
+    Invoke-Checked 'removal of the tag''s src/' { git -C $work rm -r -q -- src }
     Invoke-Checked 'checkout of src/' { git -C $work checkout $srcCommit -- src }
     Invoke-Checked 'bridge patch' { git -C $work apply --ignore-whitespace $patch }
     Invoke-Checked 'src/ identity check' { git -C $work diff --quiet $srcCommit -- src }

@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **B.11.1** `[V]` Search programme checkpoint — Claude Sonnet
+**Next step:** **B.11.4** `[M]` Interim release 1.11.0 — Claude Sonnet
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -147,9 +147,10 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
     - [x] **B.9.4** `[R2]` Deferred defects: repair now or justify
     - [x] **B.9.5** `[I2]` Repairs and the repair gate
 - [ ] **B.11** Checkpoint and interim release
-    - [ ] **B.11.1** `[V]` Search programme checkpoint
-    - [ ] **B.11.3** `[R2]` Originality and licence disclosure
+    - [x] **B.11.1** `[V]` Search programme checkpoint
+    - [x] **B.11.3** `[R2]` Originality and licence disclosure
     - [ ] **B.11.4** `[M]` Interim release 1.11.0
+    - [x] **B.11.5** `[V]` HCE frontier field (ANY TIME) — before B.11.4
 - [x] **B.12** `[I2]` False win in drawn KBP-K (ANY TIME) — before B.3.1
 - [x] **B.13** `[I1]` Colosseum re-pinned to 0.5.0 (ANY TIME)
 - [x] **B.14** `[I2]` Correction added to recognised draws (ANY TIME) — before B.3.2
