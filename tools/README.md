@@ -77,7 +77,7 @@ kept so the run can be reproduced from its ledger entry.
 
 | Tool | Purpose | Used by |
 |---|---|---|
-| `build_test.ps1` | A final-PGO PEXT test binary of one flavor (Release, Tune, Diag, Ablate, Profile) with its manifest; it warns when the local clang's LLVM major is not the release pin | PROCESS *Build, bench and NPS* |
+| `build_test.ps1` | A final-PGO PEXT test binary of one flavor (Release, Tune, Diag, Profile) with its manifest; it warns when the local clang's LLVM major is not the release pin | PROCESS *Build, bench and NPS* |
 | `nps_pool.ps1` | A pool of four independent PGO builds of one clean revision, built (another revision from a temporary worktree) or adopted | PROCESS *Build, bench and NPS*; A.9.4 |
 | `nps_read.ps1` | The pooled NPS read: two or more pools and named contrasts between them, interleaved cycles of a pinned `bench 13 3`, every run archived, step 1 and `-Extend` | PROCESS *Build, bench and NPS*; BAS-P18, BAS-P19, BAS-P21 |
 | `diag/nps_read.py` | The read's decision from its archive: per-build medians, a Welch t-interval per contrast, the two steps and the disturbance rule | `nps_read.ps1` |
@@ -107,7 +107,7 @@ kept so the run can be reproduced from its ledger entry.
 | `diag/branching.py` | A reference-anchored consecutive-depth branching profile | PROCESS *Fixed-budget search probes* |
 | `diag/sweep.py` | Engine options swept against the fixed suite, reporting tree shape only | BAS-D10, BAS-D11 |
 | `diag/decision_trace.py` | The engine's bounded diagnostic decision trace, captured and validated | B.0, B.2 |
-| `diag/ablation_liveness.py` | Every matched `AblationMask` bit proven to change fixed-depth search work | B.0, B.2 |
+| `diag/ablation_liveness.py` | Every matched `AblationMask` bit proven to change fixed-depth search work; since B.11.1 only the oracle's ablate build exposes the mask | B.0, B.2 |
 | `diag/canary.py`, `diag/canary_v1.json` | Immutable classical-oracle WAC canaries, built and enforced | B.0 |
 | `diag/scale_ratio.py` | The evaluation scale ratios and the search-minus-static residual | B.0; BAS-C14 |
 | `diag/winrate_fit.py` | Stockfish's win-rate model fitted to Basilisk's own games | BAS-C14 |
