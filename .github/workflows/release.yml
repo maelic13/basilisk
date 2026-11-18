@@ -566,6 +566,12 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
+      - name: Checkout repository
+        # For the licence texts and the README that go into every archive.
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
       - name: Every build succeeded
         env:
           RESULTS: ${{ toJSON(needs.*.result) }}
@@ -598,14 +604,48 @@ jobs:
           test "$(wc -l <<<"$nodes")" -eq 1 || { echo "::error::the assets disagree on bench 13: $nodes"; exit 1; }
           test "$nodes" = '${{ needs.prepare.outputs.expected_nodes }}'
           rm -f ./*.nodes
-          sha256sum "${expected[@]}" | tee SHA256SUMS
           echo "five assets at bench 13 = $nodes"
+
+      # Each binary ships in a folder with the licences, the README and the
+      # changelog, as Stockfish's
+      # releases do: .zip for Windows, .tar.gz (keeps the executable bit)
+      # for Linux and macOS.
+      - name: Package the archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          version='${{ needs.prepare.outputs.version }}'
+          mkdir dist
+          for asset in \
+            "basilisk-${version}-linux-x64" "basilisk-${version}-linux-arm64" \
+            "basilisk-${version}-windows-x64.exe" "basilisk-${version}-windows-arm64.exe" \
+            "basilisk-${version}-macos-arm64"; do
+            folder="${asset%.exe}"
+            mkdir "$folder"
+            cp "bundle/$asset" "$folder/$asset"
+            cp LICENSE "$folder/LICENSE.txt"
+            cp external/fathom/LICENSE "$folder/LICENSE-Fathom.txt"
+            cp README.md "$folder/README.md"
+            cp CHANGELOG.md "$folder/CHANGELOG.md"
+            if [[ "$asset" == *.exe ]]; then
+              zip -r "dist/$folder.zip" "$folder"
+            else
+              chmod +x "$folder/$asset"
+              tar -czf "dist/$folder.tar.gz" "$folder"
+            fi
+            rm -rf "$folder"
+          done
+          cd dist
+          test "$(ls | wc -l)" -eq 5
+          sha256sum ./* | sed 's# \./# #' | tee SHA256SUMS.tmp
+          mv SHA256SUMS.tmp SHA256SUMS
+          ls -la
 
       - name: Keep the bundle
         uses: actions/upload-artifact@v7
         with:
           name: basilisk-${{ needs.prepare.outputs.mode }}-${{ github.sha }}
-          path: bundle/*
+          path: dist/*
           if-no-files-found: error
           retention-days: ${{ needs.prepare.outputs.mode == 'candidate' && 30 || 90 }}
 
@@ -645,18 +685,11 @@ jobs:
       - name: Recheck the bundle
         run: cd bundle && sha256sum --check SHA256SUMS
 
-      # Every asset is a bare executable, so the licences travel beside them:
-      # Basilisk's GPL-3 text and the MIT notice of the Fathom code it links.
-      - name: Add the licence notices
-        run: |
-          cp LICENSE bundle/basilisk-LICENSE-GPL-3.0.txt
-          cp external/fathom/LICENSE bundle/basilisk-LICENSE-Fathom-MIT.txt
-
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" bundle/basilisk-* \
+          gh release create "$GITHUB_REF_NAME" bundle/basilisk-*.zip bundle/basilisk-*.tar.gz bundle/SHA256SUMS \
             --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
             --title "Basilisk ${{ needs.prepare.outputs.version }}" \
             --notes-file notes/release-notes.md
