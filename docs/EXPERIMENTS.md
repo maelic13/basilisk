@@ -171,6 +171,8 @@ fifty-move, 2 stalemate. **Zero forfeits.** Instrument: branch `hybrid`
 - [BAS-O05](experiments/BAS-O05.md) — Frozen before any game, A.7.3 search deficit meter G(0) on 1.10.1. — COMPLETE (2026-10-05): G(0) = +312.6 ± 17.8
 - [BAS-O06](experiments/BAS-O06.md) — B.11.1 G(0) on the head at equal time, BAS-O05's protocol. — COMPLETE: G(0) −70.7 [−78.4, −63.0], 383 recovered from +312.6
 - [BAS-O07](experiments/BAS-O07.md) — B.11.1 G(0) at the bridge's measured time odds, RAR-O08's conditions. — COMPLETE: bridge 2.07% (×1.021); G(0) −53.5 ± 7.6
+- [BAS-O08](experiments/BAS-O08.md) — C.0 same-search evaluation deficit E(0) on the 1.11.0 head, BAS-O02 re-read. — registered
+- [BAS-O09](experiments/BAS-O09.md) — C.0 evaluation donor: `9587eeeb`'s and `sf_16`'s classical evaluations, each in both searches. — registered
 - [BAS-D22](experiments/BAS-D22.md) — B.11.1 fixed-node meters: depth at 300k nodes, branching, endgame truth cohort. — observation: 3.3-ply gap (was 12.2), 458/480 converted
 
 **Internal consistency.** Measured directly, full Stockfish beat Basilisk 1.9.3
@@ -396,6 +398,8 @@ future work needs to re-open either cluster is now counted rather than guessed.
 - [BAS-E56](experiments/BAS-E56.md) — 15.0.a isolated cost gate: the SEE king-legality repair against its own parent - CLOSED, REPAIR KEPT — CLOSED
 
 - [BAS-E57](experiments/BAS-E57.md) — 15.0.b harness reserve sweep: `Move Overhead` 40 against 10 on the same binary - RUN 2026-09-10, RE… — REJECTED
+
+- [BAS-E58](experiments/BAS-E58.md) — C.0 static screens: the head's evaluation against the two donor candidates on its own games — registered
 
 - [BAS-X11](experiments/BAS-X11.md) — current standing, 12,000-game Colosseum round robin — see entry
 

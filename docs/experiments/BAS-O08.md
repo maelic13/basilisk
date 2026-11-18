@@ -1,0 +1,23 @@
+# BAS-O08
+
+**BAS-O08 — the same-search evaluation deficit E(0) on the 1.11.0 head (BAS-O02 re-read)**
+
+- Date / owner / calibration category: registered 2026-11-18, before any
+  game; maintainer-run, agent-read; measurement.
+- Binary: `tools/test_engines/oracle-b111-4d2742f.exe`, SHA-256
+  `8ADEE9AE…`, Stockfish `9587eeeb`'s search around the head's evaluation
+  (`src/eval.cpp` differs from `4d2742f` in comments only), played against
+  itself with `Use Basilisk HCE=false` and `=true`.
+- Research question: how many Elo is `9587eeeb`'s evaluation worth over
+  Basilisk's inside one search, on this head?
+- Registration, confounds, prediction (+190, 80% band +135 to +245) and
+  falsifiers: `analysis/c0_evaluation_programme_2026-11-18.md` §4.2,
+  frozen in the commit that adds this file.
+- Registered design and stop rule: no gate; one fixed run of 3,000 games,
+  never extended or re-run on the same binary.
+- Full conditions: `python tools/run_c0_reads.py --read meter`; Colosseum
+  CLI, two-engine gauntlet, 1,500 cycles, UHO `UHO_Lichess_4852_v1.epd` in
+  random order, seed `120001`, `3+0.03`, margin 20 ms, 1T, Hash 64,
+  concurrency 14, no adjudication, no tablebases, zero permitted faults.
+
+#### RESULT — append after exposure
