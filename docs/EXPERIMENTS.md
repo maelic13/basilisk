@@ -141,6 +141,7 @@ X is good/bad”. If conditions or artifacts are unknown, say so.
 | [BAS-M18](experiments/BAS-M18.md) | B.11.5 HCE frontier field: a rated 14-engine round robin, nine contenders and five anchors. | COMPLETE: head 3403, 9th of 14; Stockfish 16 HCE leads at 3605 (+193 head to head); no faults or time losses; the scale-transfer falsifier fired (±50) |
 | [BAS-M19](experiments/BAS-M19.md) | B.11.4 direction checks: the 1.11.0 candidate against 1.10.2 at `10+0.1` 1T and at 4T sibling-free. | COMPLETE: `ltc` +371.3 [+348.8, +396.4], `4t` +386.6 [+363.7, +412.1], 1,000 games each, zero faults; both pass |
 | [BAS-M20](experiments/BAS-M20.md) | B.11.4 4T pool read: the 1.11.0 candidate against the four targets, sibling-free. | WITHDRAWN unplayed (maintainer 2026-11-18): the 4T pool read left the release rule |
+| [BAS-M21](experiments/BAS-M21.md) | The HCE frontier field on the MacBook Air M4: BAS-M18's field rebuilt natively, a 12-engine round robin. | OBSERVATION, stopped at 7,896 of 13,200 games: head 3340, 10th of 12, 203 below Stockfish 16 HCE; BAS-M18's gaps reproduce to within 16; no faults |
 
 ## 3. Search and selectivity
 
