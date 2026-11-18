@@ -578,7 +578,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 - [BAS-S65](experiments/BAS-S65.md) — B.8's delivery gate: the cleanup and speed pass against B.7's head, `[0,3]` — CLOSED 2026-11-16: H1 accepted at 3,938 games, +19.1 ± 6.5 Elo (first-crossing), zero faults
 - [BAS-S66](experiments/BAS-S66.md) — B.9.5's repair gate: the lifecycle, protocol and verdict repairs, `[-5,5]` — CLOSED 2026-11-17: the cap, 8,000 games, −0.8 ± 3.4 Elo, LLR −1.22; the repairs stay, `bench 13` 4,777,412
 - [BAS-S63](experiments/BAS-S63.md) — B.7.1's repair gate: a return to the root counts as a repetition only when it recurs, `[-5,5]` — CLOSED 2026-11-14: the cap, 8,000 games, +1.9 ± 4.1 Elo, LLR +2.29; the repair stays, `bench 13` 4,247,965
-- [BAS-S67](experiments/BAS-S67.md) — B.11.4: the 1.11.0 candidate against 1.10.2, SPRT `[0,3]`, the release licence — REGISTERED, dry run accepted
+- [BAS-S67](experiments/BAS-S67.md) — B.11.4: the 1.11.0 candidate against 1.10.2, SPRT `[0,3]`, the release licence — COMPLETE: H1 at 536 games, +406.9 ± 39.2 Elo, zero faults
 
 | ID | Title | Disposition |
 |---|---|---|

@@ -5896,9 +5896,20 @@ has lost games in both engines (BAS-X02).
       Initialization control (archived 8.6): fit from the accepted and from
       neutral starts under identical K, data and schedule; register the
       production rule before the test split opens.
-      The piece-square tables start from B.10's flipped values, whatever
-      B.10's gate reads (maintainer decision 2026-10-23). A neutral PST start
-      is not required, and replacing PeSTO-derived values is not a goal.
+      **The piece-square tables start from classical Stockfish 16's**
+      (maintainer decision 2026-11-18, replacing 2026-10-23's start from
+      B.10's PeSTO-derived values).
+      - The seed is `sf_16`'s `psqt.cpp` (GPL-3, like Basilisk), converted
+        to Basilisk's evaluation scale by B.0's measured ratio. Its
+        mirrored half-board piece tables are expanded to 64 squares; its
+        pawn tables are already full width.
+      - Why: the refit then carries no PeSTO derivation, so PeSTO's CC
+        BY-SA attribution and its share-alike question both end when the
+        tables land. The values follow the evaluation donor Phase C ports.
+      - If C.0's donor comparison picks another evaluation, the seed
+        follows that donor.
+      - A neutral start stays not required. The fit's other terms keep
+        their own starts.
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
       - Rarog's control: a neutral start fitted 2.38% worse (-13.2 clustered

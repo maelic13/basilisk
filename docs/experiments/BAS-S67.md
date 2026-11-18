@@ -46,3 +46,19 @@
   before any reading.
 
 #### RESULT — append after exposure
+
+- Run 2026-11-18 by the maintainer, 5 min 35 s (`tools/results/b114-sprt/`,
+  manifest `colosseum_sprt_b114-sprt_20261118_101929.manifest.txt`).
+- **H1 accepted at game 536**, LLR +2.95.
+  - W-D-L 456-66-14; Elo **+406.9 ± 39.2** (first crossing); nElo +680.4 ±
+    29.4.
+  - Pentanomial [0, 1, 14, 63, 190].
+  - 28 post-terminal games are kept as evidence outside the sample.
+- No faults and no time losses on either side; the PGN recount agrees.
+- Calibration:
+  - H1 as predicted.
+  - The estimate is inside the band (+330 to +470), 7 above the point.
+  - "Within 100 pairs" missed: it took 268. The LLR's bound, not the gain,
+    set the length.
+- Disposition: COMPLETE. 1.11.0's SPRT over 1.10.2 is accepted. The
+  direction checks (BAS-M19) and the 4T pool read (BAS-M20) follow.
