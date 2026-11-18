@@ -5296,7 +5296,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       Prepared 2026-11-18. Launcher `tools/run_b114_gates.py`, with every dry
       run accepted:
       - the SPRT (BAS-S67): H1 at 536 games, +406.9 ± 39.2;
-      - the `10+0.1` and 4T direction checks (BAS-M19).
+      - the `10+0.1` and 4T direction checks (BAS-M19), both passed:
+        `ltc` +371.3 [+348.8, +396.4] and `4t` +386.6 [+363.7, +412.1],
+        1,000 games each, zero faults.
       - The candidate is B.11.1's head binary. 1.10.2 was rebuilt from
         `fac5064` with the same Clang 23.1.5.
       - The 4T pool read (BAS-M20) was dropped unplayed (maintainer,

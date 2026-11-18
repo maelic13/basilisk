@@ -61,4 +61,5 @@
   - "Within 100 pairs" missed: it took 268. The LLR's bound, not the gain,
     set the length.
 - Disposition: COMPLETE. 1.11.0's SPRT over 1.10.2 is accepted. The
-  direction checks (BAS-M19) and the 4T pool read (BAS-M20) follow.
+  direction checks (BAS-M19) passed; the 4T pool read (BAS-M20) was
+  withdrawn unplayed.

@@ -17,7 +17,8 @@ and next step).
 The search programme's release. Basilisk's search has been rebuilt to modern
 Stockfish's design, one part at a time, and each part tuned. Against 1.10.2 it
 measured **+407 ± 39 Elo** at `3+0.03` (536 games, a sequential test stopped
-when it was sure). It searches about a third fewer positions per second than
+when it was sure), **+371 ± 24** at the longer `10+0.1`, and **+387 ± 24** on
+four threads (1,000 games each). It searches about a third fewer positions per second than
 1.10 did: the new search does more work at each position so that it needs far
 fewer of them, so compare strength, not speed. The `bench` fingerprint is now
 **4,777,412**.
