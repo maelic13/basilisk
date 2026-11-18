@@ -283,7 +283,24 @@ MIT-licensed Fathom library under [external/fathom/LICENSE](external/fathom/LICE
 
 ## Acknowledgements
 
-Basilisk is an independent engine, but it benefits from the open chess-engine
-community's published ideas, testing practices and protocol conventions. Special
-thanks to Stockfish and its team for the inspiration their work provides to
-chess engine authors and testers.
+Basilisk is written independently, in its own structure, but several parts of
+it come from other people's published work:
+
+- **Stockfish** (GPL-3, the Stockfish developers). Basilisk's search is a
+  reimplementation of Stockfish's design: its search, transposition table,
+  histories, move ordering and time management follow Stockfish 19. Many
+  search constants started from Stockfish's values; most have since been
+  refitted for Basilisk, and some are still Stockfish's. The time manager's
+  formula and constants are Stockfish's, as are a few small tables in the
+  search's histories. Several endgame scaling rules follow classical
+  Stockfish's, and a few small utility routines stay close to Stockfish's
+  code. Classical Stockfish's evaluation is the model for Basilisk's
+  evaluation work.
+- **PeSTO** (Ronald Friederich, published on the Chess Programming Wiki under
+  CC BY-SA 3.0). Basilisk's piece-square tables are derived from PeSTO's,
+  with a few values from classical Stockfish's.
+- **Fathom** (MIT). Syzygy tablebase probing; see *License* above.
+- **The Chess Programming Wiki and the open chess-engine community**, for
+  published ideas, testing practice and protocol conventions.
+
+Thanks to all of them.

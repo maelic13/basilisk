@@ -5223,7 +5223,7 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       - **The search head is frozen for C** at `bench 13` 4,777,412: the
         engine of `4d2742f`, less the ablation flavour. From here to H a
         search change is a correctness repair with its own gate.
-    - [ ] **B.11.3** `[R2]` Originality and licence disclosure
+    - [x] **B.11.3** `[R2]` Originality and licence disclosure
       Added 2026-11-11 (`analysis/rarog_import_2026-11-11.md`;
       Rarog's E.3.0). 1.11.0 is the first release whose search is built
       in a donor's shape, and B.6.7's screen names a few dozen literals
@@ -5231,13 +5231,21 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       named only the PeSTO-derived tables and Stockfish 19's
       time-manager constants. B.11.4 does not cut until this closes. A
       small research step with its implementation:
-      - Scans on the release candidate's source, built or ported here as
-        tools with tests: shared token runs against `sf_19` and
-        `9587eeeb`; the constants census, from B.6.7's list of literals
-        and the search parameters whose fitted value is still the
-        donor's seed; the evaluation's tables against both donors; the
-        move-similarity screen against the donors and unrelated
-        controls.
+      - **Lean scope** (maintainer, 2026-11-18). The disclosure names
+        categories of donor material, not single constants. It goes beyond
+        1.10.2's two items, because the search was seeded from the donor
+        and parts of it remain unchanged.
+        - One scan only: Rarog's `originality_scan.py`, ported with tests.
+          It reads shared code, numeric runs and tables in the frozen
+          head's source against `sf_19` and `9587eeeb`. It is the one check
+          a categorical disclosure cannot replace: for copied code and for
+          tables such as magics or hash keys.
+        - The constants census, the evaluation-table scan and the
+          move-similarity screen are not run here. C.13, E.3 and F.9 decide
+          again for their candidates.
+        - Rarog (the maintainer's own engine) and the oracle (never
+          shipped) need no disclosure. Neither does Triumviratus, which
+          gave mechanisms and measured lessons only.
       - The licence: Basilisk, Stockfish and Triumviratus are GPL-3 and
         Fathom is MIT. The maintainer confirms that nothing the scans
         find needs more than naming; it is not legal advice.
@@ -5252,6 +5260,29 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
         is a strength experiment with its own registration.
       - C.13, E.3 and F.9 repeat the scans on their own candidates
         (PLAN §5).
+      Closed 2026-11-18 (`analysis/b113_originality_2026-11-18.md`):
+      - The scan: `tools/diag/originality_scan.py`, with 14 tests, run
+        against `sf_19` and `9587eeeb`. The code is Basilisk's own.
+        - Three small routines with one natural form stay close to
+          Stockfish's: the Windows large-page set-up, the cuckoo table and
+          the compile date.
+        - Donor data used unchanged:
+          - the time manager;
+          - three small search tables: the LMR history divisors, the
+            consistency multipliers and the piece values in the histories;
+          - several classical endgame scaling rules;
+          - part of one pawn piece-square row.
+        - The magics and Zobrist keys are Basilisk's own.
+      - The disclosure:
+        - README's acknowledgements now name Stockfish, PeSTO (CC BY-SA
+          3.0), Fathom and the Chess Programming Wiki by category.
+        - PROCESS's independence boundary lists what crossed unchanged.
+        - The analysis note gives the donor list for registrations.
+      - Licences: until now no release shipped the GPL text or Fathom's
+        notice. Every release now carries both as assets
+        (`.github/workflows/release.yml`).
+      - The maintainer confirmed the lean scope and that Rarog, the oracle
+        and Triumviratus need no disclosure.
     - [ ] **B.11.4** `[M]` Interim release 1.11.0
       It was B.11.2 until 2026-11-11, and cuts after B.11.3.
       Maintainer decision 2026-10-24, replacing 2026-09-28's no-interim
@@ -5518,7 +5549,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| B.11.3 | RESEARCH | R2 | Added 2026-11-11; the disclosure on the release candidate, before the cut |
 | B.11.4 | RESEARCH | M | Was B.11, then B.11.2; interim release after B.11.3 (maintainer decision 2026-10-24) |
 | B.11.5 | RESEARCH | V | Added 2026-11-17; the HCE frontier field, a rated round robin, brought forward before the release; BAS-M18 registered |
 
