@@ -57,7 +57,7 @@ endif()
 
 set(COMP "${_basilisk_compiler}" CACHE STRING "Compiler selection: auto, clang, gcc or llvm" FORCE)
 
-project(basilisk VERSION 1.11.0 LANGUAGES CXX)
+project(basilisk VERSION 1.12.0 LANGUAGES CXX)
 
 if(MSVC)
     message(FATAL_ERROR "MSVC is not supported; build with Clang or GCC")
