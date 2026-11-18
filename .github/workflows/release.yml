@@ -15,7 +15,8 @@ run-name: ${{ github.ref_type == 'tag' && github.ref_name || format('release can
 # `bench 13` fingerprint
 # across the matrix equal to the one GUIDE declares, and only then one job
 # with write permission publishes the
-# release with every asset and the notes taken from that CHANGELOG section.
+# release with every asset, and the notes are that CHANGELOG section's summary
+# and highlights with a link to the full section.
 # Nothing exists on GitHub until every cell has passed, so a failed run is
 # repaired by deleting the tag, fixing master and tagging again.
 #

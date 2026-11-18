@@ -819,7 +819,9 @@ one. There are no permanent release branches.
    sources read `X.Y.Z`: `project(basilisk VERSION X.Y.Z` in
    `CMakeLists.txt` and `engineVersion` in `src/constants.h`. CHANGELOG's
    `[Unreleased]` becomes `## [X.Y.Z] - YYYY-MM-DD`, with a fresh empty
-   `[Unreleased]` above it. GUIDE's *Released baseline* row names **X.Y.Z**
+   `[Unreleased]` above it. The section opens with a short summary and a
+   `### Highlights` list of the basics; the release page shows only those
+   and links the full section, which keeps every detail. GUIDE's *Released baseline* row names **X.Y.Z**
    and states its `bench 13` count, and the *Bench fingerprint* row holds the
    same count, restated where the roadmap checker requires. The release
    check refuses a release whose two counts differ. `python

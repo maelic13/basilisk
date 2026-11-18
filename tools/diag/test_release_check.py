@@ -12,7 +12,12 @@ GUIDE = ("| Item | Value |\n|---|---|\n"
          "| Released baseline | **1.10.2** on `master`, tagged `v1.10.2` (2026-10-20), `bench 13` 14,978,465 |\n"
          "| Bench fingerprint | **14,978,465** (`bench 13`) |\n")
 CHANGELOG = ("# Changelog\n\n## [Unreleased]\n\n---\n\n## [1.10.2] - 2026-10-20\n\n"
-             "A patch.\n\n### Fixed\n\n- A thing.\n\n---\n\n## [1.10.1] - 2026-09-27\n\nOlder.\n")
+             "A patch.\n\n### Highlights\n\n- The point.\n\n### Fixed\n\n- A thing.\n\n---\n\n"
+             "## [1.10.1] - 2026-09-27\n\nOlder.\n")
+NOTES = ("A patch.\n\n### Highlights\n\n- The point.\n\n"
+         "Every change, with its measurement, is in "
+         "[CHANGELOG.md](https://github.com/maelic13/basilisk/blob/v1.10.2/CHANGELOG.md), "
+         "which every download also includes.\n")
 
 
 def write_tree(root, engine='"1.10.2"', cmake="1.10.2", guide=GUIDE, changelog=CHANGELOG):
@@ -35,13 +40,23 @@ def write_tree(root, engine='"1.10.2"', cmake="1.10.2", guide=GUIDE, changelog=C
 
 
 class ReleaseCheckTests(unittest.TestCase):
+    def test_the_page_joins_wrapped_lines(self):
+        section = ("A summary\nwrapped twice\nhere.\n\n### Highlights\n\n"
+                   "- **One.** A point\n  that wraps.\n- Two.\n  - A nested\n    item.\n\n"
+                   "### Fixed\n\n- A detail\n  left out.\n")
+        page = release_check.release_notes(section, "v1.2.3")
+        self.assertTrue(page.startswith("A summary wrapped twice here.\n\n### Highlights\n\n"
+                                        "- **One.** A point that wraps.\n- Two.\n  - A nested item.\n\n"))
+        self.assertNotIn("A detail", page)
+
     def test_a_release_commit_passes_and_writes_its_notes(self):
         with tempfile.TemporaryDirectory() as temp:
             root = write_tree(temp)
             notes = root / "notes.md"
             message = release_check.check(root, "v1.10.2", "HEAD", notes)
             self.assertIn("bench 13 declared 14978465", message)
-            self.assertEqual(notes.read_text(encoding="utf-8"), "A patch.\n\n### Fixed\n\n- A thing.\n")
+            # The page shows the summary and the highlights only; the details stay in CHANGELOG.
+            self.assertEqual(notes.read_text(encoding="utf-8"), NOTES)
 
     def test_each_defect_is_refused(self):
         cases = {
@@ -51,6 +66,9 @@ class ReleaseCheckTests(unittest.TestCase):
             "a -dev version is not a release": (dict(engine='"1.10.2-dev"'), "v1.10.2"),
             "undated section": (dict(changelog=CHANGELOG.replace("] - 2026-10-20", "]")), "v1.10.2"),
             "empty section": (dict(changelog="## [1.10.2] - 2026-10-20\n\n---\n"), "v1.10.2"),
+            "no highlights": (dict(changelog=CHANGELOG.replace("### Highlights\n\n- The point.\n\n", "")), "v1.10.2"),
+            "empty highlights": (dict(changelog=CHANGELOG.replace("- The point.\n\n", "")), "v1.10.2"),
+            "no summary": (dict(changelog=CHANGELOG.replace("A patch.\n\n### Highlights", "### Highlights")), "v1.10.2"),
             "GUIDE not marked": (dict(guide=GUIDE.replace("**1.10.2**", "**1.10.1**")), "v1.10.2"),
             "fingerprint restated stale": (dict(guide=GUIDE.replace("**14,978,465**", "**1,234,567**")), "v1.10.2"),
             "released row states no count": (dict(guide=GUIDE.replace(", `bench 13` 14,978,465", "")), "v1.10.2"),
