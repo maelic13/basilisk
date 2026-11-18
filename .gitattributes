@@ -8,3 +8,5 @@ tools/oracle/*.patch -text
 # The other engines' board-harness adapters are applied byte-exact.
 tools/board_compare/*/*.diff -text
 tools/board_compare/*/*.patch -text
+# The donor-comparison patches are applied byte-exact.
+tools/donor/*.patch -text
