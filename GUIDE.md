@@ -12,7 +12,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 |---|---|
 | Released baseline | **1.11.0** on `master`, tagged `v1.11.0` (2026-11-18), `bench 13` 4,777,412 |
 | Bench fingerprint | **4,777,412** (`bench 13`, since B.9.5's gate kept the repairs; HISTORY's 1.11.0 record lists the earlier counts) |
-| Active experiment | None |
+| Active experiment | BAS-O08 and BAS-O09 (C.0), prepared and dry-run, the maintainer starts them |
 | Long job | None |
 | Next release | **1.12.0** after C (C.13), then 1.13.0 after E; **2.0.0** is the first NNUE release |
 

@@ -21,3 +21,13 @@
   concurrency 14, no adjudication, no tablebases, zero permitted faults.
 
 #### RESULT — append after exposure
+
+- **Instrument note, appended 2026-11-18 before any game.** In B.11.1's
+  two G(0) runs the oracle on Basilisk's evaluation drew 51 of 6,000 games
+  with a bare-king win on the board (KR-K 22, KBN-K 15, KBB-K 7, KQ-K 3,
+  KRN-K or KRB-K 4); Basilisk's own search converted every such row in
+  three gates (BAS-E58). The `true` arm carries that here, about 3 Elo of
+  E(0). The prediction is not changed.
+- Wire check at launch: `bench 16 1 8 default depth` reads 322,185 nodes
+  with the oracle's own evaluation and 266,667 with the head's. Dry run
+  accepted 2026-11-18.

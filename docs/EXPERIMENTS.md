@@ -399,7 +399,7 @@ future work needs to re-open either cluster is now counted rather than guessed.
 
 - [BAS-E57](experiments/BAS-E57.md) — 15.0.b harness reserve sweep: `Move Overhead` 40 against 10 on the same binary - RUN 2026-09-10, RE… — REJECTED
 
-- [BAS-E58](experiments/BAS-E58.md) — C.0 static screens: the head's evaluation against the two donor candidates on its own games — registered
+- [BAS-E58](experiments/BAS-E58.md) — C.0 static screens: the head's evaluation against the two donor candidates on its own games — COMPLETE: 0.68% behind `9587eeeb` on regular rows, equal in the middlegame; a bounded refit closes 56% of the static gap
 
 - [BAS-X11](experiments/BAS-X11.md) — current standing, 12,000-game Colosseum round robin — see entry
 

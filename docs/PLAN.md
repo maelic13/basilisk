@@ -709,6 +709,26 @@ has lost games in both engines (BAS-X02).
     0.43) better than by material bands (0.34); a cheap read of whether
     Basilisk's fitted terms split the same way.
   - A measurement holds only in the regime it was taken (TM-5).
+  **In progress, 2026-11-18**
+  (`analysis/c0_evaluation_programme_2026-11-18.md`).
+  - Static screens read (BAS-E58), on 243,108 regular rows from the
+    head's own games: Basilisk's evaluation trails `9587eeeb`'s by 0.68%
+    of cross-entropy, equal in the middlegame and 1.5 to 3.4% behind at
+    both ends. A bounded refit of the existing terms closes 56% of the
+    static gap, so BAS-E07's "fitting is exhausted" does not hold on this
+    head. The donor's space, mobility, king-safety, winnable and
+    pawn-structure terms add outcome information; its passer, threat,
+    rook and queen terms add none.
+  - The donor comparison's four engines are built from committed patches
+    and accepted: each hybrid's evaluation equals its origin's on about
+    122,000 positions (`tools/donor/`).
+  - Prepared for the maintainer, dry runs accepted: the same-search
+    meter (BAS-O08) and the donor comparison in both hosts (BAS-O09),
+    `python tools/run_c0_reads.py --read meter`, `--read donor-sf16`
+    and `--read donor-9587`, 3,000 games each.
+  - Owed after the reads: the donor decision, the budget row, the family
+    map, and the handoffs for C.1 and the first family (the packet's §6
+    holds the provisional order).
 - [ ] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
   `src/eval.cpp` split into family modules, one attack-map and mobility-area
   producer, `EvalTrace` unchanged in meaning, lazy-path semantics preserved;
@@ -1315,7 +1335,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.0 | RESEARCH | R3 | Next: opens Phase C |
+| C.0 | RESEARCH | R3 | In progress: static screens read (BAS-E58); the meter and the donor reads (BAS-O08, BAS-O09) are prepared for the maintainer |
 | C.1 | RESEARCH | I1 | Not started |
 | C.2.1 | RESEARCH | I1 | Not started |
 | C.2.2 | RESEARCH | R2 | Not started |
