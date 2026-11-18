@@ -61,7 +61,8 @@ goes back to the implementer for a fix: it goes to research.
 > linked analysis and the relevant source; measured evidence outranks
 > roadmap assumptions. Read the donor (modern Stockfish at the pinned
 > revision for search, TT, histories, time and threads; classical Stockfish
-> `9587eeeb` for the evaluation and as the oracle) for mechanism, population
+> for the evaluation, `sf_16`'s first and `9587eeeb`'s second, and
+> `9587eeeb` as the oracle) for mechanism, population
 > and interaction, never for transcription; read the Rarog snapshots in
 > `docs/reference/` as a worked example of the same method, never the
 > live Rarog repository and never as a donor. State the precise question, the leading
@@ -252,9 +253,10 @@ Donors (maintainer decision 2026-09-28; PLAN rule 1 points here):
   `edb0d9db` (2026-09-05), for search, TT, histories, move ordering, time
   management, threads and the later NNUE runtime. A later revision enters
   only through a new dated pin recorded in the search programme packet.
-- **Classical Stockfish `9587eeeb`** for the evaluation families, as the
-  deficit oracle (`oracle/hybrid`), and as a seed column for eval-coupled
-  margins.
+- **Classical Stockfish** for the evaluation families: `sf_16`'s classical
+  evaluation is the donor and `9587eeeb`'s the second seed column (C.0,
+  BAS-O09). `9587eeeb` stays the deficit oracle (`oracle/hybrid`) and a
+  seed column for eval-coupled margins.
 - **Triumviratus** (maintainer decision 2026-11-03), for mechanisms only:
   measured priors on its Stockfish-19-shaped search, board and
   infrastructure, time management, NNUE architecture and training, and its
@@ -675,6 +677,11 @@ rebuilds Basilisk's side from `4d2742f`
    about 10 Elo are not measurable this way at `3+0.03`.
 6. Net out NPS before comparing engines; it cancels in G(0) − G(mask) but not
    in any absolute statement.
+
+An evaluation mask by family follows the same rules (C.2.9): one bit
+switches the same family off in Basilisk's evaluation and in the oracle's
+own, and E(0) − E(mask) is the Elo of the evaluation deficit that family
+explains.
 
 ## Texel procedure
 

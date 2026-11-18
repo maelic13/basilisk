@@ -68,8 +68,15 @@ the six-stage gating shape), are in
     - [ ] **C.2.5** `[R2]` Initialization control
     - [ ] **C.2.7** `[R2]` Endgame instruments and gate integrity
     - [ ] **C.2.8** `[V]` Matched fits and the label-contract gate
-- [ ] **C.3** `[I2]` King safety and phase cluster
-- [ ] **C.4** `[I2]` Threats and mobility cluster
+    - [ ] **C.2.9** `[I1]` Family screen and matched-ablation tools
+    - [ ] **C.2.10** `[R3]` Family order from games and screens
+- [ ] **C.3** Mobility, space and threats cluster
+    - [ ] **C.3.1** `[R3]` Cluster research and handoff
+    - [ ] **C.3.2** `[I2]` Implementation behind the switch
+    - [ ] **C.3.3** `[R2]` Independent review
+    - [ ] **C.3.4** `[V]` Whole-surface refit
+    - [ ] **C.3.5** `[V]` Gate, frontier pair and close
+- [ ] **C.4** `[I2]` King safety, phase and tempo cluster
 - [ ] **C.5** `[I2]` Pawns and passers cluster
 - [ ] **C.6** `[I2]` Material, imbalance and pieces cluster
 - [ ] **C.7** Endgame handling and winnability
@@ -79,7 +86,9 @@ the six-stage gating shape), are in
     - [ ] **C.7.5** `[I2]` Group B families by measured kind
     - [ ] **C.7.6** `[R2]` Lower-yield remainder
     - [ ] **C.7.7** `[V]` Endgame gate and closure
-- [ ] **C.8** `[V]` Refit cycles
+- [ ] **C.8** Residual and refit cycles
+    - [ ] **C.8.1** `[R3]` Residual investigation
+    - [ ] **C.8.2** `[V]` Refit cycles
 - [ ] **C.9** `[V]` Nonlinear HCE SPSA or a written skip
 - [ ] **C.10** Joint re-fit on the new evaluation
     - [ ] **C.10.1** `[R2]` Joint-fit investigation and registration

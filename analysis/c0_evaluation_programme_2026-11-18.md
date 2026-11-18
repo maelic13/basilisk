@@ -1153,3 +1153,87 @@ Proposed, not applied, each needing the maintainer's sign-off:
    report the count of such draws and the figure without them each time.
    A repair needs a mapping of Basilisk's tiers into Stockfish's value
    bands, and then a new baseline.
+
+## 9. Amendment 1 — sign-off and the reworked phase (2026-11-18)
+
+**Decision.** The maintainer accepted the donor and §8.3's proposals, and
+set Phase C's goal: a frontier-class hand-crafted evaluation, as close to
+Stockfish 16 HCE as possible and past it if it can be done. PLAN was
+reworked the same day.
+
+### 9.1 Numbering
+
+What §7 and §8 call "today's C.4" is now **C.3**, Mobility, space and
+threats. "Today's C.3" is **C.4**, King safety, phase and tempo. New
+leaves:
+- C.2.9, the family screen and the matched evaluation ablation as
+  committed tools;
+- C.2.10, the family order from games and screens, which is §8.3's
+  decision point;
+- C.3.1 to C.3.5, the first family's research, implementation, review,
+  refit and gate;
+- C.8.1, the residual investigation. The refit cycles are C.8.2.
+
+### 9.2 Why `sf_16`, when `9587eeeb`'s read ahead (the maintainer's question)
+
+Every measured lean is toward `9587eeeb`'s evaluation: 3.7 and 1.6 Elo
+ahead in the two searches, a better static predictor by 0.23% of
+cross-entropy, about 2% faster. None of it is a reason to expect more
+from `sf_16`'s, and this packet claims no better potential for it.
+
+It stays the donor for three reasons, none of them strength:
+- **The games cannot tell the two apart.** Averaged over the hosts the
+  difference is 2.7 Elo with an interval of −8.0 to +2.6. Two reads
+  agreeing in sign happens half the time with no difference at all. The
+  rule was frozen before the games so that a default would not move on
+  that.
+- **The label decides little.** Every value is refitted on Basilisk's own
+  games, and where the two differ in form the family's research reads
+  both and the screen picks per term. `9587eeeb`'s tempo, for one, is the
+  only donor form of tempo there is.
+- **`sf_16`'s is the target's evaluation.** Stockfish 16 HCE is the
+  engine to catch, so the same-search meter against its evaluation says
+  directly how much of the gap is evaluation.
+
+What the choice does fix is the piece-square seed, which C.2.8 refits
+freely. If a term's form ever turns on this choice alone, the family
+screen and a game decide it, not the label.
+
+### 9.3 What the rework adds
+
+The goal is about 195 Elo and the expectation from the listed clusters is
+80 to 140 (§7.4). The rework does not raise the expectation by assertion;
+it removes the ways the phase could miss without noticing.
+
+| Addition | The failure it guards against |
+|---|---|
+| The family order from games, C.2.10 | §7.3's order rests on games for *where* the deficit is and on a static screen for *which family*. A matched ablation measures the family in games, the layer that decides, before the first family is built |
+| The donor fixture, stage 4 of the cluster shape | A donor form built with a wrong definition and then fitted around: Phase 5.9's sixteen terms, Rarog's king index (RAR-E73) |
+| The union rule and the screen read both ways | Replacing a Basilisk term that carries information the donor lacks. Statically the two together beat the donor by 59.0e-4 nats where the donor beats Basilisk by 36.0e-4 (§5.2), so an evaluation better than the donor's is in reach of the two term sets |
+| The frontier pair after every accepted cluster | Gates that add up on paper while the gap to the target does not close |
+| The residual investigation, C.8.1 | Ending the phase because the list ended. It names what is left and whether it is evaluation at all |
+
+**Registered for C.11's freeze**, head to head against Stockfish 16 HCE
+at `3+0.03`, one thread: the gap is 100 or less with probability 0.55, 50
+or less with 0.25, and Basilisk is ahead with 0.08. Phase D's clock and
+thread work adds to it before the target is read at E.
+
+### 9.4 Amendments to §8.1, C.1's handoff
+
+Found while reworking the phase: the oracle's build names
+`src/eval.cpp`, in `tools/oracle/build_oracle.ps1` and in the build
+script inside the `oracle/hybrid` tag, which cannot be edited. Every
+later read of the meter rebuilds the oracle on a new head.
+
+1. **One translation unit.** `src/eval.cpp` stays the evaluator's only
+   translation unit, and the family modules are headers it includes.
+   The oracle's recipe, the tuner target and the engine library then
+   need no change, and no inlining decision can move. This replaces
+   §8.1's fallback: separate translation units are not tried.
+   `tools/diag/profile_regions.json` gains the new file names.
+2. **A sixth proof.** The oracle rebuilt from the restructured commit
+   passes its conformance test and reads 266,667 nodes at `bench 16 1 8
+   default depth` with `Use Basilisk HCE=true`, as
+   `oracle-b111-4d2742f` does.
+3. **Switch points.** Each family's contribution enters the sums through
+   one call, so that C.2.9's mask can skip it. C.1 adds no mask.

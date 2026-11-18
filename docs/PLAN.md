@@ -137,6 +137,13 @@ miss and this table is corrected rather than defended.
   the old band rested, does not hold on this head (BAS-E58). The first
   two gates test the new one: a C.2.8 gate or a first family under +10
   puts the expectation in its lower half.
+- The target, Stockfish 16 HCE, is 193 ahead head to head, which is more
+  than the band holds. Phase C was reworked for it on 2026-11-18
+  (maintainer): the families are ordered by where the deficit is and
+  the order is re-decided from games (C.2.10), each donor form is checked
+  against a donor fixture, Basilisk's own terms stay where they add
+  information, and the residual is investigated before the closing fits
+  (C.8.1).
 
 ## 2. Operating rules
 
@@ -424,7 +431,7 @@ their leaves or are carried below; B.9.4 read each one before the release.
 | Owner | Defects |
 |---|---|
 | C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
-| C.3, C.5, C.6 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
+| C.4, C.5, C.6 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
 | C.7 | B.9.3's V3 KRP-KR's draw rules, V4 the KRPP-KRP table, V6 the pawnless scales 4 and 14 (C.7.5); V5 KBN-K's known win, kept with a retry trigger (C.7.6); decided 2026-11-16, known limitations for 1.11.0 |
 | D.1 | A-47 the fail-high stop's hole: a window that never returns is never checked (`analysis/b5_failhigh_stop_2026-10-25.md` §2.3); A-46 reserve arithmetic; A-45 no sub-second horizon (both kept by B.9.4) |
 | D.3 | A-59 the tablebase root's DTZ ranking; A-57 cold root reads on the clock, a known limitation (both kept by B.9.4) |
@@ -549,12 +556,37 @@ re-pinned Colosseum to 0.5.0. B.11 closed the programme:
 
 ## Phase C — Evaluation programme (search frozen)
 
-**Goal:** recover the measured same-search evaluation deficit, with the search
-frozen at the B.11.1 head. The families are re-implemented in classical
-Stockfish's shape where its conditioning is stronger, and Basilisk's are kept
-where the evidence says ours is better. The whole surface is refit after
-every family cluster, and endgame handling gets its own bounded cluster that
-absorbs the archived Phase 6 remainder.
+**Goal (maintainer, 2026-11-18): a frontier-class hand-crafted
+evaluation.** The target before NNUE is Stockfish 16 with `Use NNUE=false`
+(§1). The head is 193 behind it head to head (BAS-M18), and inside one
+search the head's evaluation is 215.7 behind that engine's evaluation
+(BAS-O08, BAS-O09). So the gap to the target is about the size of the
+evaluation deficit, and this phase is where it closes or does not. The
+search stays frozen at the B.11.1 head.
+
+How the phase is built for it:
+- **By where the deficit is.** Two thirds of it is realised on the full
+  board (C.0), so the full-board families go first, and the order is
+  decided again from games before the first family opens (C.2.10).
+- **The union, not a replacement.** A donor form is built where it carries
+  information Basilisk's whole score lacks, and a Basilisk term stays
+  where it carries information the donor's whole score lacks. Statically
+  the two together beat the donor alone by more than the donor beats
+  Basilisk (BAS-E58): the case that the donor can be passed, not only
+  reached.
+- **Faithful forms, own values.** Each donor form is checked against a
+  donor fixture before any fit, and every value is then fitted on
+  Basilisk's own games.
+- **The whole surface is refit after every family cluster**, and endgame
+  handling gets its own bounded cluster that absorbs the archived Phase 6
+  remainder.
+- **The phase ends on its meters, not on its list.** The frontier pair is
+  read after every accepted cluster, and the residual is investigated
+  before the closing fits (C.8.1).
+
+The expectation is lower than the goal and is stated in §1's budget: 80
+to 140 from the listed clusters, against about 195 needed. C.2.10 and the
+first family's gate say early whether the phase is on course.
 
 **Why classical Stockfish `9587eeeb`.** It is the last classical Stockfish
 master, the evaluator Basilisk's oracle measured (BAS-O02), and the reference
@@ -610,18 +642,30 @@ pawn-structure terms also carry outcome information Basilisk's whole
 score lacks; its passer, threat, rook and queen terms carry none
 (BAS-E58). The family clusters stand, each screened before it is built.
 
-**Cluster shape for C.** Each family cluster goes through seven stages:
+**Cluster shape for C.** Each family cluster goes through eight stages
+(reworked 2026-11-18, after C.0):
 1. The family's current terms are traced, and their activation and residual
-   measured on the fitting corpus by cohort.
-2. The donor's form is read for conditioning and populations.
-3. A design states which terms are replaced, which stay, and which
-   neighbouring families share inputs, so those inputs are computed once.
+   measured on the fitting corpus by cohort. The family screen is read both
+   ways on that day's head: what the donor's terms add to Basilisk's score,
+   and what Basilisk's terms add to the donor's.
+2. The donor's form is read for conditioning and populations, in both donor
+   evaluations where they differ.
+3. A design states which terms are built, which are replaced, which stay
+   (the union rule above), and which neighbouring families share inputs, so
+   those inputs are computed once. A term whose gain alone includes zero is
+   not built; a unit expected under 5 Elo waits for Phase H.
 4. Implementation, with `EvalTrace` coverage for every new slot and the
-   reconstruction test.
+   reconstruction test. **The donor fixture comes before any fit:** with
+   the donor's values, the family's middlegame and endgame rows reproduce
+   the unpatched donor's on a fixture of game positions, to the trace's
+   resolution. Every deliberate departure is listed with its reason and
+   has its own test.
 5. A whole-surface Texel refit, with the frozen test split reported once.
 6. A PGO bake and SPRT, `[0,3]` (`[3,10]` when the family's residual is
    large).
-7. The ledger row.
+7. The frontier pair after an accepted gate: the new head against
+   Stockfish 16 HCE, 3,000 games at `3+0.03`, the phase's progress meter.
+8. The ledger row.
 
 Fit loss is a screen and a falsifier, never acceptance: better holdout loss
 has lost games in both engines (BAS-X02).
@@ -709,7 +753,8 @@ has lost games in both engines (BAS-X02).
     danger, shelter, storm, space, tempo, the king's mg PST) stays live
     in rook endings and partly stands in for the missing eg king danger
     (E1). Calibration by phase (C-92) reads it; phase and eg king danger
-    change together (both in C.3 since 2026-11-05), never one at a time.
+    change together (both in C.3 since 2026-11-05, C.4 since
+    2026-11-18), never one at a time.
   - E8: space (C-119) is computed at every phase with no npm gate and
     lacks the donor's bonus for squares behind own pawns; its handoff
     carries E6's sign.
@@ -728,7 +773,7 @@ has lost games in both engines (BAS-X02).
     lost, but on an HCE a signed residual points at a term's value, the
     question BAS-E07 asks. It complements C-91 (the static score against
     the engine's own re-search) by naming concepts rather than terms.
-  - A regime check for C.3's phase key (TE-2): Triumviratus's network
+  - A regime check for C.4's phase key (TE-2): Triumviratus's network
     divided positions by material × queens (normalised mutual information
     0.43) better than by material bands (0.34); a cheap read of whether
     Basilisk's fitted terms split the same way.
@@ -752,9 +797,10 @@ has lost games in both engines (BAS-X02).
   - Handoffs: C.1 is `READY_FOR_IMPLEMENTATION` (§8.1); the first
     family's contract is §8.2; the corpus, refit and label rules are
     §7.5.
-  - Proposed and not applied (§8.3): the mobility and space cluster
-    before king safety, C.4 renamed to hold space, a leaf for the
-    committed family screen, and a decision point after C.2.8's gate.
+  - Applied 2026-11-18 on the maintainer's sign-off (the packet's
+    Amendment 1): the mobility and space cluster is C.3 and king safety
+    C.4, C.2.9 holds the family instruments, C.2.10 decides the order
+    from games, and C.8.1 investigates the residual.
 - [ ] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
   `src/eval.cpp` split into family modules, one attack-map and mobility-area
   producer, `EvalTrace` unchanged in meaning, lazy-path semantics preserved;
@@ -768,7 +814,11 @@ has lost games in both engines (BAS-X02).
   C.0 handoff (2026-11-18), `READY_FOR_IMPLEMENTATION`:
   `analysis/c0_evaluation_programme_2026-11-18.md` §8.1 freezes the
   modules, the producer's contents, the invariants, the proof and the
-  files that list the evaluator's sources.
+  files that list the evaluator's sources. Its §9.4 amends it
+  (2026-11-18): `src/eval.cpp` stays the one translation unit and the
+  modules are headers, because the oracle's build names that file; and
+  the oracle rebuilt from the restructured commit must read the same
+  nodes.
 - [ ] **C.2** Fit pipeline, corpus, labels and gate instruments
   Fit pipeline, corpus and label contract (archived 8.1–8.8), and since
   2026-11-11 the endgame instruments (C.2.7, which was C.7.1): PLAN §3
@@ -1006,17 +1056,112 @@ has lost games in both engines (BAS-X02).
       term down together, the compensation the mirrored pawn table left;
       the directional screen reads that group and E6's signs before the
       bake.
-- [ ] **C.3** `[I2]` King safety and phase cluster
+    - [ ] **C.2.9** `[I1]` Family screen and matched-ablation tools
+      Added 2026-11-18 (maintainer, after C.0). Two instruments the
+      family order and every cluster read; neither changes a served
+      score.
+      - **The family screen**, committed: C.0's prototype
+        (`tools/results/c0-screen/c0_reanalysis.py` and its dataset
+        builder) as a tool with tests. It reads both ways: a donor
+        family's rows added to Basilisk's score, and a Basilisk family's
+        added to the donor's, by phase band, for both donor evaluations.
+        Override and specialised-endgame rows are separated, K is fitted
+        per evaluator, and intervals are a bootstrap over games. A
+        known-bad input fails it.
+      - **The matched evaluation ablation**: one mask that switches the
+        same family off in Basilisk's evaluation and in the oracle's own,
+        compiled away in a shipped build (PROCESS, *Matched ablation*).
+        The meter with a family off on both sides, taken from the meter
+        with nothing off, is the Elo of the deficit that family explains,
+        at the layer that decides. Every bit is proved live at fixed
+        depth before any game, and the release `bench 13` stays
+        4,777,412.
+      - Families for the mask: space, mobility, threats, king danger with
+        shelter and storm, pawn structure, passers, the piece terms.
+        C.1's modules are its switch points on Basilisk's side.
+    - [ ] **C.2.10** `[R3]` Family order from games and screens
+      Added 2026-11-18 (maintainer, after C.0): the decision point before
+      the first family. On the refitted head it registers, prepares and
+      reads:
+      - the matched evaluation ablation by family, about 3,000 games a
+        family at `3+0.03`, maintainer-run;
+      - the family screen both ways;
+      - the frontier pair's baseline: the head against Stockfish 16 HCE,
+        3,000 games.
+      Then it orders the families by the Elo each explains, with the
+      screen as the tiebreak for what games cannot measure (under about
+      10 Elo), and renumbers C.3 to C.6 if the order changes. A family
+      that explains nothing in games and adds nothing in the screen
+      closes `NO_CHANGE` without a port (C-110).
+      C.0's prior, scored here: mobility and space first, king safety
+      second (its packet §7.3). The constraints stay: the phase, the
+      endgame king danger and tempo change together, and the endgame
+      cluster follows pawns and pieces.
+- [ ] **C.3** Mobility, space and threats cluster
+  The first family (maintainer, 2026-11-18, on C.0's evidence; C.2.10
+  confirms the order from games). The donor's space, which Basilisk does
+  not have in any working form; the mobility area with x-rays and the pin
+  line; and of the threat terms (weak enemies, hanging pieces, restricted
+  squares, pawn-push threats, and BAS-E07's absent `KnightOnQueen` and
+  `SliderOnQueen`) those their own screen supports. Shared attack maps
+  from C.1; refit; gate.
+  It was C.4, "Threats and mobility", until 2026-11-18. Space had no owner
+  (C-119); C.0 placed it here.
+  Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
+  are its items):
+  - SliderOnQueen is missing; screen KnightOnQueen before building it (nil in
+    Rarog); ungated forms were worse than none (C-114); mobility priors
+    (C-115); the dead `hang_pen` loop (C-37; A.16 removed it).
+  - Code audit 2026-10-27 (§6.3): the safe-pawn threat is a flat 58/25
+    whatever the target and counts pawns that are themselves unsafe
+    (`eval.cpp:1403-1426`), overlapping hanging, restricted and
+    weak-queen on the same target.
+  C.0 inputs (2026-11-18, its packet §7.2 and §8.2): C.0 places space
+  here (C-119, E8). At phase 18–24, where 68 to 69% of the same-search
+  deficit is realised, the donor's space adds 47.0 and its mobility 29.6
+  to Basilisk's whole score; the threat rows add 4.4 or less, so a
+  threat term is built only if its own screen excludes zero.
+    - [ ] **C.3.1** `[R3]` Cluster research and handoff
+      Stages 1 to 3 of the cluster shape, from C.0's contract (its packet
+      §8.2) and C.2.10's order. It answers C.0's three competing readings
+      first: whether space still reads once the tables are refitted in
+      their right orientation, whether the gain is the unbalanced book's,
+      and whether mobility's gain is the area's values or the x-rays. It
+      ends in a frozen handoff, or a `NO_CHANGE`, for each term.
+    - [ ] **C.3.2** `[I2]` Implementation behind the switch
+      Stage 4: the handoff's terms behind one umbrella switch, the off
+      arm at the accepted fingerprint at every commit, the donor fixture,
+      the trace slots, and the new shared inputs in C.1's producer.
+    - [ ] **C.3.3** `[R2]` Independent review
+      A separate session rebuilds both arms, reproduces the fingerprints
+      and the donor fixture, and checks the code against the handoff
+      clause by clause. Its acceptance is recorded before the refit.
+    - [ ] **C.3.4** `[V]` Whole-surface refit
+      Stage 5: the directional screen, the anchored fit, the
+      fitted-constant analysis, the bake and the PGO builds; the lazy
+      margin block (C-98); the gate prepared and dry-run.
+    - [ ] **C.3.5** `[V]` Gate, frontier pair and close
+      Stages 6 to 8: the maintainer-run SPRT with its `10+0.1` and NPS
+      reads (C-99), an equal-node companion if an equal-time gate fails
+      (C-95), then the frontier pair, the flip and the ledger rows. Under
+      +10 here, the static screen is not a ranking instrument and
+      C.2.10's order is read again (C.0's packet §7.3).
+- [ ] **C.4** `[I2]` King safety, phase and tempo cluster
   King safety cluster in the donor's shape: attacker units and weights, safe
   and unsafe checks by piece, weak ring squares, flank attack and defence,
   shelter and storm with the castling alternative, the queenless reduction and
   the nonlinear danger map; refit; gate.
-  Opens as sub-steps (research, implement, refit, gate) when C.0's handoff
-  reaches it; the same holds for C.4, C.5 and C.6.
+  Opens as sub-steps (research, implementation, review, refit, gate), as
+  C.3 has, when C.3 closes; the same holds for C.5 and C.6.
+  It was C.3 until 2026-11-18, when the mobility and space cluster moved
+  ahead of it.
   The phase and tempo join it (from C.7, 2026-11-05): E2's phase and E5's
   tempo change together with E1's eg king danger, never one at a time, and
   before the other families, so that each later refit reads the final
-  phase.
+  phase. Since 2026-11-18 the mobility and space cluster precedes it:
+  the donor's space is gated by material, not by the phase, and the one
+  refit the phase then costs that cluster is run anyway (C.0's packet
+  §7.3).
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Definitions: king blockers of either colour (C-13, `eval.cpp:1278-1280`);
@@ -1063,28 +1208,8 @@ has lost games in both engines (BAS-X02).
   C.0 inputs (2026-11-18, its packet §7.2, §7.3 and §8.2): the donor's
   king row adds 15.2 at phase 10–17 and 11.1 at 18–24; the endgame
   bands' static gap is not one family's; tempo exists only in
-  `9587eeeb`'s evaluation; Basilisk's rule-50 curve stays. C.0 proposes
-  the mobility and space cluster ahead of this one, for the maintainer's
-  sign-off.
-- [ ] **C.4** `[I2]` Threats and mobility cluster
-  The mobility area, weak enemies, hanging pieces, restricted squares,
-  pawn-push threats and queen threats (including BAS-E07's absent
-  `KnightOnQueen` and `SliderOnQueen`); shared attack maps from C.1; refit;
-  gate.
-  Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
-  are its items):
-  - SliderOnQueen is missing; screen KnightOnQueen before building it (nil in
-    Rarog); ungated forms were worse than none (C-114); mobility priors
-    (C-115); the dead `hang_pen` loop (C-37; A.16 removed it).
-  - Code audit 2026-10-27 (§6.3): the safe-pawn threat is a flat 58/25
-    whatever the target and counts pawns that are themselves unsafe
-    (`eval.cpp:1403-1426`), overlapping hanging, restricted and
-    weak-queen on the same target.
-  C.0 inputs (2026-11-18, its packet §7.2 and §8.2): C.0 places space
-  here (C-119, E8). At phase 18–24, where 68 to 69% of the same-search
-  deficit is realised, the donor's space adds 47.0 and its mobility 29.6
-  to Basilisk's whole score; the threat rows add 4.4 or less, so a
-  threat term is built only if its own screen excludes zero.
+  `9587eeeb`'s evaluation; Basilisk's rule-50 curve stays. The mobility
+  and space cluster goes ahead of this one (maintainer, 2026-11-18).
 - [ ] **C.5** `[I2]` Pawns and passers cluster
   Passer king proximity, blocker ownership, path safety, unstoppable and
   rook-behind conditions; structure conditionality (doubled, isolated,
@@ -1127,8 +1252,8 @@ has lost games in both engines (BAS-X02).
     imbalance slots (C-20); queen infiltration and the trapped bishop (C-48);
     no trapped rook (C-46); no WeakQueen (C-116); screen first (C-118).
   Code audit inputs (2026-10-27 second pass, §6.3):
-  - E2's phase and E5's tempo are C.3's (2026-11-05), changed with its
-    eg king danger.
+  - E2's phase and E5's tempo are the king-safety cluster's (C.4; C.3
+    from 2026-11-05 to 2026-11-18), changed with its eg king danger.
   - Bishop terms: the bishop outpost is absent although comments at
     `eval.cpp:1783` and `eval_params.h:222` say it exists; bishop x-ray
     on pawns is absent; bishop pawns is a linear count without the
@@ -1139,7 +1264,8 @@ has lost games in both engines (BAS-X02).
     Basilisk-only terms with no donor prior: pawn majority, pawn
     islands, closed file, seventh rank, connected rooks, the trapped
     bishop.
-  It was C.7 until 2026-11-05, when the phase moved to C.3.
+  It was C.7 until 2026-11-05, when the phase moved to the king-safety
+  cluster (C.3 then, C.4 since 2026-11-18).
 - [ ] **C.7** Endgame handling and winnability
   The goal is measured conversion and correct draw recognition where games
   actually go, not coverage of a function list.
@@ -1149,6 +1275,12 @@ has lost games in both engines (BAS-X02).
   within this constraint, and the order is discussed again when reached.
   Its instruments leaf, C.7.1, moved to C.2.7 on 2026-11-11, so the
   cluster starts at C.7.2.
+  Since 2026-11-18 (maintainer, after C.0): the endings hold 16% of the
+  same-search deficit and the full board 68 to 69%. When C.6 closes, its
+  frontier pair and screen are read against that. If the full board still
+  leads the residual, C.8.1's investigation is taken before this cluster,
+  on the maintainer's decision. The truth repairs routed here (V3, V4,
+  V6) are defects and keep their place in the phase either way.
     - [ ] **C.7.2** `[R3]` Occurrence, classification and ranking
       Occurrence, classification and ranking (archived 6.7.a–d).
       - Board and tree occurrence with per-root concentration.
@@ -1280,15 +1412,39 @@ has lost games in both engines (BAS-X02).
       - KRPPKRP has truth: the 7-man tables are installed, so this leaf's
         wording is stale (C-24); gates without tablebases expose static
         small-endgame scores (C-147).
-- [ ] **C.8** `[V]` Refit cycles
-  Refit cycles (archived 8.9): regenerate data with the accepted head, refit
-  the whole surface with a new untouched test split, and gate each cycle;
-  repeat while a cycle accepts; stop at the first that does not.
-  Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
-  are its items):
-  - Refit cycles diminish (+11.0, then +6.7 in Rarog), so size from earlier
-    cycles' games (C-123); priors (C-68); scores re-dumped after each refit
-    (C-69).
+- [ ] **C.8** Residual and refit cycles
+  Reworked 2026-11-18 (maintainer, after C.0): the phase ends on its
+  meters, so the residual is investigated before the closing fits.
+    - [ ] **C.8.1** `[R3]` Residual investigation
+      After the family and endgame clusters. It re-reads the same-search
+      meter on a fresh oracle build, the matched ablation by family, the
+      family screen both ways and the frontier pair, and reads C.2.2's
+      H-distribution result beside them. Its questions:
+      - how much of 217.3 is left, and in which family and phase;
+      - whether what is left is evaluation at all: speed (C.12), the
+        search's margins on the new evaluation (C.10), or positions a
+        search visits and a game does not (the corpus);
+      - which donor forms were screened out and are worth a game-level
+        read now, threats first: they have no static case and were never
+        measured in play;
+      - what information of Basilisk's own a concept residual screen
+        (TE-1) can still name.
+      It ends by opening further clusters as leaves of this step, ahead
+      of the refit cycles, each with its handoff, or by closing the
+      family work. Stop rule: two consecutive units under +5 at their
+      gates, or a frontier pair whose interval includes zero. A unit
+      expected under 5 Elo goes to Phase H.
+    - [ ] **C.8.2** `[V]` Refit cycles
+      It was C.8 until 2026-11-18.
+      Refit cycles (archived 8.9): regenerate data with the accepted
+      head, refit the whole surface with a new untouched test split, and
+      gate each cycle; repeat while a cycle accepts; stop at the first
+      that does not.
+      Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
+      IDs are its items):
+      - Refit cycles diminish (+11.0, then +6.7 in Rarog), so size from
+        earlier cycles' games (C-123); priors (C-68); scores re-dumped
+        after each refit (C-69).
 - [ ] **C.9** `[V]` Nonlinear HCE SPSA or a written skip
   Nonlinear HCE SPSA (archived 8.10): only live, frequent terms Texel cannot
   price, such as the king-danger map, from a zero-game activation and
@@ -1356,6 +1512,8 @@ has lost games in both engines (BAS-X02).
     hybrid at the C head, plus conversion, the truth cohort, NPS and a 1T
     pool gauntlet.
   - Revalidate the score scale, mate bounds and every endgame floor.
+  - Re-read the HCE frontier field (BAS-M18) with the C head: the aim's
+    meter, in the field and head to head (2026-11-18).
   - Its 1T pool gauntlet, clock- and node-annotated, is D.1's loss-analysis
     source: C.12 is bit-exact, so those games are the play of D.1's entry
     head (2026-11-05).
@@ -1396,7 +1554,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.1 | READY_FOR_IMPLEMENTATION | I1 | Handoff frozen by C.0 (`analysis/c0_evaluation_programme_2026-11-18.md` §8.1) |
+| C.1 | READY_FOR_IMPLEMENTATION | I1 | Handoff frozen by C.0 (`analysis/c0_evaluation_programme_2026-11-18.md` §8.1, amended by §9.4) |
 | C.2.1 | RESEARCH | I1 | Not started |
 | C.2.2 | RESEARCH | R2 | Not started |
 | C.2.3 | RESEARCH | V | Not started |
@@ -1404,7 +1562,13 @@ leaf's tag. Later phases carry only a class until they open.
 | C.2.5 | RESEARCH | R2 | Not started |
 | C.2.7 | RESEARCH | R2 | Not started |
 | C.2.8 | RESEARCH | V | Not started |
-| C.3 | RESEARCH | I2 | Not started |
+| C.2.9 | RESEARCH | I1 | Not started |
+| C.2.10 | RESEARCH | R3 | Not started |
+| C.3.1 | RESEARCH | R3 | Not started; C.0's contract is its packet §8.2 |
+| C.3.2 | RESEARCH | I2 | Not started |
+| C.3.3 | RESEARCH | R2 | Not started |
+| C.3.4 | RESEARCH | V | Not started |
+| C.3.5 | RESEARCH | V | Not started |
 | C.4 | RESEARCH | I2 | Not started |
 | C.5 | RESEARCH | I2 | Not started |
 | C.6 | RESEARCH | I2 | Not started |
@@ -1414,7 +1578,8 @@ leaf's tag. Later phases carry only a class until they open.
 | C.7.5 | RESEARCH | I2 | Not started |
 | C.7.6 | RESEARCH | R2 | Not started |
 | C.7.7 | RESEARCH | V | Not started |
-| C.8 | RESEARCH | V | Not started |
+| C.8.1 | RESEARCH | R3 | Not started |
+| C.8.2 | RESEARCH | V | Not started |
 | C.9 | RESEARCH | V | Not started |
 | C.10.1 | RESEARCH | R2 | Not started |
 | C.10.2 | RESEARCH | V | Not started |
@@ -2170,7 +2335,7 @@ already repairing or a form it must choose anyway, and says so.
       the time there.
     - Cheapest test of the cause, before any game: the same pricing
       split by whether the capturing side's king is under attack.
-    - The figure belongs to this evaluation: re-read after C.3 rebuilds
+    - The figure belongs to this evaluation: re-read after C.4 rebuilds
       king safety, and again on the network.
   B.6.4 inputs (2026-11-12, `analysis/b64_engine_audit_2026-11-12.md`
   §5; each is the donor's behaviour, copied faithfully, with its
