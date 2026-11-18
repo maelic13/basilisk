@@ -432,8 +432,7 @@ Foreign opponents with a move-overhead option play their smallest safe value,
 10 ms. A default set for long controls costs tens of Elo at `3+0.03`:
 Stockfish 11's `Move Overhead` of 30 removed 23% of its opening horizon in
 Rarog's pool. Ratings measured before and after this rule are not comparable.
-Basilisk's current pool has no such option; the rule applies once an engine
-with one joins (E.2).
+B.11.5's HCE frontier field set it on every engine that has one (BAS-M18).
 
 `sprt.ps1` defaults: `-Mode gainer` is `[0, Elo1]` with **Elo1 = 5 by default,
 so a registered `[0,3]` gate passes `-Elo1 3`**. `-Mode simplify` is `[-5,0]`.
@@ -765,11 +764,6 @@ small book collapsed 200,000 games into 31,880 unique positions.
 ## Delivery
 
 `master` is the trunk; nothing else lives long.
-
-**Transition (maintainer decision 2026-10-09).** The `dev` line already open
-is the one exception: work continues on it until B.2 is done, then it lands
-once as a final squash PR and is deleted, and every later piece of work
-follows the steps below from `master`.
 
 1. **One branch per coherent piece of work.** A feature or experiment, or
    one tooling or documentation change, gets its own short-lived branch from

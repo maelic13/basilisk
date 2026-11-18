@@ -351,7 +351,9 @@ day: Chess960 (handoff item C7, TB-9, G.2's bullet).
   16,615,757 at B.12, 11,880,564 at B.14, 5,369,042 at B.3.5, 5,361,058 at
   B.3.6, 6,090,091 at B.4.2, 4,144,790 at B.4.7, 3,783,135 at B.5.5,
   4,278,307 at B.6.7, 4,247,965 at B.7.1, 4,688,537 at B.8.7 and
-  4,777,412 since B.9.5.
+  4,777,412 since B.9.5. Older still: 12,709,666 before 6.5.a, and
+  12,568,898 before the 15.0.a SEE repair. The legacy kernel, deleted at
+  B.8.1, read 23,696,970 at A.11.9.
 
 ## Release record — 1.11.0
 
