@@ -5296,6 +5296,16 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
       first NNUE release). Cut through A.8.6's tag-driven flow after A.10.4.
       The 4T direction check and the 4T pool read run sibling-free (PROCESS
       *Harness*, BAS-X41); BAS-M11's 4T baseline was played unpinned.
+      Prepared 2026-11-18. Launcher `tools/run_b114_gates.py`; all four dry
+      runs are accepted:
+      - the SPRT (BAS-S67);
+      - the `10+0.1` and 4T direction checks (BAS-M19);
+      - the 4T pool read (BAS-M20).
+      - The candidate is B.11.1's head binary. 1.10.2 was rebuilt from
+        `fac5064` with the same Clang 23.1.5.
+      - About 2.5 hours of maintainer-run games. The release packaging, which
+        makes each asset an archive with the GPL and Fathom notices, waits
+        for the maintainer's approval.
     - [ ] **B.11.5** `[V]` HCE frontier field
       Added 2026-11-17 (maintainer). After the 1.11.0 release, a rated
       Colosseum round robin of the strongest hand-crafted-evaluation engines

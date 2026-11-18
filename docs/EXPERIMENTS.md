@@ -139,6 +139,8 @@ X is good/bad”. If conditions or artifacts are unknown, say so.
 | [BAS-M16](experiments/BAS-M16.md) | B.11.1 1T pool gauntlet: the head against the four targets, Rarog 2.6.0 beside it. | COMPLETE: performance 3416.3 [3395.5, 3437.1]; Rarog 2.6.0 −35.7 ± 23.2; no Basilisk fault; conversion 10.6 / 0.6 per 1,000 |
 | [BAS-M17](experiments/BAS-M17.md) | B.11.1 head-to-head against Rarog 2.7.0, Rarog's latest release, beside BAS-M16's 2.6.0 match. | COMPLETE: −30.5 ± 25.5 (111-143-146); no Basilisk fault |
 | [BAS-M18](experiments/BAS-M18.md) | B.11.5 HCE frontier field: a rated 14-engine round robin, nine contenders and five anchors. | COMPLETE: head 3403, 9th of 14; Stockfish 16 HCE leads at 3605 (+193 head to head); no faults or time losses; the scale-transfer falsifier fired (±50) |
+| [BAS-M19](experiments/BAS-M19.md) | B.11.4 direction checks: the 1.11.0 candidate against 1.10.2 at `10+0.1` 1T and at 4T sibling-free. | REGISTERED, dry runs accepted |
+| [BAS-M20](experiments/BAS-M20.md) | B.11.4 4T pool read: the 1.11.0 candidate against the four targets, sibling-free. | REGISTERED, dry run accepted |
 
 ## 3. Search and selectivity
 
@@ -576,6 +578,7 @@ bench 967,078 as the unpatched oracle) and the official Stockfish 19
 - [BAS-S65](experiments/BAS-S65.md) — B.8's delivery gate: the cleanup and speed pass against B.7's head, `[0,3]` — CLOSED 2026-11-16: H1 accepted at 3,938 games, +19.1 ± 6.5 Elo (first-crossing), zero faults
 - [BAS-S66](experiments/BAS-S66.md) — B.9.5's repair gate: the lifecycle, protocol and verdict repairs, `[-5,5]` — CLOSED 2026-11-17: the cap, 8,000 games, −0.8 ± 3.4 Elo, LLR −1.22; the repairs stay, `bench 13` 4,777,412
 - [BAS-S63](experiments/BAS-S63.md) — B.7.1's repair gate: a return to the root counts as a repetition only when it recurs, `[-5,5]` — CLOSED 2026-11-14: the cap, 8,000 games, +1.9 ± 4.1 Elo, LLR +2.29; the repair stays, `bench 13` 4,247,965
+- [BAS-S67](experiments/BAS-S67.md) — B.11.4: the 1.11.0 candidate against 1.10.2, SPRT `[0,3]`, the release licence — REGISTERED, dry run accepted
 
 | ID | Title | Disposition |
 |---|---|---|
