@@ -6605,6 +6605,22 @@ has lost games in both engines (BAS-X02).
     extension and the root gate on the loaded tables' size or on
     `SyzygyProbeLimit`; whether `SyzygyProbeDepth` gates every probe
     where the donor gates only the largest loaded size.
+  - Added 2026-11-18 (maintainer): **Stockfish's probing code as an
+    option, not a plan.**
+    - Fathom stays the prober while it works. Fathom is the MIT-licensed
+      standalone form of Ronald de Man's code, from which Stockfish's
+      `tbprobe.cpp` also grew.
+    - It is replaced only if this leaf measures a reason:
+      - a probe cost that shows in NPS or time to depth with tables
+        loaded;
+      - or Fathom causing thread or integration defects again, after
+        B.9's repairs (its `exit()` on a failed map, non-ASCII paths, its
+        root buffer).
+    - The replacement would port `sf_16`'s or `sf_19`'s `tbprobe.cpp`
+      (GPL-3) onto Basilisk's board, under Stockfish's existing
+      attribution, with B.9.3's hard-verdict tests and the truth cohort as
+      its correctness bar.
+    - It removes only Fathom's MIT notice: the GPL text ships regardless.
 
 ## Phase E — Classical checkpoint and release
 
