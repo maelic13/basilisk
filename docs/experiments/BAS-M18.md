@@ -206,6 +206,9 @@
   - The head draws no more often than the leader. It loses five times as
     many such games (42 against 1), which is the evaluation's or the
     endgame's share for C.
+- Afterwards (maintainer, 2026-11-18):
+  - Booot 6.5 is removed from the field.
+  - Stockfish 16 HCE becomes the pre-NNUE target (PLAN §1).
 - Disposition: COMPLETE. It is §1's aim's first meter reading: about 200
   below Stockfish 16 HCE. PLAN B.11.5's fastchess replay of one pairing is
   still open.

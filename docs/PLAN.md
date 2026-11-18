@@ -45,6 +45,13 @@ stages (maintainer decision 2026-09-28: Rarog's targets):
      is Stockfish 16 with `Use NNUE=false`, the last Stockfish release
      with a classical evaluation, which no rating list carries; so the
      field is measured, not looked up.
+   - **The target before NNUE** (maintainer, 2026-11-18; the maintainer may
+     change it later): Stockfish 16 with `Use NNUE=false`. BAS-M18
+     measured it as the field's leader, at 3604 on the pool's scale.
+     - Basilisk is to get as close to it as possible, and to beat it if it
+       can.
+     - The meter is the gap to it, read head to head and in the field. At
+       B.11.1's head that gap is 202, and −193 head to head.
 2. **NNUE stage.** Train networks on Basilisk's own data only, then reach the
    **CCRL top 100**, and later the top 50.
 
@@ -5295,7 +5302,9 @@ tables, +18.3 ± 12.9 Elo (BAS-S26).
             stays out of the field (`22F12797…` is kept on disk).
           - 14.40 enters at 3449: 13.07's pool rating of 3356 plus the
             round robin's +92.6 gap.
-        - **Booot 6.5** (`12BF463B…`, CCRL 3310, estimated 3365).
+        - Booot 6.5 was in the first run, BAS-M18. The maintainer removed
+          it from the field (2026-11-18): it exposes no UCI options, so its
+          setup could not be checked, and it read 227 below its estimate.
         - **rofChade 2.3**, BMI2 build (`D68E2AC8…`, CCRL 3290, estimated
           3345).
         - **Koivisto 4.83**, its last hand-crafted version (`A42384F3…`;
