@@ -1237,3 +1237,161 @@ later read of the meter rebuilds the oracle on a new head.
    `oracle-b111-4d2742f` does.
 3. **Switch points.** Each family's contribution enters the sums through
    one call, so that C.2.9's mask can skip it. C.1 adds no mask.
+
+## 10. C.1 implementation record (2026-11-19)
+
+C.1 is `LOCAL_QUALIFIED`: proofs 1 to 5 pass (§8.1 and §9.4's sixth).
+The pooled NPS read, proof 6, is owed; the pools are built.
+
+### 10.1 Commits (branch `c0-c1`)
+
+| Commit | What |
+|---|---|
+| `914f06a` | The evaluation digest, `tests/eval_hash.cpp`: targets `eval_hash` (the engine library) and `eval_hash_trace` (the TEXEL build, which compiles `src/eval.cpp` as the tuner does) |
+| `4cd986e` | The split |
+| `e7794bf` | The cache-purity and lazy-checkpoint tests |
+| `7a20849` | `tools/diag/profile_regions.json` and its test |
+| `a1c24c6` | The untraced remainder recorded by source, in TEXEL_TRACE builds only |
+| `c0f0209` | Its report, `eval_hash_trace FILE --rest` |
+
+### 10.2 The layout
+
+`src/eval.cpp` is still the evaluator's only translation unit. It holds
+the parameters, `init_eval_tables`, the caches' lifetime, `reconstruct`,
+the tune-only loader and `evaluate_full`; the families are headers it alone
+includes, and none of the files that list the evaluator's sources changed
+(`CMakeLists.txt`'s engine library and tuner, `tools/oracle/build_oracle.ps1`).
+
+| Header | Holds | Entry into the sum |
+|---|---|---|
+| `eval_common.h` | The trace storage and macros, the phase constants, `forward_square`, `EvalScore`, `taper` | — |
+| `eval_material.h` | Material and tables, the phase, the imbalance and its cache | `material` |
+| `eval_pawns.h` | The pawn cache (`pawn_probe`), the passer terms inside and outside it, rook behind a passer, king proximity and path | `pawns_cheap`, `pawns_full` |
+| `eval_pieces.h` | Bishop pair, rook and knight terms, the small positional terms, the trapped bishop | `pieces_cheap`, `pieces_full` |
+| `eval_attacks.h` | `AttackInfo`, the producer, and `fill_attack_info`, its one sweep | — (inputs) |
+| `eval_mobility.h` | The mobility tables' accumulation (`mobility_term`, called by the sweep), the three space terms | `mobility_space` |
+| `eval_threats.h` | Pawn threats and the threats package | `threats` |
+| `eval_king.h` | The danger index and its table, shelter and storm | `king` |
+| `eval_endgame.h` | `apply_endgame`, the KPK table, the drives, the rook-ending scales, the tune-build census, the mate drive | `mate_drive`; `apply_endgame` on both paths |
+
+`evaluate_full` keeps the order of calls, the lazy checkpoint, the tempo,
+the taper and the lazy audit. The order of the sum and its three reads are
+documented where they are enforced, above the cheap block: the lazy
+checkpoint reads the cheap block alone, the mate drive every family without
+the tempo or itself, the final taper everything. The producer is one
+`AttackInfo` on the stack, filled once after the checkpoint; `slider_att`
+is still not cleared, as before. It holds what §8.1 lists and nothing more:
+`mob_area` per colour, a loop local before, is now kept beside the maps.
+
+### 10.3 Proofs
+
+The "before" readings were taken at `914f06a`, whose `src/` is the C.1
+starting head's (`496248d`); the "after" readings at `4cd986e`, and bench
+and the served digest again at `c0f0209`. The digests are FNV-1a over one
+warm evaluator reading `tools/results/c0-screen/dataset.csv` (254,486 rows,
+sha256 cfee73850fa863e0…) in file order, as a search would, so the pawn and
+imbalance caches are on the path.
+
+| Proof | Before | After |
+|---|---|---|
+| `bench 13` | 4,777,412 | 4,777,412 at every commit |
+| Served score, `evaluate()` | 45f5998c772e3145 | 45f5998c772e3145 |
+| Draw verdict, `draw_verdict()` | 77730f705f8fdfe4 | 77730f705f8fdfe4 |
+| Traced score (TEXEL build) | 9d24145c5bdec126 | 9d24145c5bdec126 |
+| Trace: the phase and every `TR_MG`/`TR_EG` slot | 3d5f7b895b663db2 | 3d5f7b895b663db2 |
+| Lazy audit (Diag build): served digest with the audit on | equal to the served | equal to the served |
+| Lazy audit counters: fires, sign flips, crossings, Σ\|Δ\|, max \|Δ\| | 20,597, 0, 476, 4,977,647, 746 | the same |
+| Tuner `--verify tools/texel/test_positions.csv` | 7 of 7 exact | 7 of 7 exact |
+
+- **Suites.** Release CTest 59 of 59 on the split. `test_eval` 126 of 126
+  with the new tests, the symmetry sweep included. The sanitizer (`debug`)
+  CTest 56 of 56 with the new tests, the two `strength`-labelled tests
+  left out there as they are slow under the sanitizers; both passed in the
+  release CTest.
+- **The oracle.** Rebuilt from `c0f0209` by `tools/oracle/build_oracle.ps1`:
+  `tools/test_engines/oracle-c1-c0f0209.exe`, sha256 B2AB5A9AC04C5B12…,
+  conformance 471,519 positions with 0 mismatches, `bench 16 1 10 default
+  depth` 875,469 nodes and `bench 16 1 8 default depth` 266,667 with `Use
+  Basilisk HCE=true`, both as `oracle-b111-4d2742f` reads.
+- **The digest is live.** With the pieces' cheap entry moved after the lazy
+  checkpoint, bench read 3,449,705 and the served digest e94597b3413b8ace.
+
+### 10.4 Tests added, and the breaks that fail them
+
+In `tests/test_eval.cpp`, over the bench and WAC positions, each also
+after four and eight seeded random plies:
+
+- **Pawn cache purity.** The same pawns with every other piece removed, or
+  with the kings moved, are read on a warm evaluator after the full
+  position and before it (4,044 pairs); each must read as on an empty
+  cache.
+- **Imbalance cache purity.** The file mirror (the same ten counts, every
+  piece moved, every bishop on the other colour) and the position less one
+  piece (a count changed), read the same way (4,044 pairs).
+- **The lazy checkpoint.** Positions the lazy path certainly serves (one
+  side keeps 1,500 cp of pieces, the other only king and pawns, never more
+  than two pawns apart). Every parameter group is perturbed in turn, by an
+  amount that differs by slot: each of the 50 cheap-block groups must move
+  a lazy-served score, and no other group may.
+
+| Deliberate break (never committed) | Result |
+|---|---|
+| The pawn cache adds a knight count | Pawn purity fails (34 of 4,044 stale) |
+| The imbalance cache adds the white bishops on dark squares | Imbalance purity fails (497 stale), the symmetry tests with it |
+| The pieces' cheap entry moved after the checkpoint | Lazy test fails: the ten bishop-pair, rook and knight groups moved nothing |
+| The tempo moved before the checkpoint | Lazy test fails: `Tempo` moved 1,557 lazy-served scores |
+
+Each cache test also fails on the other's break: both compare a warm
+evaluator with a cold one end to end.
+
+### 10.5 The untraced remainder by source (C-90)
+
+`rest` is the served score less the trace's reconstruction. The TEXEL build
+now records, beside the trace, each untraced addition to the running sum
+where it is made, the sum the final taper read, that taper, and
+`apply_endgame`'s result (`EvalRestTrace`, `g_rest`); `EvalTrace` is
+unchanged. `eval_hash_trace FILE --rest` decomposes `rest` exactly. On the
+dataset above:
+
+| Source | Positions nonzero | Σ\|value\| | max \|value\| |
+|---|---|---|---|
+| `rest`, the total | 223,813 | 222,586,045 | 28,779 |
+| The passer king-proximity product's rank half, tapered | 98,014 | 601,955 | 67 |
+| The mate drive, tapered | 18,928 | 876,167 | 71 |
+| The taper's rounding of the two | 51,159 | 52,030 | 2 |
+| `apply_endgame`: overrides and scales | 17,376 | 221,891,229 | 28,700 |
+| Rule-50 damping | 209,034 | 2,564,206 | 7,334 |
+| Unattributed: the running sum beyond the traced and frozen terms | 0 | 0 | 0 |
+
+The unattributed line is the check that every other term is traced: it
+reads zero on every position, and the tool exits 1 when it does not.
+Almost all of `rest` is `apply_endgame`'s known-win and bare-king overrides
+on 6.8% of the rows. The damping is not new to the fit: the tuner's
+`linear_delta_scale` already carries the rule-50 curve.
+
+### 10.6 Deviations from the handoff, and readings of it
+
+- **Two entries for two families.** Pawns and pieces have terms on both
+  sides of the lazy checkpoint, so each has a cheap entry and a full one;
+  a mask skips the family by skipping both. Moving a term across the
+  checkpoint to give them one entry is what C.1 must not do.
+- **Two additions moved inside the full block.** The mobility sum is
+  accumulated by the sweep into the producer and enters the sum with the
+  space terms; the trapped bishop enters with the pieces' full entry,
+  before space. Both stay between the lazy checkpoint and the mate drive,
+  so no read sees a different set of terms; the digests show the sums
+  unchanged.
+- **The pawn cache's member function** `Evaluator::eval_pawns` became the
+  free `pawn_probe`, which takes the cache and the probe counters by
+  reference, and the imbalance cache is passed into `material`. The
+  private declaration left `eval.h`; nothing public changed.
+- **The remainder report** lives in the digest instrument, not the tuner:
+  the tuner is untouched.
+- **The digest instrument** is new. Its traced twin is one more target that
+  names `src/eval.cpp`, the same single translation unit.
+
+### 10.7 Owed
+
+The pooled NPS read, in the no-regression form: pools
+`tools/test_engines/c1-base.pool.json` (four PGO builds of `496248d`) and
+`c1-head.pool.json` (four of the C.1 head), both reading 4,777,412.

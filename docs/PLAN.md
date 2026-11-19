@@ -819,6 +819,13 @@ has lost games in both engines (BAS-X02).
   modules are headers, because the oracle's build names that file; and
   the oracle rebuilt from the restructured commit must read the same
   nodes.
+  Implemented 2026-11-19, `LOCAL_QUALIFIED` (the packet's §10): bench
+  4,777,412, and the served, verdict, trace and lazy-audit digests over
+  254,486 positions unchanged; the suites, the sanitizer build and the
+  rebuilt oracle (266,667 nodes) pass; the cache-purity and
+  lazy-checkpoint tests fail on deliberate breaks. The untraced remainder
+  is reported by source and nothing is unattributed. Owed: the pooled
+  NPS read.
 - [ ] **C.2** Fit pipeline, corpus, labels and gate instruments
   Fit pipeline, corpus and label contract (archived 8.1–8.8), and since
   2026-11-11 the endgame instruments (C.2.7, which was C.7.1): PLAN §3
@@ -1554,7 +1561,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.1 | READY_FOR_IMPLEMENTATION | I1 | Handoff frozen by C.0 (`analysis/c0_evaluation_programme_2026-11-18.md` §8.1, amended by §9.4) |
+| C.1 | LOCAL_QUALIFIED | I1 | Proofs 1 to 5 pass (`analysis/c0_evaluation_programme_2026-11-18.md` §10); the pooled NPS read is owed |
 | C.2.1 | RESEARCH | I1 | Not started |
 | C.2.2 | RESEARCH | R2 | Not started |
 | C.2.3 | RESEARCH | V | Not started |
