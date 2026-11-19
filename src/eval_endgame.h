@@ -856,6 +856,7 @@ static EvalScore mate_drive(const Board& b, const EvalScore& sum, int phase) {
                               + std::max(3 - rank_of(lksq), rank_of(lksq) - 4);
                 int king_dist = KING_DIST[wksq][lksq];
                 eg += sign * (5 * lk_center + (14 - king_dist) * 4);
+                TR_REST_EG(MATE_DRIVE, sign * (5 * lk_center + (14 - king_dist) * 4));
                 // Frozen: not traced; captured in rest by the tuner.
                 // Bare-king positions do not reach this -- they are
                 // overridden by kxk_score in apply_endgame. What is left here

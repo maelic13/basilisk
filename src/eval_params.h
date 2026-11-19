@@ -557,4 +557,23 @@ extern thread_local EvalTrace g_trace;
 // Returns (mg_dot * phase + eg_dot * (24 - phase)) / 24.
 int reconstruct(const EvalTrace& tr, const EvalParams& w);
 
+// What `rest` is made of, recorded beside the trace so that it can be
+// reported by source. The untraced additions to the running sum, by the term
+// that made them; the sum the final taper read; that taper; and the score
+// apply_endgame returned from it. All in White's view. evaluate() writes it;
+// the caller zeroes it with g_trace.
+enum EvalRestSource : int {
+    REST_PASSER_RANK,  // the rank half of the passer king-proximity product
+    REST_MATE_DRIVE,   // the bare-material mate drive
+    REST_SOURCE_NB
+};
+struct EvalRestTrace {
+    int mg[REST_SOURCE_NB];
+    int eg[REST_SOURCE_NB];
+    int sum_mg, sum_eg;
+    int tapered;
+    int endgame;
+};
+extern thread_local EvalRestTrace g_rest;
+
 #endif // TEXEL_TRACE

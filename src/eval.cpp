@@ -193,9 +193,17 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
 
     // ---- Taper and return: read 3 -------------------------------------------
     int score = taper(sum, phase);
+#ifdef TEXEL_TRACE
+    g_rest.sum_mg  = sum.mg;
+    g_rest.sum_eg  = sum.eg;
+    g_rest.tapered = score;
+#endif
 
     // ---- Endgame scaling + knowledge ----------------------------------------
     score = apply_endgame(b, score, verdict);
+#ifdef TEXEL_TRACE
+    g_rest.endgame = score;
+#endif
 
     const int full_served = (b.turn() == WHITE) ? score : -score;
 #if !defined(TEXEL_TRACE) && (defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC))

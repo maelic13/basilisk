@@ -273,6 +273,7 @@ static EvalScore pawns_full(const Board& b, const AttackInfo& ai) {
             eg += sign * (opp_dist - own_dist) * (p.prox_base + rel_r);
             TR_EG(ProxBase, 0, sign * (opp_dist - own_dist));
             // rel_r * (opp_dist-own_dist) is a frozen data contribution captured in rest
+            TR_REST_EG(PASSER_RANK, sign * (opp_dist - own_dist) * rel_r);
 
             // Promotion-path safety (Step 3.4, seeded 0).
             Bitboard path = BB_PASSED_PAWN_MASK[us][psq] & BB_FILES[file_of(psq)];

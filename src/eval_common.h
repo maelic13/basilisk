@@ -55,12 +55,18 @@ static constexpr int PST_EG_BASE[7] = {
 #define TR_PST_EG(pt, sq, val) \
     (g_trace.eg[PST_EG_BASE[pt] + (sq)] += static_cast<int16_t>(val))
 
+// The untraced remainder by source (EvalRestTrace): an untraced endgame
+// addition, recorded where it enters the sum.
+thread_local EvalRestTrace g_rest{};
+#define TR_REST_EG(source, val) (g_rest.eg[REST_##source] += (val))
+
 #else // !TEXEL_TRACE
 #define TR_MG(group, idx, val)   (void)0
 #define TR_EG(group, idx, val)   (void)0
 #define TR_BOTH(group, idx, val) (void)0
 #define TR_PST_MG(pt, sq, val)   (void)0
 #define TR_PST_EG(pt, sq, val)   (void)0
+#define TR_REST_EG(source, val)  (void)0
 #endif // TEXEL_TRACE
 
 // Phase weights (frozen; not in EvalParams)
