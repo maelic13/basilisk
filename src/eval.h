@@ -106,11 +106,6 @@ private:
     int imbalance_generation_ = 0;
 
     int evaluate_full(const Board& b, bool& verdict, bool query);
-
-    void eval_pawns(const Board& b,
-                    int& mg, int& eg,
-                    Bitboard passed[NCOLORS],
-                    Bitboard attacks[NCOLORS]);
 };
 
 // Draw-scale factor for opposite-coloured-bishop positions. Eases
