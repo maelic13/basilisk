@@ -468,6 +468,12 @@ target_compile_definitions(endgame_verdicts PRIVATE
     BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
 )
 
+# A digest of every served score over a position file (an instrument: the
+# proof that an evaluation restructure moved no score). Its traced twin is
+# eval_hash_trace in the TEXEL build.
+add_executable(eval_hash tests/eval_hash.cpp)
+target_link_libraries(eval_hash PRIVATE basilisk_engine)
+
 # Bishops on one colour against a bare king are a dead draw
 add_executable(test_same_colour_bishops tests/test_same_colour_bishops.cpp)
 target_link_libraries(test_same_colour_bishops PRIVATE basilisk_engine)
@@ -721,6 +727,18 @@ if(TEXEL)
         target_compile_options(basilisk-texel PRIVATE
             -mavx2 -msse4.1 -mpopcnt -mbmi -mbmi2 -mlzcnt)
     endif()
+    # The evaluation digest over the traced evaluator, the trace slots included.
+    add_executable(eval_hash_trace
+        tests/eval_hash.cpp
+        src/eval.cpp
+    )
+    target_link_libraries(eval_hash_trace PRIVATE basilisk_board)
+    target_compile_definitions(eval_hash_trace PRIVATE TEXEL_TRACE BASILISK_TUNE)
+    if(USE_PEXT)
+        target_compile_definitions(eval_hash_trace PRIVATE USE_PEXT)
+        target_compile_options(eval_hash_trace PRIVATE
+            -mavx2 -msse4.1 -mpopcnt -mbmi -mbmi2 -mlzcnt)
+    endif()
     message(STATUS "TEXEL build: basilisk-texel enabled (TEXEL_TRACE + BASILISK_TUNE defined)")
 endif()
 
@@ -738,7 +756,7 @@ set(_ALL_TARGETS
     basilisk_board basilisk_engine basilisk_launcher basilisk_version
     basilisk board_performance_test board_micro_bench board_replay
     test_board test_board_v2 test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_allocation_guard test_uci_protocol test_cpu_features
-    test_endgames test_tb_root_rank test_native_thread endgame_verdicts test_same_colour_bishops test_wac test_invariants test_magics test_threats
+    test_endgames test_tb_root_rank test_native_thread endgame_verdicts eval_hash test_same_colour_bishops test_wac test_invariants test_magics test_threats
     test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch test_b5_root
     basilisk_engine_child_log test_search_path test_kernel_pins
 )
@@ -951,7 +969,7 @@ if(_lto_ok)
     # basilisk-texel links basilisk_board, whose objects are LTO bitcode
     # here, so it must link with LTO as well.
     if(TEXEL)
-        set_property(TARGET basilisk-texel PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+        set_property(TARGET basilisk-texel eval_hash_trace PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
     endif()
 else()
     message(STATUS "LTO not supported: ${_lto_msg}")
