@@ -1395,3 +1395,43 @@ on 6.8% of the rows. The damping is not new to the fit: the tuner's
 The pooled NPS read, in the no-regression form: pools
 `tools/test_engines/c1-base.pool.json` (four PGO builds of `496248d`) and
 `c1-head.pool.json` (four of the C.1 head), both reading 4,777,412.
+
+### 10.8 The pooled NPS read fails (2026-11-19)
+
+Read on an idle host with `tools/nps_read.ps1 -NoRegression`, archive
+`tools/results/nps-c1`, at CPU 30. No cycle was disturbed; host load stayed
+at 2.2% or less.
+
+| | c1-base (`496248d`) | c1-head (`c0f0209`) |
+|---|---|---|
+| Mean of build medians | 2.5095M | 2.4916M |
+| Build medians | 2.512M, 2.506M, 2.510M, 2.510M | 2.492M, 2.487M, 2.491M, 2.496M |
+
+- Step 1 (two cycles): −0.72%, 95% interval [−0.92%, −0.53%], EXTEND.
+- Step 2 (six cycles): −0.71%, 95% interval [−0.94%, −0.48%], **FAIL**:
+  the estimate is at −0.5% or below with the upper bound under 0. Every
+  head build is slower than every base build.
+
+The split is not yet behaviour-neutral in speed, so C.1 does not close.
+The register row returns to `IMPLEMENTED`.
+
+**What is known about the loss.** In both PGO builds every family function
+is inlined into `Evaluator::evaluate_full`; only it and `apply_endgame`
+remain as symbols. So the cost is code generation inside the one function,
+not call overhead. The head's `evaluate_full` spans 20,864 bytes against
+the base's 20,416. Candidates, not yet tested, are differences in the C.1
+code that the compiler sees and the old body did not have:
+
+1. `pawn_probe` copies the `PawnEntry` out of the table into a stack
+   local, where the old body read the table entry in place.
+2. The sweep accumulates mobility through memory, in `ai.mobility`,
+   instead of a register-held local. Mobility now enters the sum later,
+   with space (§10.6).
+3. `AttackInfo` is filled through a reference and read back field by field
+   by each family, so values that the old body kept in registers across
+   the block may now be stored and reloaded.
+
+**Repair contract.** This is implementation work: no term, value, order of
+reads or semantics changes. Each candidate is checked by bench 4,777,412
+and the served, verdict and trace digests. Only then is a fresh pair of
+pools built and read once on an idle host.

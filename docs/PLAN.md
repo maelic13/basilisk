@@ -824,8 +824,10 @@ has lost games in both engines (BAS-X02).
   254,486 positions unchanged; the suites, the sanitizer build and the
   rebuilt oracle (266,667 nodes) pass; the cache-purity and
   lazy-checkpoint tests fail on deliberate breaks. The untraced remainder
-  is reported by source and nothing is unattributed. Owed: the pooled
-  NPS read.
+  is reported by source and nothing is unattributed. The pooled NPS
+  read fails (2026-11-19, the packet's §10.8): −0.71%, 95% interval
+  [−0.94%, −0.48%] over six undisturbed cycles. The loss is found and
+  repaired, bit-exact, before C.1 closes.
 - [ ] **C.2** Fit pipeline, corpus, labels and gate instruments
   Fit pipeline, corpus and label contract (archived 8.1–8.8), and since
   2026-11-11 the endgame instruments (C.2.7, which was C.7.1): PLAN §3
@@ -1561,7 +1563,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.1 | LOCAL_QUALIFIED | I1 | Proofs 1 to 5 pass (`analysis/c0_evaluation_programme_2026-11-18.md` §10); the pooled NPS read is owed |
+| C.1 | IMPLEMENTED | I1 | Proofs 1 to 5 pass; the pooled NPS read fails at −0.71% [−0.94%, −0.48%] (`analysis/c0_evaluation_programme_2026-11-18.md` §10.8); the loss is repaired before it closes |
 | C.2.1 | RESEARCH | I1 | Not started |
 | C.2.2 | RESEARCH | R2 | Not started |
 | C.2.3 | RESEARCH | V | Not started |
