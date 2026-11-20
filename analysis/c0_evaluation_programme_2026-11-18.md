@@ -1435,3 +1435,42 @@ code that the compiler sees and the old body did not have:
 reads or semantics changes. Each candidate is checked by bench 4,777,412
 and the served, verdict and trace digests. Only then is a fresh pair of
 pools built and read once on an idle host.
+
+### 10.9 Two repairs fail (2026-11-20)
+
+Both candidates were bit-exact: bench 4,777,412, and the served, verdict,
+trace, lazy-audit and remainder outputs over 254,486 positions byte-equal
+to §10.3's. `test_eval` passed 126 of 126. Both were read against the same
+`c1-base` pool in the no-regression form, and both are reverted.
+
+| Candidate | Commit, revert | Read (step 1, two cycles) |
+|---|---|---|
+| Each family adds into `sum` in place; mobility and space first | `2dc7b4e`, `390db5f` | −2.73% [−2.96%, −2.49%], FAIL (`tools/results/nps-c1-inplace`) |
+| The sweep builds the maps in separate local arrays and copies them into `AttackInfo`; `slider_att` held apart | `2468c91`, `9cc7791` | −1.61% [−1.81%, −1.40%], FAIL (`tools/results/nps-c1-locals`) |
+
+**What did not explain the loss.**
+
+- Candidate 1 tested the extra partial totals held beside the sum.
+- Candidate 2 tested the aliasing that one struct with run-time colour
+  indices creates. The compiler's intermediate code confirms that
+  aliasing: the head keeps the whole `AttackInfo` in memory where the base
+  had separate arrays. Its PGO sweep loops also match the base's
+  instruction for instruction: bishop 36 instructions with 4 stores, queen
+  38 with 3, against the head's 39 with 6 and 42 with 5.
+
+Neither repair helped, so these were not the cost.
+
+**What did track it.** Profiles of 9,850 samples each
+(`tools/results/profile-c1-{base,head,inplace}`) are too short to resolve a
+0.7% loss inside the evaluation. The size of the PGO build's
+`Evaluator::evaluate_full` ordered all three reads:
+
+| Build | Instructions | Over the base | Read |
+|---|---|---|---|
+| base `496248d` | 4,647 | 0 | — |
+| C.1 head | 4,742 | +95 | −0.71% |
+| candidate 2 | 4,919 | +272 | −1.61% |
+| candidate 1 | 5,180 | +533 | −2.73% |
+
+The source is back at the C.1 head. A next candidate is screened on this
+size, which is free, before it is read.
