@@ -7,14 +7,13 @@
 
 #include "eval_attacks.h"
 
-static void threats(const Board& b, const AttackInfo& ai, EvalScore& sum) {
+static EvalScore threats(const Board& b, const AttackInfo& ai) {
     const EvalParams& p = g_eval_params;
     const auto& pawn_atk    = ai.pawn_atk;
     const auto& attacked_by = ai.attacked_by;
     const auto& attacked    = ai.attacked;
     const auto& attacked2   = ai.attacked2;
-    int& mg = sum.mg;
-    int& eg = sum.eg;
+    int mg = 0, eg = 0;
 
     // ---- Pawn threats to enemy pieces ----
     for (int c = 0; c < NCOLORS; c++) {
@@ -118,4 +117,5 @@ static void threats(const Board& b, const AttackInfo& ai, EvalScore& sum) {
         mg += sign * push_cnt * p.threat_push_mg; TR_MG(ThreatPushMg, 0, sign * push_cnt);
         eg += sign * push_cnt * p.threat_push_eg; TR_EG(ThreatPushEg, 0, sign * push_cnt);
     }
+    return {mg, eg};
 }

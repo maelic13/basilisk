@@ -122,9 +122,7 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
     EvalScore sum;
 
     // ---- The order of the sum, and its three reads -------------------------
-    // Every family's contribution enters `sum` through one call below, which
-    // adds its terms into `sum` in place: one running pair of totals, as the
-    // single body had, rather than a partial per family held beside it. The
+    // Every family's contribution enters `sum` through one call below. The
     // running sum is read three times, and each read must see exactly the
     // terms before it:
     //   1. the lazy checkpoint reads the cheap block alone (material and
@@ -136,11 +134,11 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
     // it touches; test_eval's lazy-checkpoint test fails when one is.
 
     // ---- The cheap block ----------------------------------------------------
-    material(b, imbalance_table_, imbalance_generation_, g_eval_tables_generation, phase, sum);
+    sum += material(b, imbalance_table_, imbalance_generation_, g_eval_tables_generation, phase);
     PawnEntry pawns;
     pawn_probe(b, pawn_table_, pawn_probes, pawn_hits, pawns);
-    pawns_cheap(b, pawns, sum);
-    pieces_cheap(b, sum);
+    sum += pawns_cheap(b, pawns);
+    sum += pieces_cheap(b);
 
     // ---- Lazy eval checkpoint: read 1 ----------------------------------------
     // If the cheap block's tapered score is decisive, skip the attack-map
@@ -177,13 +175,11 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
     // ---- The full block -------------------------------------------------------
     AttackInfo ai;
     fill_attack_info(b, pawns, ai);
-    // Mobility and space first: the sweep's mobility sum then dies here
-    // instead of living across the other families.
-    mobility_space(b, ai.mobility, ai.pawn_atk, sum);
-    threats(b, ai, sum);
-    king(b, ai, sum);
-    pawns_full(b, ai, sum);
-    pieces_full(b, ai, phase, sum);
+    sum += threats(b, ai);
+    sum += king(b, ai);
+    sum += pawns_full(b, ai);
+    sum += pieces_full(b, ai, phase);
+    sum += mobility_space(b, ai.mobility, ai.pawn_atk);
 
     // ---- Endgame mate drive: read 2 -------------------------------------------
     sum += mate_drive(b, sum, phase);

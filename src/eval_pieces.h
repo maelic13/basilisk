@@ -10,10 +10,9 @@
 #include "eval_endgame.h"  // EG_DARK_SQUARES
 
 // The pieces family's cheap entry, before the lazy checkpoint.
-static void pieces_cheap(const Board& b, EvalScore& sum) {
+static EvalScore pieces_cheap(const Board& b) {
     const EvalParams& p = g_eval_params;
-    int& mg = sum.mg;
-    int& eg = sum.eg;
+    int mg = 0, eg = 0;
 
     // ---- Bishop pair ----
     for (int c = 0; c < NCOLORS; c++) {
@@ -72,17 +71,17 @@ static void pieces_cheap(const Board& b, EvalScore& sum) {
             }
         }
     }
+    return {mg, eg};
 }
 
 // The pieces family's full entry, after the lazy checkpoint: the terms that
 // read the attack maps.
-static void pieces_full(const Board& b, const AttackInfo& ai, int phase, EvalScore& sum) {
+static EvalScore pieces_full(const Board& b, const AttackInfo& ai, int phase) {
     const EvalParams& p = g_eval_params;
     const auto& pawn_atk   = ai.pawn_atk;
     const auto& king_zone  = ai.king_zone;
     const auto& slider_att = ai.slider_att;
-    int& mg = sum.mg;
-    int& eg = sum.eg;
+    int mg = 0, eg = 0;
 
     // ---- Small positional terms (Step 3.7) ---------------------------------
     // Uses the Step-3.0 attack maps + king_zone; traced for the fit.
@@ -212,4 +211,5 @@ static void pieces_full(const Board& b, const AttackInfo& ai, int phase, EvalSco
             }
         }
     }
+    return {mg, eg};
 }

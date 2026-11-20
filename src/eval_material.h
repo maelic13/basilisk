@@ -37,13 +37,12 @@ static int material_imbalance(const int ic[NCOLORS][6], const EvalParams& p) {
 // The material family: also sets the phase every later read tapers with.
 // The imbalance cache is the caller's: a function of the ten piece counts
 // and of the parameters' generation alone.
-static void material(const Board& b,
-                     [[maybe_unused]] ImbalanceEntry (&imbalance_table)[1 << IMBALANCE_TABLE_BITS],
-                     [[maybe_unused]] int& imbalance_generation,
-                     [[maybe_unused]] int tables_generation, int& phase, EvalScore& sum) {
+static EvalScore material(const Board& b,
+                          [[maybe_unused]] ImbalanceEntry (&imbalance_table)[1 << IMBALANCE_TABLE_BITS],
+                          [[maybe_unused]] int& imbalance_generation,
+                          [[maybe_unused]] int tables_generation, int& phase) {
     const EvalParams& p = g_eval_params;
-    int& mg = sum.mg;
-    int& eg = sum.eg;
+    int mg = 0, eg = 0;
     phase = 0;
 
     // ---- Material and PST ----
@@ -117,4 +116,5 @@ static void material(const Board& b,
         mg += imbalance;
         eg += imbalance;
     }
+    return {mg, eg};
 }

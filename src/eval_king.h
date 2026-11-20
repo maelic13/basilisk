@@ -7,7 +7,7 @@
 
 #include "eval_attacks.h"
 
-static void king(const Board& b, const AttackInfo& ai, EvalScore& sum) {
+static EvalScore king(const Board& b, const AttackInfo& ai) {
     const EvalParams& p = g_eval_params;
     const auto& attacked_by       = ai.attacked_by;
     const auto& attacked          = ai.attacked;
@@ -15,7 +15,7 @@ static void king(const Board& b, const AttackInfo& ai, EvalScore& sum) {
     const auto& blockers_for_king = ai.blockers_for_king;
     const auto& attack_units      = ai.attack_units;
     const auto& n_attackers       = ai.n_attackers;
-    int& mg = sum.mg;  // every king term is middlegame-only
+    int mg = 0, eg = 0;
 
     // ---- King safety v2 (finalization) -------------------------------------
     // safety_table[units] is a one-hot lookup. Piece-attack pressure
@@ -137,4 +137,5 @@ static void king(const Board& b, const AttackInfo& ai, EvalScore& sum) {
             }
         }
     }
+    return {mg, eg};
 }

@@ -174,13 +174,10 @@ static void pawn_probe(const Board& b,
 
 // The pawns family's cheap entry, before the lazy checkpoint: the cached
 // structure score and the passer terms that read non-pawn occupancy.
-static void pawns_cheap(const Board& b, const PawnEntry& pawns, EvalScore& sum) {
+static EvalScore pawns_cheap(const Board& b, const PawnEntry& pawns) {
     const EvalParams& p = g_eval_params;
     const auto& passed = pawns.passed;
-    int& mg = sum.mg;
-    int& eg = sum.eg;
-    mg += pawns.mg;
-    eg += pawns.eg;
+    int mg = pawns.mg, eg = pawns.eg;
 
     // ---- Dynamic passed-pawn terms (non-pawn occupancy; outside pawn hash) --
     for (int c = 0; c < NCOLORS; c++) {
@@ -203,16 +200,16 @@ static void pawns_cheap(const Board& b, const PawnEntry& pawns, EvalScore& sum) 
             }
         }
     }
+    return {mg, eg};
 }
 
 // The pawns family's full entry, after the lazy checkpoint: the terms that
 // read the attack maps.
-static void pawns_full(const Board& b, const AttackInfo& ai, EvalScore& sum) {
+static EvalScore pawns_full(const Board& b, const AttackInfo& ai) {
     const EvalParams& p = g_eval_params;
     const auto& passed   = ai.passed;
     const auto& attacked = ai.attacked;
-    int& mg = sum.mg;
-    int& eg = sum.eg;
+    int mg = 0, eg = 0;
 
     // ---- Rook behind passed pawn -------------------------------------------
     // Two independent passes: the enemy-rook penalty must not nest inside the
@@ -298,4 +295,5 @@ static void pawns_full(const Board& b, const AttackInfo& ai, EvalScore& sum) {
 
         }
     }
+    return {mg, eg};
 }
