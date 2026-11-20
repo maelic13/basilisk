@@ -173,9 +173,7 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
 #endif
 
     // ---- The full block -------------------------------------------------------
-    SliderAttacks slider_att;
     AttackInfo ai;
-    ai.slider_att = &slider_att;
     fill_attack_info(b, pawns, ai);
     sum += threats(b, ai);
     sum += king(b, ai);

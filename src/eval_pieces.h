@@ -80,7 +80,7 @@ static EvalScore pieces_full(const Board& b, const AttackInfo& ai, int phase) {
     const EvalParams& p = g_eval_params;
     const auto& pawn_atk   = ai.pawn_atk;
     const auto& king_zone  = ai.king_zone;
-    const SliderAttacks& slider_att = *ai.slider_att;
+    const auto& slider_att = ai.slider_att;
     int mg = 0, eg = 0;
 
     // ---- Small positional terms (Step 3.7) ---------------------------------

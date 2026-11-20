@@ -9,19 +9,9 @@
 
 #include "eval_mobility.h"
 
-// The sweep's per-square slider attacks: written for every bishop and rook
-// square before anything reads it, and not cleared. It is kept apart from
-// AttackInfo because it is indexed by a runtime square: inside the struct, that
-// one variable index keeps the compiler from holding any of the struct's other
-// fields in registers.
-struct SliderAttacks {
-    Bitboard att[SQUARE_NB];
-    Bitboard& operator[](int sq) { return att[sq]; }
-    const Bitboard& operator[](int sq) const { return att[sq]; }
-};
-
 // Filled by fill_attack_info() after the lazy checkpoint and only read after
-// it. Lives on the evaluator's stack, as does the SliderAttacks it points to.
+// it. Lives on the evaluator's stack; slider_att is written by the sweep for
+// every bishop and rook square before anything reads it, and is not cleared.
 struct AttackInfo {
     Bitboard attacked_by[NCOLORS][PIECE_TYPE_NB];  // attacks of colour c's pieces of type pt
     Bitboard attacked[NCOLORS];                    // union of attacked_by[c]
@@ -29,7 +19,7 @@ struct AttackInfo {
     Bitboard king_zone[NCOLORS];                   // king ring, king square, a rank forward
     Bitboard blockers_for_king[NCOLORS];           // own pieces pinned to own king
     Bitboard mob_area[NCOLORS];                    // the mobility area
-    SliderAttacks* slider_att;                     // each bishop's and rook's attacks
+    Bitboard slider_att[SQUARE_NB];                // each bishop's and rook's attacks
     Bitboard pawn_atk[NCOLORS];                    // from the pawn cache
     Bitboard passed[NCOLORS];                      // from the pawn cache
     int      attack_units[NCOLORS];                // pressure on colour c's king
@@ -48,22 +38,21 @@ static void fill_attack_info(const Board& b, const PawnEntry& pawn_entry, Attack
     //   attacked_by[c][pt] : union of attacks by all of color c's pieces of pt
     //   attacked[c]        : full union == is_attacked_by(sq, all_occ, c) as bb
     //   attacked2[c]       : squares attacked 2+ times by color c
-    //
-    // The sweep builds the maps in separate local arrays and hands them to
-    // `ai` once, at the end. It indexes them by colour at run time, and a
-    // store through a run-time index into one struct may, for the compiler,
-    // land in any of its fields: every such store in the sweep would reload
-    // the king zones, the mobility area and the mobility sum. Separate arrays
-    // cannot alias one another, as in the single body this was split from.
-    Bitboard attacked_by[NCOLORS][PIECE_TYPE_NB] = {};
-    Bitboard attacked[NCOLORS]  = {0, 0};
-    Bitboard attacked2[NCOLORS] = {0, 0};
-    Bitboard king_zone[NCOLORS];
-    int attack_units[NCOLORS] = {0, 0};
-    int n_attackers[NCOLORS]  = {0, 0};
-    const Bitboard pawn_atk[NCOLORS] = {pawn_entry.attacks[WHITE], pawn_entry.attacks[BLACK]};
-    Bitboard mob_area[NCOLORS];
-    EvalScore mobility;
+    auto& attacked_by  = ai.attacked_by;
+    auto& attacked     = ai.attacked;
+    auto& attacked2    = ai.attacked2;
+    auto& king_zone    = ai.king_zone;
+    auto& attack_units = ai.attack_units;
+    auto& n_attackers  = ai.n_attackers;
+    const auto& pawn_atk = ai.pawn_atk;
+    std::memset(attacked_by, 0, sizeof(attacked_by));
+    for (int c = 0; c < NCOLORS; c++) {
+        attacked[c] = attacked2[c] = 0;
+        attack_units[c] = n_attackers[c] = 0;
+        ai.passed[c]   = pawn_entry.passed[c];
+        ai.pawn_atk[c] = pawn_entry.attacks[c];
+    }
+    ai.mobility = {};
 
     for (int c = 0; c < NCOLORS; c++) {
         Square ksq = b.king_square(c);
@@ -95,7 +84,7 @@ static void fill_attack_info(const Board& b, const PawnEntry& pawn_entry, Attack
     // excludes pinned pieces. Also consumed by king safety v2 (3.2). For each
     // king, an enemy slider aligned with it whose ray holds exactly one piece
     // pins that piece (a pinned defender does not really defend / move freely).
-    Bitboard blockers_for_king[NCOLORS] = {0, 0};
+    auto& blockers_for_king = ai.blockers_for_king;
     for (int c = 0; c < NCOLORS; c++) {
         Color us = Color(c), them = ~us;
         Square ksq = b.king_square(us);
@@ -119,7 +108,7 @@ static void fill_attack_info(const Board& b, const PawnEntry& pawn_entry, Attack
     // BISHOP/ROOK squares are stored (the only pieces those tests iterate);
     // every such square is written by the sweep before any test reads it, so
     // no zero-init is needed (and none is paid per eval).
-    SliderAttacks& slider_att = *ai.slider_att;
+    auto& slider_att = ai.slider_att;
 
     // Single knight/slider sweep: builds the maps and accumulates both mobility
     // (for the moving color) and king-attacker pressure (against the enemy king
@@ -139,9 +128,9 @@ static void fill_attack_info(const Board& b, const PawnEntry& pawn_entry, Attack
         Bitboard ahead = (c == WHITE) ? shift<SOUTH>(b.all_pieces())
                                       : shift<NORTH>(b.all_pieces());
         Bitboard blocked_or_low = own_pawns & (ahead | low_ranks);
-        mob_area[c] = ~(blocked_or_low | b.piece_bb(c, KING) | b.piece_bb(c, QUEEN)
-                        | pawn_atk[them] | blockers_for_king[c]);
-        const Bitboard area = mob_area[c];
+        ai.mob_area[c] = ~(blocked_or_low | b.piece_bb(c, KING) | b.piece_bb(c, QUEEN)
+                           | pawn_atk[them] | blockers_for_king[c]);
+        const Bitboard mob_area = ai.mob_area[c];
         // Hoist the two per-piece switch(pt) out of the mobility
         // inner loop. pt is constant across a whole `while (pcs)` run, so both
         // switches are loop-invariant. A template lambda instantiated once per
@@ -168,7 +157,7 @@ static void fill_attack_info(const Board& b, const PawnEntry& pawn_entry, Attack
                     slider_att[sq] = att;
 
                 // Per-count mobility over the mobility area.
-                mobility_term<PT>(p, popcount(att & area), sign, mobility);
+                mobility_term<PT>(p, popcount(att & mob_area), sign, ai.mobility);
 
                 Bitboard zone_hits = att & king_zone[them];
                 if (zone_hits) {
@@ -182,18 +171,4 @@ static void fill_attack_info(const Board& b, const PawnEntry& pawn_entry, Attack
         sweep.template operator()<ROOK>();
         sweep.template operator()<QUEEN>();
     }
-
-    std::memcpy(ai.attacked_by, attacked_by, sizeof(attacked_by));
-    for (int c = 0; c < NCOLORS; c++) {
-        ai.attacked[c]          = attacked[c];
-        ai.attacked2[c]         = attacked2[c];
-        ai.king_zone[c]         = king_zone[c];
-        ai.blockers_for_king[c] = blockers_for_king[c];
-        ai.mob_area[c]          = mob_area[c];
-        ai.pawn_atk[c]          = pawn_atk[c];
-        ai.passed[c]            = pawn_entry.passed[c];
-        ai.attack_units[c]      = attack_units[c];
-        ai.n_attackers[c]       = n_attackers[c];
-    }
-    ai.mobility = mobility;
 }
