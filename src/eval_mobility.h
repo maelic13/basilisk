@@ -31,10 +31,13 @@ static inline void mobility_term(const EvalParams& p, int mob, int sign, EvalSco
 }
 
 // The mobility and space family: the sweep's mobility sum and the space terms.
-static EvalScore mobility_space(const Board& b, const EvalScore& mobility,
-                                const Bitboard (&pawn_atk)[NCOLORS]) {
+static void mobility_space(const Board& b, const EvalScore& mobility,
+                           const Bitboard (&pawn_atk)[NCOLORS], EvalScore& sum) {
     const EvalParams& p = g_eval_params;
-    int mg = mobility.mg, eg = mobility.eg;
+    int& mg = sum.mg;
+    int& eg = sum.eg;
+    mg += mobility.mg;
+    eg += mobility.eg;
 
     // ---- Space evaluation (center control in middlegame) -------------------
     {
@@ -70,5 +73,4 @@ static EvalScore mobility_space(const Board& b, const EvalScore& mobility,
         mg += blocked_w * p.space_blocked_mg;
         TR_MG(SpaceBlockedMg, 0, blocked_w);
     }
-    return {mg, eg};
 }
