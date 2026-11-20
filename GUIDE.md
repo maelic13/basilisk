@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.1** `[I1]` Evaluation restructure, behaviour-neutral — Claude Sonnet
+**Next step:** **C.2.1** `[I1]` Fit-tooling contract and Texel handbook — Claude Sonnet
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -59,7 +59,7 @@ the six-stage gating shape), are in
 ### Phase C — Evaluation programme (search frozen)
 
 - [x] **C.0** `[R3]` Evaluation programme investigation
-- [ ] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
+- [x] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
 - [ ] **C.2** Fit pipeline, corpus, labels and gate instruments
     - [ ] **C.2.1** `[I1]` Fit-tooling contract and Texel handbook
     - [ ] **C.2.2** `[R2]` Corpus design

@@ -801,10 +801,11 @@ has lost games in both engines (BAS-X02).
     Amendment 1): the mobility and space cluster is C.3 and king safety
     C.4, C.2.9 holds the family instruments, C.2.10 decides the order
     from games, and C.8.1 investigates the residual.
-- [ ] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
+- [x] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
   `src/eval.cpp` split into family modules, one attack-map and mobility-area
   producer, `EvalTrace` unchanged in meaning, lazy-path semantics preserved;
-  exact fingerprint; pooled NPS within noise.
+  exact fingerprint; pooled NPS within noise, amended on 2026-11-20 to a
+  measured and accepted cost (below).
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Split the untraced `rest` bucket by source (C-90); a corpus-wide score
@@ -826,8 +827,18 @@ has lost games in both engines (BAS-X02).
   lazy-checkpoint tests fail on deliberate breaks. The untraced remainder
   is reported by source and nothing is unattributed. The pooled NPS
   read fails (2026-11-19, the packet's §10.8): −0.71%, 95% interval
-  [−0.94%, −0.48%] over six undisturbed cycles. The loss is found and
-  repaired, bit-exact, before C.1 closes.
+  [−0.94%, −0.48%] over six undisturbed cycles. Two bit-exact repairs read
+  worse, −2.73% and −1.61%, and are reverted (the packet's §10.9).
+  Closed 2026-11-20 (maintainer) with the cost accepted, the packet's
+  §10.10:
+  - C.1 is the ground for what follows: C.2.9's matched ablation switches
+    its modules, each cluster edits one module and adds its inputs to the
+    producer, and its digest and tests prove each later change.
+  - Under 1% NPS is under about 1 Elo. The clusters rewrite this code, and
+    its code generation swung by up to 2.7% under the two repairs.
+  - The later clusters gate against the post-C.1 head, so the cost is paid
+    once and hides no later read.
+  - C.12 recovers it against the pre-C.1 base.
 - [ ] **C.2** Fit pipeline, corpus, labels and gate instruments
   Fit pipeline, corpus and label contract (archived 8.1–8.8), and since
   2026-11-11 the endgame instruments (C.2.7, which was C.7.1): PLAN §3
@@ -1539,6 +1550,13 @@ has lost games in both engines (BAS-X02).
   - The lazy-eval thresholds are C.10's, audited before the freeze
     (2026-11-05); this leaf keeps every score identical.
   - Gate with interleaved pooled NPS and a natural-termination SPRT.
+  - C.1's accepted cost is recovered here (2026-11-20). The C.1 restructure
+    read −0.71% [−0.94%, −0.48%] against the pre-C.1 base `496248d`, so
+    the pools `tools/test_engines/c1-base.pool.json` and `c1-head` stay as
+    its reference (`analysis/c0_evaluation_programme_2026-11-18.md` §10.10).
+    The cost's mechanism is not known. It tracked the PGO build's
+    `Evaluator::evaluate_full` instruction count: +95 over the base at
+    −0.71%, +272 at −1.61%, +533 at −2.73%. Watch that count.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Played and full scores dumped (C-89); cache purity (C-105); a runtime lazy
@@ -1563,7 +1581,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.1 | IMPLEMENTED | I1 | Proofs 1 to 5 pass; the pooled NPS read fails at −0.71% [−0.94%, −0.48%] (`analysis/c0_evaluation_programme_2026-11-18.md` §10.8); the loss is repaired before it closes |
 | C.2.1 | RESEARCH | I1 | Not started |
 | C.2.2 | RESEARCH | R2 | Not started |
 | C.2.3 | RESEARCH | V | Not started |

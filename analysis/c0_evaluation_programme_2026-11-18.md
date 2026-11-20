@@ -1474,3 +1474,28 @@ Neither repair helped, so these were not the cost.
 
 The source is back at the C.1 head. A next candidate is screened on this
 size, which is free, before it is read.
+
+### 10.10 Closed with the cost accepted (2026-11-20)
+
+The maintainer accepted the −0.71% [−0.94%, −0.48%] as a recorded cost
+and closed C.1, amending its gate from "pooled NPS within noise". The
+reasons:
+
+- **C.1 enables what follows.** Its modules are Basilisk's switch points
+  for C.2.9's matched ablation, whose game reads order the clusters in
+  C.2.10. Each cluster edits one module and adds its donor inputs (x-rays,
+  the pin line, pawn attack spans) to the producer. The digest tool and
+  the cache-purity and lazy-checkpoint tests prove every later change.
+- **The cost is small, and repairing it now would be redone.** Under 1%
+  NPS is under about 1 Elo. The clusters rewrite this code, and its code
+  generation swung by up to 2.7% under two careful bit-exact repairs.
+- **It hides nothing later.** Every later cluster gates against the
+  post-C.1 head, so the cost is paid once.
+- **C.12 recovers it**, against the pre-C.1 base `496248d`. The pools
+  `c1-base` and `c1-head` are kept for that read, and C.12 watches the
+  PGO size of `evaluate_full`, the one quantity that tracked all three
+  reads (§10.9).
+
+Kept as built: the module headers, the producer, the digest tool
+(`tests/eval_hash.cpp`), the tests and the remainder report, at
+`c0f0209`'s source. The branch also carries the two reverted repairs.
