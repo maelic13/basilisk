@@ -137,3 +137,6 @@ fae1d0a	external	Rarog: the live head read for B.8.8's packet at the maintainer'
 af110e02	external	Stockfish: "Remove classical evaluation", 2023-07-11 (PLAN Phase C correction)
 042e2b9	external	Rarog: the live head read for originality_scan.py, ported at B.11.3
 68e1e9b	external	Stockfish: sf_16, the classical evaluation donor candidate (PLAN C.0, BAS-O09)
+c6ff7fc	external	Rarog: the live head (branch d7-kernel) read for the 2026-11-21 import under the maintainer-asked exception
+61c9c51	external	Rarog: D.7.12, the score printed on a fitted scale and UCI_ShowWDL (the 2026-11-21 import)
+78d4681	external	Rarog: D.7.12, tools/wdl_fit.py, the method reference for C.13.1 (the 2026-11-21 import)

@@ -95,7 +95,9 @@ the six-stage gating shape), are in
     - [ ] **C.10.2** `[V]` The joint fit, PGO and gate
 - [ ] **C.11** `[V]` Freeze the classical evaluation
 - [ ] **C.12** `[I2]` Evaluation throughput, bit-exact
-- [ ] **C.13** `[M]` Interim release after the evaluation programme
+- [ ] **C.13** Interim release after the evaluation programme
+    - [ ] **C.13.1** `[I1]` Reported score and WDL in Stockfish's form
+    - [ ] **C.13.2** `[M]` The 1.12.0 cut
 
 ### Phase D — Clock, threads, tablebases
 

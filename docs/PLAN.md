@@ -1117,6 +1117,16 @@ has lost games in both engines (BAS-X02).
       second (its packet §7.3). The constraints stay: the phase, the
       endgame king danger and tempo change together, and the endgame
       cluster follows pawns and pieces.
+      A second prior, from outside (2026-11-21, Rarog's RAR-O10,
+      `analysis/rarog_import_2026-11-21.md` §2.4; a reference loss, not
+      Elo):
+      - Scored alone against Stockfish 19's expected score on 10,000
+        game positions, Basilisk's evaluation on 2026-11-14 read skill
+        0.1646, against Stockfish 11's classical evaluation 0.2054 and
+        Rarog's head 0.1769.
+      - Its moves at 100 ms lose clearly more than Rarog's only with 45
+        or more points of non-pawn material.
+      - That agrees with C.0's phase 18 to 24.
 - [ ] **C.3** Mobility, space and threats cluster
   The first family (maintainer, 2026-11-18, on C.0's evidence; C.2.10
   confirms the order from games). The donor's space, which Basilisk does
@@ -1539,9 +1549,20 @@ has lost games in both engines (BAS-X02).
     head (2026-11-05).
   - Ablate low-information mechanisms.
   - Freeze the classical evaluation.
+  - Its games are C.13.1's fitting data: the frozen head's own score at
+    each move, the material and the result (2026-11-21).
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Conversion compared within one pool only (C-146).
+  Rarog import input (2026-11-21, `analysis/rarog_import_2026-11-21.md`
+  §2.4):
+  - A zero-game reading of the C head's evaluation beside the deficit,
+    by RAR-O10's recipe: the evaluation alone scored against Stockfish
+    19's expected score at 1,000,000 nodes on 10,000 positions from
+    Basilisk's own games, with Stockfish 11's classical evaluation and
+    the C.0 head as anchors, by material class. It locates where the
+    programme moved the evaluation and accepts nothing. Its prior is
+    Rarog's read of the 2026-11-14 head (C.2.10).
 - [ ] **C.12** `[I2]` Evaluation throughput, bit-exact
   Evaluation throughput, bit-exact (archived 8.12).
   - Profile terms, phases and cache paths first.
@@ -1565,13 +1586,72 @@ has lost games in both engines (BAS-X02).
     cache, so the twelve-popcount census and the imbalance are rebuilt on
     every call (the pawn cache is pure); a cache that keeps every score
     identical belongs here. E8's lazy cut is C.10's.
-- [ ] **C.13** `[M]` Interim release after the evaluation programme
+- [ ] **C.13** Interim release after the evaluation programme
   Maintainer decision 2026-10-24: the evaluation programme's head is released
-  as 1.12.0 once C.12 closes, as Rarog cut 2.6.0 from its C head. Licensed as
-  B.11.4 is: an accepted SPRT over the 1.11.0 release at `3+0.03` 1T, `10+0.1`
-  and 4T direction checks whose 95% intervals exclude a loss, the 4T check
-  sibling-free. Cut through A.8.6's tag-driven
-  flow, after B.11.3's scans are repeated on the candidate (PLAN §5).
+  as 1.12.0 once C.12 closes, as Rarog cut 2.6.0 from its C head. Since
+  2026-11-21 (maintainer) the release first prints its score on a fitted
+  scale (C.13.1), so 1.12.0 is the first release whose +1.00 means an even
+  chance.
+    - [ ] **C.13.1** `[I1]` Reported score and WDL in Stockfish's form
+      Added 2026-11-21 (maintainer; `analysis/rarog_import_2026-11-21.md`
+      §2.1, after Rarog's D.7.12). Output only: no search or clock
+      decision reads the printed score, and `bench 13` is unchanged. Its
+      constants are fitted on the frozen head (C.11), and C.12 is
+      bit-exact, so they are the release's.
+      - **The form is Stockfish's, whole** (`src/uci.cpp`,
+        `win_rate_params`, `win_rate_model`, `to_cp` and `wdl` at
+        `sf_19`).
+        - The material is `m` = pawns + 3 × knights + 3 × bishops +
+          5 × rooks + 9 × queens, clamped to [17, 78] and divided by 58.
+        - `a(m)` and `b(m)` are cubics in that value.
+        - An ordinary score prints as `round(100 · v / a(m))` at the
+          root's material, held below the tablebase band.
+        - The win rate is `1 / (1 + exp((a − v) / b))` in permille, the
+          loss the same at `−v`, the draw the rest.
+        - `UCI_ShowWDL`, a check option off by default, adds
+          `wdl W D L` after the score and its bound on every `info` line.
+        - Mates and tablebase results print as they do today
+          (`format_info_line`, `src/search_root.cpp`).
+      - **The constants are Basilisk's own,** fitted on its own games as
+        Stockfish fits its own on fishtest's games.
+        - The data is the frozen head's games from C.11's reads: its own
+          score at each move it searched, the material, and the result
+          from its side. The leaf records the games, the control and the
+          positions kept.
+        - Mate scores and scores in the clamped bands are left out, and
+          each material count from 17 to 78 needs a stated minimum of
+          positions.
+        - `a` and `b` are fitted per material count by maximum likelihood,
+          then each by a weighted cubic.
+      - **The tool** is new Basilisk Python, `tools/wdl_fit.py`, with
+        tests. Its tests recover known constants from synthetic games and
+        check the reader's side and filters. It reports the calibration in
+        bands of the printed score, observed against predicted W / D / L,
+        and its check mode fails unless the source holds the fitted
+        constants. Rarog's tool of the same name is the method reference
+        (`78d4681`); no Rarog value crosses.
+      - **Tests:**
+        - +100 prints at an even chance, and the map is monotone at every
+          material.
+        - The rates are defined at every material a board can hold, sum to
+          1,000 and are mirrored.
+        - The field appears only when the option is on, and the option
+          reaches the engine.
+        - A search's nodes, move, internal score and line count are equal
+          with the rates shown or not.
+      - **Known limit** (Rarog's read): the model has no term for a proven
+        draw, so draws next to zero run above its prediction. That is
+        recorded in the calibration, not repaired.
+      - The changelog says that scores now mean an even chance at +1.00
+        and that `UCI_ShowWDL` shows the rates.
+      - The constants are checked again at E.3, and refitted per network
+        at F.6.
+    - [ ] **C.13.2** `[M]` The 1.12.0 cut
+      Licensed as B.11.4 is: an accepted SPRT over the 1.11.0 release at
+      `3+0.03` 1T, `10+0.1` and 4T direction checks whose 95% intervals
+      exclude a loss, the 4T check sibling-free. Cut through A.8.6's
+      tag-driven flow, after B.11.3's scans are repeated on the candidate
+      (PLAN §5).
 
 ### Active workflow register
 
@@ -1611,7 +1691,8 @@ leaf's tag. Later phases carry only a class until they open.
 | C.10.2 | RESEARCH | V | Not started |
 | C.11 | RESEARCH | V | Not started |
 | C.12 | RESEARCH | I2 | Not started |
-| C.13 | RESEARCH | M | Not started |
+| C.13.1 | RESEARCH | I1 | Not started |
+| C.13.2 | RESEARCH | M | Not started |
 
 ## Phase D — Clock, threads, tablebases
 
@@ -1757,6 +1838,27 @@ leaf's tag. Later phases carry only a class until they open.
     at the control it acts at and against an external engine (TT-3),
     not in self-play. A change to the effort measure re-reads
     `B5AspBase` and `B5AspGrowth` (above).
+  Rarog import inputs (2026-11-21, `analysis/rarog_import_2026-11-21.md`
+  §2.2; Rarog's D.7.9.1, RAR-R34):
+  - **The whole form is the prior.** Rarog's hybrid clock was replaced by
+    one donor's time manager whole (Reckless's budget, horizon and five
+    factors; its guards kept with their tests). It read **+30.0 ± 8.8 Elo**
+    at `3+0.03` and **+18.6 ± 8.2** at `10+0.1`, predicted +4 and +3.
+    The hybrid's early under-spend (0.60 of the base in the first twenty
+    moves against 0.75) cost far more than a null horizon read suggested.
+  - **The pieces a partial port misses** are the ones Rarog's hybrid
+    lacked: Stockfish's per-control scale, its cut when behind on the
+    clock, and `increaseDepth`. The audit above ticks them beside the
+    factors.
+  - **A zero-game census before the arms:** the share of time spent past
+    the optimum and the share of moves at three times the optimum or more,
+    on the entry head's games. Rarog's hybrid read 30% and 6.1%, past D.1's
+    3% trigger for `increaseDepth`.
+  - **Guards against shape:** every piece of the clock is classed as a
+    guard, kept with its tests, or shape, replaced by the donor's, before
+    the port. The guards are the reserve under `Move Overhead`, the
+    proved-mate stop, the first-iteration guard, the tablebase box, the
+    single-move rule and the `go` semantics.
 - [ ] **D.2** `[R2]` Lazy SMP quality
   Self-relative scaling before any design: each engine against itself at
   4T against 1T, and against twice its time at 1T, so that four threads
@@ -1790,6 +1892,30 @@ leaf's tag. Later phases carry only a class until they open.
   (the key or the prefetch only where the probe is likely to miss the
   cache) is a question for the table's redesign, read by PROCESS *NPS*'s
   rule for a memory item; a new layout moves the cost and the payoff both.
+  Rarog import inputs (2026-11-21, `analysis/rarog_import_2026-11-21.md`
+  §2.3; priors only):
+  - **Shared correction** (Rarog's D.13 card, Reckless's form): the pawn
+    and non-pawn correction tables shared per NUMA node.
+    - A read is a relaxed 16-bit load and an update a relaxed load and
+      store, so a racing update may be lost, never torn.
+    - One thread plays the same, bench exact, for a pointer load a node.
+    - The four-thread acceptance is costed at 13 to 18 hours for an SPRT
+      `[0,5]`, or 1 hour 45 minutes for a no-harm read.
+    - Stockfish shares correction, pawn and continuation histories per
+      NUMA node (`SharedHistories`).
+  - **Soft-stop voting, at zero games first** (Rarog's D.14): a `diag`
+    counter at 4T, on 300 positions at `3000+30`, counts the searches in
+    which a thread that voted to stop would have withdrawn its vote before
+    the pool stopped. Under 2% of searches, withdrawal is `NO_CHANGE`.
+  - **The prefetch's place** (Rarog's D.7.8.12, pooled PGO NPS):
+    - prefetching the child's cluster before the make, from the key the
+      move will produce, read +1.09%;
+    - moving it up to where the move is picked, before the pruning
+      rules, read a further +1.12%;
+    - prefetching the correction and pawn entries as well read nothing
+      once the table's line was hidden.
+
+    A candidate for the cheaper form asked above, read by the same rule.
   Engine audit inputs (2026-11-12,
   `analysis/b64_engine_audit_2026-11-12.md` §6): the table's rules
   where they differ from the donor's and no record says why, read at
@@ -1944,6 +2070,10 @@ leaf's tag. Later phases carry only a class until they open.
     Stockfish 19's time-manager constants as D.1 leaves them); short
     user-facing text (D-71); E.2's 4T pool read beside the head-to-head
     (D-43).
+  The reported score (2026-11-21): `tools/wdl_fit.py`'s check is run on
+  the candidate against C.13.1's constants. Phase D moves neither the
+  evaluation nor its scale, so a failed check is investigated before any
+  refit.
 
 ## Phase F — NNUE (own data only)
 
@@ -2153,9 +2283,11 @@ speed (F.5, F.6). F.2.1, F.2.2, F.3 and F.4 are retired numbers
     inherited from another net tuned on this one (TD-8).
   - Network gains shrink at longer controls and hide behind shared cores:
     one net read +0.8 at 75 concurrent games and +23.4 at 38 (TD-7).
-  - The printed score's scale is fitted here, per network (G.2's until
-    2026-11-11; TA-2; Rarog's F.6), so that the first NNUE release
-    prints +1.00 as an even chance to win.
+  - The printed score's scale is refitted here, per network, with
+    C.13.1's tool and Stockfish's form (G.2's until 2026-11-11; TA-2;
+    Rarog's F.6). Since 2026-11-21 the first fit is C.13.1's, on the
+    classical head, so 1.12.0 already prints +1.00 as an even chance to
+    win; each network gets its own constants.
 - [ ] **F.7** `[R3]` Architecture ladder, one axis at a time
   Architecture ladder: output buckets, king buckets with mirroring, then
   relation and threat inputs, one axis at a time with multiple seeds; each net
@@ -2261,8 +2393,8 @@ speed (F.5, F.6). F.2.1, F.2.2, F.3 and F.4 are retired numbers
     full window, paused in quiet positions; the more direct of two clear
     wins played; the analysis search compiled as a second copy so games pay
     nothing.
-  - The printed scale calibrated so +1.00 is a 50% chance to win is F.6's
-    since 2026-11-11, fitted per network; tablebase wins printed as
+  - The printed scale calibrated so +1.00 is a 50% chance to win is
+    C.13.1's since 2026-11-21, refitted per network in F.6; tablebase wins printed as
     `cp 20000` minus the distance stay here (TA-2). Strength levels by
     search limits and line choice, calibrated in games (TA-3).
 - [ ] **G.3** `[R3]` Frontier
@@ -2307,6 +2439,17 @@ already repairing or a form it must choose anyway, and says so.
   this leaf's, on the network. Its switch leaves in B.8.2 and is rebuilt
   here from `55e3010` (`search_kernel_core.cpp:1108`;
   `analysis/b82_switch_inventory_2026-11-14.md` §3).
+  Rarog import input (2026-11-21, `analysis/rarog_import_2026-11-21.md`
+  §2.5):
+  - **Quiet checks after the skip.** Once late-move pruning or futility
+    fires, the picker skips every quiet move left, direct checks among
+    them (Stockfish's `skip_quiet_moves`, Reckless's alike).
+    - On WAC positions and their continuations, Rarog's kernel with the
+      skip then played a move allowing a mate in one in 1 of 123
+      positions where a move avoids one, at every depth to 7. Without the
+      skip it did not.
+    - First a zero-game count of the same on Basilisk; then, if it fires,
+      the skip that keeps direct checks, as one item.
   Triumviratus review inputs (2026-11-03,
   `analysis/triumviratus_review_2026-11-03.md`; IDs are its items):
   - Causal reduction: quiet siblings that touch none of a sibling's
