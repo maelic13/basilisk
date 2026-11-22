@@ -289,7 +289,9 @@ static void usage(const char* exe) {
         << "  start from) and --surface FILE (the surface manifest; --tune surface fits its\n"
         << "  free linear slots, --tune-kingsafety its king-safety knobs).\n"
         << "  " << exe << " --feature-support <dataset.csv> [--max-positions N]\n"
-        << "  " << exe << " --tune-kingsafety <train.csv> <holdout.csv> [out.txt] [--epochs N] [--max-positions N] [--step S]\n"
+        << "  " << exe << " --dump-eval <dataset.csv> [limit]\n"
+        << "  " << exe << " --audit-coverage\n"
+        << "  " << exe << " --tune-kingsafety <train.csv> <holdout.csv> [out.txt] [--epochs N] [--max-positions N] [--step S] [--K K]\n"
         << "  " << exe << " --tune <group> <train.csv> <holdout.csv> [out/eval_params.txt] [options]\n"
         << "\n"
         << "Groups:\n"
@@ -304,7 +306,8 @@ static void usage(const char* exe) {
         << "  misc        passed-king proximity, space (+3.6 refinement), tempo\n"
         << "  kingsafety  king attack, shelter, and storm terms\n"
         << "  pst         PSTs plus material refit\n"
-        << "  texel       PSTs + scalars, material PINNED (1116; the 5.9.12 set)\n"
+        << "  texel       PSTs + scalars, material pinned\n"
+        << "  surface     the --surface manifest's free linear slots (the contract's form)\n"
         << "  all         all meaningful eval params\n"
         << "\n"
         << "Options:\n"
@@ -704,8 +707,9 @@ static std::vector<int> active_indices_for_group(const std::string& group) {
         for (int g = EPG_KsUnit; g <= EPG_StormWeightAdj; ++g)
             append_group(active, g);
     } else if (group == "texel") {
-        // 5.9.12: everything a GRADIENT fit should touch, and nothing it should
-        // not. 1,116 params = 768 PST + 348 scalars.
+        // Everything a gradient fit should touch, and nothing it should not:
+        // the PSTs and the scalars (the older form; `--tune surface` with the
+        // surface manifest is the contract's).
         //
         // Material is deliberately ABSENT. eval.cpp builds
         // MG_TABLE = mg_val[pt] + pst_mg[pt-1][sq], so material and PST are
@@ -2062,9 +2066,9 @@ static double ks_fit_K(const std::vector<KsSnap>& pos, Board& scratch, Evaluator
 // ---------------------------------------------------------------------------
 // Coverage audit: prove every fittable parameter has an instrument.
 //
-// 5.9.4 fitted 348 of 1,190 parameters and reported that number without
-// checking what the group actually covered; the 768 PSTs were silently frozen
-// and it went unnoticed until BAS-E16. This enumerates EVERY slot in the
+// A fit once reported how many slots its group freed without checking what the
+// group covered; every PST was silently frozen, unnoticed until BAS-E16. This
+// enumerates EVERY slot in the
 // registry and reports which instrument reaches it, so that an exclusion has to
 // be a decision someone made rather than an oversight nobody saw.
 // ---------------------------------------------------------------------------
@@ -2379,7 +2383,7 @@ int main(int argc, char* argv[]) {
     } else if (mode == "--tune-kingsafety") {
         cmd_tune_kingsafety(argc, argv);
     } else {
-        std::cerr << "Unknown mode '" << mode << "'. Use --verify, --feature-support, --tune, or --tune-kingsafety.\n";
+        std::cerr << "Unknown mode '" << mode << "'.\n";
         usage(argv[0]);
         return 1;
     }

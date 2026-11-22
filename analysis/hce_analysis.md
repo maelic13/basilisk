@@ -56,7 +56,7 @@ The audit covers:
 - evaluation use and correction history in [`src/search.cpp`](../src/search.cpp);
 - Texel tracing and tuning in [`tools/texel/tuner.cpp`](../tools/texel/tuner.cpp);
 - self-play extraction in [`tools/texel/extract.py`](../tools/texel/extract.py);
-- Stockfish-distillation import in [`tools/texel/import_beast.py`](../tools/texel/import_beast.py);
+- Stockfish-distillation import in `tools/texel/import_beast.py` (removed 2026-11-22 as obsolete; last at `23f5557`);
 - self-play adjudication in [`tools/datagen.ps1`](../tools/datagen.ps1);
 - evaluator tests in [`tests/test_eval.cpp`](../tests/test_eval.cpp); and
 - the planned NNUE direction in [`PLAN.md`](../docs/PLAN.md) and [`GUIDE.md`](../GUIDE.md).

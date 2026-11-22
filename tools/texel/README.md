@@ -42,7 +42,8 @@ to build a disjoint opening book, then make an intentional registered append.
 # 1. Sample a diverse EPD start book from the Beast pool (read-only source).
 #    Five equal material-phase reservoirs are the default. Use
 #    --natural-phase-mix only for an intentional distribution experiment.
-python tools/texel/sample_fens.py "A:/Chess/Beast/data/txt/positions.txt" `
+#    The pool lives outside the repository: HANDBOOK.md names where.
+python tools/texel/sample_fens.py "<the Beast pool's positions.txt>" `
     --out tools/texel/data/<book>.epd --count <games>
 
 # To reuse an existing 200k-game corpus and reach 600k unique starts instead:

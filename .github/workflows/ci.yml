@@ -400,6 +400,52 @@ jobs:
       - name: ISA contract tests
         run: python3 tools/diag/test_verify_isa.py
 
+  # ---- Texel toolchain -------------------------------------------------------
+  # The fit's tools against the traced tuner they drive:
+  #   - the row contract and the test-split claim;
+  #   - the surface manifest against the tuner's registry;
+  #   - bake's refusals;
+  #   - the convergence and travel rules on data whose optimum is known.
+  texel:
+    name: texel tools
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Select Clang 22
+        # Preinstalled on the image; see the test job.
+        run: |
+          sudo ln -sf /usr/bin/clang-22   /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-22 /usr/local/bin/clang++
+          clang++ --version
+
+      # The image's Python is externally managed, so the tests' packages go in a
+      # virtual environment; python-chess is pinned, since the row contract's
+      # rules endings read its draw predicates.
+      - name: Python packages
+        run: |
+          python3 -m venv "$RUNNER_TEMP/texel-venv"
+          "$RUNNER_TEMP/texel-venv/bin/pip" install -q chess==1.11.2 numpy
+
+      - name: Build the traced tuner
+        run: |
+          cmake --preset release -B build/texel -DCOMP=clang -DPORTABLE_BUILD=ON -DTEXEL=ON
+          cmake --build build/texel --target basilisk-texel
+
+      - name: Texel tests
+        env:
+          BASILISK_TEXEL: ${{ github.workspace }}/build/texel/basilisk-texel
+        run: |
+          python="$RUNNER_TEMP/texel-venv/bin/python"
+          for t in test_extract test_surface test_bake test_sample_fens test_fit; do
+            echo "== $t"
+            "$python" "tools/texel/$t.py" || exit 1
+          done
+
   sanitize:
     name: sanitize (linux ASan+UBSan)
     runs-on: ubuntu-26.04
@@ -535,7 +581,7 @@ jobs:
   # dependency as passing, so a required job must never be skipped.
   complete:
     name: CI complete
-    needs: [test, flavors, docs, sanitize, tsan, gcc-pgo, bench-agreement]
+    needs: [test, flavors, docs, texel, sanitize, tsan, gcc-pgo, bench-agreement]
     if: ${{ always() }}
     runs-on: ubuntu-26.04
     timeout-minutes: 10

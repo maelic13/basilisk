@@ -20,8 +20,10 @@ already used as a PGN start position is removed before reservoir sampling, so
 the new EPD cannot replay an earlier opening.
 
 Example:
-  python tools/texel/sample_fens.py A:\\Chess\\Beast\\data\\txt\\positions.txt \
-    --out tools\\texel\\data\\beast_seed.epd --count 100000
+  python tools/texel/sample_fens.py <the Beast pool's positions.txt> \
+    --out tools/texel/data/beast_seed.epd --count 100000
+
+The pool lives outside the repository; tools/texel/HANDBOOK.md names where.
 """
 
 from __future__ import annotations
