@@ -147,7 +147,7 @@ tools serve C.2's corpus work.
 | Tool | Purpose | Used by |
 |---|---|---|
 | `datagen.ps1` | A self-play PGN dataset for Texel fitting | PROCESS *Adjudication*; C.2 |
-| `texel/` | The Texel pipeline: `extract.py` and `extract_parallel.py` (PGN to labelled FENs), `audit_starts.py`, `sample_fens.py`, `tuner.cpp`, `bake.py` (weights back into `src/eval_params.h`), `phase911.ps1` (the registered joint fit's launcher), and their tests. `import_beast.py` is obsolete and kept only as history | PROCESS *Texel procedure*; `texel/README.md` |
+| `texel/` | The Texel pipeline: `extract.py` and `extract_parallel.py` (PGN to labelled FENs), `audit_starts.py`, `sample_fens.py`, `tuner.cpp`, `bake.py` (weights back into `src/eval_params.h`), `surface.py` (the fit's surface manifest), `fit.py` (the fit driver; `phase911.ps1` retired 2026-11-22), `claim_test.py`, and their tests. `import_beast.py` is obsolete and kept only as history | PROCESS *Texel procedure*; `texel/README.md` |
 
 ## Tests of the tools
 

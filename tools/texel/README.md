@@ -1,7 +1,7 @@
 # Texel tuning data pipeline
 
 ```
-Beast FEN pool ──sample_fens.py──▶ <book>.epd ──datagen.ps1──▶ selfplay.pgn ──extract[_parallel].py──▶ train.csv + holdout.csv ──tuner──▶ baked weights
+Beast FEN pool ──sample_fens.py──▶ <book>.epd ──datagen.ps1──▶ selfplay.pgn ──extract[_parallel].py──▶ train/validation/test + manifest.json ──fit.py──▶ a run: vectors, the baked header, run.json
 ```
 
 The labels are **Basilisk self-play game results** (WDL, white-perspective
@@ -66,7 +66,12 @@ python tools/texel/extract_parallel.py tools/texel/data/<set>.pgn `
     --out-dir tools/texel/data/<set> --jobs 16 `
     --skip-start 0 --max-per-phase-per-game 8 --target-train 3500000
 
-# 4. After model selection, and once: claim the frozen test split.
+# 4. Fit, from a clean tree: the surface, K once, the stages, the bake checked as
+#    built. The tree is left as it was; the run directory holds the baked header.
+python tools/texel/fit.py --corpus tools/texel/data/<set> --out tools/results/fit-<name> `
+    --expect-bench <the seed's bench 13>
+
+# 5. After model selection, and once: claim the frozen test split.
 python tools/texel/claim_test.py claim tools/texel/data/<set> `
     --candidate <vector hash> --purpose "<what the test read decides>"
 
@@ -88,6 +93,7 @@ python tools/texel/audit_starts.py tools/texel/data/<set>.pgn
 | `test_surface.py` | The manifest's tests: the rules and invariants, the rank analysis on matrices with known null directions, and, with `BASILISK_TEXEL` set, the tracked manifest against the tuner. |
 | `test_extract.py` | The contract's tests: rules endings, row identity, splits by start, the reject ceiling, publication, extractor parity and the claim. |
 | `audit_starts.py` | Header-only audit of exact start duplication, five-phase coverage and pawn-family concentration; explicitly cannot reconstruct missing Beast source-game provenance. |
-| `phase911.ps1` | Registered one-dataset/one-fit driver: deterministic extraction, then `all` bake → rebuild → king-safety bake → rebuild → reconstruction verification. |
-| `bake.py` | Writes a tuner weight dump back into `src/eval_params.h`, rewriting only the members that moved (`--allow-pst` for the 2-D PST blocks) without formatting drift across repeated bakes. |
+| `fit.py` | The fit driver, which replaced `phase911.ps1` (retired 2026-11-22). It runs one corpus on one surface:<br>• it requires a clean tree and builds its own traced tuner and release engine;<br>• it checks the seed's bench and verifies the model;<br>• it fits K once, on validation;<br>• it runs the stages king safety, linear, king safety and polish, each from the vector the last one wrote;<br>• it bakes, rebuilds and checks the result as built: the vector held exactly, `--verify`, the new bench, the played hash and `test_eval`.<br>It hashes every input and output in `run.json` and restores `src/eval_params.h` byte for byte, success or failure, leaving the baked header and its diff in the run directory. |
+| `test_fit.py` | The fit's convergence rules on data whose optimum is known. A run with room reaches it; a schedule too short to travel there exits 3. |
+| `bake.py` | Writes a tuner vector back into `src/eval_params.h`, rewriting only the members that moved (`--allow-pst` for the 2-D PST blocks) without formatting drift across repeated bakes. It refuses a vector that:<br>• has no `basilisk-texel-vector-v1` header;<br>• misses a member or names an unknown one;<br>• has a root that is not this header's defaults: a stale dump. |
 | `tuner.cpp` → `basilisk-texel` | `--tune <group>` (`--tune surface` fits the manifest's free linear slots, with its mean anchors), `--tune-kingsafety`, `--verify`, `--played-hash`, `--feature-support`, `--list-params`, `--dump-coeffs`, `--l2`. Every mode takes `--init FILE`, a complete vector to start from that refuses a partial one, and `--surface FILE`. Every fit models the score the engine serves, from the evaluator's own record of it: the lazy checkpoint, the endgame step and the rule-50 damping. Overrides and draw verdicts take no part in K or the loss. `--verify` checks that model against the engine stage by stage on every row. `--played-hash` hashes the played scores as `eval_hash` hashes a release build's, so equal hashes prove the lazy path. Holdout diagnostics use the extractor's five phases, and both fits restore their best holdout checkpoint. |
