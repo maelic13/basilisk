@@ -129,8 +129,7 @@ def check_corpus(corpus: Path) -> dict:
 
 def configure_and_build(run: Run, build: Path, texel: bool) -> Path:
     tree = build / ("texel" if texel else "release")
-    command = ["cmake", "-S", str(ROOT), "-B", str(tree), "-G", "Ninja",
-               "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_CXX_COMPILER=clang++",
+    command = ["cmake", "--preset", "release", "-B", str(tree), "-DCOMP=clang",
                f"-DTEXEL={'ON' if texel else 'OFF'}"]
     run.step(f"configure-{tree.name}", command)
     target = "basilisk-texel" if texel else "basilisk"
