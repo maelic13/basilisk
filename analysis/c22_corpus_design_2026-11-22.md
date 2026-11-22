@@ -190,6 +190,9 @@ result. The design effect `1 + (m − 1) × 0.69` for `m` rows a game:
 2. **The game budget.** About 1,000,000 games, five hours overnight, before
    the learning curve says whether more is needed.
 
+**Decided 2026-11-22 (maintainer):** both as recommended. The output phase
+weights are equal, and the budget is about 1,000,000 games.
+
 ## 8. Open: BAS-O10
 
 Registered and instrumented (`7e3bfe3`), maintainer-run. Its verdict sets
