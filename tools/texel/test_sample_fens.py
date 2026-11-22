@@ -11,6 +11,25 @@ class ExclusionTests(unittest.TestCase):
     def test_equal_five_phase_targets_are_exact(self):
         self.assertEqual(sample_fens.bucket_targets(12), [3, 3, 2, 2, 2])
 
+    def test_weighted_targets_follow_the_registered_mix(self):
+        self.assertEqual(sample_fens.bucket_targets(100, [5, 1, 1, 1, 2]), [50, 10, 10, 10, 20])
+
+    def test_the_sampler_and_the_extractor_share_one_phase_rule(self):
+        import random
+        import chess
+        import extract
+        rng = random.Random(3)
+        for _ in range(200):
+            board = chess.Board()
+            for _ in range(rng.randint(0, 120)):
+                moves = list(board.legal_moves)
+                if not moves:
+                    break
+                board.push(rng.choice(moves))
+            epd = " ".join(board.fen().split()[:4])
+            self.assertEqual(sample_fens.phase_bucket(epd),
+                             extract.phase_bucket(extract.game_phase(board)))
+
     def test_phase_classifier(self):
         self.assertEqual(sample_fens.phase_bucket(
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -"), 0)

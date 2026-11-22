@@ -170,6 +170,19 @@ class RulesEnding(unittest.TestCase):
         self.assertEqual(extract.game_rows(game, OPTS).reject, "not_a_rules_ending")
 
 
+class Dedup(unittest.TestCase):
+    """C-8: the served score reads the rule-50 clock, so the key holds it."""
+
+    def test_the_clock_separates_two_rows_and_the_move_number_does_not(self):
+        a = "8/8/4k3/8/8/4K3/8/7R w - - 0 40"
+        self.assertNotEqual(extract.fen_key(a), extract.fen_key("8/8/4k3/8/8/4K3/8/7R w - - 30 40"))
+        self.assertEqual(extract.fen_key(a), extract.fen_key("8/8/4k3/8/8/4K3/8/7R w - - 0 77"))
+
+    def test_the_split_still_keys_on_the_position_alone(self):
+        self.assertEqual(extract.start_key_of("8/8/4k3/8/8/4K3/8/7R w - - 0 40"),
+                         extract.start_key_of("8/8/4k3/8/8/4K3/8/7R w - - 30 40"))
+
+
 class RowIdentity(unittest.TestCase):
     def test_rows_carry_ply_phase_and_stable_ids(self):
         moves = ["g1f3", "g8f6", "f3g1", "f6g8"] * 2

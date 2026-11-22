@@ -65,7 +65,9 @@
     Default: tools\texel\data\selfplay.pgn
 
 .PARAMETER Book
-    Opening book PGN/EPD. Default: tools\books\SuperGM_4mvs.pgn
+    Opening book PGN/EPD. Required: a Texel corpus's book is part of its
+    registered composition (tools/texel/HANDBOOK.md). There is no default; the
+    old one, SuperGM_4mvs.pgn, collapsed 200k games into 31,880 positions.
 
 .PARAMETER BookFormat
     Opening book format passed to fastchess: pgn or epd. Default: pgn.
@@ -117,7 +119,7 @@ Push-Location $repoRoot
 
 try {
     # ---- Defaults resolved relative to repo root ----
-    if (-not $Book)          { $Book          = "$PSScriptRoot\books\SuperGM_4mvs.pgn" }
+    if (-not $Book)          { throw "-Book is required: name the registered book (tools/texel/HANDBOOK.md); there is no default." }
     if (-not $FastchessPath) { $FastchessPath = "$PSScriptRoot\bin\fastchess.exe" }
     if (-not $OutputPgn)     { $OutputPgn     = "$PSScriptRoot\texel\data\selfplay.pgn" }
 

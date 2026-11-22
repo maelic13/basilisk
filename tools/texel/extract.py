@@ -23,7 +23,8 @@ The contract (PLAN C.2.1.1):
   only when every phase quota is met, and never over an existing file.
 
 Positions are sampled per phase inside each game before they enter fixed-size
-reservoirs, quiet positions only by default, de-duplicated over the whole run.
+reservoirs, quiet positions only by default, de-duplicated over the whole run
+on the position and its rule-50 clock (the served score's damping reads it).
 Beast/database FENs are already positions rather than played book moves, so
 the default is ``--skip-start 0``.
 
@@ -102,6 +103,13 @@ def game_phase(board: "chess.Board") -> int:
     )
 
 
+def placement_phase(placement: str) -> int:
+    """game_phase() from a FEN's piece placement alone, without a board: the
+    one phase rule the book sampler and the extractor share."""
+    weights = {"n": 1, "b": 1, "r": 2, "q": 4}
+    return min(24, sum(weights.get(ch.lower(), 0) for ch in placement))
+
+
 def phase_bucket(phase: int) -> int:
     for index, (_, lo, hi) in enumerate(PHASE_BUCKETS):
         if lo <= phase <= hi:
@@ -110,13 +118,20 @@ def phase_bucket(phase: int) -> int:
 
 
 def fen_key(fen: str) -> str:
-    """The de-duplication key: position, side, castling and en passant."""
+    """The de-duplication key: position, side, castling, en passant and the
+    rule-50 clock, which the served score reads through its damping. Two rows
+    that differ only in the clock are two different labelled scores."""
+    return " ".join(fen.split()[:5])
+
+
+def start_key_of(fen: str) -> str:
+    """A start's identity, for the split: the position without its clocks."""
     return " ".join(fen.split()[:4])
 
 
 def start_key(game: "chess.pgn.Game") -> str:
     """Every game from one supplied start belongs to one split."""
-    return fen_key(game.board().fen())
+    return start_key_of(game.board().fen())
 
 
 def digest_hex(payload: str) -> str:
@@ -486,7 +501,7 @@ def publish(collector: Collector, out_dir: Path, paths: list[Path], params: dict
                  "only games that ended by the rules",
         "split_rule": "SHA-256 of the start position (4 FEN fields), "
                       "test first, then validation",
-        "dedup_fields": 4,
+        "dedup_fields": 5,
         "tool": "tools/texel/extract.py",
         "source_revision": source_revision(),
         "inputs": [{"path": str(path), "bytes": path.stat().st_size,
