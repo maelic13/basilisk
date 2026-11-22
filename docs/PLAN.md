@@ -1194,7 +1194,7 @@ has lost games in both engines (BAS-X02).
           risen past a held `ThreatRookMg`, because the ordering clamps
           could only raise the later entry. The clamps now bound a free
           entry by its held neighbours instead.
-        - [ ] **C.2.1.5** `[I1]` Texel tooling hygiene and CI
+        - [x] **C.2.1.5** `[I1]` Texel tooling hygiene and CI
           - No workflow runs `tools/texel/test_*.py`; two of three need
             python-chess, absent here.
           - `test_edge.csv` is referenced nowhere, and `import_beast.py` is
@@ -1202,6 +1202,22 @@ has lost games in both engines (BAS-X02).
           - The usage text omits four modes, and comments cite 1,183 or
             1,190 parameters against `EVAL_PARAM_FLAT_SIZE` 1,178.
           - The README and `sample_fens.py` hard-code `A:/` paths.
+          Done 2026-11-22 (`58baa0e`):
+          - **CI.** A new `texel` job builds the traced tuner and runs
+            `test_extract`, `test_surface`, `test_bake`, `test_sample_fens`
+            and `test_fit` with `BASILISK_TEXEL` set. It puts python-chess
+            1.11.2 and numpy in a venv, and `CI complete` needs it. The
+            YAML parses and every step's Python passes here; the Linux job
+            itself first runs on push.
+          - **Removed:** `test_edge.csv` and `import_beast.py`. The one
+            record that linked the importer now names its last commit,
+            `23f5557`.
+          - **The usage text** names all eleven modes, as checked against
+            the dispatch. The stale counts (1,116, 1,190; the registry is
+            now 1,159) are gone from the usage text and comments;
+            `--audit-coverage` prints the live count.
+          - **No `A:/` path** remains: the README and `sample_fens.py`
+            point to the handbook for where the Beast pool lives.
         - [ ] **C.2.1.6** `[R2]` Texel handbook and the standing contract
           Archived 8.1.h. A Basilisk Texel handbook: canonical paths,
           immutable resources, supported commands, the surface partition,
@@ -1926,7 +1942,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.1.5 | RESEARCH | I1 | Not started |
 | C.2.1.6 | RESEARCH | R2 | Not started |
 | C.2.2 | RESEARCH | R2 | Not started |
 | C.2.3 | RESEARCH | V | Not started |

@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.2.1.5** `[I1]` Texel tooling hygiene and CI — Claude Sonnet
+**Next step:** **C.2.1.6** `[R2]` Texel handbook and the standing contract — Claude Opus
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -66,7 +66,7 @@ the six-stage gating shape), are in
         - [x] **C.2.1.2** `[I2]` Tuner correctness
         - [x] **C.2.1.3** `[R2]` Coordinate manifest and initial vectors
         - [x] **C.2.1.4** `[I1]` Fit driver and provenance
-        - [ ] **C.2.1.5** `[I1]` Texel tooling hygiene and CI
+        - [x] **C.2.1.5** `[I1]` Texel tooling hygiene and CI
         - [ ] **C.2.1.6** `[R2]` Texel handbook and the standing contract
     - [ ] **C.2.2** `[R2]` Corpus design
     - [ ] **C.2.3** `[V]` Generate and publish corpus A
