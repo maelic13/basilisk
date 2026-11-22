@@ -431,7 +431,6 @@ their leaves or are carried below; B.9.4 read each one before the release.
 
 | Owner | Defects |
 |---|---|
-| C.2.2 | C-8 the extractor's de-dup ignores the clock; C-26 the datagen default book; C-27 the sampler's own phase reservoirs (C.2.1 repaired C-1, C-2, C-28 to C-30 and C-49 on 2026-11-22) |
 | C.4, C.5, C.6 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
 | C.7 | B.9.3's V3 KRP-KR's draw rules, V4 the KRPP-KRP table, V6 the pawnless scales 4 and 14 (C.7.5); V5 KBN-K's known win, kept with a retry trigger (C.7.6); decided 2026-11-16, known limitations for 1.11.0 |
 | D.1 | A-47 the fail-high stop's hole: a window that never returns is never checked (`analysis/b5_failhigh_stop_2026-10-25.md` §2.3); A-46 reserve arithmetic; A-45 no sub-second horizon (both kept by B.9.4) |
@@ -1265,6 +1264,18 @@ has lost games in both engines (BAS-X02).
       game line beside the game positions; the gate games (25,970 games,
       254,486 rows) can serve as validation; 48% of quiet game rows are
       at phase 9 or below, where 16% of the same-search deficit is.
+      In progress 2026-11-22 (`analysis/c22_corpus_design_2026-11-22.md`):
+      - **Repaired** (`040dbea`): C-8 (the de-duplication key holds the
+        rule-50 clock), C-26 (datagen needs an explicit book) and C-27 (the
+        sampler shares the extractor's phase rule and states its mix).
+      - **Measured:** the Beast pool hashed, read-only; the yield per start
+        phase (C-75); and the rows' dependence within a game, ICC 0.69. So
+        corpus A is sized in games: about 1.4 effective independent rows a
+        game is the ceiling.
+      - **Registered:** the design, and BAS-O10, the H-distribution read
+        (`7e3bfe3`).
+      - **Open:** BAS-O10's run, which is the maintainer's, and §7's two
+        decisions: the output phase weights and the game budget.
     - [ ] **C.2.3** `[V]` Generate and publish corpus A
       Generate and publish corpus A with the B.11.1 head at a fixed node budget,
       natural termination, maintainer-run; audit the returned composition and
@@ -1958,7 +1969,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.2 | RESEARCH | R2 | Not started |
+| C.2.2 | RESEARCH | R2 | Design registered (`analysis/c22_corpus_design_2026-11-22.md`); BAS-O10 is maintainer-run, and two decisions (output phase weights, the game budget) wait on the maintainer |
 | C.2.3 | RESEARCH | V | Not started |
 | C.2.4 | RESEARCH | R2 | Not started |
 | C.2.5 | RESEARCH | R2 | Not started |
