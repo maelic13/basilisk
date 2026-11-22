@@ -414,6 +414,7 @@ derivations are in the linked records.
 | Diagnostic counters: one table, each counter with its unit and denominator; names and units are the cross-engine contract, extended at the end and never renamed | `src/search_diagnostics.h`; `tools/diag/run_suite.py` |
 | Cross-engine board timings are compared only on the `cross-engine-board-v1` profile and its five-position corpus | `tests/board_performance.cpp` |
 | Per-node search code does not allocate or lock: allocations grow per iteration, never per node, at Threads 1 and 4; every allocator, copy or lock call the shipped code can reach from `negamax`, quiescence and the evaluation is a known guarded path | `tests/test_allocation_guard.cpp`; `tools/diag/hot_path_calls.py` on a `PROFILE_SYMBOLS` PGO build; `agents/implementation.md` *Per-node code* |
+| Texel fits: game-result labels from rules endings, splits by start, a test split claimed once; every coordinate classed in the surface manifest with full rank under its anchors; the played score modelled and verified row by row; K fitted once; complete vectors chained between stages and baked whole, with provenance; the tree restored after every run | `tools/texel/HANDBOOK.md` §3; the contracts `basilisk-texel-rows-v1`, `-surface-v1`, `-vector-v1`, `-fit-v1`; PROCESS *Texel procedure* |
 
 ### Known defects
 
@@ -430,7 +431,7 @@ their leaves or are carried below; B.9.4 read each one before the release.
 
 | Owner | Defects |
 |---|---|
-| C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
+| C.2.2 | C-8 the extractor's de-dup ignores the clock; C-26 the datagen default book; C-27 the sampler's own phase reservoirs (C.2.1 repaired C-1, C-2, C-28 to C-30 and C-49 on 2026-11-22) |
 | C.4, C.5, C.6 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
 | C.7 | B.9.3's V3 KRP-KR's draw rules, V4 the KRPP-KRP table, V6 the pawnless scales 4 and 14 (C.7.5); V5 KBN-K's known win, kept with a retry trigger (C.7.6); decided 2026-11-16, known limitations for 1.11.0 |
 | D.1 | A-47 the fail-high stop's hole: a window that never returns is never checked (`analysis/b5_failhigh_stop_2026-10-25.md` §2.3); A-46 reserve arithmetic; A-45 no sub-second horizon (both kept by B.9.4) |
@@ -845,7 +846,7 @@ has lost games in both engines (BAS-X02).
   gives every evaluation gate its endgame truth vetoes, so the
   instruments are audited before the first evaluation gate (C.2.8, which
   was C.2.6), not after four family gates.
-    - [ ] **C.2.1** Fit-tooling contract and Texel handbook
+    - [x] **C.2.1** Fit-tooling contract and Texel handbook
       Fit-tooling contract (archived 8.1.a–h). The leaf adds the Texel data
       contract it writes to *Standing contracts* (A.12). Split on 2026-11-22
       (maintainer) into six sub-steps in the order they run. The archived
@@ -1218,7 +1219,7 @@ has lost games in both engines (BAS-X02).
             `--audit-coverage` prints the live count.
           - **No `A:/` path** remains: the README and `sample_fens.py`
             point to the handbook for where the Beast pool lives.
-        - [ ] **C.2.1.6** `[R2]` Texel handbook and the standing contract
+        - [x] **C.2.1.6** `[R2]` Texel handbook and the standing contract
           Archived 8.1.h. A Basilisk Texel handbook: canonical paths,
           immutable resources, supported commands, the surface partition,
           the pipeline, traps, reference timings and the recovery
@@ -1226,6 +1227,21 @@ has lost games in both engines (BAS-X02).
           `analysis/texel_fitting_handbook.md`, is a template, not a source
           of constants. The data contract C.2.1.1 to C.2.1.4 settle is
           written into *Standing contracts*.
+          Done 2026-11-22.
+          - **`tools/texel/HANDBOOK.md`:** what a fit is; the resources and
+            where they live; the four named contracts (rows, surface,
+            vector, fit); every tool and tuner mode; the played-score model;
+            the surface partition and its identities; a fit end to end; ten
+            traps, among them C-55's "never bake or revert one block of a
+            joint fit"; measured reference numbers; and the recovery
+            procedure. Rarog's handbook gave the shape only.
+          - **PROCESS *Texel procedure*** points to the handbook, and its
+            policy now matches the contracts. The old "sequential joint
+            bake" rule is gone: stages chain through `--init` and the whole
+            vector is baked once.
+          - ***Standing contracts*** gains the Texel row.
+          - **The Texel toolchain's leaves, C.2.1.1 to C.2.1.6, are done**,
+            so C.2.1 closes.
     - [ ] **C.2.2** `[R2]` Corpus design
       Corpus design (archived 8.2.a–e).
       - The source store is located and hashed.
@@ -1942,7 +1958,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.1.6 | RESEARCH | R2 | Not started |
 | C.2.2 | RESEARCH | R2 | Not started |
 | C.2.3 | RESEARCH | V | Not started |
 | C.2.4 | RESEARCH | R2 | Not started |
