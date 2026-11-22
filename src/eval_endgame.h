@@ -655,6 +655,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
     };
     int total_pawns = popcount(b.piece_bb(WHITE, PAWN) | b.piece_bb(BLACK, PAWN));
     bool scaled = false;
+    TR_ENDGAME_STEP(EG_UNCHANGED, 1, 1);
 
     // ---- Step 3.10 guard: the known-endgame rules (KNNK / KPK / KBNK / KBP /
     // no-pawn-<=-minor scaling) all require a lone king or a pawnless side. If
@@ -681,6 +682,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
         // gated behind the lone-king/pawnless guard.
         if (is_knnk_draw(b)) {
             draw_verdict = true;
+            TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
             return 0;
         }
 
@@ -692,6 +694,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
         if (total_pawns == 1 && npm(WHITE) == 0 && npm(BLACK) == 0) {
             Color strong = cnt[WHITE][PAWN] ? WHITE : BLACK;
             if (lone_king(~strong)) {
+                TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
                 if (!kpk_strong_wins(b, strong)) {
                     draw_verdict = true;
                     return 0; // drawn KPK
@@ -713,6 +716,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
             const Color strong = Color(s), weak = ~strong;
             if (!lone_king(weak) || (!cnt[strong][QUEEN] && !cnt[strong][ROOK]))
                 continue;
+            TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
             const int ordinary = std::max((strong == WHITE) ? score : -score, 0);
             const int v = cnt[strong][QUEEN]
                 ? BARE_KING_QUEEN_TIER + std::min(ordinary, BARE_KING_CAP - BARE_KING_QUEEN_TIER)
@@ -723,6 +727,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
         // The minor-piece mates below keep their drives, take the same pawn
         // bonus, and stay under the rook tier.
         auto minor_tier = [&](int drive_score, Color strong) {
+            TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
             const int v = std::min(std::abs(drive_score) + cnt[strong][PAWN] * BARE_KING_PAWN_STEP,
                                    BARE_KING_ROOK_TIER - 1);
             return (strong == WHITE) ? v : -v;
@@ -772,6 +777,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
                 continue;
             if (KING_DIST[b.king_square(weak)][promo] <= 1) {
                 draw_verdict = true;
+                TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
                 return 0; // defender holds the wrong-corner draw
             }
         }
@@ -792,6 +798,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
             if (scale != SCALE_NORMAL) {
                 score = score * scale / SCALE_NORMAL;
                 scaled = true;
+                TR_ENDGAME_STEP(EG_SCALED, scale, SCALE_NORMAL);
                 draw_verdict = scale == 0 && !b.piece_bb(~strong, PAWN);
             }
         }
@@ -812,6 +819,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
             if (scale >= 0) {
                 score = score * scale / SCALE_NORMAL;
                 scaled = true;
+                TR_ENDGAME_STEP(EG_SCALED, scale, SCALE_NORMAL);
             }
         }
     }
@@ -820,6 +828,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
     // neutral by pawn count (capped -- see ocb_draw_scale in eval.h).
     if (!scaled && is_opposite_coloured_bishops(b)) {   // predicate shared with the tuner
         score = score * ocb_draw_scale(total_pawns) / 48;
+        TR_ENDGAME_STEP(EG_SCALED, ocb_draw_scale(total_pawns), 48);
     }
 
     return score;

@@ -60,6 +60,12 @@ static constexpr int PST_EG_BASE[7] = {
 thread_local EvalRestTrace g_rest{};
 #define TR_REST_EG(source, val) (g_rest.eg[REST_##source] += (val))
 
+// What apply_endgame does to its score, recorded at each of its exits so that
+// the tuner reads the engine's own step instead of re-deriving it.
+thread_local EvalTrace g_lazy_trace{};
+thread_local EvalEndgameStep g_endgame_step{};
+#define TR_ENDGAME_STEP(kind, num, den) (g_endgame_step = {(kind), (num), (den), false})
+
 #else // !TEXEL_TRACE
 #define TR_MG(group, idx, val)   (void)0
 #define TR_EG(group, idx, val)   (void)0
@@ -67,6 +73,7 @@ thread_local EvalRestTrace g_rest{};
 #define TR_PST_MG(pt, sq, val)   (void)0
 #define TR_PST_EG(pt, sq, val)   (void)0
 #define TR_REST_EG(source, val)  (void)0
+#define TR_ENDGAME_STEP(kind, num, den) (void)0
 #endif // TEXEL_TRACE
 
 // Phase weights (frozen; not in EvalParams)

@@ -55,7 +55,7 @@ EvalParams g_eval_params;
 // Lazy-eval margin (Step 3.11): if the cheap (material/PST/imbalance/pawns/minor)
 // tapered score exceeds this, the expensive positional block is skipped. Tuned
 // under a lazy-on-vs-off SPRT; conservative start.
-[[maybe_unused]] static constexpr int LAZY_MARGIN  = 700;  // unused under TEXEL_TRACE (lazy eval off there)
+static constexpr int LAZY_MARGIN  = 700;  // a traced build records where it would fire
 // Lazy-audit "did not fire" marker (any value the eval can't produce).
 [[maybe_unused]] static constexpr int VALUE_NONE_SENTINEL = INT_MIN;
 
@@ -170,6 +170,22 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
 #endif
         }
     }
+#else
+    // The traced build evaluates past the checkpoint so that every trace is
+    // whole, and records what a release build would serve here: the tuner fits
+    // the function the engine plays.
+    {
+        const int lazy = taper(sum, phase);
+        g_rest.lazy = (lazy < 0 ? -lazy : lazy) > LAZY_MARGIN;
+        if (g_rest.lazy) {
+            g_lazy_trace = g_trace;
+            g_rest.lazy_tapered = lazy;
+            bool lazy_verdict = false;
+            g_rest.lazy_endgame = apply_endgame(b, lazy, lazy_verdict);
+            g_rest.lazy_step = g_endgame_step;
+            g_rest.lazy_step.verdict = lazy_verdict;
+        }
+    }
 #endif
 
     // ---- The full block -------------------------------------------------------
@@ -203,6 +219,8 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
     score = apply_endgame(b, score, verdict);
 #ifdef TEXEL_TRACE
     g_rest.endgame = score;
+    g_rest.step = g_endgame_step;
+    g_rest.step.verdict = verdict;
 #endif
 
     const int full_served = (b.turn() == WHITE) ? score : -score;

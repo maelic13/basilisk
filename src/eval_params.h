@@ -567,13 +567,34 @@ enum EvalRestSource : int {
     REST_MATE_DRIVE,   // the bare-material mate drive
     REST_SOURCE_NB
 };
+// What apply_endgame did to the tapered score it was given: left it, scaled it
+// by num / den (C++ integer division), or replaced it outright with a known
+// result. `verdict` is its draw verdict.
+enum EvalEndgameKind : int { EG_UNCHANGED, EG_SCALED, EG_OVERRIDE };
+struct EvalEndgameStep {
+    int kind;
+    int num, den;
+    bool verdict;
+};
 struct EvalRestTrace {
     int mg[REST_SOURCE_NB];
     int eg[REST_SOURCE_NB];
     int sum_mg, sum_eg;
     int tapered;
     int endgame;
+    EvalEndgameStep step;  // apply_endgame on `tapered`
+    // The lazy checkpoint, which a traced build evaluates past: whether a
+    // release build would have served the cheap block's value here, that
+    // block's taper, apply_endgame on it, and what that step did. The trace
+    // the cheap block wrote up to the checkpoint is g_lazy_trace.
+    bool lazy;
+    int lazy_tapered;
+    int lazy_endgame;
+    EvalEndgameStep lazy_step;
 };
 extern thread_local EvalRestTrace g_rest;
+extern thread_local EvalTrace g_lazy_trace;
+// apply_endgame's last step, set by every call.
+extern thread_local EvalEndgameStep g_endgame_step;
 
 #endif // TEXEL_TRACE
