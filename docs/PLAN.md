@@ -916,7 +916,7 @@ has lost games in both engines (BAS-X02).
           - Its tablebase relabeller, which waits for the label policy.
           - The de-duplication key, which still ignores the clocks; that is
             C-8, C.2.2's.
-        - [ ] **C.2.1.2** `[I2]` Tuner correctness
+        - [x] **C.2.1.2** `[I2]` Tuner correctness
           The tuner computes what the engine serves, and its checks can
           fail.
           - The delta scale (`tools/texel/tuner.cpp:423-438`) omits the
@@ -946,6 +946,64 @@ has lost games in both engines (BAS-X02).
             the table is asserted non-decreasing when the stage starts.
           - The L2 penalty is left out of the reported loss, `--l2 0` is
             rejected, and `fit_K` stops silently at its [0.5, 2.5] bounds.
+          Done 2026-11-22. The tuner now fits the score the engine serves,
+          read from the evaluator's own record of it, not re-derived from
+          its rules:
+          - **The record** (`1248530`, traced builds only; release bench
+            4,777,412 and every C.1 digest unchanged).
+            - `apply_endgame` records at each exit whether it left the
+              score, scaled it by num / den, or overrode it, and its draw
+              verdict.
+            - At the lazy checkpoint a traced build records whether a
+              release build would stop there, apply_endgame on that value,
+              and the trace written up to that point.
+          - **The model** (`99ea86f`) plays each row as the engine does: the
+            cheap block's value where a release build stops lazily, the
+            engine's own endgame step, and the damping.
+            - Every stage is recomputed in the engine's integer arithmetic
+              and checked against the evaluator: the running sum, the
+              taper, the endgame step, the damping, and the lazy taper and
+              step. A mismatch is fatal at load (C-1, C-5).
+            - Overrides and draw verdicts take no part in K or any loss, in
+              both fits.
+            - The gradient is the trace times the seed's scale and the
+              damping's slope.
+          - **`--verify`** checks that model on every row against the sum
+            the evaluator accumulated itself, so it can fail (C-2).
+          - **`--played-hash`** hashes the played scores as
+            `tests/eval_hash.cpp` hashes a release build's, so equal hashes
+            prove the lazy path and the endgame steps row for row.
+          - **The other items:**
+            - the clamps must leave the seed unchanged, or the fit stops;
+            - slots outside the fitted group are held at the seed and
+              asserted after the fit (T3);
+            - the king-safety stage asserts a non-decreasing table (T4);
+            - `--l2 0` is accepted, and the objective is reported beside
+              the data loss;
+            - K at a bound of its search is fatal.
+
+          Read on 111,112 rows extracted from `armA_basilisk8k.pgn`:
+          - In train, 92,758 rows are used, 8,468 of them at the lazy
+            checkpoint; 7,168 overrides and 74 verdicts are left out. The
+            three splits pass `--verify`.
+          - The played hash equals the release `served_hash` on all three
+            splits. The traced full value, which the tuner used to fit,
+            hashes differently on each.
+
+          Deliberate breaks, each caught:
+          - dropping the frozen additions fails `--verify` on 2,792 rows;
+          - ignoring the endgame scale fails it on 143;
+          - playing the full value on lazy rows changes the played hash;
+          - a clamp narrowed below the seed stops `--tune`;
+          - a dented safety table stops the king-safety stage;
+          - inverted labels drive K to its bound, which is fatal.
+
+          Known limits, recorded rather than repaired:
+          - A row's lazy membership and its pawnless scaler's strong side
+            are the seed's, as in any linearisation; a row the fit moves
+            across the margin keeps its seed path.
+          - `--dump-eval` still prints the full traced evaluation, which
+            `tools/diag/scale_ratio.py` reads as such.
         - [ ] **C.2.1.3** `[R2]` Coordinate manifest and initial vectors
           Archived 8.1.b and 8.1.d, with Manta's catalogue (BAS-X14).
           - Every coordinate is classed free, fixed or excluded, with gauge
@@ -1733,7 +1791,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.1.2 | RESEARCH | I2 | Not started |
 | C.2.1.3 | RESEARCH | R2 | Not started |
 | C.2.1.4 | RESEARCH | I1 | Not started |
 | C.2.1.5 | RESEARCH | I1 | Not started |
