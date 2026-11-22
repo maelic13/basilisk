@@ -14,6 +14,14 @@
     A provenance manifest is written beside the PGN before fastchess starts and
     completed with the output hash after success.
 
+    Refused before games start: a book with fewer openings than -Rounds (a
+    wrap replays games), and a Basilisk binary whose build manifest is missing,
+    hashes a different binary, records a dirty tree or no bench. Audited after
+    fastchess: the game count against the plan and every [Termination]; any
+    ending other than normal (an illegal move, a crash, a stall, a time loss)
+    marks the manifest failed and the run exits non-zero. The [FEN] headers in
+    game order are hashed as opening_sequence_sha256.
+
     Adjudication is OFF by default, so games end only naturally: checkmate,
     stalemate, threefold, fifty-move or insufficient material. Step 5.9.11 needs
     this. BAS-E10 and BAS-E11 traced a corpus defect to exactly this setting --
@@ -123,6 +131,9 @@ try {
     if (-not $FastchessPath) { $FastchessPath = "$PSScriptRoot\bin\fastchess.exe" }
     if (-not $OutputPgn)     { $OutputPgn     = "$PSScriptRoot\texel\data\selfplay.pgn" }
 
+    # PowerShell names are case-insensitive: $enginePath IS $EnginePath, so
+    # whether a foreign engine was named is captured before it is overwritten.
+    $foreignEngine = [bool]$EnginePath
     $enginePath = if ($EnginePath) { $EnginePath }
                   else { "$PSScriptRoot\test_engines\basilisk-$Suffix-pext-pgo.exe" }
 
@@ -147,8 +158,26 @@ try {
     # corpus is traced back to a revision and a clean tree. A foreign engine
     # supplied via -EnginePath has no such manifest; its provenance is the
     # sha256 and self-reported id name recorded in the manifest instead.
-    if (-not $EnginePath -and -not (Test-Path -LiteralPath $engineManifest)) {
+    if (-not $foreignEngine -and -not (Test-Path -LiteralPath $engineManifest)) {
         throw "Engine manifest not found: $engineManifest. Build the datagen engine with tools\build_test.ps1."
+    }
+    # A Basilisk engine is registered by its build manifest: the binary must
+    # be the one the manifest hashed, from a clean tree, with a recorded bench.
+    if (-not $foreignEngine) {
+        $m = @{}
+        foreach ($line in Get-Content -LiteralPath $engineManifest) {
+            if ($line -match '^\s*([A-Za-z0-9_]+):\s*(.*)$') { $m[$Matches[1]] = $Matches[2].Trim() }
+        }
+        $actualSha = (Get-FileHash -LiteralPath $enginePath -Algorithm SHA256).Hash
+        if ($m['binary_sha256'] -ne $actualSha) {
+            throw "Unregistered binary: $enginePath hashes $actualSha, its manifest says $($m['binary_sha256'])."
+        }
+        if ($m['dirty_diff'] -ne 'clean') {
+            throw "Unregistered binary: $enginePath was built from uncommitted changes."
+        }
+        if (-not $m['bench']) {
+            throw "Unregistered binary: $engineManifest records no bench."
+        }
     }
 
     if ((Test-Path -LiteralPath $OutputPgn) -and -not $AllowAppend) {
@@ -207,16 +236,10 @@ try {
             $openingCount = (Select-String -LiteralPath $Book -Pattern '^\[Event ').Count
         }
     }
+    # A book that wraps replays openings, and identical engines at fixed nodes
+    # replay each such game move for move: refused, not warned about.
     if ($openingCount -gt 0 -and $Rounds -gt $openingCount) {
-        Write-Host ""
-        Write-Host "  !! DIVERSITY WARNING ----------------------------------------" -ForegroundColor Yellow
-        Write-Host ("  !! Book has only {0:N0} distinct openings but -Rounds is {1:N0}." -f $openingCount, $Rounds) -ForegroundColor Yellow
-        Write-Host "  !! Deterministic self-play will REPLAY openings -> duplicate" -ForegroundColor Yellow
-        Write-Host "  !! games and a low-diversity dataset. Use a bigger/diverse" -ForegroundColor Yellow
-        Write-Host "  !! book (sample_fens.py -> *.epd) or lower -Rounds to <= the" -ForegroundColor Yellow
-        Write-Host "  !! opening count (and add passes at a different -Nodes)." -ForegroundColor Yellow
-        Write-Host "  !! -------------------------------------------------------------" -ForegroundColor Yellow
-        Write-Host ""
+        throw ("Book wrap: the book has {0:N0} openings and -Rounds is {1:N0}; deterministic self-play would replay games. Use a larger book or fewer rounds." -f $openingCount, $Rounds)
     }
 
     # NOTE (2026-07-21): datagen deliberately has NO -use-affinity and keeps
@@ -272,7 +295,7 @@ try {
     $engineManifestSha = if (Test-Path -LiteralPath $engineManifest) {
         (Get-FileHash -LiteralPath $engineManifest -Algorithm SHA256).Hash
     } else { "n/a (foreign engine)" }
-    $revision = if ($EnginePath) { "n/a (foreign engine)" } else { "unknown" }
+    $revision = if ($foreignEngine) { "n/a (foreign engine)" } else { "unknown" }
     if (Test-Path -LiteralPath $engineManifest) {
         $revisionLine = Get-Content -LiteralPath $engineManifest |
             Where-Object { $_ -match '^revision:\s+' } | Select-Object -First 1
@@ -375,14 +398,47 @@ try {
 
     $pgnSha = (Get-FileHash -LiteralPath $OutputPgn -Algorithm SHA256).Hash
     $pgnBytes = (Get-Item -LiteralPath $OutputPgn).Length
-    Add-Content -LiteralPath $manifestPath -Encoding utf8 -Value @(
+
+    # Faults: a game count short of the plan, or any termination other than a
+    # rules ending (a crash, a time loss at tc=inf, an illegal move, a stall),
+    # fails the run. The realised opening sequence, the [FEN] headers in game
+    # order, is hashed so that a rerun can be checked against it.
+    $rgCmd = Get-Command rg -ErrorAction SilentlyContinue
+    if (-not $rgCmd) { throw "ripgrep (rg) is needed to audit the PGN." }
+    $gameCount = [int64]((& $rgCmd.Source --count '^\[Event ' -- $OutputPgn | Select-Object -First 1).Trim())
+    $terminations = & $rgCmd.Source --no-filename -o -r '$1' '^\[Termination "([^"]+)"\]' -- $OutputPgn |
+        Group-Object | Sort-Object Name
+    $terminationText = ($terminations | ForEach-Object { "$($_.Name)=$($_.Count)" }) -join ", "
+    $faults = ($terminations | Where-Object { $_.Name -ne 'normal' } | Measure-Object -Property Count -Sum).Sum
+    if (-not $faults) { $faults = 0 }
+    $fenLines = & $rgCmd.Source --no-filename '^\[FEN ' -- $OutputPgn
+    $sequenceSha = [BitConverter]::ToString(
+        [Security.Cryptography.SHA256]::Create().ComputeHash(
+            [Text.Encoding]::UTF8.GetBytes(($fenLines -join "`n")))).Replace("-", "")
+    $expectedGames = $existingGames + $games
+    $auditLines = @(
+        "games_in_pgn: $gameCount"
+        "terminations: $terminationText"
+        "faults: $faults"
+        "opening_sequence_sha256: $sequenceSha"
+    )
+    if ($gameCount -ne $expectedGames -or $faults -ne 0) {
+        Add-Content -LiteralPath $manifestPath -Encoding utf8 -Value ($auditLines + @(
+            "status: failed"
+            "fastchess_exit: 0"
+            "pgn_sha256: $pgnSha"
+            "finished_utc: $((Get-Date).ToUniversalTime().ToString('u'))"
+        ))
+        throw "Datagen audit failed: $gameCount of $expectedGames games, $faults faults ($terminationText)."
+    }
+    Add-Content -LiteralPath $manifestPath -Encoding utf8 -Value ($auditLines + @(
         "status: complete"
         "fastchess_exit: 0"
-        "games_total: $($existingGames + $games)"
+        "games_total: $expectedGames"
         "pgn_bytes: $pgnBytes"
         "pgn_sha256: $pgnSha"
         "finished_utc: $((Get-Date).ToUniversalTime().ToString('u'))"
-    )
+    ))
 
     Write-Host ""
     Write-Host "Done. PGN: $OutputPgn"
