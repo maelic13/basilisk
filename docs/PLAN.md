@@ -1393,6 +1393,17 @@ has lost games in both engines (BAS-X02).
       term down together, the compensation the mirrored pawn table left;
       the directional screen reads that group and E6's signs before the
       bake.
+      Registered by C.2.3 (2026-11-22, C-56): Rarog's natural-termination
+      corpus multiplied its checkmates 57 times, inflated the king table,
+      grew the tree 12.3% and broke the KBNK floor. Corpus A also ends its
+      games naturally, so before the bake the fit report reads three things
+      against the seed:
+      - the king-safety and king-PST terms' movement;
+      - `bench 13` nodes, where growth over 5% is a finding the gate must
+        explain;
+      - the deterministic endgame floors (KBNK, KQK, KRK, KBBK), which must
+        all still pass.
+      Corpus A's checkmate share is in its C.2.3 record.
     - [ ] **C.2.9** `[I1]` Family screen and matched-ablation tools
       Added 2026-11-18 (maintainer, after C.0). Two instruments the
       family order and every cluster read; neither changes a served
