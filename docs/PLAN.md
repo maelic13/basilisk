@@ -845,106 +845,140 @@ has lost games in both engines (BAS-X02).
   gives every evaluation gate its endgame truth vetoes, so the
   instruments are audited before the first evaluation gate (C.2.8, which
   was C.2.6), not after four family gates.
-    - [ ] **C.2.1** `[I1]` Fit-tooling contract and Texel handbook
+    - [ ] **C.2.1** Fit-tooling contract and Texel handbook
       Fit-tooling contract (archived 8.1.a–h). The leaf adds the Texel data
-      contract it writes to *Standing contracts* (A.12).
-      - K is fitted once and frozen across stages and arms.
-      - Initial vectors are complete and explicit, and B.10's PST
-        orientation test passes on them before any fit reads them.
-      - Train, validation and test splits are by game, and the test split is
-        claimed atomically, once.
-      - Every coordinate is classed free, fixed or excluded, with gauge
-        anchors and reconstruction (Manta's catalogue, BAS-X14).
-      - Every input and output is hashed, and source and binary are restored.
-      - Labels must be exactly 0, ½ or 1, with rejection accounting.
-      - Contracts are versioned, and the snapshot's fit tools
-        (`tools/texel/`) are ported where useful; Basilisk's own
-        `tools/texel/phase911.ps1` driver is adopted into the contract or
-        retired.
-      - A Basilisk Texel handbook is written. Rarog's, the snapshot's
-        `analysis/texel_fitting_handbook.md`, is a template, not a source of
-        constants.
-      Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
-      IDs are its items):
-      - The tuner's delta scale (`tools/texel/tuner.cpp:423-438`) omits the
-        rook-ending and pawnless-minor scalers and the override rows, and
-        applies OCB unconditionally (C-1): mirror every scaler or exclude
-        override rows, with a per-row engine-against-tuner scale check.
-        `--verify` is circular (C-2): compare against an independently
-        accumulated raw score. Fit the played function, lazy path included
-        (C-5).
-      - Contract: K fixed once on validation (C-49); three splits with a
-        frozen test opened once (C-50); residuals on unused train rows (C-51);
-        a coordinate manifest with support-based freezing (C-52); explicit
-        prior vectors (C-53); Rarog's stage schedule (C-54); never hand-revert
-        a block (C-55).
-      - Anchors: gauge freedoms (C-19: `phase911.ps1` runs `--tune all`, which
-        frees material and every PST); per-coordinate king-safety steps
-        (C-18); shelter and storm fitted by some stage (C-21); dead and
-        collinear imbalance slots in the manifest (C-20).
-      - Data and driver: the split by start, not start plus moves (C-28);
-        games rejected by termination (C-29); game id and ply per row for
-        clustered errors (C-30); scores re-dumped after a refit (C-69);
-        fixtures that depend on fitted weights fixed in their own commit
-        (C-70); fit-driver invariants (C-71); the dense matrix at full scale
-        (C-73); B.10's orientation test limited to seeds (C-22).
-      Code audit inputs (2026-10-27, `analysis/code_audit_2026-10-27.md`
-      §6, a read of `tools/texel/` at `fe20f09`; items T1–T5 are new, the
-      rest confirmed C-1, C-2, C-5, C-8, C-19, C-20, C-27 to C-29, C-49,
-      C-50 and C-71 by reading). Parity of the linear part is sound:
-      PST mirroring, phase buckets, tempo, rule-50 damping, imbalance
-      and perspective match `evaluate` term for term, and runs are
-      deterministic (sequential double accumulation).
-      - T1: the Adam schedule, not the data, bounds how far a coordinate
-        can travel — full-batch Adam moves a one-signed coordinate about
-        `lr` per epoch (`tuner.cpp:67-68`, `:1154`; `phase911.ps1:41`
-        runs 100 epochs at 0.3, so about 30 cp), and there is no
-        convergence criterion; C-66's 11–57 cp PST movements would be
-        clipped. Test: a one-feature synthetic CSV whose optimum is 60 cp
-        from the seed must be reached; fail a run whose best epoch is the
-        last or whose travel reaches 0.9 × lr × epochs.
-      - T2: `bake.py` writes every slot that differs with no provenance or
-        completeness check (`bake.py:173-174`; the dump carries no header
-        hash): a stale dump reverted 42 members and both PST blocks in a
-        dry run and skipped 92 absent members silently. Slot placement
-        and CRLF are correct. Test: `test_bake` cases that fail on a
-        missing member, an unknown name and a hash mismatch.
-      - T3: hidden clamps apply to every coordinate whatever group is
-        fitted (`tuner.cpp:458-545`, called at `:1157`): sign priors,
-        `passed[0/7] = 0`, `ThreatQueen ≥ ThreatRook ≥ ThreatMinor`, a
-        sequential max that biases mobility upward; none is in a
-        manifest, and they would mask a sign bug. All defaults are inside
-        them today. Test: the clamps leave the defaults unchanged, and
-        inactive slots equal the base after a fit.
-      - T4: `--tune all` moves `SafetyTable` linearly with no monotone
-        projection (`tuner.cpp:1372`), and `--tune-kingsafety` then clamps
-        each entry between its neighbours (`:1395-1398`): on a
-        non-monotone table `lo > hi`, undefined behaviour for
-        `std::clamp`. `T[0]` and `T[1]` are never descent knobs. Test: the
-        table is asserted non-decreasing when the stage starts.
-      - T5: resolved by A.16, which removed the winnable term, its seven
+      contract it writes to *Standing contracts* (A.12). Split on 2026-11-22
+      (maintainer) into six sub-steps in the order they run. The archived
+      contract merged eight leaves, two of them `R2`, and the audits added
+      about twenty defects, each with its test. Every input below sits under
+      the sub-step that owns it. The IDs are the Rarog audit's
+      (`analysis/rarog_audit_2026-10-24.md`, C-*), the code audit's
+      (`analysis/code_audit_2026-10-27.md` §6, a read of `tools/texel/` at
+      `fe20f09`, T1–T5) and C.0's (its packet §7.5).
+      - Parity of the linear part is sound (the code audit): PST mirroring,
+        phase buckets, tempo, rule-50 damping, imbalance and perspective
+        match `evaluate` term for term, and runs are deterministic
+        (sequential double accumulation).
+      - T5 is resolved by A.16, which removed the winnable term, its seven
         slots and its tuner group; C.7.3's complexity term needs an
         instrument of its own.
-      - An option to register, not a default (2026-11-11; Rarog's
-        EVAL-13): a second-difference penalty on the mobility tables and
-        the pawn table, so a fit cannot leave a sawtooth in a term that
-        should be smooth.
-      - Hygiene: no workflow runs `tools/texel/test_*.py` (two of three
-        need python-chess, absent here) and `test_edge.csv` is
-        referenced nowhere; `phase911.ps1` reads `$LASTEXITCODE` through
-        `Tee-Object` and is Windows-only; `import_beast.py` is obsolete;
-        the usage text omits four modes; comments cite 1,183 or 1,190
-        parameters against `EVAL_PARAM_FLAT_SIZE` 1,178; the README and
-        `sample_fens.py` hard-code `A:/` paths; the L2 penalty is left out
-        of the reported loss, `--l2 0` is rejected, and `fit_K` stops
-        silently at its [0.5, 2.5] bounds. C-1 addition: the KmK rule picks
-        the strong side by the score's sign, so that scale depends on the
-        sign too.
-      C.0 inputs (2026-11-18, its packet §7.5): rows carrying a known-win
-      override or a draw verdict take no part in K or in any loss (left
-      in, they moved K from 0.00606 to 0.00428); K and held-out loss are
-      reported by phase band; the screening fit hit T1's travel bound at
-      epoch 16.
+        - [ ] **C.2.1.1** `[I1]` Rows, labels and splits
+          The data contract, versioned (archived 8.1.c, 8.1.f, 8.1.g).
+          - Every row carries its game id, its start's id and its ply,
+            for clustered errors (C-30).
+          - Labels are exactly 0, ½ or 1, with the accepted count and every
+            rejection reason published. The run fails on a suspiciously
+            large rejection fraction.
+          - Games are rejected by termination (C-29).
+          - Train, validation and test splits are by start, not start plus
+            moves (C-28), three of them (C-50). The test split is claimed
+            atomically, once, after model selection.
+          - Materially different corpus semantics get a named, versioned
+            contract. Rarog's snapshot tools (`tools/texel/`: the book
+            builder, the yield and relabelling tools, the manifest
+            writers) are ported where useful. No gate is widened until
+            unknown data fails it.
+        - [ ] **C.2.1.2** `[I2]` Tuner correctness
+          The tuner computes what the engine serves, and its checks can
+          fail.
+          - The delta scale (`tools/texel/tuner.cpp:423-438`) omits the
+            rook-ending and pawnless-minor scalers and the override rows,
+            and applies OCB unconditionally (C-1). Mirror every scaler or
+            exclude the rows, with a per-row engine-against-tuner scale
+            check. The KmK rule picks the strong side by the score's sign,
+            so that scale depends on the sign too.
+          - Rows carrying a known-win override or a draw verdict take no
+            part in K or in any loss (C.0: left in, they moved K from
+            0.00606 to 0.00428).
+          - `--verify` is circular (C-2): compare against an independently
+            accumulated raw score.
+          - Fit the played function, lazy path included (C-5).
+          - T3: hidden clamps apply to every coordinate whatever group is
+            fitted (`tuner.cpp:458-545`, called at `:1157`): sign priors,
+            `passed[0/7] = 0`, `ThreatQueen ≥ ThreatRook ≥ ThreatMinor`,
+            and a sequential max that biases mobility upward. None is in a
+            manifest, and they would mask a sign bug. All defaults are
+            inside them today. Test: the clamps leave the defaults
+            unchanged, and inactive slots equal the base after a fit.
+          - T4: `--tune all` moves `SafetyTable` linearly with no monotone
+            projection (`tuner.cpp:1372`), and `--tune-kingsafety` then
+            clamps each entry between its neighbours (`:1395-1398`). On a
+            non-monotone table `lo > hi`, which is undefined behaviour for
+            `std::clamp`. `T[0]` and `T[1]` are never descent knobs. Test:
+            the table is asserted non-decreasing when the stage starts.
+          - The L2 penalty is left out of the reported loss, `--l2 0` is
+            rejected, and `fit_K` stops silently at its [0.5, 2.5] bounds.
+        - [ ] **C.2.1.3** `[R2]` Coordinate manifest and initial vectors
+          Archived 8.1.b and 8.1.d, with Manta's catalogue (BAS-X14).
+          - Every coordinate is classed free, fixed or excluded, with gauge
+            anchors and reconstruction. Every production scalar has one
+            instrument, or a written invariant or unidentifiable
+            disposition.
+          - Gauge freedoms (C-19): `phase911.ps1` runs `--tune all`, which
+            frees material and every PST.
+          - Per-coordinate king-safety steps (C-18); shelter and storm
+            fitted by some stage (C-21); dead and collinear imbalance
+            slots in the manifest (C-20); support-based freezing (C-52).
+          - Initial vectors are complete and explicit (C-53), every surface
+            coordinate recorded, and a partial or missing-by-accident
+            vector rejected. B.10's PST orientation test passes on them
+            before any fit reads them, limited to seeds (C-22).
+        - [ ] **C.2.1.4** `[I1]` Fit driver and provenance
+          Archived 8.1.a and 8.1.e.
+          - K is fitted once on validation and frozen across stages and
+            arms (C-49), and K and held-out loss are reported by phase band
+            (C.0).
+          - T1: the Adam schedule, not the data, bounds how far a
+            coordinate can travel. Full-batch Adam moves a one-signed
+            coordinate about `lr` per epoch (`tuner.cpp:67-68`, `:1154`;
+            `phase911.ps1:41` runs 100 epochs at 0.3, so about 30 cp), and
+            there is no convergence criterion; C-66's 11–57 cp PST
+            movements would be clipped, and C.0's screening fit hit the
+            bound at epoch 16. Test: a one-feature synthetic CSV whose
+            optimum is 60 cp from the seed must be reached; fail a run
+            whose best epoch is the last or whose travel reaches
+            0.9 × lr × epochs.
+          - Rarog's stage schedule (C-54); residuals on unused train rows
+            (C-51); never hand-revert a block (C-55).
+          - Every input and output is hashed (corpora, row order, splits,
+            configs, binaries, source revisions, tablebases, vectors,
+            reports), and source and the production binary are restored
+            byte for byte on success or failure.
+          - T2: `bake.py` writes every slot that differs with no provenance
+            or completeness check (`bake.py:173-174`; the dump carries no
+            header hash). A stale dump reverted 42 members and both PST
+            blocks in a dry run and skipped 92 absent members silently.
+            Slot placement and CRLF are correct. Test: `test_bake` cases
+            that fail on a missing member, an unknown name and a hash
+            mismatch.
+          - Scores re-dumped after a refit (C-69); fixtures that depend on
+            fitted weights fixed in their own commit (C-70); the fit
+            driver's invariants (C-71); the dense matrix at full scale
+            (C-73).
+          - Basilisk's `tools/texel/phase911.ps1` driver is adopted into the
+            contract or retired. A new driver is Python (`agents/implementation.md`
+            *Tools*); `phase911.ps1` reads `$LASTEXITCODE` through
+            `Tee-Object` and is Windows-only.
+          - An option to register, not a default (2026-11-11; Rarog's
+            EVAL-13): a second-difference penalty on the mobility tables
+            and the pawn table, so a fit cannot leave a sawtooth in a term
+            that should be smooth.
+        - [ ] **C.2.1.5** `[I1]` Texel tooling hygiene and CI
+          - No workflow runs `tools/texel/test_*.py`; two of three need
+            python-chess, absent here.
+          - `test_edge.csv` is referenced nowhere, and `import_beast.py` is
+            obsolete.
+          - The usage text omits four modes, and comments cite 1,183 or
+            1,190 parameters against `EVAL_PARAM_FLAT_SIZE` 1,178.
+          - The README and `sample_fens.py` hard-code `A:/` paths.
+        - [ ] **C.2.1.6** `[R2]` Texel handbook and the standing contract
+          Archived 8.1.h. A Basilisk Texel handbook: canonical paths,
+          immutable resources, supported commands, the surface partition,
+          the pipeline, traps, reference timings and the recovery
+          procedure. Rarog's, the snapshot's
+          `analysis/texel_fitting_handbook.md`, is a template, not a source
+          of constants. The data contract C.2.1.1 to C.2.1.4 settle is
+          written into *Standing contracts*.
     - [ ] **C.2.2** `[R2]` Corpus design
       Corpus design (archived 8.2.a–e).
       - The source store is located and hashed.
@@ -1661,7 +1695,12 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.1 | RESEARCH | I1 | Not started |
+| C.2.1.1 | RESEARCH | I1 | Not started |
+| C.2.1.2 | RESEARCH | I2 | Not started |
+| C.2.1.3 | RESEARCH | R2 | Not started |
+| C.2.1.4 | RESEARCH | I1 | Not started |
+| C.2.1.5 | RESEARCH | I1 | Not started |
+| C.2.1.6 | RESEARCH | R2 | Not started |
 | C.2.2 | RESEARCH | R2 | Not started |
 | C.2.3 | RESEARCH | V | Not started |
 | C.2.4 | RESEARCH | R2 | Not started |
