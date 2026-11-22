@@ -685,28 +685,26 @@ explains.
 
 ## Texel procedure
 
-C.2.1 writes the Basilisk Texel handbook; until then the tools are
-`basilisk-texel` (`TEXEL=ON`), `tools/texel/extract_parallel.py` and
-`tools/texel/bake.py`. The policy:
+The operation, its resources, contracts, traps and numbers are in
+[`tools/texel/HANDBOOK.md`](../tools/texel/HANDBOOK.md). A fit runs through
+`tools/texel/fit.py`. The policy:
 
-1. Mechanically verify the label domain and source before fitting:
-   self-play WDL means exactly `0`, `0.5`, `1` from White's perspective; a
+1. The labels are game results, exactly `0`, `0.5`, `1` from White's side, of
+   games that ended by the rules. The row contract checks it mechanically; a
    filename or a prose summary is not proof.
-2. Keep stable by-game train/validation/test splits; claim the test split once
-   after model selection.
-3. Enumerate every evaluation coordinate with its status — free, fixed or
-   excluded (nonlinear, capped or bucket-selecting terms a linear model would
-   misprice) — and its reason. The inventory sums exactly to the parameter
-   registry.
-4. Trace every linear term exactly and verify full-evaluation reconstruction.
-5. Smoke the complete vector → bake → source → rebuild chain with absurd
-   values in every instrument class; unchanged behaviour after a broad fit is
-   a failed wire.
-6. **Sequential joint bake.** `--tune all` and `--tune-kingsafety` each write
-   a full parameter dump with the other group at baseline, so baking one after
-   the other reverts the first. The order is: bake the linear fit, rebuild
-   `basilisk-texel` against it, re-fit king safety on the baked evaluation,
-   then bake king safety.
+2. Train, validation and test are split by the start's hash, and the test
+   split is claimed once, after model selection.
+3. Every evaluation coordinate is classed free, fixed or excluded, with its
+   reason, in the surface manifest, which sums exactly to the registry. The
+   free surface has full rank under its anchors on the corpus fitted.
+4. The fit models the played score: the tuner's model must reproduce the
+   engine on every row (`--verify`), and its played hash must equal a release
+   build's served hash.
+5. K is fitted once on validation and frozen. Each stage starts from the last
+   one's complete vector (`--init`); nothing is baked between stages. The whole
+   final vector is baked, never one block of it.
+6. A stage stopped by its schedule, not by convergence, is not a fit: the
+   tuner exits 3 and nothing is baked.
 7. Fit loss is a screen and a falsifier, never acceptance. Bake the fit into
    clean PGO and gate it.
 8. Keep search parameters fixed during an evaluation fit; re-measure their
