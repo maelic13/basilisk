@@ -22,6 +22,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <memory>
 #include <ratio>
@@ -908,8 +909,17 @@ struct ModelCounts {
     }
 };
 
+// The slots a clamp must not move during a fit: those outside the fitted set
+// (held at the seed, or frozen for want of support). Null outside a fit.
+static const std::vector<char>* g_clamp_held = nullptr;
+
+static bool clamp_held(int idx) {
+    return g_clamp_held && (*g_clamp_held)[static_cast<size_t>(idx)];
+}
+
 static void clamp_range(double* w, int idx, double lo, double hi) {
-    w[idx] = std::clamp(w[idx], lo, hi);
+    if (!clamp_held(idx))
+        w[idx] = std::clamp(w[idx], lo, hi);
 }
 
 static void clamp_group_range(double* w, int group, double lo, double hi) {
@@ -919,10 +929,33 @@ static void clamp_group_range(double* w, int group, double lo, double hi) {
         clamp_range(w, base + i, lo, hi);
 }
 
+// Non-decreasing along `chain`. A held entry stays where it is, so a free one
+// is bounded below by the entry before it and above by the smallest held entry
+// after it: a free entry that the data pushed past a held neighbour stops at
+// it, instead of the held neighbour being moved.
+static void enforce_chain(double* w, const std::vector<int>& chain) {
+    std::vector<double> upper(chain.size(), std::numeric_limits<double>::infinity());
+    double bound = std::numeric_limits<double>::infinity();
+    for (size_t k = chain.size(); k-- > 0;) {
+        upper[k] = bound;
+        if (clamp_held(chain[k]))
+            bound = std::min(bound, w[chain[k]]);
+    }
+    double previous = -std::numeric_limits<double>::infinity();
+    for (size_t k = 0; k < chain.size(); ++k) {
+        double& x = w[chain[k]];
+        if (!clamp_held(chain[k]))
+            x = std::clamp(x, previous, std::max(previous, upper[k]));
+        previous = x;
+    }
+}
+
 static void enforce_non_decreasing(double* w, int group, int first, int last) {
-    int base = eval_param_offset(group);
-    for (int i = first + 1; i <= last; ++i)
-        w[base + i] = std::max(w[base + i], w[base + i - 1]);
+    const int base = eval_param_offset(group);
+    std::vector<int> chain;
+    for (int i = first; i <= last; ++i)
+        chain.push_back(base + i);
+    enforce_chain(w, chain);
 }
 
 static void clamp_weights_for_group(const std::string&, double* w) {
@@ -995,10 +1028,10 @@ static void clamp_weights_for_group(const std::string&, double* w) {
     clamp_group_range(w, EPG_ThreatRookEg, 0.0, 200.0);
     clamp_group_range(w, EPG_ThreatQueenMg, 0.0, 200.0);
     clamp_group_range(w, EPG_ThreatQueenEg, 0.0, 200.0);
-    w[flat_index(EPG_ThreatRookMg)] = std::max(w[flat_index(EPG_ThreatRookMg)], w[flat_index(EPG_ThreatMinorMg)]);
-    w[flat_index(EPG_ThreatQueenMg)] = std::max(w[flat_index(EPG_ThreatQueenMg)], w[flat_index(EPG_ThreatRookMg)]);
-    w[flat_index(EPG_ThreatRookEg)] = std::max(w[flat_index(EPG_ThreatRookEg)], w[flat_index(EPG_ThreatMinorEg)]);
-    w[flat_index(EPG_ThreatQueenEg)] = std::max(w[flat_index(EPG_ThreatQueenEg)], w[flat_index(EPG_ThreatRookEg)]);
+    // A pawn threat to a queen is worth at least one to a rook, and that at
+    // least one to a minor.
+    enforce_chain(w, {flat_index(EPG_ThreatMinorMg), flat_index(EPG_ThreatRookMg), flat_index(EPG_ThreatQueenMg)});
+    enforce_chain(w, {flat_index(EPG_ThreatMinorEg), flat_index(EPG_ThreatRookEg), flat_index(EPG_ThreatQueenEg)});
 
     clamp_group_range(w, EPG_SpaceMg, 0.0, 50.0);
     clamp_group_range(w, EPG_SpacePieceMg, -10.0, 10.0);
@@ -1749,6 +1782,9 @@ static void cmd_tune(const TuneOptions& opts) {
     std::vector<char> is_active(EVAL_PARAM_FLAT_SIZE, 0);
     for (int idx : active)
         is_active[static_cast<size_t>(idx)] = 1;
+    std::vector<char> held(EVAL_PARAM_FLAT_SIZE, 1);
+    for (int idx : active)
+        held[static_cast<size_t>(idx)] = 0;
     // A `mean:<set>` anchor holds the mean of its set at the seed: a set whose
     // level the data cannot see (each king PST, each mobility table) moves
     // only in shape. Its members are all free linear slots.
@@ -1849,11 +1885,16 @@ static void cmd_tune(const TuneOptions& opts) {
             w[active[j]] -= opts.lr * m_hat / (std::sqrt(v_hat) + EPS);
         }
 
-        clamp_weights_for_group(opts.group, w);
+        // Slots outside the fitted set stay at the seed; the anchors hold
+        // their sets' means; and the clamps, which never move a held slot,
+        // have the last word, so every vector a stage writes satisfies them.
         for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i)
             if (!is_active[static_cast<size_t>(i)])
                 w[i] = base_w[i];
         project_anchors(w);
+        g_clamp_held = &held;
+        clamp_weights_for_group(opts.group, w);
+        g_clamp_held = nullptr;
 
         auto t1 = std::chrono::steady_clock::now();
         double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
