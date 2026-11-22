@@ -11,6 +11,7 @@
 //   basilisk-texel --tune material train.csv holdout.csv [out/eval_params.txt]
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <chrono>
 #include <cmath>
@@ -45,18 +46,29 @@ struct TexelPos {
     EvalTrace trace;   // collected after evaluate()
 };
 
+// The fit's rows, the coefficients held sparse: a row's nonzero coefficients
+// only, as (position in the active list, value), row i's in
+// [offset[i], offset[i + 1]). A position touches a few dozen of a thousand
+// slots, and a dense matrix at a full corpus (3.5M rows by 1,025 slots) would
+// take 14 GB.
 struct TuneSet {
     int active_count = 0;
     std::vector<float> result;
     std::vector<float> base_score;
-    std::vector<float> coeffs; // row-major: position * active_count + active index
     std::vector<uint8_t> phase; // game phase 0..24, for bucketed holdout
+    std::vector<size_t> offset{0};
+    std::vector<uint16_t> index;
+    std::vector<float> value;
 
     size_t size() const { return result.size(); }
 
-    const float* row(size_t i) const {
-        return coeffs.data() + i * static_cast<size_t>(active_count);
+    void add_coefficient(int active_position, float v) {
+        if (v != 0.0f) {
+            index.push_back(static_cast<uint16_t>(active_position));
+            value.push_back(v);
+        }
     }
+    void end_row() { offset.push_back(index.size()); }
 };
 
 struct TuneOptions {
@@ -67,7 +79,10 @@ struct TuneOptions {
     int max_positions = 5'000'000;
     int epochs = 200;
     double lr = 0.3;
-    double l2 = 0.0;  // L2-to-prior (toward base/default weights); 0 = off
+    double l2 = 0.0;      // L2-to-prior (toward base/default weights); 0 = off
+    double smooth = 0.0;  // second-difference penalty on the ordered tables; 0 = off
+    double K = 0.0;       // the frozen K; 0 = fit it on the holdout, as before
+    int patience = 20;    // stop when the holdout has not improved for this many epochs; 0 = off
 };
 
 // ---------------------------------------------------------------------------
@@ -265,6 +280,8 @@ static void usage(const char* exe) {
         << "Usage:\n"
         << "  " << exe << " --verify <dataset.csv> [--max-positions N]\n"
         << "  " << exe << " --played-hash <dataset.csv>\n"
+        << "  " << exe << " --loss <dataset.csv> [--K K] [--skip N] [--max-positions N]\n"
+        << "  " << exe << " --dump-played <dataset.csv> <out.txt>\n"
         << "  " << exe << " --list-params\n"
         << "  " << exe << " --dump-coeffs <dataset.csv> <out.f64> [--max-positions N]\n"
         << "  Every mode also takes --init FILE (a complete `name index value` vector to\n"
@@ -293,7 +310,12 @@ static void usage(const char* exe) {
         << "  --epochs N         optimizer epochs (default 200)\n"
         << "  --lr X             Adam learning rate (default 0.3)\n"
         << "  --l2 X             L2-to-prior strength (pull toward default weights; default 0 = off)\n"
-        << "  --max-positions N  cap positions loaded from each file (default 5000000; 0 = all)\n";
+        << "  --smooth X         second-difference penalty on the ordered tables (default 0 = off)\n"
+        << "  --K K              the frozen K (also --tune-kingsafety); default: fitted on the holdout\n"
+        << "  --patience N       stop when the holdout has not improved for N epochs (default 20; 0 = off)\n"
+        << "  --max-positions N  cap positions loaded from each file (default 5000000; 0 = all)\n"
+        << "  A fit whose holdout still improved at its last epoch, or whose largest move\n"
+        << "  reached 0.9 x lr x epochs, exits 3: its schedule, not the data, stopped it.\n";
 }
 
 static TuneOptions parse_tune_options(int argc, char* argv[]) {
@@ -322,6 +344,12 @@ static TuneOptions parse_tune_options(int argc, char* argv[]) {
             opts.max_positions = parse_int_arg(argv[argi++], "--max-positions");
         } else if (opt == "--l2" && argi < argc) {
             opts.l2 = parse_nonneg_double_arg(argv[argi++], "--l2");
+        } else if (opt == "--smooth" && argi < argc) {
+            opts.smooth = parse_nonneg_double_arg(argv[argi++], "--smooth");
+        } else if (opt == "--K" && argi < argc) {
+            opts.K = parse_double_arg(argv[argi++], "--K");
+        } else if (opt == "--patience" && argi < argc) {
+            opts.patience = parse_int_arg(argv[argi++], "--patience");
         } else {
             std::cerr << "Unknown or incomplete option: " << opt << "\n";
             usage(argv[0]);
@@ -380,6 +408,29 @@ static std::vector<Slot> slots() {
     return out;
 }
 
+// A vector's identity: FNV-1a 64 over its canonical text, one `name index
+// value` line per slot in slot order (tools/texel/bake.py computes the same
+// over a header's initializers). A written vector carries the hash of the
+// vector its fit started from (`seed`) and of the first vector of its chain of
+// stages (`root`), so that bake can refuse a vector that was not fitted from
+// the header it would overwrite.
+static std::string vector_hash() {
+    uint64_t h = 0xcbf29ce484222325ull;
+    for (const Slot& s : slots()) {
+        const std::string line = std::string(s.group) + " " + std::to_string(s.sub) + " "
+                               + std::to_string(*s.value) + "\n";
+        for (char c : line) {
+            h ^= static_cast<unsigned char>(c);
+            h *= 0x100000001b3ull;
+        }
+    }
+    char text[17];
+    std::snprintf(text, sizeof text, "%016llx", static_cast<unsigned long long>(h));
+    return text;
+}
+
+static std::string g_root_hash, g_seed_hash;
+
 // The initial vector, in the `name index value` form the tuner writes: every
 // slot exactly once, and nothing else. A partial, duplicated or unknown entry
 // is fatal, so a stage can only ever start from a vector that says every value.
@@ -404,6 +455,8 @@ static void load_initial_vector(const std::string& path) {
         ++lineno;
         if (!line.empty() && line.back() == '\r')
             line.pop_back();
+        if (line.rfind("# root ", 0) == 0)
+            g_root_hash = line.substr(7);
         if (line.empty() || line[0] == '#')
             continue;
         std::istringstream fields(line);
@@ -536,6 +589,9 @@ static void take_global_options(int& argc, char* argv[]) {
     argc = out;
     if (!init_path.empty())
         load_initial_vector(init_path);
+    g_seed_hash = vector_hash();
+    if (g_root_hash.empty())
+        g_root_hash = g_seed_hash;  // the chain starts here
 }
 
 static void append_group(std::vector<int>& out, int group) {
@@ -991,19 +1047,23 @@ static std::vector<TexelPos> load_verify_dataset(const std::string& path,
     return out;
 }
 
+// The used rows of a file, after skipping its first `skip` used rows (so that
+// the rows a fit did not read can be scored on their own: the residuals on
+// unused train rows).
 static TuneSet load_tune_dataset(const std::string& path,
                                  const std::vector<int>& active,
-                                 int max_positions) {
+                                 int max_positions, long skip = 0) {
     RowReader rows(path);
     TuneSet out;
     out.active_count = static_cast<int>(active.size());
+    if (active.size() > 65535) {
+        std::cerr << "FATAL: " << active.size() << " active slots overflow the sparse index.\n";
+        std::exit(2);
+    }
 
     if (max_positions > 0) {
         out.result.reserve(static_cast<size_t>(max_positions));
         out.base_score.reserve(static_cast<size_t>(max_positions));
-        const size_t coeff_reserve = static_cast<size_t>(max_positions) * active.size();
-        if (coeff_reserve <= 100'000'000ULL)
-            out.coeffs.reserve(coeff_reserve);
     }
 
     std::string fen, target;
@@ -1033,12 +1093,18 @@ static TuneSet load_tune_dataset(const std::string& path,
         counts.add(ok, model, stage, board);
         if (!ok || model.status != RowModel::USED)
             continue;
+        if (skip > 0) {
+            --skip;
+            continue;
+        }
 
         out.result.push_back(result);
         out.base_score.push_back(static_cast<float>(model.played_white));
         out.phase.push_back(static_cast<uint8_t>(g_trace.phase));
-        for (int idx : active)
-            out.coeffs.push_back(static_cast<float>(trace_coeff(*model.trace, idx) * model.scale));
+        for (size_t j = 0; j < active.size(); ++j)
+            out.add_coefficient(static_cast<int>(j),
+                                static_cast<float>(trace_coeff(*model.trace, active[j]) * model.scale));
+        out.end_row();
 
         if (max_positions > 0 && static_cast<int>(out.size()) >= max_positions)
             break;
@@ -1119,6 +1185,19 @@ static void cmd_verify(const std::string& path, int limit) {
         std::exit(1);
     }
     std::cout << "PASS: the model reproduces the engine on every row.\n";
+}
+
+// The played score, White's view, of each row a fit uses, one per line in
+// file order (the rows --dump-coeffs writes, in the same order).
+static void cmd_dump_played(const std::string& path, const std::string& out_path) {
+    TuneSet set = load_tune_dataset(path, {}, 0);
+    std::ofstream out(out_path);
+    if (!out) {
+        std::cerr << "Cannot write " << out_path << "\n";
+        std::exit(1);
+    }
+    for (size_t i = 0; i < set.size(); ++i)
+        out << static_cast<int>(set.base_score[i]) << "\n";
 }
 
 // Every slot, in order, with its group, index and value: the registry that
@@ -1354,10 +1433,9 @@ static double score_from_weights(const TuneSet& set,
                                  const double* base_w,
                                  const double* w) {
     double score = static_cast<double>(set.base_score[pos]);
-    const float* coeff = set.row(pos);
-    for (size_t j = 0; j < active.size(); ++j) {
-        int idx = active[j];
-        score += static_cast<double>(coeff[j]) * (w[idx] - base_w[idx]);
+    for (size_t k = set.offset[pos]; k < set.offset[pos + 1]; ++k) {
+        const int idx = active[set.index[k]];
+        score += static_cast<double>(set.value[k]) * (w[idx] - base_w[idx]);
     }
     return score;
 }
@@ -1447,6 +1525,47 @@ static double fit_K(const TuneSet& positions) {
     return K;
 }
 
+static int phase_band(int phase) {
+    return (phase >= 20) ? 0 : (phase >= 14) ? 1 : (phase >= 8) ? 2 : (phase >= 3) ? 3 : 4;
+}
+
+// The loss of the played score at the current vector (--init), on a file's
+// used rows after its first --skip rows: K fitted on it unless --K freezes it,
+// then K fitted again in each phase band and the loss at the frozen K, by
+// band. The fit driver fits K once with this on validation at the seed, and
+// reads the residuals of the rows a fit did not use the same way.
+static void cmd_loss(const std::string& path, double frozen_K, long skip, int max_positions) {
+    TuneSet set = load_tune_dataset(path, {}, max_positions, skip);
+    const double K = frozen_K > 0.0 ? frozen_K : fit_K(set);
+    if (frozen_K > 0.0)
+        check_K_inside_bounds(K);
+    std::printf("rows: %zu\nK: %.6f\nloss: %.8f\n", set.size(), K, default_loss(set, K));
+    static const char* names[5] = {"opening", "early_mid", "middlegame", "endgame", "deep_endgame"};
+    for (int band = 0; band < 5; ++band) {
+        TuneSet part;
+        for (size_t i = 0; i < set.size(); ++i) {
+            if (phase_band(set.phase[i]) != band)
+                continue;
+            part.result.push_back(set.result[i]);
+            part.base_score.push_back(set.base_score[i]);
+            part.phase.push_back(set.phase[i]);
+            part.end_row();
+        }
+        if (part.size() < 100) {
+            std::printf("band %s: rows %zu (too few to fit K)\n", names[band], part.size());
+            continue;
+        }
+        double lo = K_LO, hi = K_HI;
+        for (int i = 0; i < 50; ++i) {
+            const double m1 = lo + (hi - lo) / 3.0, m2 = hi - (hi - lo) / 3.0;
+            if (default_loss(part, m1) < default_loss(part, m2)) hi = m2; else lo = m1;
+        }
+        std::printf("band %s: rows %zu  K %.6f  loss at K %.8f  loss at its own K %.8f\n",
+                    names[band], part.size(), (lo + hi) / 2.0, default_loss(part, K),
+                    default_loss(part, (lo + hi) / 2.0));
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Output helpers
 // ---------------------------------------------------------------------------
@@ -1460,6 +1579,9 @@ static void write_eval_params_file(const std::string& out_path) {
         std::cerr << "Cannot write " << out_path << "\n";
         std::exit(1);
     }
+    out << "# basilisk-texel-vector-v1\n"
+        << "# root " << g_root_hash << "\n"
+        << "# seed " << g_seed_hash << "\n";
 
 #define X(name, member, len) \
     { const int* ptr = eval_param_cptr(g_eval_params.member); \
@@ -1557,12 +1679,53 @@ static void cmd_tune(const TuneOptions& opts) {
     TuneSet holdout = load_tune_dataset(opts.holdout_path, active, opts.max_positions);
     std::cout << "Loaded " << holdout.size() << " holdout positions.\n";
 
-    double K = fit_K(holdout);
+    // K is fitted once, on validation at the seed, and frozen across every
+    // stage and arm (--K); fitting it again per run moves the target the
+    // stages are compared on.
+    double K = opts.K;
+    if (K > 0.0) {
+        check_K_inside_bounds(K);
+        std::cout << "K frozen at " << K << ".\n";
+    } else {
+        K = fit_K(holdout);
+    }
 
     double base_w[EVAL_PARAM_FLAT_SIZE];
     double w[EVAL_PARAM_FLAT_SIZE];
     read_weights(g_eval_params, base_w);
     std::copy(base_w, base_w + EVAL_PARAM_FLAT_SIZE, w);
+
+    // The second-difference penalty (--smooth, off by default): for each run
+    // of three consecutive active entries of an ordered table -- the mobility
+    // tables by count, the passer and connected-pawn tables by rank -- the
+    // square of w[i-1] - 2 w[i] + w[i+1], so a fit cannot leave a sawtooth in
+    // a term that should be smooth.
+    std::vector<std::array<int, 3>> triples;
+    if (opts.smooth > 0.0) {
+        std::vector<char> on(EVAL_PARAM_FLAT_SIZE, 0);
+        for (int idx : active)
+            on[static_cast<size_t>(idx)] = 1;
+        const int ordered[] = {EPG_MobNMg, EPG_MobNEg, EPG_MobBMg, EPG_MobBEg, EPG_MobRMg, EPG_MobREg,
+                               EPG_MobQMg, EPG_MobQEg, EPG_PassedMg, EPG_PassedEg,
+                               EPG_ConnectedRankMg, EPG_ConnectedRankEg};
+        for (int g : ordered) {
+            const int base = eval_param_offset(g);
+            for (int i = 1; i + 1 < EVAL_PARAM_LENS[g]; ++i) {
+                const int a = base + i - 1, m = base + i, c = base + i + 1;
+                if (on[static_cast<size_t>(a)] && on[static_cast<size_t>(m)] && on[static_cast<size_t>(c)])
+                    triples.push_back({a, m, c});
+            }
+        }
+        std::cout << "Smoothness penalty " << opts.smooth << " on " << triples.size() << " triples.\n";
+    }
+    auto smooth_penalty = [&](const double* x) {
+        double sum = 0.0;
+        for (const auto& t : triples) {
+            const double d = x[t[0]] - 2.0 * x[t[1]] + x[t[2]];
+            sum += d * d;
+        }
+        return opts.smooth * sum;
+    };
 
     // The clamps are priors on the fitted coordinates. The seed must satisfy
     // them, or the first clamp would move it with no data asking; and a
@@ -1633,6 +1796,7 @@ static void cmd_tune(const TuneOptions& opts) {
     std::copy(w, w + EVAL_PARAM_FLAT_SIZE, best_w);
     double best_holdout = initial_holdout_loss;
     int best_epoch = 0;
+    int last_epoch = 0;
 
     std::vector<double> grad(active.size(), 0.0);
     std::vector<double> m(active.size(), 0.0);
@@ -1651,21 +1815,33 @@ static void cmd_tune(const TuneOptions& opts) {
             double dsig = sig * (1.0 - sig);
             double coeff = -2.0 * err * dsig * (K / 400.0);
 
-            const float* row = train.row(i);
-            for (size_t j = 0; j < active.size(); ++j)
-                grad[j] += coeff * static_cast<double>(row[j]);
+            for (size_t k = train.offset[i]; k < train.offset[i + 1]; ++k)
+                grad[train.index[k]] += coeff * static_cast<double>(train.value[k]);
         }
 
         ++t;
         double bc1 = 1.0 - std::pow(BETA1, static_cast<double>(t));
         double bc2 = 1.0 - std::pow(BETA2, static_cast<double>(t));
 
+        std::vector<double> smooth_grad;
+        if (!triples.empty()) {
+            smooth_grad.assign(EVAL_PARAM_FLAT_SIZE, 0.0);
+            for (const auto& tri : triples) {
+                const double d = w[tri[0]] - 2.0 * w[tri[1]] + w[tri[2]];
+                smooth_grad[static_cast<size_t>(tri[0])] += 2.0 * opts.smooth * d;
+                smooth_grad[static_cast<size_t>(tri[1])] -= 4.0 * opts.smooth * d;
+                smooth_grad[static_cast<size_t>(tri[2])] += 2.0 * opts.smooth * d;
+            }
+        }
         for (size_t j = 0; j < active.size(); ++j) {
             // Data gradient + optional L2-to-prior (pull toward the default/base
-            // weights; a guard for sparse/suspect terms, off by default).
+            // weights; a guard for sparse/suspect terms, off by default) + the
+            // optional smoothness penalty.
             double g = grad[j] / n;
             if (opts.l2 > 0.0)
                 g += 2.0 * opts.l2 * (w[active[j]] - base_w[active[j]]);
+            if (!smooth_grad.empty())
+                g += smooth_grad[static_cast<size_t>(active[j])];
             m[j] = BETA1 * m[j] + (1.0 - BETA1) * g;
             v[j] = BETA2 * v[j] + (1.0 - BETA2) * g * g;
             double m_hat = m[j] / bc1;
@@ -1687,21 +1863,52 @@ static void cmd_tune(const TuneOptions& opts) {
             best_epoch = epoch;
             std::copy(w, w + EVAL_PARAM_FLAT_SIZE, best_w);
         }
+        last_epoch = epoch;
 
         if (epoch == 1 || epoch % 10 == 0 || epoch == opts.epochs) {
             // The data loss, and the objective the optimiser descends: the
-            // data loss plus the L2 penalty when it is on.
+            // data loss plus the penalties when they are on.
             double train_loss = traced_loss(train, active, base_w, w, K);
-            if (opts.l2 > 0.0)
+            if (opts.l2 > 0.0 || opts.smooth > 0.0)
                 std::printf("Epoch %4d  train=%.8f  objective=%.8f  holdout=%.8f  %.0f ms\n",
-                            epoch, train_loss, train_loss + l2_penalty(w), holdout_loss, ms);
+                            epoch, train_loss, train_loss + l2_penalty(w) + smooth_penalty(w),
+                            holdout_loss, ms);
             else
                 std::printf("Epoch %4d  train=%.8f  holdout=%.8f  %.0f ms\n",
                             epoch, train_loss, holdout_loss, ms);
         }
+        // Converged: the holdout has not improved for `patience` epochs.
+        if (opts.patience > 0 && epoch - best_epoch >= opts.patience) {
+            std::cout << "Stopped at epoch " << epoch << ": no holdout gain for "
+                      << opts.patience << " epochs.\n";
+            break;
+        }
     }
 
-    if (best_epoch != opts.epochs) {
+    // A run whose holdout was still improving when its epochs ran out, or in
+    // which a slot travelled as far as the optimiser could carry it, stopped
+    // on the schedule, not on the data: full-batch Adam moves a one-signed
+    // coordinate about lr an epoch, so lr x epochs bounds every move.
+    {
+        double travel = 0.0;
+        for (int idx : active)
+            travel = std::max(travel, std::abs(best_w[idx] - base_w[idx]));
+        const double bound = opts.lr * static_cast<double>(last_epoch);
+        std::cout << "Largest move " << travel << " of the schedule's bound " << bound
+                  << " (lr " << opts.lr << " x " << last_epoch << " epochs).\n";
+        if (best_epoch == last_epoch && best_epoch > 0) {
+            std::cerr << "FATAL: the holdout was still improving at the last epoch, " << last_epoch
+                      << "; the run was stopped by its schedule, not converged.\n";
+            std::exit(3);
+        }
+        if (travel >= 0.9 * bound) {
+            std::cerr << "FATAL: a slot moved " << travel << ", 0.9 or more of the bound " << bound
+                      << "; the schedule, not the data, set how far it went.\n";
+            std::exit(3);
+        }
+    }
+
+    if (best_epoch != last_epoch) {
         std::copy(best_w, best_w + EVAL_PARAM_FLAT_SIZE, w);
         std::cout << "Restored best holdout epoch " << best_epoch
                   << " (holdout=" << best_holdout << ").\n";
@@ -1878,6 +2085,7 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     std::string train_path = argv[2], holdout_path = argv[3];
     std::string out_path = "tools/texel/out/kingsafety.txt";
     int epochs = 0, max_positions = 0, init_step = 8;
+    double frozen_K = 0.0;
     int argi = 4;
     if (argi < argc && !is_option(argv[argi])) out_path = argv[argi++];
     while (argi < argc) {
@@ -1885,6 +2093,7 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
         if (o == "--epochs" && argi < argc) epochs = parse_int_arg(argv[argi++], "--epochs");
         else if (o == "--max-positions" && argi < argc) max_positions = parse_int_arg(argv[argi++], "--max-positions");
         else if (o == "--step" && argi < argc) init_step = parse_int_arg(argv[argi++], "--step");
+        else if (o == "--K" && argi < argc) frozen_K = parse_double_arg(argv[argi++], "--K");
         else { std::cerr << "Unknown option " << o << "\n"; usage(argv[0]); std::exit(1); }
     }
 
@@ -1899,8 +2108,14 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     Evaluator& ev = *ev_ptr;
     Board scratch;
 
-    double K = ks_fit_K(holdout, scratch, ev);
-    std::cout << "K = " << K << "\n";
+    double K = frozen_K;
+    if (K > 0.0) {
+        check_K_inside_bounds(K);
+        std::cout << "K frozen at " << K << ".\n";
+    } else {
+        K = ks_fit_K(holdout, scratch, ev);
+        std::cout << "K = " << K << "\n";
+    }
 
     EvalParams& P = g_eval_params;
     // The descent keeps the table non-decreasing by clamping each entry
@@ -2060,6 +2275,29 @@ int main(int argc, char* argv[]) {
 
     if (mode == "--list-params") {
         cmd_list_params();
+    } else if (mode == "--loss") {
+        if (argc < 3) {
+            usage(argv[0]);
+            return 1;
+        }
+        double K = 0.0;
+        long skip = 0;
+        int maxpos = 0;
+        for (int a = 3; a < argc; a += 2) {
+            const std::string o = argv[a];
+            if (a + 1 >= argc) { usage(argv[0]); return 1; }
+            if (o == "--K") K = parse_double_arg(argv[a + 1], "--K");
+            else if (o == "--skip") skip = parse_int_arg(argv[a + 1], "--skip");
+            else if (o == "--max-positions") maxpos = parse_int_arg(argv[a + 1], "--max-positions");
+            else { usage(argv[0]); return 1; }
+        }
+        cmd_loss(argv[2], K, skip, maxpos);
+    } else if (mode == "--dump-played") {
+        if (argc != 4) {
+            usage(argv[0]);
+            return 1;
+        }
+        cmd_dump_played(argv[2], argv[3]);
     } else if (mode == "--dump-coeffs") {
         if (argc != 4 && !(argc == 6 && std::string(argv[4]) == "--max-positions")) {
             usage(argv[0]);
