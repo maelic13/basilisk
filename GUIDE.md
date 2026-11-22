@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.2.1.1** `[I1]` Rows, labels and splits — Claude Sonnet
+**Next step:** **C.2.1.2** `[I2]` Tuner correctness — Claude Opus
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -62,7 +62,7 @@ the six-stage gating shape), are in
 - [x] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
 - [ ] **C.2** Fit pipeline, corpus, labels and gate instruments
     - [ ] **C.2.1** Fit-tooling contract and Texel handbook
-        - [ ] **C.2.1.1** `[I1]` Rows, labels and splits
+        - [x] **C.2.1.1** `[I1]` Rows, labels and splits
         - [ ] **C.2.1.2** `[I2]` Tuner correctness
         - [ ] **C.2.1.3** `[R2]` Coordinate manifest and initial vectors
         - [ ] **C.2.1.4** `[I1]` Fit driver and provenance

@@ -862,7 +862,7 @@ has lost games in both engines (BAS-X02).
       - T5 is resolved by A.16, which removed the winnable term, its seven
         slots and its tuner group; C.7.3's complexity term needs an
         instrument of its own.
-        - [ ] **C.2.1.1** `[I1]` Rows, labels and splits
+        - [x] **C.2.1.1** `[I1]` Rows, labels and splits
           The data contract, versioned (archived 8.1.c, 8.1.f, 8.1.g).
           - Every row carries its game id, its start's id and its ply,
             for clustered errors (C-30).
@@ -878,6 +878,44 @@ has lost games in both engines (BAS-X02).
             builder, the yield and relabelling tools, the manifest
             writers) are ported where useful. No gate is widened until
             unknown data fails it.
+          Done 2026-11-22 (`d8017a7`). The contract is
+          `basilisk-texel-rows-v1`, defined in `tools/texel/extract.py`:
+          - **Rows.** Each file opens with a schema line, then
+            `fen,result,game_id,start_id,ply,phase`. The result is White's
+            `1`, `0.5` or `0`, and the ids are 16 hex digits of SHA-256 over
+            the game and over its start.
+          - **Labels.** A game is labelled only if it ended by the rules:
+            - a game result, with any `Termination` header `normal`;
+            - a final position that is a mate the result agrees with, or a
+              stalemate, insufficient material, the fifty-move rule or a
+              position seen three times, with a draw recorded.
+
+            Every rejection is counted by reason in the manifest, and the
+            run fails past `--max-reject-pct`, 1% by default.
+          - **Splits.** Train, validation and test by the start's hash, so
+            every game from one start shares a split, published together
+            with `manifest.json` (inputs and outputs hashed) and never over
+            an existing file.
+          - **The test split.** `tools/texel/claim_test.py` claims it once,
+            by exclusive create, after checking it against the manifest.
+          - **Both extractors** decide each game with one function, and
+            their outputs are byte-identical.
+          - **The tuner** reads v1 through one row reader, a malformed v1
+            row being fatal; legacy `FEN;target` files still load.
+            `phase911.ps1 -Stage extract` now refuses, pending C.2.1.4.
+
+          Checks:
+          - `tools/texel/test_extract.py`, 20 tests, catches three
+            deliberate breaks: a split keyed on the moves, the ply off by
+            one, and a mate labelled against its result.
+          - The tuner's `--verify` reconstructs a v1 corpus exactly (60 of
+            60). It exits 2 on a five-column v1 row and on a 0.7 target.
+
+          Not ported:
+          - Rarog's book builder and yield read, which are C.2.2's (C-75).
+          - Its tablebase relabeller, which waits for the label policy.
+          - The de-duplication key, which still ignores the clocks; that is
+            C-8, C.2.2's.
         - [ ] **C.2.1.2** `[I2]` Tuner correctness
           The tuner computes what the engine serves, and its checks can
           fail.
@@ -1695,7 +1733,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.1.1 | RESEARCH | I1 | Not started |
 | C.2.1.2 | RESEARCH | I2 | Not started |
 | C.2.1.3 | RESEARCH | R2 | Not started |
 | C.2.1.4 | RESEARCH | I1 | Not started |
