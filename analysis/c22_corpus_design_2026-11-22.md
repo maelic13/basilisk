@@ -1,11 +1,10 @@
 # C.2.2 corpus design (2026-11-22)
 
-- State / class: research in progress, `R2`. The design below is complete
-  except the two maintainer decisions in §7 and BAS-O10's result, which
-  §5's off-line share waits on.
+- State / class: closed 2026-11-22, `R2`. The maintainer decided §7's two
+  items, and BAS-O10 read NOT SUPPORTED, so §5 takes no off-line starts.
 - Owner / date: agent, 2026-11-22, PLAN C.2.2.
-- Decision needed: the maintainer's, on §7's two items. Corpus A (C.2.3) is
-  generated from this packet's registration, not before.
+- Decision needed: none. Corpus A (C.2.3) is generated from this packet's
+  registration.
 
 **Recommendation.** Size corpus A in games, not rows: about 1,000,000
 self-play games from pool starts, two rows per phase per game. Rows from
@@ -131,10 +130,9 @@ result. The design effect `1 + (m − 1) × 0.69` for `m` rows a game:
   10% middlegame, 5% endgame, 5% deep endgame. Mostly opening starts, so
   the games are whole games; a fifth later starts, for independent endings
   (archived 8.2.b).
-- **Off-line starts.** If BAS-O10 reads SUPPORTED, 20% of the book's starts
-  are one random legal move off a sampled pool position, and the game
-  played from there labels the position a search would visit. If not,
-  none.
+- **Off-line starts: none.** BAS-O10 read NOT SUPPORTED (§8). Had it read
+  SUPPORTED, 20% of the starts would have been one random legal move off a
+  sampled pool position.
 - **Games.** About 1,000,000 at 8,000 nodes, one thread, Hash 16, natural
   terminations only, one game an opening. The engine is the head
   (C.2.3: the B.11.1 head; the C.1 head plays as 1.11.0 does, BAS-M23).
@@ -193,7 +191,11 @@ result. The design effect `1 + (m − 1) × 0.69` for `m` rows a game:
 **Decided 2026-11-22 (maintainer):** both as recommended. The output phase
 weights are equal, and the budget is about 1,000,000 games.
 
-## 8. Open: BAS-O10
+## 8. BAS-O10
 
-Registered and instrumented (`7e3bfe3`), maintainer-run. Its verdict sets
-§5's off-line share, and then C.2.2 closes.
+Run 2026-11-22, valid, **NOT SUPPORTED** (`docs/experiments/BAS-O10.md`).
+On 9,490 pairs, the game-line gap to Basilisk is +0.015 skill for Stockfish
+16's classical evaluation and +0.019 for `9587eeeb`'s, both above 0. One
+move off the line, it is no wider: delta −0.013 [−0.025, −0.001] and +0.003
+[−0.011, +0.016]. Corpus A's starts are pool positions only, and C.2.2
+closes.

@@ -62,3 +62,46 @@
 - Stop rule: one run, never re-run on the same binaries and positions.
 
 #### RESULT — append after exposure
+
+- **Run 2026-11-22** by the agent on the maintainer's leave, overnight,
+  `python tools/diag/h_distribution.py run --out tools/results/c22/hdist`,
+  exit 0, 22:02 to 22:34. The tuner is the head's `TEXEL=ON` build
+  (`build/texel/basilisk-texel.exe`, `3cf0903f…`);
+  `positions.csv` `8a66c229…`, `evals.csv` `a75843f2…`, the report
+  `tools/results/c22/hdist/report.json`.
+- **Kept pairs:** 9,490 of 10,000 (Stockfish 16 prints no evaluation in
+  check); 4,747 fit `k`, 4,743 read skill.
+- **Skill** (1 − cross-entropy / the constant predictor's):
+
+  | Evaluation | G | O |
+  |---|---:|---:|
+  | Basilisk | 0.2868 | 0.0445 |
+  | `9587eeeb` (d95) | 0.3058 | 0.0663 |
+  | Stockfish 16 classical (d16) | 0.3015 | 0.0459 |
+
+- **Gaps to Basilisk and deltas, 95% bootstrap intervals:**
+
+  | Contrast | Point | 95% interval |
+  |---|---:|---|
+  | gap(d95, G) | +0.0190 | +0.0128 to +0.0246 |
+  | gap(d16, G) | +0.0146 | +0.0086 to +0.0202 |
+  | gap(d95, O) | +0.0219 | +0.0095 to +0.0331 |
+  | gap(d16, O) | +0.0015 | −0.0099 to +0.0122 |
+  | delta(d95) | +0.0029 | −0.0106 to +0.0156 |
+  | delta(d16) | −0.0132 | −0.0255 to −0.0011 |
+
+- **Verdict: valid, NOT SUPPORTED.** Both game-line gaps have lower bounds
+  above 0, so the instrument sees C.0's deficit. Neither delta's lower bound
+  is above 0, and Stockfish 16's is below it: one move off the line, the
+  deficit is no wider, and against Stockfish 16 it narrows. Corpus A uses pool
+  positions as starts only; the question stays with C.11's deficit re-read.
+- **Against the prediction:** gap(d16, G) +0.015 sits inside its 80% band
+  (+0.01 to +0.05), below the point +0.03. delta(d16) −0.013 sits inside its
+  band (−0.02 to +0.04), below the point +0.01. SUPPORTED had been given 0.35.
+- **What else it shows (inference):** skill collapses one move off the line
+  for every evaluation, from about 0.30 to about 0.05, and the fitted scale
+  `k` rises about 1.6 times. A random move mostly leaves material en prise,
+  which no static evaluation sees, so O is a population about hanging
+  material more than about positional terms. That is the registered confound
+  and why the read is the contrast, not the level. A quiescence-settled O
+  would be the sharper question; it is not this corpus's (§5, C-77).

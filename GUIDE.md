@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.2.2** `[R2]` Corpus design — Claude Opus
+**Next step:** **C.2.3** `[V]` Generate and publish corpus A — Claude Sonnet
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -68,7 +68,7 @@ the six-stage gating shape), are in
         - [x] **C.2.1.4** `[I1]` Fit driver and provenance
         - [x] **C.2.1.5** `[I1]` Texel tooling hygiene and CI
         - [x] **C.2.1.6** `[R2]` Texel handbook and the standing contract
-    - [ ] **C.2.2** `[R2]` Corpus design
+    - [x] **C.2.2** `[R2]` Corpus design
     - [ ] **C.2.3** `[V]` Generate and publish corpus A
     - [ ] **C.2.4** `[R2]` Matched label arms
     - [ ] **C.2.5** `[R2]` Initialization control

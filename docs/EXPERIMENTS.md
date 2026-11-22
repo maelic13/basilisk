@@ -176,7 +176,7 @@ fifty-move, 2 stalemate. **Zero forfeits.** Instrument: branch `hybrid`
 - [BAS-O07](experiments/BAS-O07.md) — B.11.1 G(0) at the bridge's measured time odds, RAR-O08's conditions. — COMPLETE: bridge 2.07% (×1.021); G(0) −53.5 ± 7.6
 - [BAS-O08](experiments/BAS-O08.md) — C.0 same-search evaluation deficit E(0) on the 1.11.0 head, BAS-O02 re-read. — COMPLETE: E(0) = +217.3 [+207.1, +228.0] over 3,000 games
 - [BAS-O09](experiments/BAS-O09.md) — C.0 evaluation donor: `9587eeeb`'s and `sf_16`'s classical evaluations, each in both searches. — COMPLETE: equal within about 8 Elo in either search (`sf_16`'s −3.7 and −1.6); `sf_16` stays the donor
-- [BAS-O10](experiments/BAS-O10.md) — C.2.2's H-distribution read: three static evaluations against Stockfish 19 on game positions and one move off the game line. — REGISTERED, maintainer-run
+- [BAS-O10](experiments/BAS-O10.md) — C.2.2's H-distribution read: three static evaluations against Stockfish 19 on game positions and one move off the game line. — COMPLETE: NOT SUPPORTED (valid; delta d16 −0.013, d95 +0.003, neither above 0); corpus A takes no off-line starts
 - [BAS-D22](experiments/BAS-D22.md) — B.11.1 fixed-node meters: depth at 300k nodes, branching, endgame truth cohort. — observation: 3.3-ply gap (was 12.2), 458/480 converted
 
 **Internal consistency.** Measured directly, full Stockfish beat Basilisk 1.9.3

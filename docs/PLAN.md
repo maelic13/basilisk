@@ -1241,7 +1241,7 @@ has lost games in both engines (BAS-X02).
           - ***Standing contracts*** gains the Texel row.
           - **The Texel toolchain's leaves, C.2.1.1 to C.2.1.6, are done**,
             so C.2.1 closes.
-    - [ ] **C.2.2** `[R2]` Corpus design
+    - [x] **C.2.2** `[R2]` Corpus design
       Corpus design (archived 8.2.a–e).
       - The source store is located and hashed.
       - Buckets use evaluator phase, not ply; only opening starts feed the
@@ -1264,7 +1264,7 @@ has lost games in both engines (BAS-X02).
       game line beside the game positions; the gate games (25,970 games,
       254,486 rows) can serve as validation; 48% of quiet game rows are
       at phase 9 or below, where 16% of the same-search deficit is.
-      In progress 2026-11-22 (`analysis/c22_corpus_design_2026-11-22.md`):
+      Done 2026-11-22 (`analysis/c22_corpus_design_2026-11-22.md`):
       - **Repaired** (`040dbea`): C-8 (the de-duplication key holds the
         rule-50 clock), C-26 (datagen needs an explicit book) and C-27 (the
         sampler shares the extractor's phase rule and states its mix).
@@ -1274,8 +1274,17 @@ has lost games in both engines (BAS-X02).
         game is the ceiling.
       - **Registered:** the design, and BAS-O10, the H-distribution read
         (`7e3bfe3`).
-      - **Open:** BAS-O10's run, which is the maintainer's, and §7's two
-        decisions: the output phase weights and the game budget.
+      - **Decided (maintainer):** equal output phase weights and about
+        1,000,000 games.
+      - **BAS-O10: valid, NOT SUPPORTED.** The game-line deficit is there
+        (+0.015 and +0.019 skill), and one move off the line it is no
+        wider (deltas −0.013 and +0.003). So corpus A's starts are pool
+        positions only.
+      - **The design:** a 1,000,000-start book of distinct pool positions
+        at 70/10/10/5/5 by start phase, disjoint from every earlier
+        corpus's starts; 8,000 nodes, natural terminations; two rows per
+        phase per game, equal output weights, 5% validation and 5% test by
+        start; nested learning-curve fits in C.2.8.
     - [ ] **C.2.3** `[V]` Generate and publish corpus A
       Generate and publish corpus A with the B.11.1 head at a fixed node budget,
       natural termination, maintainer-run; audit the returned composition and
@@ -1969,8 +1978,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.2 | RESEARCH | R2 | Design registered (`analysis/c22_corpus_design_2026-11-22.md`); BAS-O10 is maintainer-run, and two decisions (output phase weights, the game budget) wait on the maintainer |
-| C.2.3 | RESEARCH | V | Not started |
+| C.2.3 | RESEARCH | V | In progress: C-32 guards (`0575687`), the head built, the book sampled; datagen running |
 | C.2.4 | RESEARCH | R2 | Not started |
 | C.2.5 | RESEARCH | R2 | Not started |
 | C.2.7 | RESEARCH | R2 | Not started |
