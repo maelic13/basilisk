@@ -24,6 +24,7 @@
 #include <map>
 #include <memory>
 #include <ratio>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -264,6 +265,11 @@ static void usage(const char* exe) {
         << "Usage:\n"
         << "  " << exe << " --verify <dataset.csv> [--max-positions N]\n"
         << "  " << exe << " --played-hash <dataset.csv>\n"
+        << "  " << exe << " --list-params\n"
+        << "  " << exe << " --dump-coeffs <dataset.csv> <out.f64> [--max-positions N]\n"
+        << "  Every mode also takes --init FILE (a complete `name index value` vector to\n"
+        << "  start from) and --surface FILE (the surface manifest; --tune surface fits its\n"
+        << "  free linear slots, --tune-kingsafety its king-safety knobs).\n"
         << "  " << exe << " --feature-support <dataset.csv> [--max-positions N]\n"
         << "  " << exe << " --tune-kingsafety <train.csv> <holdout.csv> [out.txt] [--epochs N] [--max-positions N] [--step S]\n"
         << "  " << exe << " --tune <group> <train.csv> <holdout.csv> [out/eval_params.txt] [options]\n"
@@ -352,6 +358,186 @@ static void write_weights(EvalParams& p, const double* w) {
 #undef X
 }
 
+// ---------------------------------------------------------------------------
+// The surface: every slot, the initial vector and the manifest
+// ---------------------------------------------------------------------------
+// One entry per flat slot, in EVAL_PARAM_LIST order: its group's name, its
+// index within the group, and where its value lives in g_eval_params.
+struct Slot {
+    const char* group;
+    int sub;
+    int* value;
+};
+
+static std::vector<Slot> slots() {
+    std::vector<Slot> out;
+    out.reserve(EVAL_PARAM_FLAT_SIZE);
+#define X(name, member, len) \
+    { auto values = eval_param_span(g_eval_params.member, (len)); \
+      for (size_t i = 0; i < values.size(); ++i) out.push_back({#name, static_cast<int>(i), &values[i]}); }
+    EVAL_PARAM_LIST(X)
+#undef X
+    return out;
+}
+
+// The initial vector, in the `name index value` form the tuner writes: every
+// slot exactly once, and nothing else. A partial, duplicated or unknown entry
+// is fatal, so a stage can only ever start from a vector that says every value.
+static void load_initial_vector(const std::string& path) {
+    std::ifstream in(path);
+    if (!in) {
+        std::cerr << "Cannot open initial vector: " << path << "\n";
+        std::exit(1);
+    }
+    std::vector<Slot> all = slots();
+    std::map<std::pair<std::string, int>, size_t> where;
+    for (size_t i = 0; i < all.size(); ++i)
+        where[{all[i].group, all[i].sub}] = i;
+    std::vector<char> seen(all.size(), 0);
+    std::string line;
+    int lineno = 0;
+    auto fatal = [&](const std::string& why) {
+        std::cerr << "FATAL: initial vector " << path << " line " << lineno << ": " << why << "\n";
+        std::exit(2);
+    };
+    while (std::getline(in, line)) {
+        ++lineno;
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        if (line.empty() || line[0] == '#')
+            continue;
+        std::istringstream fields(line);
+        std::string name, extra;
+        int index = 0, value = 0;
+        if (!(fields >> name >> index >> value) || (fields >> extra))
+            fatal("not `name index value`");
+        auto it = where.find({name, index});
+        if (it == where.end())
+            fatal("no slot " + name + "[" + std::to_string(index) + "]");
+        if (seen[it->second]++)
+            fatal(name + "[" + std::to_string(index) + "] given twice");
+        *all[it->second].value = value;
+    }
+    long missing = 0;
+    for (size_t i = 0; i < all.size(); ++i) {
+        if (!seen[i] && ++missing <= 5)
+            std::cerr << "  missing " << all[i].group << "[" << all[i].sub << "]\n";
+    }
+    if (missing) {
+        std::cerr << "FATAL: initial vector " << path << " leaves " << missing << " of "
+                  << all.size() << " slots unsaid.\n";
+        std::exit(2);
+    }
+    init_eval_tables(g_eval_params);
+    std::cout << "Initial vector: " << path << " (all " << all.size() << " slots).\n";
+}
+
+// The surface manifest, basilisk-texel-surface-v1 (tools/texel/surface.py
+// writes and checks it): one row per slot, in slot order, saying whether the
+// slot is free, fixed or excluded, which stage fits a free slot, its anchor,
+// and a king-safety knob's bounds and first step.
+static constexpr const char* SURFACE_SCHEMA = "basilisk-texel-surface-v1";
+static constexpr const char* SURFACE_HEADER =
+    "index\tgroup\tsub\tseed\tclass\tstage\tanchor\tlo\thi\tstep\treason";
+
+struct SurfaceRow {
+    std::string klass, stage, anchor;
+    int lo = 0, hi = 0, step = 0;
+};
+
+static std::vector<SurfaceRow> load_surface(const std::string& path) {
+    std::ifstream in(path);
+    if (!in) {
+        std::cerr << "Cannot open surface manifest: " << path << "\n";
+        std::exit(1);
+    }
+    const std::vector<Slot> all = slots();
+    std::vector<SurfaceRow> out;
+    std::string line;
+    int lineno = 0;
+    bool schema = false, header = false;
+    auto fatal = [&](const std::string& why) {
+        std::cerr << "FATAL: surface " << path << " line " << lineno << ": " << why << "\n";
+        std::exit(2);
+    };
+    while (std::getline(in, line)) {
+        ++lineno;
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        if (lineno == 1) {
+            if (line.rfind(std::string("# ") + SURFACE_SCHEMA, 0) != 0)
+                fatal(std::string("not a ") + SURFACE_SCHEMA + " file");
+            schema = true;
+            continue;
+        }
+        if (line.empty() || line[0] == '#')
+            continue;
+        if (!header) {
+            if (line != SURFACE_HEADER)
+                fatal("the header is not the schema's");
+            header = true;
+            continue;
+        }
+        std::vector<std::string> cells;
+        size_t start = 0;
+        while (true) {
+            const size_t tab = line.find('\t', start);
+            cells.push_back(line.substr(start, tab - start));
+            if (tab == std::string::npos)
+                break;
+            start = tab + 1;
+        }
+        if (cells.size() != 11)
+            fatal("a row has " + std::to_string(cells.size()) + " columns, not 11");
+        const size_t i = out.size();
+        if (i >= all.size() || std::stoi(cells[0]) != static_cast<int>(i)
+            || cells[1] != all[i].group || std::stoi(cells[2]) != all[i].sub)
+            fatal("row " + cells[0] + " (" + cells[1] + "[" + cells[2] + "]) is not slot " + std::to_string(i));
+        SurfaceRow row;
+        row.klass = cells[4];
+        row.stage = cells[5];
+        row.anchor = cells[6];
+        if (row.klass != "free" && row.klass != "fixed" && row.klass != "excluded")
+            fatal("class '" + row.klass + "'");
+        if ((row.klass == "free") != (row.stage == "linear" || row.stage == "kingsafety"))
+            fatal("a free slot needs a stage, and only a free slot has one");
+        if (row.stage == "kingsafety") {
+            row.lo = std::stoi(cells[7]);
+            row.hi = std::stoi(cells[8]);
+            row.step = std::stoi(cells[9]);
+            if (row.lo > row.hi || row.step < 1)
+                fatal("a king-safety knob needs lo <= hi and a step of at least 1");
+        }
+        out.push_back(row);
+    }
+    if (!schema || !header || out.size() != all.size()) {
+        std::cerr << "FATAL: surface " << path << " has " << out.size() << " rows for "
+                  << all.size() << " slots.\n";
+        std::exit(2);
+    }
+    return out;
+}
+
+// The global options every mode takes, removed from argv before the mode
+// reads its own: the initial vector, then the surface it is fitted on.
+static std::string g_surface_path;
+
+static void take_global_options(int& argc, char* argv[]) {
+    std::string init_path;
+    int out = 1;
+    for (int i = 1; i < argc; ++i) {
+        const std::string a = argv[i];
+        if ((a == "--init" || a == "--surface") && i + 1 < argc) {
+            (a == "--init" ? init_path : g_surface_path) = argv[++i];
+            continue;
+        }
+        argv[out++] = argv[i];
+    }
+    argc = out;
+    if (!init_path.empty())
+        load_initial_vector(init_path);
+}
+
 static void append_group(std::vector<int>& out, int group) {
     int base = eval_param_offset(group);
     int len = EVAL_PARAM_LENS[group];
@@ -381,7 +567,18 @@ static void unique_sort(std::vector<int>& xs) {
 static std::vector<int> active_indices_for_group(const std::string& group) {
     std::vector<int> active;
 
-    if (group == "material") {
+    if (group == "surface") {
+        // The manifest's free linear slots: the contract's way to say what a
+        // fit moves. The named groups below are the older form.
+        if (g_surface_path.empty()) {
+            std::cerr << "--tune surface needs --surface FILE.\n";
+            std::exit(1);
+        }
+        const std::vector<SurfaceRow> rows = load_surface(g_surface_path);
+        for (size_t i = 0; i < rows.size(); ++i)
+            if (rows[i].stage == "linear")
+                active.push_back(static_cast<int>(i));
+    } else if (group == "material") {
         append_material(active);
     } else if (group == "scalars") {
         for (int g = EPG_PassedMg; g <= EPG_Tempo; ++g) {
@@ -924,6 +1121,57 @@ static void cmd_verify(const std::string& path, int limit) {
     std::cout << "PASS: the model reproduces the engine on every row.\n";
 }
 
+// Every slot, in order, with its group, index and value: the registry that
+// tools/texel/surface.py builds the manifest from.
+static void cmd_list_params() {
+    const std::vector<Slot> all = slots();
+    std::printf("index\tgroup\tsub\tseed\n");
+    for (size_t i = 0; i < all.size(); ++i)
+        std::printf("%zu\t%s\t%d\t%d\n", i, all[i].group, all[i].sub, *all[i].value);
+}
+
+// The fit's coefficient matrix on the rows a fit uses: for each row, every
+// slot's d(played score)/d(weight) at the seed, float64 little-endian, one
+// row of EVAL_PARAM_FLAT_SIZE after another. tools/texel/surface.py reads it
+// for each slot's support and for the rank of the free columns.
+static void cmd_dump_coeffs(const std::string& path, const std::string& out_path, int limit) {
+    RowReader rows(path);
+    auto ev_ptr = std::make_unique<Evaluator>();
+    Board board;
+    std::string fen, target;
+    std::ofstream out(out_path, std::ios::binary);
+    if (!out) {
+        std::cerr << "Cannot write " << out_path << "\n";
+        std::exit(1);
+    }
+    ModelCounts counts;
+    std::vector<double> coeff(EVAL_PARAM_FLAT_SIZE);
+    long written = 0;
+    while (rows.next(fen, target)) {
+        if (auto r = board.try_set_fen(fen); !r) { rows.reject("FEN error: " + std::string(r.error())); continue; }
+        g_trace = {};
+        g_rest = {};
+        const int score = ev_ptr->evaluate(board);
+        RowModel model;
+        std::string stage;
+        const bool ok = model_row(board, score, model, &stage);
+        counts.add(ok, model, stage, board);
+        if (!ok || model.status != RowModel::USED)
+            continue;
+        for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i)
+            coeff[static_cast<size_t>(i)] =
+                (model.trace->mg[i] * model.trace->phase + model.trace->eg[i] * (24 - model.trace->phase))
+                / 24.0 * model.scale;
+        out.write(reinterpret_cast<const char*>(coeff.data()),
+                  static_cast<std::streamsize>(coeff.size() * sizeof(double)));
+        if (limit > 0 && ++written >= limit)
+            break;
+    }
+    counts.print(path);
+    if (counts.mismatches)
+        std::exit(2);
+}
+
 // The played score of every row, side to move, hashed in file order exactly as
 // tests/eval_hash.cpp hashes what a release build serves (FNV-1a over each
 // score's eight bytes). Equal hashes on one file are the check that the
@@ -1338,6 +1586,37 @@ static void cmd_tune(const TuneOptions& opts) {
     std::vector<char> is_active(EVAL_PARAM_FLAT_SIZE, 0);
     for (int idx : active)
         is_active[static_cast<size_t>(idx)] = 1;
+    // A `mean:<set>` anchor holds the mean of its set at the seed: a set whose
+    // level the data cannot see (each king PST, each mobility table) moves
+    // only in shape. Its members are all free linear slots.
+    std::vector<std::vector<int>> mean_sets;
+    if (opts.group == "surface") {
+        const std::vector<SurfaceRow> rows = load_surface(g_surface_path);
+        std::map<std::string, std::vector<int>> sets;
+        for (size_t i = 0; i < rows.size(); ++i) {
+            if (rows[i].anchor.rfind("mean:", 0) != 0)
+                continue;
+            if (rows[i].stage != "linear") {
+                std::cerr << "FATAL: anchor " << rows[i].anchor << " names a slot the linear stage does not fit.\n";
+                std::exit(2);
+            }
+            sets[rows[i].anchor].push_back(static_cast<int>(i));
+        }
+        for (auto& [name, members] : sets)
+            mean_sets.push_back(members);
+        std::cout << "Surface: " << active.size() << " free linear slots, " << mean_sets.size()
+                  << " mean anchors.\n";
+    }
+    auto project_anchors = [&](double* x) {
+        for (const std::vector<int>& set : mean_sets) {
+            double shift = 0.0;
+            for (int i : set)
+                shift += x[i] - base_w[i];
+            shift /= static_cast<double>(set.size());
+            for (int i : set)
+                x[i] -= shift;
+        }
+    };
     auto l2_penalty = [&](const double* x) {
         double sum = 0.0;
         for (int idx : active)
@@ -1398,6 +1677,7 @@ static void cmd_tune(const TuneOptions& opts) {
         for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i)
             if (!is_active[static_cast<size_t>(i)])
                 w[i] = base_w[i];
+        project_anchors(w);
 
         auto t1 = std::chrono::steady_clock::now();
         double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
@@ -1635,11 +1915,31 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
             std::exit(2);
         }
     }
-    struct Knob { int* p; const char* name; int sub; int lo; int hi; int table_idx; };
+    struct Knob { int* p; const char* name; int sub; int lo; int hi; int table_idx; int step; };
     std::vector<Knob> knobs;
     auto add = [&](int* p, const char* n, int sub, int lo, int hi, int ti) {
-        knobs.push_back({p, n, sub, lo, hi, ti});
+        knobs.push_back({p, n, sub, lo, hi, ti, init_step});
     };
+    // With a surface manifest the knobs are its king-safety slots, each with
+    // its own bounds and first step; each step halves on its own. Without one,
+    // the older fixed list and one global step.
+    const bool per_knob = !g_surface_path.empty();
+    if (per_knob) {
+        const std::vector<SurfaceRow> rows = load_surface(g_surface_path);
+        const std::vector<Slot> all = slots();
+        for (size_t i = 0; i < rows.size(); ++i) {
+            if (rows[i].stage != "kingsafety")
+                continue;
+            const bool table = std::string(all[i].group) == "SafetyTable";
+            if (table && all[i].sub == 0) {
+                std::cerr << "FATAL: safety_table[0] is the table's anchor and cannot be a knob.\n";
+                std::exit(2);
+            }
+            knobs.push_back({all[i].value, all[i].group, all[i].sub, rows[i].lo, rows[i].hi,
+                             table ? all[i].sub : -1, rows[i].step});
+        }
+        std::cout << "Surface: " << knobs.size() << " king-safety knobs.\n";
+    } else {
     for (int pt = KNIGHT; pt <= QUEEN; ++pt) add(&P.ks_unit[pt], "ks_unit", pt, 0, 20, -1);
     add(&P.ks_coord_bonus, "ks_coord_bonus", 0, 0, 20, -1);
     for (int pt = KNIGHT; pt <= QUEEN; ++pt) add(&P.ks_safe_check[pt], "ks_safe_check", pt, 0, 30, -1);
@@ -1650,6 +1950,14 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     add(&P.ks_noqueen_num, "ks_noqueen_num", 0, 0, 8, -1);
     add(&P.ks_noqueen_den, "ks_noqueen_den", 0, 1, 8, -1);
     for (int i = 2; i < 25; ++i) add(&P.safety_table[i], "safety_table", i, 0, 600, i);
+    }
+    for (const Knob& kn : knobs) {
+        if (*kn.p < kn.lo || *kn.p > kn.hi) {
+            std::cerr << "FATAL: " << kn.name << "[" << kn.sub << "] = " << *kn.p
+                      << " starts outside its bounds [" << kn.lo << ", " << kn.hi << "].\n";
+            std::exit(2);
+        }
+    }
 
     std::vector<int> seed;
     for (auto& kn : knobs) seed.push_back(*kn.p);
@@ -1663,12 +1971,24 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     std::cout << "Tuning " << knobs.size() << " king-safety knobs (coordinate descent)...\n";
 
     int step = init_step, pass = 0;
-    while (step >= 1) {
+    auto live = [&] {
+        if (!per_knob)
+            return step >= 1;
+        for (const Knob& kn : knobs)
+            if (kn.step >= 1)
+                return true;
+        return false;
+    };
+    while (live()) {
         ++pass;
         bool improved = false;
         for (auto& kn : knobs) {
+            const int kstep = per_knob ? kn.step : step;
+            if (kstep < 1)
+                continue;
+            bool knob_improved = false;
             for (int dir = 0; dir < 2; ++dir) {
-                int delta = (dir == 0) ? step : -step;
+                int delta = (dir == 0) ? kstep : -kstep;
                 int old = *kn.p;
                 int lo = kn.lo, hi = kn.hi;
                 if (kn.table_idx >= 0) {            // keep safety_table non-decreasing
@@ -1679,19 +1999,24 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
                 if (trial == old) continue;
                 *kn.p = trial;
                 double m = ks_mse(train, K, scratch, ev);
-                if (m < best - 1e-12) { best = m; improved = true; }
+                if (m < best - 1e-12) { best = m; improved = true; knob_improved = true; }
                 else *kn.p = old;
             }
+            if (per_knob && !knob_improved)
+                kn.step /= 2;
         }
         double hold = ks_mse(holdout, K, scratch, ev);
-        std::printf("pass %2d  step %2d  train=%.8f  holdout=%.8f\n", pass, step, best, hold);
+        if (per_knob)
+            std::printf("pass %2d  train=%.8f  holdout=%.8f\n", pass, best, hold);
+        else
+            std::printf("pass %2d  step %2d  train=%.8f  holdout=%.8f\n", pass, step, best, hold);
         if (hold < best_holdout - 1e-12) {
             best_holdout = hold;
             best_holdout_pass = pass;
             for (size_t i = 0; i < knobs.size(); ++i)
                 best_holdout_values[i] = *knobs[i].p;
         }
-        if (!improved) step /= 2;
+        if (!per_knob && !improved) step /= 2;
         if (epochs > 0 && pass >= epochs) break;
     }
 
@@ -1724,6 +2049,7 @@ int main(int argc, char* argv[]) {
     init_attacks();
     Zobrist::init();
     init_eval_tables(g_eval_params);
+    take_global_options(argc, argv);
 
     if (argc < 2) {
         usage(argv[0]);
@@ -1732,7 +2058,15 @@ int main(int argc, char* argv[]) {
 
     std::string mode = argv[1];
 
-    if (mode == "--verify") {
+    if (mode == "--list-params") {
+        cmd_list_params();
+    } else if (mode == "--dump-coeffs") {
+        if (argc != 4 && !(argc == 6 && std::string(argv[4]) == "--max-positions")) {
+            usage(argv[0]);
+            return 1;
+        }
+        cmd_dump_coeffs(argv[2], argv[3], argc == 6 ? parse_int_arg(argv[5], "--max-positions") : 0);
+    } else if (mode == "--verify") {
         if (argc != 3 && !(argc == 5 && std::string(argv[3]) == "--max-positions")) {
             usage(argv[0]);
             return 1;
