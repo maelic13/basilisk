@@ -1,32 +1,49 @@
 #!/usr/bin/env python3
-"""PGN -> phase-balanced FEN;result data for Basilisk Texel tuning.
+"""PGN -> phase-balanced Texel rows for Basilisk, contract basilisk-texel-rows-v1.
 
-The dataset contract is explicit and deterministic:
+The contract (PLAN C.2.1.1):
 
-* five equal material-phase reservoirs by default;
-* positions sampled per phase inside each game before the global reservoirs;
-* game-level train/holdout assignment and global FEN de-duplication;
-* quiet positions only by default (no check, capture/promotion about to be
-  played, or obvious winning capture for the side to move);
-* atomic publication only when every requested quota is available.
+* **Rows.** Each published file opens with ``# basilisk-texel-rows-v1 <split>``
+  and the header ``fen,result,game_id,start_id,ply,phase``. ``result`` is the
+  game's result from White's side, exactly ``1``, ``0.5`` or ``0``. ``game_id``
+  and ``start_id`` are 16 hex digits of SHA-256 over the game (its start and
+  moves) and over its start position; ``ply`` counts moves played from the
+  start (0 is the start itself); ``phase`` is Basilisk's 0..24.
+* **Labels.** A game is labelled only if it ended by the rules: its result is a
+  game result, its PGN ``Termination`` (when present) is ``normal``, and its
+  final position is a checkmate the result agrees with, or a stalemate,
+  insufficient material, the fifty-move rule or a threefold repetition with a
+  drawn result. Every other game is rejected and counted by its reason, and
+  the run fails when the rejected share exceeds ``--max-reject-pct``.
+* **Splits.** Train, validation and test are assigned by the start's hash, so
+  every game from one start lands in one split and input order cannot move
+  it. The test split is opened once, after model selection, through
+  ``claim_test.py``.
+* **Publication.** All three files and ``manifest.json`` are published together,
+  only when every phase quota is met, and never over an existing file.
 
-Beast/database FENs are already positions rather than played book moves, so the
-default is ``--skip-start 0``.  Use a positive value only for a conventional
-opening-book corpus where early plies are intentionally excluded.
+Positions are sampled per phase inside each game before they enter fixed-size
+reservoirs, quiet positions only by default, de-duplicated over the whole run.
+Beast/database FENs are already positions rather than played book moves, so
+the default is ``--skip-start 0``.
+
+Requires python-chess (``pip install chess``).
 """
 
 from __future__ import annotations
 
 import argparse
+import collections
 import glob
 import hashlib
+import json
 import math
 import os
 import random
+import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable
 
 try:
     import chess
@@ -36,7 +53,11 @@ except ImportError:
     sys.exit(1)
 
 
+SCHEMA = "basilisk-texel-rows-v1"
+COLUMNS = ("fen", "result", "game_id", "start_id", "ply", "phase")
+SPLITS = ("train", "validation", "test")
 RESULT_MAP = {"1-0": 1.0, "0-1": 0.0, "1/2-1/2": 0.5}
+RESULT_TEXT = {1.0: "1", 0.5: "0.5", 0.0: "0"}
 
 # Matches Basilisk's tapered evaluation: N=B=1, R=2, Q=4, capped at 24.
 PHASE_W = {chess.KNIGHT: 1, chess.BISHOP: 1, chess.ROOK: 2, chess.QUEEN: 4}
@@ -58,6 +79,17 @@ PIECE_VALUE = {
     chess.KING: 20,
 }
 
+# Reasons a whole game is not labelled. Each is counted in the manifest.
+REJECT_REASONS = (
+    "parse_error",
+    "result_not_a_game_result",
+    "termination_not_normal",
+    "result_contradicts_mate",
+    "result_contradicts_draw",
+    "not_a_rules_ending",
+    "no_candidate_position",
+)
+
 
 def game_phase(board: "chess.Board") -> int:
     return min(
@@ -78,25 +110,69 @@ def phase_bucket(phase: int) -> int:
 
 
 def fen_key(fen: str) -> str:
-    """Position, side, castling and en-passant; clocks do not affect HCE."""
+    """The de-duplication key: position, side, castling and en passant."""
     return " ".join(fen.split()[:4])
 
 
-def game_digest(game: "chess.pgn.Game") -> int:
-    """Stable identity including the supplied start and the played moves."""
-    start = fen_key(game.board().fen())
+def start_key(game: "chess.pgn.Game") -> str:
+    """Every game from one supplied start belongs to one split."""
+    return fen_key(game.board().fen())
+
+
+def digest_hex(payload: str) -> str:
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def start_id(game: "chess.pgn.Game") -> str:
+    return digest_hex(start_key(game))
+
+
+def game_id(game: "chess.pgn.Game") -> str:
+    """The game's identity: its start and the moves played from it."""
     moves = " ".join(move.uci() for move in game.mainline_moves())
-    payload = f"{start}|{moves}".encode("utf-8")
-    return int.from_bytes(hashlib.sha256(payload).digest()[:8], "big")
+    return digest_hex(f"{start_key(game)}|{moves}")
+
+
+def split_for_start(start: str, validation_pct: float, test_pct: float) -> str:
+    """The split of a start, by its hash: test first, then validation."""
+    slot = int.from_bytes(hashlib.sha256(start.encode("utf-8")).digest()[:8], "big") % 1_000_000
+    test_cut = round(test_pct * 10_000)
+    validation_cut = test_cut + round(validation_pct * 10_000)
+    if slot < test_cut:
+        return "test"
+    if slot < validation_cut:
+        return "validation"
+    return "train"
+
+
+def header_reason(game: "chess.pgn.Game") -> str | None:
+    """The reason the headers alone disqualify a game, or None."""
+    if game.headers.get("Result", "*") not in RESULT_MAP:
+        return "result_not_a_game_result"
+    termination = game.headers.get("Termination")
+    if termination is not None and termination.strip().lower() != "normal":
+        return "termination_not_normal"
+    return None
+
+
+def ending_reason(result: str, board: "chess.Board") -> str | None:
+    """None if the final position ends the game by the rules with the recorded
+    result, else the reason the game is not labelled."""
+    if board.is_checkmate():
+        winner = "0-1" if board.turn == chess.WHITE else "1-0"
+        return None if result == winner else "result_contradicts_mate"
+    drawn = (board.is_stalemate()
+             or board.is_insufficient_material()
+             or board.halfmove_clock >= 100
+             or board.is_repetition(3))
+    if drawn:
+        return None if result == "1/2-1/2" else "result_contradicts_draw"
+    return "not_a_rules_ending"
 
 
 def has_winning_capture(board: "chess.Board") -> bool:
-    """Fast SEE>0 proxy, matching the upgraded Rarog extraction policy.
-
-    It rejects an immediately profitable legal capture: a more valuable victim,
-    or a victim on a square not attacked by the opponent.  Basilisk's played-move
-    capture filter remains in force as an independent guard.
-    """
+    """Fast SEE>0 proxy: an immediately profitable legal capture, a more
+    valuable victim or one on a square the opponent does not attack."""
     for move in board.generate_legal_captures():
         victim = board.piece_type_at(move.to_square) or chess.PAWN  # en passant
         attacker = board.piece_type_at(move.from_square)
@@ -108,6 +184,113 @@ def has_winning_capture(board: "chess.Board") -> bool:
 
 
 @dataclass
+class Candidate:
+    fen: str
+    ply: int
+    phase: int
+
+    @property
+    def bucket(self) -> int:
+        return phase_bucket(self.phase)
+
+
+@dataclass
+class GameRows:
+    """One game's outcome: the reason it is not labelled, or its rows."""
+    reject: str | None
+    game_id: str = ""
+    start_id: str = ""
+    split: str = ""
+    result: float = 0.5
+    candidates: list[Candidate] = field(default_factory=list)
+    quiet_rejected: int = 0
+
+
+@dataclass(frozen=True)
+class Options:
+    skip_start: int
+    skip_end: int
+    max_per_phase_per_game: int
+    max_per_game: int
+    quiet_filter: bool
+    validation_pct: float
+    test_pct: float
+    seed: int
+
+
+def rules_ending(game: "chess.pgn.Game") -> str | None:
+    """None if the game ended by the rules with the result it records, else the
+    reason it is not labelled."""
+    return header_reason(game) or ending_reason(game.headers["Result"], game.end().board())
+
+
+def sample_positions(game: "chess.pgn.Game", opts: Options, rng: random.Random
+                     ) -> tuple[list[Candidate], int, "chess.Board"]:
+    """Phase-stratified candidates, the quiet-filter reject count, and the
+    final position."""
+    board = game.board()
+    nodes = list(game.mainline())
+    by_phase: list[list[Candidate]] = [[] for _ in PHASE_BUCKETS]
+
+    for ply, node in enumerate(nodes):
+        move = node.move
+        if (
+            ply >= opts.skip_start
+            and ply < len(nodes) - opts.skip_end
+            and not board.is_check()
+            and not board.is_capture(move)
+            and move.promotion is None
+        ):
+            phase = game_phase(board)
+            by_phase[phase_bucket(phase)].append(Candidate(board.fen(), ply, phase))
+        board.push(move)
+
+    selected: list[Candidate] = []
+    quiet_rejected = 0
+    for candidates in by_phase:
+        # Bound the expensive board rebuild and filter before checking quietness.
+        check_cap = opts.max_per_phase_per_game * (2 if opts.quiet_filter else 1)
+        if len(candidates) > check_cap:
+            candidates = rng.sample(candidates, check_cap)
+        if opts.quiet_filter:
+            quiet: list[Candidate] = []
+            for item in candidates:
+                if has_winning_capture(chess.Board(item.fen)):
+                    quiet_rejected += 1
+                else:
+                    quiet.append(item)
+            candidates = quiet
+        if len(candidates) > opts.max_per_phase_per_game:
+            candidates = rng.sample(candidates, opts.max_per_phase_per_game)
+        selected.extend(candidates)
+
+    if opts.max_per_game > 0 and len(selected) > opts.max_per_game:
+        selected = rng.sample(selected, opts.max_per_game)
+    return selected, quiet_rejected, board
+
+
+def game_rows(game: "chess.pgn.Game", opts: Options) -> GameRows:
+    """Everything the contract decides about one game, in one place, so that
+    the sequential and the parallel extractor cannot disagree."""
+    reason = header_reason(game)
+    if reason is not None:
+        return GameRows(reason)
+    gid, sid = game_id(game), start_id(game)
+    rng = random.Random(opts.seed ^ int(gid, 16))
+    candidates, quiet_rejected, final = sample_positions(game, opts, rng)
+    reason = ending_reason(game.headers["Result"], final)
+    if reason is not None:
+        return GameRows(reason)
+    if not candidates:
+        return GameRows("no_candidate_position", gid, sid, quiet_rejected=quiet_rejected)
+    return GameRows(
+        None, gid, sid,
+        split_for_start(start_key(game), opts.validation_pct, opts.test_pct),
+        RESULT_MAP[game.headers["Result"]], candidates, quiet_rejected,
+    )
+
+
+@dataclass
 class Reservoir:
     """Uniform fixed-size sample from a stream of unknown length."""
 
@@ -116,9 +299,9 @@ class Reservoir:
 
     def __post_init__(self) -> None:
         self.seen = 0
-        self.items: list[tuple[str, float, int]] = []
+        self.items: list[tuple] = []
 
-    def offer(self, item: tuple[str, float, int]) -> None:
+    def offer(self, item: tuple) -> None:
         self.seen += 1
         if len(self.items) < self.capacity:
             self.items.append(item)
@@ -155,58 +338,71 @@ def parse_phase_weights(value: str) -> list[float]:
     return weights
 
 
-def process_game(
-    game: "chess.pgn.Game",
-    skip_start: int,
-    skip_end: int,
-    max_per_phase_per_game: int,
-    max_per_game: int,
-    quiet_filter: bool,
-    rng: random.Random,
-) -> tuple[list[tuple[str, int]], int]:
-    """Return phase-stratified candidates and quiet-filter reject count."""
-    if game.headers.get("Result", "*") not in RESULT_MAP:
-        return [], 0
+def split_counts(train: int, validation_pct: float, test_pct: float) -> dict[str, int]:
+    """Rows per split: the train target, and validation and test in proportion
+    to their shares of the starts."""
+    train_fraction = 1.0 - (validation_pct + test_pct) / 100.0
+    return {
+        "train": train,
+        "validation": round(train * validation_pct / 100.0 / train_fraction),
+        "test": round(train * test_pct / 100.0 / train_fraction),
+    }
 
-    board = game.board()
-    nodes = list(game.mainline())
-    by_phase: list[list[tuple[str, int]]] = [[] for _ in PHASE_BUCKETS]
 
-    for ply_index, node in enumerate(nodes):
-        move = node.move
-        if (
-            ply_index >= skip_start
-            and ply_index < len(nodes) - skip_end
-            and not board.is_check()
-            and not board.is_capture(move)
-            and move.promotion is None
-        ):
-            bucket = phase_bucket(game_phase(board))
-            by_phase[bucket].append((board.fen(), bucket))
-        board.push(move)
+class Collector:
+    """The run's reservoirs, de-duplication and accounting."""
 
-    selected: list[tuple[str, int]] = []
-    quiet_rejected = 0
-    for candidates in by_phase:
-        # Bound the expensive board rebuild/filter before checking quietness.
-        check_cap = max_per_phase_per_game * (2 if quiet_filter else 1)
-        if len(candidates) > check_cap:
-            candidates = rng.sample(candidates, check_cap)
-        if quiet_filter:
-            quiet: list[tuple[str, int]] = []
-            for item in candidates:
-                if has_winning_capture(chess.Board(item[0])):
-                    quiet_rejected += 1
-                else:
-                    quiet.append(item)
-            candidates = quiet
-        if len(candidates) > max_per_phase_per_game:
-            candidates = rng.sample(candidates, max_per_phase_per_game)
-        selected.extend(candidates)
+    def __init__(self, target_train: int, weights: list[float], validation_pct: float,
+                 test_pct: float, seed: int) -> None:
+        self.counts = split_counts(target_train, validation_pct, test_pct)
+        self.quotas = {split: allocate(self.counts[split], weights) for split in SPLITS}
+        self.reservoirs = {
+            split: [
+                Reservoir(quota, random.Random(
+                    seed ^ (split_index + 1) * 0x9E3779B1 ^ (phase + 1) * 0x85EBCA77))
+                for phase, quota in enumerate(self.quotas[split])
+            ]
+            for split_index, split in enumerate(SPLITS)
+        }
+        self.seen: set[str] = set()
+        self.games_read = 0
+        self.games_by_split = {split: 0 for split in SPLITS}
+        self.rejected = collections.Counter({reason: 0 for reason in REJECT_REASONS})
+        self.candidates = self.quiet_rejected = self.duplicates = 0
+        self.unique_by_split = {split: [0] * len(PHASE_BUCKETS) for split in SPLITS}
 
-    if max_per_game > 0 and len(selected) > max_per_game:
-        selected = rng.sample(selected, max_per_game)
-    return selected, quiet_rejected
+    def parse_error(self) -> None:
+        self.games_read += 1
+        self.rejected["parse_error"] += 1
+
+    def add(self, rows: GameRows) -> None:
+        self.games_read += 1
+        self.quiet_rejected += rows.quiet_rejected
+        if rows.reject is not None:
+            self.rejected[rows.reject] += 1
+            return
+        self.games_by_split[rows.split] += 1
+        self.candidates += len(rows.candidates)
+        for candidate in rows.candidates:
+            key = fen_key(candidate.fen)
+            if key in self.seen:
+                self.duplicates += 1
+                continue
+            self.seen.add(key)
+            bucket = candidate.bucket
+            self.unique_by_split[rows.split][bucket] += 1
+            self.reservoirs[rows.split][bucket].offer(
+                (candidate.fen, rows.result, rows.game_id, rows.start_id,
+                 candidate.ply, candidate.phase))
+
+    def rejected_games(self) -> int:
+        return sum(self.rejected.values()) - self.rejected["no_candidate_position"]
+
+    def short(self) -> list[tuple[str, str]]:
+        return [(split, BUCKET_NAMES[phase])
+                for split in SPLITS
+                for phase, quota in enumerate(self.quotas[split])
+                if len(self.reservoirs[split][phase].items) < quota]
 
 
 def iter_pgn_paths(inputs: list[str]) -> list[Path]:
@@ -228,147 +424,242 @@ def iter_pgn_paths(inputs: list[str]) -> list[Path]:
     return paths
 
 
-def stage_rows(path: Path, rows: Iterable[tuple[str, float]]) -> Path:
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for block in iter(lambda: source.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest().upper()
+
+
+def row_text(row: tuple) -> str:
+    fen, result, gid, sid, ply, phase = row
+    return f"{fen},{RESULT_TEXT[result]},{gid},{sid},{ply},{phase}\n"
+
+
+def stage_rows(path: Path, split: str, rows: list[tuple]) -> Path:
     tmp = path.with_name(path.name + ".tmp")
     with tmp.open("w", encoding="utf-8", newline="\n") as out:
-        for fen, target in rows:
-            out.write(f"{fen};{target:g}\n")
+        out.write(f"# {SCHEMA} {split}\n")
+        out.write(",".join(COLUMNS) + "\n")
+        for row in rows:
+            out.write(row_text(row))
     return tmp
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("pgn", nargs="+", help="PGN files, globs, or directories")
-    parser.add_argument("--out-dir", default="", metavar="DIR")
-    parser.add_argument("--train", default="train.csv", metavar="FILE")
-    parser.add_argument("--holdout", default="holdout.csv", metavar="FILE")
+def source_revision() -> str:
+    """The checkout's commit, or 'unknown' outside a git checkout."""
+    try:
+        done = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True,
+                              cwd=Path(__file__).resolve().parent, check=False)
+    except OSError:
+        return "unknown"
+    return done.stdout.strip() if done.returncode == 0 else "unknown"
+
+
+def publish(collector: Collector, out_dir: Path, paths: list[Path], params: dict,
+            seed: int) -> int:
+    """Write all three splits and the manifest, or nothing."""
+    targets = {split: out_dir / f"{split}.csv" for split in SPLITS}
+    manifest_path = out_dir / "manifest.json"
+    for target in (*targets.values(), manifest_path):
+        if target.exists():
+            print(f"ERROR: refusing to overwrite a published dataset file: {target}",
+                  file=sys.stderr)
+            return 2
+    out_dir.mkdir(parents=True, exist_ok=True)
+    shuffle = random.Random(seed)
+    staged: list[tuple[Path, Path]] = []
+    output = {}
+    for split in SPLITS:
+        rows = [row for reservoir in collector.reservoirs[split] for row in reservoir.items]
+        shuffle.shuffle(rows)
+        temporary = stage_rows(targets[split], split, rows)
+        staged.append((temporary, targets[split]))
+        output[split] = {"file": targets[split].name, "rows": len(rows),
+                         "sha256": sha256_file(temporary)}
+
+    manifest = {
+        "schema": SCHEMA,
+        "columns": list(COLUMNS),
+        "label": "the game's result from White's side, exactly 1, 0.5 or 0; "
+                 "only games that ended by the rules",
+        "split_rule": "SHA-256 of the start position (4 FEN fields), "
+                      "test first, then validation",
+        "dedup_fields": 4,
+        "tool": "tools/texel/extract.py",
+        "source_revision": source_revision(),
+        "inputs": [{"path": str(path), "bytes": path.stat().st_size,
+                    "sha256": sha256_file(path)} for path in paths],
+        "seed": seed,
+        "parameters": params,
+        "games_read": collector.games_read,
+        "games_by_split": collector.games_by_split,
+        "games_rejected": dict(collector.rejected),
+        "positions": {"candidates": collector.candidates,
+                      "quiet_rejected": collector.quiet_rejected,
+                      "duplicates": collector.duplicates},
+        "phase_quotas": {split: dict(zip(BUCKET_NAMES, collector.quotas[split]))
+                         for split in SPLITS},
+        "output": output,
+    }
+    manifest_tmp = manifest_path.with_name(manifest_path.name + ".tmp")
+    manifest_tmp.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
+    for temporary, target in staged:
+        os.replace(temporary, target)
+    os.replace(manifest_tmp, manifest_path)
+    print(f"Published {sum(item['rows'] for item in output.values()):,} rows under {out_dir}")
+    return 0
+
+
+def report(collector: Collector, max_reject_pct: float) -> int:
+    """Print the accounting; 2 when the rejected share is past the ceiling."""
+    print(f"\nGames read={collector.games_read:,} "
+          f"by split={collector.games_by_split} "
+          f"candidates={collector.candidates:,} duplicates={collector.duplicates:,} "
+          f"quiet_rejected={collector.quiet_rejected:,}")
+    for reason in REJECT_REASONS:
+        if collector.rejected[reason]:
+            print(f"  rejected {reason}: {collector.rejected[reason]:,}")
+    share = 100.0 * collector.rejected_games() / max(collector.games_read, 1)
+    print(f"Rejected games: {collector.rejected_games():,} ({share:.3f}%, ceiling {max_reject_pct}%)")
+    if share > max_reject_pct:
+        print("ERROR: the rejected share is past the ceiling; this is not the data "
+              "the contract describes. Nothing is published.", file=sys.stderr)
+        return 2
+    return 0
+
+
+def report_quotas(collector: Collector) -> None:
+    for split in SPLITS:
+        for phase, name in enumerate(BUCKET_NAMES):
+            reservoir = collector.reservoirs[split][phase]
+            print(f"  {split:10}/{name:13}: {len(reservoir.items):,}/"
+                  f"{collector.quotas[split][phase]:,} eligible={reservoir.seen:,}")
+
+
+def add_contract_arguments(parser: argparse.ArgumentParser) -> None:
+    """The arguments both extractors share; they define the contract's run."""
+    parser.add_argument("--out-dir", required=True, metavar="DIR",
+                        help="directory for train.csv, validation.csv, test.csv and manifest.json")
     parser.add_argument("--target-train", default=3_500_000, type=int, metavar="N")
     parser.add_argument("--phase-weights", default=parse_phase_weights("1,1,1,1,1"),
                         type=parse_phase_weights, metavar="A,B,C,D,E")
-    parser.add_argument("--holdout-pct", default=5.0, type=float, metavar="N")
+    parser.add_argument("--validation-pct", default=5.0, type=float, metavar="N")
+    parser.add_argument("--test-pct", default=5.0, type=float, metavar="N")
     parser.add_argument("--max-per-phase-per-game", default=8, type=int, metavar="N")
     parser.add_argument("--max-per-game", default=0, type=int, metavar="N")
     parser.add_argument("--skip-start", default=0, type=int, metavar="N")
     parser.add_argument("--skip-end", default=6, type=int, metavar="N")
     parser.add_argument("--seed", default=42, type=int, metavar="N")
-    parser.add_argument("--preflight-games", default=0, type=int, metavar="N",
-                        help="estimate required games from the first N games; write nothing")
-    parser.add_argument("--preflight-safety", default=1.20, type=float, metavar="X")
+    parser.add_argument("--max-reject-pct", default=1.0, type=float, metavar="X",
+                        help="fail when more than X%% of the games read are rejected (default 1)")
     parser.add_argument("--no-quiet-filter", dest="quiet_filter", action="store_false")
-    args = parser.parse_args()
 
+
+def check_contract_arguments(args, parser: argparse.ArgumentParser) -> None:
     if args.target_train <= 0:
         parser.error("--target-train must be positive")
-    if not 0.0 <= args.holdout_pct < 100.0:
-        parser.error("--holdout-pct must be in [0,100)")
+    if min(args.validation_pct, args.test_pct) <= 0 or args.validation_pct + args.test_pct >= 100:
+        parser.error("--validation-pct and --test-pct must be positive and sum below 100")
     if args.max_per_phase_per_game <= 0:
         parser.error("--max-per-phase-per-game must be positive")
     if args.skip_start < 0 or args.skip_end < 0:
         parser.error("skip counts cannot be negative")
+    if not 0.0 <= args.max_reject_pct <= 100.0:
+        parser.error("--max-reject-pct must be in [0,100]")
+
+
+def contract_options(args) -> Options:
+    return Options(args.skip_start, args.skip_end, args.max_per_phase_per_game,
+                   args.max_per_game, args.quiet_filter, args.validation_pct,
+                   args.test_pct, args.seed)
+
+
+def contract_parameters(args) -> dict:
+    return {
+        "target_train": args.target_train,
+        "phase_weights": args.phase_weights,
+        "validation_pct": args.validation_pct,
+        "test_pct": args.test_pct,
+        "max_per_phase_per_game": args.max_per_phase_per_game,
+        "max_per_game": args.max_per_game,
+        "skip_start": args.skip_start,
+        "skip_end": args.skip_end,
+        "quiet_filter": args.quiet_filter,
+        "max_reject_pct": args.max_reject_pct,
+    }
+
+
+def finish(collector: Collector, args, paths: list[Path]) -> int:
+    """The accounting, the quotas and the publication, shared by both tools."""
+    status = report(collector, args.max_reject_pct)
+    report_quotas(collector)
+    if status:
+        return status
+    short = collector.short()
+    if short:
+        print(f"ERROR: phase quotas not met for {short}; nothing is published.", file=sys.stderr)
+        return 2
+    return publish(collector, Path(args.out_dir).resolve(), paths,
+                   contract_parameters(args), args.seed)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("pgn", nargs="+", help="PGN files, globs, or directories")
+    add_contract_arguments(parser)
+    parser.add_argument("--preflight-games", default=0, type=int, metavar="N",
+                        help="estimate required games from the first N games; write nothing")
+    parser.add_argument("--preflight-safety", default=1.20, type=float, metavar="X")
+    args = parser.parse_args()
+    check_contract_arguments(args, parser)
 
     paths = iter_pgn_paths(args.pgn)
-    out_dir = Path(args.out_dir).resolve() if args.out_dir else paths[0].parent
-    quotas = allocate(args.target_train, args.phase_weights)
-    holdout_total = round(args.target_train * args.holdout_pct / (100.0 - args.holdout_pct))
-    holdout_quotas = allocate(holdout_total, args.phase_weights)
-    train = [Reservoir(quota, random.Random(args.seed ^ (index + 1) * 0x9E3779B1))
-             for index, quota in enumerate(quotas)]
-    holdout = [Reservoir(quota, random.Random(args.seed ^ (index + 11) * 0x85EBCA77))
-               for index, quota in enumerate(holdout_quotas)]
-
-    print(f"Target train: {args.target_train:,} | holdout: {holdout_total:,}")
-    print("Phase quotas: " + ", ".join(
-        f"{BUCKET_NAMES[index]}={quota:,}" for index, quota in enumerate(quotas)))
-    print(f"skip_start={args.skip_start}, skip_end={args.skip_end}, "
+    opts = contract_options(args)
+    collector = Collector(args.target_train, args.phase_weights, args.validation_pct,
+                          args.test_pct, args.seed)
+    print(f"Rows: {collector.counts} | skip_start={args.skip_start}, skip_end={args.skip_end}, "
           f"max/phase/game={args.max_per_phase_per_game}, "
           f"quiet_filter={'on' if args.quiet_filter else 'OFF'}")
-
-    seen: set[str] = set()
-    games_total = games_skipped = raw_candidates = quiet_rejected = 0
-    unique_by_phase = [0] * len(PHASE_BUCKETS)
 
     for path in paths:
         print(f"Reading {path} ...")
         with path.open(encoding="utf-8", errors="replace") as pgn_file:
-            while not args.preflight_games or games_total < args.preflight_games:
+            while not args.preflight_games or collector.games_read < args.preflight_games:
                 try:
                     game = chess.pgn.read_game(pgn_file)
-                except Exception as exc:
-                    print(f"  WARNING: parse error, skipping game: {exc}", file=sys.stderr)
-                    games_skipped += 1
+                except Exception as exc:  # python-chess raises several types
+                    print(f"  WARNING: parse error, game rejected: {exc}", file=sys.stderr)
+                    collector.parse_error()
                     continue
                 if game is None:
                     break
-                games_total += 1
-                digest = game_digest(game)
-                rng = random.Random(args.seed ^ digest)
-                candidates, rejected = process_game(
-                    game, args.skip_start, args.skip_end,
-                    args.max_per_phase_per_game, args.max_per_game,
-                    args.quiet_filter, rng,
-                )
-                quiet_rejected += rejected
-                if not candidates:
-                    games_skipped += 1
+                if game.errors:
+                    collector.parse_error()
                     continue
-                raw_candidates += len(candidates)
-                result = RESULT_MAP[game.headers["Result"]]
-                is_holdout = digest % 10_000 < round(args.holdout_pct * 100)
-                reservoirs = holdout if is_holdout else train
-                for fen, bucket in candidates:
-                    key = fen_key(fen)
-                    if key in seen:
-                        continue
-                    seen.add(key)
-                    unique_by_phase[bucket] += 1
-                    reservoirs[bucket].offer((fen, result, bucket))
-
-        if args.preflight_games and games_total >= args.preflight_games:
+                collector.add(game_rows(game, opts))
+        if args.preflight_games and collector.games_read >= args.preflight_games:
             break
 
-    print(f"\nGames={games_total:,} raw={raw_candidates:,} unique={len(seen):,} "
-          f"quiet_rejected={quiet_rejected:,}")
     if args.preflight_games:
+        report(collector, args.max_reject_pct)
         print("Preflight estimate (including safety):")
         required = 0
-        train_fraction = 1.0 - args.holdout_pct / 100.0
-        for index, quota in enumerate(quotas):
-            rate = unique_by_phase[index] / max(games_total, 1) * train_fraction
-            estimate = math.ceil(quota / rate * args.preflight_safety) if rate else math.inf
-            if estimate != math.inf:
-                required = max(required, int(estimate))
-            print(f"  {BUCKET_NAMES[index]:13} rate={rate:6.3f}/game required={estimate:,}")
+        for split in SPLITS:
+            for phase, name in enumerate(BUCKET_NAMES):
+                rate = collector.unique_by_split[split][phase] / max(collector.games_read, 1)
+                quota = collector.quotas[split][phase]
+                estimate = math.ceil(quota / rate * args.preflight_safety) if rate else math.inf
+                if estimate != math.inf:
+                    required = max(required, int(estimate))
+                print(f"  {split:10}/{name:13} rate={rate:7.4f}/game required={estimate:,}")
         if required:
-            print(f"Recommended minimum: {required:,} independent games")
+            print(f"Recommended minimum: {required:,} games")
         return 0
 
-    train_counts = [len(reservoir.items) for reservoir in train]
-    holdout_counts = [len(reservoir.items) for reservoir in holdout]
-    for index, name in enumerate(BUCKET_NAMES):
-        print(f"  {name:13}: train {train_counts[index]:,}/{quotas[index]:,} "
-              f"holdout {holdout_counts[index]:,}/{holdout_quotas[index]:,} "
-              f"eligible train={train[index].seen:,}")
-
-    short = [index for index in range(len(quotas))
-             if train_counts[index] < quotas[index] or holdout_counts[index] < holdout_quotas[index]]
-    if short:
-        print("ERROR: phase quotas not met; existing outputs left untouched.", file=sys.stderr)
-        return 2
-
-    rng = random.Random(args.seed)
-    train_rows = [(fen, result) for reservoir in train for fen, result, _ in reservoir.items]
-    holdout_rows = [(fen, result) for reservoir in holdout for fen, result, _ in reservoir.items]
-    rng.shuffle(train_rows)
-    rng.shuffle(holdout_rows)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    train_path = out_dir / args.train
-    holdout_path = out_dir / args.holdout
-    train_tmp = stage_rows(train_path, train_rows)
-    holdout_tmp = stage_rows(holdout_path, holdout_rows)
-    os.replace(train_tmp, train_path)
-    os.replace(holdout_tmp, holdout_path)
-    print(f"Wrote {len(train_rows):,} train and {len(holdout_rows):,} holdout rows.")
-    return 0
+    return finish(collector, args, paths)
 
 
 if __name__ == "__main__":

@@ -128,6 +128,12 @@ try {
     }
 
     if ($Stage -eq "extract") {
+        # The extractors now publish the basilisk-texel-rows-v1 contract (three
+        # splits by start and a manifest, in one directory), which this driver's
+        # two-file extraction does not speak. It is adopted into the contract or
+        # retired with the fit driver; until then extract with
+        # tools/texel/extract_parallel.py directly.
+        throw "phase911.ps1 -Stage extract predates the basilisk-texel-rows-v1 contract; run tools/texel/extract_parallel.py --out-dir DIR instead."
         Assert-FreshPath $Train
         Assert-FreshPath $Holdout
         Assert-FreshPath $ExtractionManifest

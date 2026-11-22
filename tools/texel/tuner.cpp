@@ -117,6 +117,113 @@ static bool parse_target(const std::string& text, float& out) {
     return true;
 }
 
+// ---------------------------------------------------------------------------
+// Dataset rows
+// ---------------------------------------------------------------------------
+// Two row formats are read. The extractor's contract, basilisk-texel-rows-v1,
+// opens with a `# basilisk-texel-rows-v1 <split>` line and a header naming the
+// columns `fen,result,game_id,start_id,ply,phase`; a malformed row of such a
+// file is fatal, since a published corpus is never partly readable. The legacy
+// `FEN;target` lines that older corpora carry are still read, rows that do not
+// parse being skipped and counted as before.
+static constexpr const char* ROWS_V1_SCHEMA = "basilisk-texel-rows-v1";
+static constexpr const char* ROWS_V1_HEADER = "fen,result,game_id,start_id,ply,phase";
+
+class RowReader {
+public:
+    explicit RowReader(const std::string& path) : path_(path), in_(path) {
+        if (!in_) {
+            std::cerr << "Cannot open dataset: " << path << "\n";
+            std::exit(1);
+        }
+    }
+
+    // The next row's FEN and target text. False at the end of the file, or for
+    // a legacy line with no ';' (counted in skipped()).
+    bool next(std::string& fen, std::string& target) {
+        std::string line;
+        while (std::getline(in_, line)) {
+            ++lineno_;
+            if (!line.empty() && line.back() == '\r')
+                line.pop_back();
+            if (line.empty())
+                continue;
+            if (line[0] == '#') {
+                if (lineno_ == 1 && line.rfind(std::string("# ") + ROWS_V1_SCHEMA, 0) == 0)
+                    v1_ = true;
+                continue;
+            }
+            if (v1_ && !header_seen_) {
+                if (line != ROWS_V1_HEADER)
+                    fatal("the header is not '" + std::string(ROWS_V1_HEADER) + "'");
+                header_seen_ = true;
+                continue;
+            }
+            if (v1_)
+                return split_v1(line, fen, target);
+            auto sep = line.rfind(';');
+            if (sep == std::string::npos) {
+                if (++skipped_ <= 5)
+                    std::cerr << "Bad line " << lineno_ << " (no ';'): " << line << "\n";
+                continue;
+            }
+            fen = line.substr(0, sep);
+            target = line.substr(sep + 1);
+            return true;
+        }
+        if (v1_ && !header_seen_)
+            fatal("no header row");
+        return false;
+    }
+
+    bool v1() const { return v1_; }
+    int lineno() const { return lineno_; }
+    int skipped() const { return skipped_; }
+
+    // A row that the caller found unusable: fatal in a v1 file, counted in a
+    // legacy one.
+    void reject(const std::string& why) {
+        if (v1_)
+            fatal(why);
+        if (++skipped_ <= 5)
+            std::cerr << why << " at line " << lineno_ << "\n";
+    }
+
+private:
+    bool split_v1(const std::string& line, std::string& fen, std::string& target) {
+        std::vector<std::string> cells;
+        size_t start = 0;
+        while (true) {
+            const size_t comma = line.find(',', start);
+            cells.push_back(line.substr(start, comma - start));
+            if (comma == std::string::npos)
+                break;
+            start = comma + 1;
+        }
+        if (cells.size() != 6)
+            fatal("a row has " + std::to_string(cells.size()) + " columns, not 6");
+        for (const std::string& cell : cells)
+            if (cell.empty())
+                fatal("a row has an empty column");
+        fen = cells[0];
+        target = cells[1];
+        return true;
+    }
+
+    [[noreturn]] void fatal(const std::string& why) const {
+        std::cerr << "FATAL: " << path_ << " line " << lineno_ << ": " << why
+                  << " (" << ROWS_V1_SCHEMA << ").\n";
+        std::exit(2);
+    }
+
+    std::string path_;
+    std::ifstream in_;
+    int lineno_ = 0;
+    int skipped_ = 0;
+    bool v1_ = false;
+    bool header_seen_ = false;
+};
+
 static bool is_option(const char* s) {
     return s != nullptr && s[0] == '-' && s[1] == '-';
 }
@@ -526,42 +633,23 @@ static void clamp_weights_for_group(const std::string&, double* w) {
 // ---------------------------------------------------------------------------
 static std::vector<TexelPos> load_verify_dataset(const std::string& path,
                                                  int max_positions = 0) {
-    std::ifstream f(path);
-    if (!f) {
-        std::cerr << "Cannot open dataset: " << path << "\n";
-        std::exit(1);
-    }
-
+    RowReader rows(path);
     std::vector<TexelPos> out;
-    std::string line;
-    int lineno = 0;
+    std::string fen, target;
     auto evaluator_ptr = std::make_unique<Evaluator>();
     Evaluator& evaluator = *evaluator_ptr;
 
-    while (std::getline(f, line)) {
-        ++lineno;
-        if (line.empty() || line[0] == '#')
-            continue;
-
-        auto sep = line.rfind(';');
-        if (sep == std::string::npos) {
-            std::cerr << "Bad line " << lineno << " (no ';'): " << line << "\n";
-            continue;
-        }
-
-        std::string fen = line.substr(0, sep);
-        std::string target = line.substr(sep + 1);
-
+    while (rows.next(fen, target)) {
         float result = 0.5f;
         if (!parse_target(target, result)) {
-            std::cerr << "Unknown result '" << target << "' at line " << lineno << "\n";
+            rows.reject("Unknown result '" + target + "'");
             continue;
         }
 
         TexelPos tp;
         tp.result = result;
         if (auto r = tp.board.try_set_fen(fen); !r) {
-            std::cerr << "FEN error at line " << lineno << ": " << r.error() << "\n";
+            rows.reject("FEN error: " + std::string(r.error()));
             continue;
         }
 
@@ -578,18 +666,15 @@ static std::vector<TexelPos> load_verify_dataset(const std::string& path,
             break;
     }
 
+    if (rows.skipped() > 0)
+        std::cerr << "Skipped " << rows.skipped() << " malformed rows from " << path << ".\n";
     return out;
 }
 
 static TuneSet load_tune_dataset(const std::string& path,
                                  const std::vector<int>& active,
                                  int max_positions) {
-    std::ifstream f(path);
-    if (!f) {
-        std::cerr << "Cannot open dataset: " << path << "\n";
-        std::exit(1);
-    }
-
+    RowReader rows(path);
     TuneSet out;
     out.active_count = static_cast<int>(active.size());
 
@@ -601,41 +686,20 @@ static TuneSet load_tune_dataset(const std::string& path,
             out.coeffs.reserve(coeff_reserve);
     }
 
-    std::string line;
-    int lineno = 0;
-    int skipped = 0;
+    std::string fen, target;
     Board board;
     auto evaluator_ptr = std::make_unique<Evaluator>();
     Evaluator& evaluator = *evaluator_ptr;
 
-    while (std::getline(f, line)) {
-        ++lineno;
-        if (line.empty() || line[0] == '#')
-            continue;
-
-        auto sep = line.rfind(';');
-        if (sep == std::string::npos) {
-            ++skipped;
-            if (skipped <= 5)
-                std::cerr << "Bad line " << lineno << " (no ';'): " << line << "\n";
-            continue;
-        }
-
-        std::string fen = line.substr(0, sep);
-        std::string target = line.substr(sep + 1);
-
+    while (rows.next(fen, target)) {
         float result = 0.5f;
         if (!parse_target(target, result)) {
-            ++skipped;
-            if (skipped <= 5)
-                std::cerr << "Unknown result '" << target << "' at line " << lineno << "\n";
+            rows.reject("Unknown result '" + target + "'");
             continue;
         }
 
         if (auto r = board.try_set_fen(fen); !r) {
-            ++skipped;
-            if (skipped <= 5)
-                std::cerr << "FEN error at line " << lineno << ": " << r.error() << "\n";
+            rows.reject("FEN error: " + std::string(r.error()));
             continue;
         }
 
@@ -660,8 +724,8 @@ static TuneSet load_tune_dataset(const std::string& path,
         std::exit(1);
     }
 
-    if (skipped > 0) {
-        std::cerr << "Skipped " << skipped << " malformed rows from " << path << ".\n";
+    if (rows.skipped() > 0) {
+        std::cerr << "Skipped " << rows.skipped() << " malformed rows from " << path << ".\n";
     }
 
     return out;
@@ -762,8 +826,7 @@ static bool fs_is_finite_diff_group(int g) {
 }
 
 static void cmd_feature_support(const std::string& path, int max_positions) {
-    std::ifstream f(path);
-    if (!f) { std::cerr << "Cannot open dataset: " << path << "\n"; std::exit(1); }
+    RowReader rows(path);
     std::cout << "Streaming positions from " << path << " for feature-support ...\n";
 
     // Reverse map: flat index -> (group, sub-index).
@@ -785,13 +848,10 @@ static void cmd_feature_support(const std::string& path, int max_positions) {
     auto ev_ptr = std::make_unique<Evaluator>();
     Evaluator& evaluator = *ev_ptr;
     Board board;
-    long N = 0, skipped = 0;
-    std::string line;
-    while (std::getline(f, line)) {
-        if (line.empty() || line[0] == '#') continue;
-        auto sep = line.rfind(';');
-        if (sep == std::string::npos) { ++skipped; continue; }
-        if (!board.try_set_fen(line.substr(0, sep))) { ++skipped; continue; }
+    long N = 0;
+    std::string fen, target;
+    while (rows.next(fen, target)) {
+        if (!board.try_set_fen(fen)) { rows.reject("FEN error"); continue; }
 
         g_trace = {};
         evaluator.evaluate(board);
@@ -808,7 +868,7 @@ static void cmd_feature_support(const std::string& path, int max_positions) {
     }
     if (N == 0) { std::cerr << "No positions loaded.\n"; std::exit(1); }
     std::cout << "Processed " << N << " positions"
-              << (skipped ? " (" + std::to_string(skipped) + " skipped)" : "") << ".\n";
+              << (rows.skipped() ? " (" + std::to_string(rows.skipped()) + " skipped)" : "") << ".\n";
 
     const long thresh = std::max(200L, static_cast<long>(0.0005 * static_cast<double>(N)));
     std::cout << "Sparse threshold: < " << thresh << " activations ("
@@ -1189,25 +1249,20 @@ static void ks_board_from_snap(Board& b, const KsSnap& s) {
 }
 
 static std::vector<KsSnap> ks_load(const std::string& path, int max_positions) {
-    std::ifstream f(path);
-    if (!f) { std::cerr << "Cannot open " << path << "\n"; std::exit(1); }
+    RowReader rows(path);
     std::vector<KsSnap> out;
     Board tmp;
-    std::string line;
-    long skipped = 0;
-    while (std::getline(f, line)) {
-        if (line.empty() || line[0] == '#') continue;
-        auto sep = line.rfind(';');
-        if (sep == std::string::npos) { ++skipped; continue; }
+    std::string fen, target;
+    while (rows.next(fen, target)) {
         float result;
-        if (!parse_target(line.substr(sep + 1), result)) { ++skipped; continue; }
-        if (!tmp.try_set_fen(line.substr(0, sep))) { ++skipped; continue; }
+        if (!parse_target(target, result)) { rows.reject("Unknown result '" + target + "'"); continue; }
+        if (!tmp.try_set_fen(fen)) { rows.reject("FEN error"); continue; }
         KsSnap s{tmp.snapshot_position(), tmp.turn(), result};
         out.push_back(s);
         if (max_positions > 0 && static_cast<int>(out.size()) >= max_positions) break;
     }
     if (out.empty()) { std::cerr << "No positions from " << path << "\n"; std::exit(1); }
-    if (skipped) std::cerr << "Skipped " << skipped << " rows.\n";
+    if (rows.skipped()) std::cerr << "Skipped " << rows.skipped() << " rows.\n";
     return out;
 }
 

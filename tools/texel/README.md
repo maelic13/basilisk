@@ -56,14 +56,19 @@ python tools/texel/sample_fens.py tools/texel/data/beast_seed_2m.epd `
     -Book tools/texel/data/<book>.epd -BookFormat epd `
     -OutputPgn tools/texel/data/<set>.pgn -Seed 42
 
-# 3. Extract. Beast starts use --skip-start 0: the supplied FEN itself is a
-#    valid labelled position, not a conventional played book line. Sampling is
-#    capped inside each of five phases per game, then fed to five equal bounded
-#    reservoirs. Quiet filtering, global FEN dedup, exact balanced holdout and
-#    atomic output are on by default. 3.5M means exactly 700k per phase.
+# 3. Extract, under the row contract basilisk-texel-rows-v1. Only games that
+#    ended by the rules are labelled, every rejection is counted, and the run
+#    fails past --max-reject-pct (1%). Train, validation and test are split by
+#    the start's hash and published together with manifest.json, never over an
+#    existing directory's files. Beast starts use --skip-start 0: the supplied
+#    FEN itself is a valid labelled position. 3.5M means exactly 700k per phase.
 python tools/texel/extract_parallel.py tools/texel/data/<set>.pgn `
-    --train train_<set>.csv --holdout holdout_<set>.csv --jobs 16 `
+    --out-dir tools/texel/data/<set> --jobs 16 `
     --skip-start 0 --max-per-phase-per-game 8 --target-train 3500000
+
+# 4. After model selection, and once: claim the frozen test split.
+python tools/texel/claim_test.py claim tools/texel/data/<set> `
+    --candidate <vector hash> --purpose "<what the test read decides>"
 
 # Fast header-only start-source/correlation proxy audit.
 python tools/texel/audit_starts.py tools/texel/data/<set>.pgn
@@ -75,8 +80,10 @@ python tools/texel/audit_starts.py tools/texel/data/<set>.pgn
 |------|------|
 | `sample_fens.py` | Streams the Beast pool into five equal phase reservoirs, validates and dedups the selected EPDs; `--exclude-pgn` makes extension books disjoint from prior starts. |
 | `datagen.ps1` (in `tools/`) | Fixed-node, seeded self-play from the book → fresh PGN + provenance manifest. Refuses accidental append and warns if `-Rounds` exceeds the book's opening count. |
-| `extract.py` | Reference/sequential extractor plus `--preflight-games`: five exact reservoirs, per-phase-per-game sampling, quiet filtering, global dedup, deterministic game split, and atomic output. |
-| `extract_parallel.py` | Production multi-process implementation of the same contract for large PGNs; `--audit-only` measures exact capacity without publishing CSVs. |
+| `extract.py` | The row contract, `basilisk-texel-rows-v1`, and its sequential extractor, plus `--preflight-games`. Rows are `fen,result,game_id,start_id,ply,phase` under a schema line. Only rules endings are labelled, with rejections counted by reason. There are three splits by start, five exact phase reservoirs, quiet filtering and global dedup, and the three files and `manifest.json` are published together, never overwritten. |
+| `extract_parallel.py` | The production multi-process extractor under the same contract, byte-identical to `extract.py` on the same inputs; `--audit-only` reports the accounting and quotas without publishing. |
+| `claim_test.py` | Claims a corpus's frozen test split once, by exclusive create, after checking the test file against its manifest's hash. |
+| `test_extract.py` | The contract's tests: rules endings, row identity, splits by start, the reject ceiling, publication, extractor parity and the claim. |
 | `audit_starts.py` | Header-only audit of exact start duplication, five-phase coverage and pawn-family concentration; explicitly cannot reconstruct missing Beast source-game provenance. |
 | `phase911.ps1` | Registered one-dataset/one-fit driver: deterministic extraction, then `all` bake → rebuild → king-safety bake → rebuild → reconstruction verification. |
 | `bake.py` | Writes a tuner weight dump back into `src/eval_params.h`, rewriting only the members that moved (`--allow-pst` for the 2-D PST blocks) without formatting drift across repeated bakes. |
