@@ -539,14 +539,13 @@ constexpr int EVAL_PARAM_FLAT_SIZE = eval_param_offset(EPG_COUNT);
 // Per-trace record populated by Evaluator::evaluate() when TEXEL_TRACE is
 // defined. mg[i] / eg[i] hold the signed count contribution of flat param i
 // to the middlegame / endgame accumulator (positive = white favoured).
-// phase is the computed game phase [0..24]. rest absorbs nonlinear/frozen
-// contributions so that reconstruct(trace, w) + rest == actual_score_white
-// when w == default weights (acceptance guarantee).
+// phase is the computed game phase [0..24]. What the score holds beyond the
+// traced terms -- the frozen additions, the endgame step, the damping and the
+// lazy checkpoint -- is recorded in g_rest (EvalRestTrace below).
 struct EvalTrace {
     int16_t mg[EVAL_PARAM_FLAT_SIZE];
     int16_t eg[EVAL_PARAM_FLAT_SIZE];
     int phase;
-    int rest; // set by caller (tuner); not written by evaluate()
 };
 
 // Thread-local trace populated by every evaluate() call in TEXEL_TRACE builds.
