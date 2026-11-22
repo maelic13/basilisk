@@ -1086,7 +1086,7 @@ has lost games in both engines (BAS-X02).
           - `test_eval`'s orientation test still reads the engine's
             defaults, which are seeds until the first bake; C.2.8's bake
             moves it onto the seed vector.
-        - [ ] **C.2.1.4** `[I1]` Fit driver and provenance
+        - [x] **C.2.1.4** `[I1]` Fit driver and provenance
           Archived 8.1.a and 8.1.e.
           - K is fitted once on validation and frozen across stages and
             arms (C-49), and K and held-out loss are reported by phase band
@@ -1126,6 +1126,74 @@ has lost games in both engines (BAS-X02).
             EVAL-13): a second-difference penalty on the mobility tables
             and the pawn table, so a fit cannot leave a sawtooth in a term
             that should be smooth.
+          Done 2026-11-22.
+          - **The tuner** (`d21de4f`, `3169663`):
+            - **Sparse rows.** Only nonzero coefficients are stored (C-73);
+              a fit's vector is byte-identical to the dense form's.
+            - **K.** `--K` freezes it (C-49), and `--loss` reports the loss
+              by phase band at any vector, optionally after `--skip` rows,
+              the residuals on unused train rows (C-51).
+            - **Convergence (T1).** `--patience` stops a converged run. A
+              run whose holdout still improves at its last epoch, or whose
+              largest move reaches 0.9 × lr × epochs, exits 3 without
+              writing a vector.
+            - **`--smooth`**, registered and off by default: a
+              second-difference penalty on the mobility tables and the
+              passer and connected-pawn rank tables.
+            - **Provenance.** Every written vector carries the hash of its
+              seed and of its chain's root.
+            - **The clamps never move a held slot** and run after the mean
+              anchors: an ordering chain bounds a free entry by its held
+              neighbours.
+          - **`bake.py` (T2)** refuses a vector that has no schema line,
+            misses a member, names an unknown one, or has a root that is not
+            this header's defaults.
+          - **`tools/texel/fit.py`** (`40e7a1e`, `10c08da`) replaces
+            `phase911.ps1`, which is retired (`987732e`).
+            - It needs a clean tree, rehashes the corpus files against their
+              manifest, gates parse errors at 0, and checks the surface.
+            - It builds its own traced tuner and release engine and checks
+              the seed's bench.
+            - It verifies the model, fits K once on validation, and runs the
+              stages king safety, linear, king safety and polish (C-54),
+              each from the vector the last one wrote.
+            - It bakes the final vector and rebuilds. The rebuilt tuner must
+              hold that vector exactly and pass `--verify`; the new bench,
+              the played hash of validation (C-69) and `test_eval` are
+              recorded. A failing test is reported, not edited (C-70).
+            - It hashes every input and output in `run.json` and restores
+              `src/eval_params.h` byte for byte on success or failure
+              (C-71), leaving the baked header and its diff in the run
+              directory.
+            - It bakes the whole final vector, never a block of it (C-55;
+              the handbook says why).
+
+          Checks:
+          - **`tools/texel/test_fit.py`.** One unclamped slot,
+            `PawnIslandsMg`, is labelled so its optimum is 60 cp above the
+            seed. A run with room lands within 4 cp; lr 0.3 × 100 epochs
+            exits 3. With the checks disabled, the second test fails.
+          - **`test_bake.py`**, 7 tests, covers each refusal.
+          - **The driver end to end** on the 100,000-row `armA` corpus:
+            - the seed's bench was 4,777,412;
+            - K was 1.714, by band from 1.44 in the opening to 1.94 in the
+              endgame;
+            - the four stages chained, and the validation loss went from
+              0.08973 to 0.08885;
+            - the baked build verified, with bench 3,219,101 and `test_eval`
+              126 of 126;
+            - the header was restored. That is a toolchain check, not a fit
+              to keep.
+          - **The driver's refusals.** A forced failure after the bake
+            restored the header byte for byte. A dirty tree and a used run
+            directory are refused.
+
+          Found on the way, and fixed: the first end-to-end run stopped at
+          the polish stage's seed check. The mean anchors had shifted free
+          mobility entries past frozen neighbours, and `ThreatMinorMg` had
+          risen past a held `ThreatRookMg`, because the ordering clamps
+          could only raise the later entry. The clamps now bound a free
+          entry by its held neighbours instead.
         - [ ] **C.2.1.5** `[I1]` Texel tooling hygiene and CI
           - No workflow runs `tools/texel/test_*.py`; two of three need
             python-chess, absent here.
@@ -1858,7 +1926,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.1.4 | RESEARCH | I1 | Not started |
 | C.2.1.5 | RESEARCH | I1 | Not started |
 | C.2.1.6 | RESEARCH | R2 | Not started |
 | C.2.2 | RESEARCH | R2 | Not started |
