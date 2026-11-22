@@ -248,10 +248,22 @@ static double parse_double_arg(const char* value, const char* name) {
     return parsed;
 }
 
+// A strength that may be zero (off).
+static double parse_nonneg_double_arg(const char* value, const char* name) {
+    char* end = nullptr;
+    double parsed = std::strtod(value, &end);
+    if (end == value || *end != '\0' || !std::isfinite(parsed) || parsed < 0.0) {
+        std::cerr << "Bad value for " << name << ": " << value << "\n";
+        std::exit(1);
+    }
+    return parsed;
+}
+
 static void usage(const char* exe) {
     std::cerr
         << "Usage:\n"
-        << "  " << exe << " --verify <dataset.csv>\n"
+        << "  " << exe << " --verify <dataset.csv> [--max-positions N]\n"
+        << "  " << exe << " --played-hash <dataset.csv>\n"
         << "  " << exe << " --feature-support <dataset.csv> [--max-positions N]\n"
         << "  " << exe << " --tune-kingsafety <train.csv> <holdout.csv> [out.txt] [--epochs N] [--max-positions N] [--step S]\n"
         << "  " << exe << " --tune <group> <train.csv> <holdout.csv> [out/eval_params.txt] [options]\n"
@@ -303,7 +315,7 @@ static TuneOptions parse_tune_options(int argc, char* argv[]) {
         } else if (opt == "--max-positions" && argi < argc) {
             opts.max_positions = parse_int_arg(argv[argi++], "--max-positions");
         } else if (opt == "--l2" && argi < argc) {
-            opts.l2 = parse_double_arg(argv[argi++], "--l2");
+            opts.l2 = parse_nonneg_double_arg(argv[argi++], "--l2");
         } else {
             std::cerr << "Unknown or incomplete option: " << opt << "\n";
             usage(argv[0]);
@@ -491,44 +503,157 @@ static float trace_coeff(const EvalTrace& tr, int idx) {
         tr.mg[idx] * tr.phase + tr.eg[idx] * (24 - tr.phase)) / 24.0f;
 }
 
-static int default_score_white(const EvalTrace& tr) {
-    return reconstruct(tr, g_eval_params) + tr.rest;
-}
-
 static int flat_index(int group, int idx = 0) {
     return eval_param_offset(group) + idx;
 }
 
-// Linearised draw scaling: the float mirror of the evaluator's integer
-// apply_endgame() scalers, applied to the trace so the fit sees the function
-// the engine actually computes.
+// ---------------------------------------------------------------------------
+// The played function, row by row
+// ---------------------------------------------------------------------------
+// The fit models the score the engine serves, from the evaluator's own record
+// of how it got there (g_rest), never from a re-derivation of its rules:
+//   - the running sum: the traced terms times the weights, plus the frozen
+//     untraced additions;
+//   - the taper of that sum;
+//   - what apply_endgame did to it: left it, scaled it by num / den, or
+//     replaced it with a known result;
+//   - the rule-50 damping;
+//   - and, where a release build would stop at the lazy checkpoint, the same
+//     chain on the cheap block alone, with the trace written up to there.
+// Every stage is recomputed here in the engine's integer arithmetic and must
+// equal the evaluator's value at the seed weights, or the row is a mismatch:
+// a model that disagrees with the engine is never fitted.
 //
-// 8.6.2b: every predicate and constant here now comes from eval.h — previously
-// they were re-typed by hand (with a complementary dark-square mask and a
-// hand-copied rule-50 curve) and a divergence would have silently corrupted the
-// fitted gradients rather than failing --verify. Only the float/integer shape
-// differs now, which is inherent: the tuner needs a continuous multiplier.
+// A row whose served score is an override (a known win, a tier, a drawn KPK)
+// or a draw verdict takes no part in K or in any loss: its score is not a
+// function of the weights.
 //
-// Knowingly approximate: apply_endgame's KPK / KBNK / wrong-bishop /
-// no-pawn-minor scalers are NOT mirrored, so those cohorts are linearised
-// without their scaling. That is a deliberate, long-standing simplification.
-static float linear_delta_scale(const Board& b) {
-    float scale = 1.0f;
+// The gradient is linearised at the seed: the scale apply_endgame applied there
+// (whose strong side, for the pawnless scaler, the seed score's sign chose)
+// and the damping's slope, times the trace's tapered count.
+struct RowModel {
+    enum Status { USED, OVERRIDE, VERDICT };
+    Status status = USED;
+    bool lazy = false;
+    int played_white = 0;          // the score the engine serves, White's view
+    double scale = 1.0;            // d played / d tapered sum, at the seed
+    const EvalTrace* trace = nullptr;
+};
 
-    if (is_opposite_coloured_bishops(b)) {
-        const int total_pawns = popcount(b.piece_bb(WHITE, PAWN) | b.piece_bb(BLACK, PAWN));
-        scale *= static_cast<float>(ocb_draw_scale(total_pawns)) / 48.0f;
+static const std::vector<long>& seed_weights() {
+    static const std::vector<long> w = [] {
+        std::vector<double> d(EVAL_PARAM_FLAT_SIZE);
+        read_weights(g_eval_params, d.data());
+        return std::vector<long>(d.begin(), d.end());
+    }();
+    return w;
+}
+
+static int taper_int(long mg, long eg, int phase) {
+    return static_cast<int>((mg * phase + eg * (24 - phase)) / 24);
+}
+
+static int apply_step(const EvalEndgameStep& step, int tapered) {
+    return step.kind == EG_SCALED ? tapered * step.num / step.den : tapered;
+}
+
+static int damp_white(int score, int clock) {
+    return clock > 0 ? damp_rule50(score, clock) : score;
+}
+
+// The model of the row the evaluator just scored (g_trace and g_rest hold its
+// record). Returns false, with the stage named in *mismatch, when a stage of
+// the model disagrees with the engine.
+static bool model_row(const Board& b, int served_stm, RowModel& out, std::string* mismatch) {
+    const std::vector<long>& w = seed_weights();
+    const int served_white = (b.turn() == WHITE) ? served_stm : -served_stm;
+    const int clock = b.rule50_count();
+    auto fail = [&](const char* stage) {
+        if (mismatch)
+            *mismatch = stage;
+        return false;
+    };
+
+    long mg = 0, eg = 0;
+    for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
+        mg += g_trace.mg[i] * w[static_cast<size_t>(i)];
+        eg += g_trace.eg[i] * w[static_cast<size_t>(i)];
+    }
+    for (int s = 0; s < REST_SOURCE_NB; ++s) {
+        mg += g_rest.mg[s];
+        eg += g_rest.eg[s];
+    }
+    if (mg != g_rest.sum_mg || eg != g_rest.sum_eg)
+        return fail("the running sum");
+    if (taper_int(mg, eg, g_trace.phase) != g_rest.tapered)
+        return fail("the taper");
+    if (g_rest.step.kind != EG_OVERRIDE && apply_step(g_rest.step, g_rest.tapered) != g_rest.endgame)
+        return fail("the endgame step");
+    if (damp_white(g_rest.endgame, clock) != served_white)
+        return fail("the rule-50 damping");
+
+    out = RowModel{};
+    const EvalEndgameStep* step = &g_rest.step;
+    int endgame = g_rest.endgame;
+    out.trace = &g_trace;
+    if (g_rest.lazy) {
+        long lmg = 0, leg = 0;
+        for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
+            lmg += g_lazy_trace.mg[i] * w[static_cast<size_t>(i)];
+            leg += g_lazy_trace.eg[i] * w[static_cast<size_t>(i)];
+        }
+        if (taper_int(lmg, leg, g_lazy_trace.phase) != g_rest.lazy_tapered)
+            return fail("the lazy checkpoint's taper");
+        if (g_rest.lazy_step.kind != EG_OVERRIDE
+            && apply_step(g_rest.lazy_step, g_rest.lazy_tapered) != g_rest.lazy_endgame)
+            return fail("the lazy checkpoint's endgame step");
+        out.lazy = true;
+        step = &g_rest.lazy_step;
+        endgame = g_rest.lazy_endgame;
+        out.trace = &g_lazy_trace;
+    }
+    out.played_white = damp_white(endgame, clock);
+    out.status = step->kind == EG_OVERRIDE ? RowModel::OVERRIDE
+               : step->verdict             ? RowModel::VERDICT
+                                           : RowModel::USED;
+    out.scale = (step->kind == EG_SCALED ? double(step->num) / double(step->den) : 1.0)
+              * (clock > 0 ? double(damp_rule50_scale_num(clock)) / double(DAMP_RULE50_DEN) : 1.0);
+    return true;
+}
+
+// Rows by what the model made of them, for the load reports.
+struct ModelCounts {
+    long used = 0, lazy = 0, overrides = 0, verdicts = 0, mismatches = 0;
+    std::map<std::string, long> by_stage;
+    std::vector<std::string> examples;
+
+    void add(bool ok, const RowModel& m, const std::string& stage, const Board& b) {
+        if (!ok) {
+            ++mismatches;
+            ++by_stage[stage];
+            if (examples.size() < 5)
+                examples.push_back(stage + ": " + b.get_fen());
+            return;
+        }
+        if (m.status == RowModel::OVERRIDE) { ++overrides; return; }
+        if (m.status == RowModel::VERDICT)  { ++verdicts; return; }
+        ++used;
+        lazy += m.lazy;
     }
 
-    if (is_knnk_draw(b))
-        return 0.0f;
-
-    if (b.rule50_count() > 0)
-        scale *= static_cast<float>(damp_rule50_scale_num(b.rule50_count()))
-               / static_cast<float>(DAMP_RULE50_DEN);
-
-    return scale;
-}
+    void print(const std::string& what) const {
+        std::cout << what << ": " << used << " rows used (" << lazy << " at the lazy checkpoint), "
+                  << overrides << " overrides and " << verdicts
+                  << " draw verdicts left out of K and the loss";
+        if (mismatches)
+            std::cout << ", " << mismatches << " MISMATCHES";
+        std::cout << ".\n";
+        for (const auto& [stage, n] : by_stage)
+            std::cerr << "  mismatch in " << stage << ": " << n << "\n";
+        for (const std::string& e : examples)
+            std::cerr << "    " << e << "\n";
+    }
+};
 
 static void clamp_range(double* w, int idx, double lo, double hi) {
     w[idx] = std::clamp(w[idx], lo, hi);
@@ -654,11 +779,9 @@ static std::vector<TexelPos> load_verify_dataset(const std::string& path,
         }
 
         g_trace = {};
+        g_rest = {};
         tp.score = evaluator.evaluate(tp.board);
         tp.trace = g_trace;
-
-        int score_white = (tp.board.turn() == WHITE) ? tp.score : -tp.score;
-        tp.trace.rest = score_white - reconstruct(tp.trace, g_eval_params);
 
         out.push_back(std::move(tp));
 
@@ -690,6 +813,7 @@ static TuneSet load_tune_dataset(const std::string& path,
     Board board;
     auto evaluator_ptr = std::make_unique<Evaluator>();
     Evaluator& evaluator = *evaluator_ptr;
+    ModelCounts counts;
 
     while (rows.next(fen, target)) {
         float result = 0.5f;
@@ -704,21 +828,31 @@ static TuneSet load_tune_dataset(const std::string& path,
         }
 
         g_trace = {};
-        int score = evaluator.evaluate(board);
-        int score_white = (board.turn() == WHITE) ? score : -score;
-        g_trace.rest = score_white - reconstruct(g_trace, g_eval_params);
+        g_rest = {};
+        const int score = evaluator.evaluate(board);
+        RowModel model;
+        std::string stage;
+        const bool ok = model_row(board, score, model, &stage);
+        counts.add(ok, model, stage, board);
+        if (!ok || model.status != RowModel::USED)
+            continue;
 
         out.result.push_back(result);
-        out.base_score.push_back(static_cast<float>(default_score_white(g_trace)));
+        out.base_score.push_back(static_cast<float>(model.played_white));
         out.phase.push_back(static_cast<uint8_t>(g_trace.phase));
-        float delta_scale = linear_delta_scale(board);
         for (int idx : active)
-            out.coeffs.push_back(trace_coeff(g_trace, idx) * delta_scale);
+            out.coeffs.push_back(static_cast<float>(trace_coeff(*model.trace, idx) * model.scale));
 
         if (max_positions > 0 && static_cast<int>(out.size()) >= max_positions)
             break;
     }
 
+    counts.print(path);
+    if (counts.mismatches) {
+        std::cerr << "FATAL: the tuner's model of the served score disagrees with the "
+                     "engine on " << counts.mismatches << " rows; nothing is fitted.\n";
+        std::exit(2);
+    }
     if (out.size() == 0) {
         std::cerr << "No positions loaded from " << path << ".\n";
         std::exit(1);
@@ -749,50 +883,79 @@ static void cmd_dump_eval(const std::string& path, int limit) {
     }
 }
 
-static void cmd_verify(const std::string& path) {
-    constexpr int VERIFY_COUNT = 10000;
-    std::cout << "Loading up to " << VERIFY_COUNT
+// The model against the engine, row by row (model_row): the traced terms times
+// the weights, plus the frozen additions, must equal the running sum the
+// evaluator accumulated itself, and each later stage must reproduce the
+// evaluator's value, through to the score evaluate() served. The served score
+// is never an input to the model, so the check can fail.
+static void cmd_verify(const std::string& path, int limit) {
+    std::cout << "Verifying the tuner's model on " << (limit > 0 ? "up to " + std::to_string(limit) : "all")
               << " positions from " << path << " ...\n";
-
-    auto positions = load_verify_dataset(path, VERIFY_COUNT);
-    if (positions.empty()) {
+    RowReader rows(path);
+    auto ev_ptr = std::make_unique<Evaluator>();
+    Evaluator& evaluator = *ev_ptr;
+    Board board;
+    std::string fen, target;
+    ModelCounts counts;
+    long read = 0;
+    while (rows.next(fen, target)) {
+        float result = 0.5f;
+        if (!parse_target(target, result)) { rows.reject("Unknown result '" + target + "'"); continue; }
+        if (auto r = board.try_set_fen(fen); !r) { rows.reject("FEN error: " + std::string(r.error())); continue; }
+        g_trace = {};
+        g_rest = {};
+        const int score = evaluator.evaluate(board);
+        RowModel model;
+        std::string stage;
+        const bool ok = model_row(board, score, model, &stage);
+        counts.add(ok, model, stage, board);
+        if (limit > 0 && ++read >= limit)
+            break;
+    }
+    if (counts.used + counts.overrides + counts.verdicts + counts.mismatches == 0) {
         std::cerr << "No positions loaded.\n";
         std::exit(1);
     }
-
-    std::cout << "Loaded " << positions.size() << " positions. Verifying reconstruction...\n";
-
-    auto ev_ptr = std::make_unique<Evaluator>();
-    Evaluator& evaluator = *ev_ptr;
-    int mismatches = 0;
-    int max_err = 0;
-
-    for (auto& tp : positions) {
-        int fresh = evaluator.evaluate(tp.board);
-        int fresh_white = (tp.board.turn() == WHITE) ? fresh : -fresh;
-        int recon = reconstruct(tp.trace, g_eval_params) + tp.trace.rest;
-
-        int err = std::abs(fresh_white - recon);
-        if (err != 0) {
-            ++mismatches;
-            max_err = std::max(max_err, err);
-            if (mismatches <= 5) {
-                std::cerr << "MISMATCH: actual=" << fresh_white
-                          << " recon=" << recon
-                          << " diff=" << err
-                          << " fen=" << tp.board.get_fen() << "\n";
-            }
-        }
-    }
-
-    if (mismatches == 0) {
-        std::cout << "PASS: all " << positions.size()
-                  << " positions reconstruct exactly.\n";
-    } else {
-        std::cout << "FAIL: " << mismatches << " / " << positions.size()
-                  << " positions differ (max error = " << max_err << ").\n";
+    counts.print(path);
+    if (counts.mismatches) {
+        std::cout << "FAIL: the model disagrees with the engine on " << counts.mismatches << " rows.\n";
         std::exit(1);
     }
+    std::cout << "PASS: the model reproduces the engine on every row.\n";
+}
+
+// The played score of every row, side to move, hashed in file order exactly as
+// tests/eval_hash.cpp hashes what a release build serves (FNV-1a over each
+// score's eight bytes). Equal hashes on one file are the check that the
+// model's lazy path and endgame steps are the release engine's, row for row,
+// overrides included.
+static void cmd_played_hash(const std::string& path) {
+    RowReader rows(path);
+    auto ev_ptr = std::make_unique<Evaluator>();
+    Board board;
+    std::string fen, target;
+    uint64_t h = 0xcbf29ce484222325ull;
+    long n = 0;
+    while (rows.next(fen, target)) {
+        if (auto r = board.try_set_fen(fen); !r) { rows.reject("FEN error: " + std::string(r.error())); continue; }
+        g_trace = {};
+        g_rest = {};
+        const int score = ev_ptr->evaluate(board);
+        RowModel model;
+        std::string stage;
+        if (!model_row(board, score, model, &stage)) {
+            std::cerr << "FATAL: the model disagrees with the engine (" << stage << ") at "
+                      << board.get_fen() << "\n";
+            std::exit(2);
+        }
+        const int64_t played = (board.turn() == WHITE) ? model.played_white : -model.played_white;
+        for (int i = 0; i < 8; ++i) {
+            h ^= static_cast<uint64_t>(played >> (8 * i)) & 0xffu;
+            h *= 0x100000001b3ull;
+        }
+        ++n;
+    }
+    std::printf("positions: %ld\nplayed_hash: %016llx\n", n, static_cast<unsigned long long>(h));
 }
 
 // ---------------------------------------------------------------------------
@@ -1007,10 +1170,21 @@ static void report_phase_buckets(const TuneSet& set,
 // ---------------------------------------------------------------------------
 // K calibration (golden-section search on validation set)
 // ---------------------------------------------------------------------------
+// A K at the edge of its search interval is not a fit: the loss kept falling
+// past the bound, so the scores and the labels disagree in scale.
+static constexpr double K_LO = 0.5, K_HI = 2.5;
+static void check_K_inside_bounds(double K) {
+    if (K < K_LO + 1e-4 || K > K_HI - 1e-4) {
+        std::cerr << "FATAL: K = " << K << " is at the bound of [" << K_LO << ", " << K_HI
+                  << "]; the scores and the labels disagree in scale.\n";
+        std::exit(2);
+    }
+}
+
 static double fit_K(const TuneSet& positions) {
     std::cout << "Fitting K on " << positions.size() << " positions... ";
-    double lo = 0.5;
-    double hi = 2.5;
+    double lo = K_LO;
+    double hi = K_HI;
     for (int i = 0; i < 50; i++) {
         double m1 = lo + (hi - lo) / 3.0;
         double m2 = hi - (hi - lo) / 3.0;
@@ -1021,6 +1195,7 @@ static double fit_K(const TuneSet& positions) {
     }
     double K = (lo + hi) / 2.0;
     std::cout << "K = " << K << "\n";
+    check_K_inside_bounds(K);
     return K;
 }
 
@@ -1141,6 +1316,35 @@ static void cmd_tune(const TuneOptions& opts) {
     read_weights(g_eval_params, base_w);
     std::copy(base_w, base_w + EVAL_PARAM_FLAT_SIZE, w);
 
+    // The clamps are priors on the fitted coordinates. The seed must satisfy
+    // them, or the first clamp would move it with no data asking; and a
+    // coordinate outside the group stays at the seed whatever a clamp says.
+    {
+        double probe[EVAL_PARAM_FLAT_SIZE];
+        std::copy(base_w, base_w + EVAL_PARAM_FLAT_SIZE, probe);
+        clamp_weights_for_group(opts.group, probe);
+        int moved = 0;
+        const auto info = flat_param_info();
+        for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
+            if (probe[i] != base_w[i] && ++moved <= 10)
+                std::cerr << "  the clamps move the seed's " << info[static_cast<size_t>(i)].name
+                          << " from " << base_w[i] << " to " << probe[i] << "\n";
+        }
+        if (moved) {
+            std::cerr << "FATAL: the clamps move " << moved << " seed coordinates.\n";
+            std::exit(2);
+        }
+    }
+    std::vector<char> is_active(EVAL_PARAM_FLAT_SIZE, 0);
+    for (int idx : active)
+        is_active[static_cast<size_t>(idx)] = 1;
+    auto l2_penalty = [&](const double* x) {
+        double sum = 0.0;
+        for (int idx : active)
+            sum += (x[idx] - base_w[idx]) * (x[idx] - base_w[idx]);
+        return opts.l2 * sum;
+    };
+
     double initial_train_loss = traced_loss(train, active, base_w, w, K);
     double initial_holdout_loss = traced_loss(holdout, active, base_w, w, K);
     std::cout << "Initial train loss  = " << initial_train_loss << "\n";
@@ -1191,6 +1395,9 @@ static void cmd_tune(const TuneOptions& opts) {
         }
 
         clamp_weights_for_group(opts.group, w);
+        for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i)
+            if (!is_active[static_cast<size_t>(i)])
+                w[i] = base_w[i];
 
         auto t1 = std::chrono::steady_clock::now();
         double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
@@ -1202,9 +1409,15 @@ static void cmd_tune(const TuneOptions& opts) {
         }
 
         if (epoch == 1 || epoch % 10 == 0 || epoch == opts.epochs) {
+            // The data loss, and the objective the optimiser descends: the
+            // data loss plus the L2 penalty when it is on.
             double train_loss = traced_loss(train, active, base_w, w, K);
-            std::printf("Epoch %4d  train=%.8f  holdout=%.8f  %.0f ms\n",
-                        epoch, train_loss, holdout_loss, ms);
+            if (opts.l2 > 0.0)
+                std::printf("Epoch %4d  train=%.8f  objective=%.8f  holdout=%.8f  %.0f ms\n",
+                            epoch, train_loss, train_loss + l2_penalty(w), holdout_loss, ms);
+            else
+                std::printf("Epoch %4d  train=%.8f  holdout=%.8f  %.0f ms\n",
+                            epoch, train_loss, holdout_loss, ms);
         }
     }
 
@@ -1218,6 +1431,13 @@ static void cmd_tune(const TuneOptions& opts) {
     }
 
     report_phase_buckets(holdout, active, base_w, w, K);
+
+    for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
+        if (!is_active[static_cast<size_t>(i)] && w[i] != base_w[i]) {
+            std::cerr << "FATAL: coordinate " << i << " is outside the fitted group and moved.\n";
+            std::exit(2);
+        }
+    }
 
     write_weights(g_eval_params, w);
     print_material_delta(base_w, w);
@@ -1253,13 +1473,30 @@ static std::vector<KsSnap> ks_load(const std::string& path, int max_positions) {
     std::vector<KsSnap> out;
     Board tmp;
     std::string fen, target;
+    auto ev_ptr = std::make_unique<Evaluator>();
+    ModelCounts counts;
     while (rows.next(fen, target)) {
         float result;
         if (!parse_target(target, result)) { rows.reject("Unknown result '" + target + "'"); continue; }
         if (!tmp.try_set_fen(fen)) { rows.reject("FEN error"); continue; }
+        // The same rows as the linear fit's: an override or a verdict depends
+        // on the material alone, which no king-safety knob moves.
+        g_trace = {};
+        g_rest = {};
+        const int score = ev_ptr->evaluate(tmp);
+        RowModel model;
+        std::string stage;
+        const bool ok = model_row(tmp, score, model, &stage);
+        counts.add(ok, model, stage, tmp);
+        if (!ok || model.status != RowModel::USED) continue;
         KsSnap s{tmp.snapshot_position(), tmp.turn(), result};
         out.push_back(s);
         if (max_positions > 0 && static_cast<int>(out.size()) >= max_positions) break;
+    }
+    counts.print(path);
+    if (counts.mismatches) {
+        std::cerr << "FATAL: the tuner's model of the served score disagrees with the engine.\n";
+        std::exit(2);
     }
     if (out.empty()) { std::cerr << "No positions from " << path << "\n"; std::exit(1); }
     if (rows.skipped()) std::cerr << "Skipped " << rows.skipped() << " rows.\n";
@@ -1270,8 +1507,12 @@ static double ks_mse(const std::vector<KsSnap>& pos, double K, Board& scratch, E
     double loss = 0.0;
     for (const auto& s : pos) {
         ks_board_from_snap(scratch, s);
-        int sc = ev.evaluate(scratch);                 // full eval (lazy off under TEXEL)
-        int white = (s.stm == WHITE) ? sc : -sc;
+        g_rest = {};
+        const int sc = ev.evaluate(scratch);
+        // The played score: where a release build stops at the lazy
+        // checkpoint, the cheap block's value, which no king-safety knob moves.
+        const int white = g_rest.lazy ? damp_white(g_rest.lazy_endgame, scratch.rule50_count())
+                                      : (s.stm == WHITE) ? sc : -sc;
         double sig = 1.0 / (1.0 + std::exp(-K * static_cast<double>(white) / 400.0));
         double d = static_cast<double>(s.result) - sig;
         loss += d * d;
@@ -1280,12 +1521,14 @@ static double ks_mse(const std::vector<KsSnap>& pos, double K, Board& scratch, E
 }
 
 static double ks_fit_K(const std::vector<KsSnap>& pos, Board& scratch, Evaluator& ev) {
-    double lo = 0.5, hi = 2.5;
+    double lo = K_LO, hi = K_HI;
     for (int i = 0; i < 40; ++i) {
         double m1 = lo + (hi - lo) / 3.0, m2 = hi - (hi - lo) / 3.0;
         if (ks_mse(pos, m1, scratch, ev) < ks_mse(pos, m2, scratch, ev)) hi = m2; else lo = m1;
     }
-    return (lo + hi) / 2.0;
+    const double K = (lo + hi) / 2.0;
+    check_K_inside_bounds(K);
+    return K;
 }
 
 // ---------------------------------------------------------------------------
@@ -1380,6 +1623,18 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     std::cout << "K = " << K << "\n";
 
     EvalParams& P = g_eval_params;
+    // The descent keeps the table non-decreasing by clamping each entry
+    // between its neighbours, which holds only if the table starts that way:
+    // on a table that does not, the bounds cross. A linear stage before this
+    // one can leave it so, since it has no monotone projection.
+    for (int i = 1; i < 25; ++i) {
+        if (P.safety_table[i] < P.safety_table[i - 1]) {
+            std::cerr << "FATAL: safety_table[" << i << "] = " << P.safety_table[i]
+                      << " is below safety_table[" << i - 1 << "] = " << P.safety_table[i - 1]
+                      << "; the king-safety stage needs a non-decreasing table.\n";
+            std::exit(2);
+        }
+    }
     struct Knob { int* p; const char* name; int sub; int lo; int hi; int table_idx; };
     std::vector<Knob> knobs;
     auto add = [&](int* p, const char* n, int sub, int lo, int hi, int ti) {
@@ -1478,11 +1733,18 @@ int main(int argc, char* argv[]) {
     std::string mode = argv[1];
 
     if (mode == "--verify") {
+        if (argc != 3 && !(argc == 5 && std::string(argv[3]) == "--max-positions")) {
+            usage(argv[0]);
+            return 1;
+        }
+        // 10,000 rows by default, as before; --max-positions 0 reads the file.
+        cmd_verify(argv[2], argc == 5 ? parse_int_arg(argv[4], "--max-positions") : 10000);
+    } else if (mode == "--played-hash") {
         if (argc != 3) {
             usage(argv[0]);
             return 1;
         }
-        cmd_verify(argv[2]);
+        cmd_played_hash(argv[2]);
     } else if (mode == "--feature-support") {
         if (argc < 3) {
             usage(argv[0]);
