@@ -1743,7 +1743,8 @@ has lost games in both engines (BAS-X02).
               the whole train split, with a guard against frozen entries
               in a free-level table.
           - **Amendment 1 recorded, 2026-11-23** (the registration's §6;
-            BAS-O13, BAS-E60; reads in `tools/results/c283/amend1/`):
+            BAS-O13, BAS-E60; reads in `tools/results/c283/amend1/`).
+            The maintainer accepted it in full the same day:
             - Support is counted on every row the linear stages read,
               at 200 rows. By count, two slots stay frozen
               (`MobQMg[0]` and `MobQEg[0]`, 10 rows each), and no PST
@@ -1757,6 +1758,8 @@ has lost games in both engines (BAS-X02).
               labels' own share was 1.3e-6 of a 2.0e-5 difference.
             - BAS-O13's predictions stand. `bench 13` and the condition
               are restated after run 1.
+            - Findings for C.3 and C.6 are in their entries (the
+              registration's §6.7).
             - Next: the tool change to C.2.8.2's driver (§6.5) with its
               dry run on corpus A, then run 2.
         - [ ] **C.2.8.4** `[V]` The registered gates
@@ -1837,6 +1840,19 @@ has lost games in both engines (BAS-X02).
   deficit is realised, the donor's space adds 47.0 and its mobility 29.6
   to Basilisk's whole score; the threat rows add 4.4 or less, so a
   threat term is built only if its own screen excludes zero.
+  C.2.8 inputs (2026-11-23, the fit registration's Amendment 1, its §6.2
+  and §6.7):
+  - Queen mobility 1 is what a queen on its home square counts before its
+    own pawns move: the mobility area leaves out the king and the low
+    pawns (`src/eval_attacks.h`). Corpus A starts at book exits, so it
+    holds 10 rows at count 0 and 224 to 278 at count 1, mostly trapped
+    queens.
+  - A free fit puts both entries on the tuner's −200 clamp (BAS-O12,
+    every arm). That is about 230 cp for the first pawn move from the
+    starting position (inference, not measured).
+  - C.2.8's fit holds count 0 at the seed, and the tuner's monotone chain
+    then stops count 1 at it. C.3.1 settles the two entries: a prior, a
+    merged low-count entry, or rows that reach them.
     - [ ] **C.3.1** `[R3]` Cluster research and handoff
       Stages 1 to 3 of the cluster shape, from C.0's contract (its packet
       §8.2) and C.2.10's order. It answers C.0's three competing readings
@@ -1980,6 +1996,15 @@ has lost games in both engines (BAS-X02).
     Basilisk-only terms with no donor prior: pawn majority, pawn
     islands, closed file, seventh rank, connected rooks, the trapped
     bishop.
+  C.2.8 inputs (2026-11-23, the fit registration's Amendment 1, its §6.1
+  and §6.7; inference until C.2.8.3's run 2 reads it):
+  - A PST's level against the imbalance's piece-times-pawn products is
+    weakly identified, and the split moves with the fit's surface. With
+    every entry free the eg rook table rose 180 cp (BAS-O12). With 242
+    slots held it rose 52 and the products carried the rest (C.2.8.3's
+    run 1). The endgame piece values stayed within 8% of each other.
+  - So an imbalance term's fitted value is read with the table levels of
+    the same fit, never alone (C-118's screen).
   It was C.7 until 2026-11-05, when the phase moved to the king-safety
   cluster (C.3 then, C.4 since 2026-11-18).
 - [ ] **C.7** Endgame handling and winnability
@@ -2354,7 +2379,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.8.3 | READY_FOR_IMPLEMENTATION | V | Amendment 1 recorded (the registration's §6): the tool change and its dry run on corpus A, then run 2 of both fits |
+| C.2.8.3 | READY_FOR_IMPLEMENTATION | V | Amendment 1 accepted (maintainer, 2026-11-23; the registration's §6): the tool change and its dry run on corpus A, then run 2 of both fits |
 | C.2.8.4 | RESEARCH | V | Waits on C.2.8.3 |
 | C.2.9 | RESEARCH | I1 | Not started |
 | C.2.10 | RESEARCH | R3 | Not started |

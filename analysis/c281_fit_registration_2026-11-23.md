@@ -144,6 +144,9 @@ surface or any engine source.
   answers the fit report's return
   (`analysis/c283_fit_report_2026-11-23.md` §3) under BAS-O13's stop rule.
 - Owner / date: agent, on Fable at the maintainer's choice.
+- **Accepted by the maintainer in full, 2026-11-23:** the third part of
+  BAS-E60's condition (§6.3) and the queen-mobility floor (§6.2)
+  included.
 - New reads, in `tools/results/c283/amend1/` (ignored), by the tuner in
   `build/c283/texel` (the restored header; `surface.py check` passes):
   - `support_full.py`, `.json` and `.log`: every slot's support on the
@@ -380,7 +383,10 @@ the K rule.
 - A `rank` failure stops the run before K is fitted, as any failed step
   does.
 - Its docstring and the HANDBOOK's §6 and §9 say what is counted on
-  which rows.
+  which rows. The HANDBOOK's §8 gains two traps:
+  - support counted on a sample is a different threshold;
+  - two fits of nearly the same data differ by about 2e-5 by their path
+    alone, so matched arms are compared on each other's labels.
 
 **Tests,** each failing on its known-bad input:
 - The streamed count equals `count_nonzero` of the dense dump, slot for
@@ -427,3 +433,27 @@ fit, before hand-over:
   - the three parts of BAS-E60's condition.
 - **Stop rule:** BAS-O13's, unchanged. One run per corpus; a failed
   guard, rank or stage is reported and amended here before another run.
+
+### 6.7 Findings for later leaves (not acted on)
+
+- **Queen mobility 0 and 1 have no usable data** (§6.2). Count 1 is the
+  home queen's, and the corpus holds 10 and 224 to 278 rows, mostly
+  trapped queens. A free fit puts both on the −200 clamp. Owner: C.3,
+  whose research settles the two entries. PLAN's C.3 entry carries it.
+- **The level against the products moves with the surface (inference;
+  §6.1).** The eg rook table rose 180 cp with every entry free and 52
+  with 242 slots held, and the products carried the rest. Run 2 reads
+  the split first. Owner: C.6 (C-118's screen). PLAN's C.6 entry carries
+  it.
+- **A fit's path is worth about 2e-5** (§6.3). Two fits of nearly the
+  same data differed by that much on both label sets. Any later
+  matched-fit comparison reads its arms on each other's labels. Owner:
+  the leaf that registers the comparison; the HANDBOOK's trap (§6.5).
+- **One `bench 13` count does not measure a refit's tree** (§6.4). C-56's
+  5% growth flag stays registered, but a single count neither raises nor
+  clears it. Owner: C.2.8.4's reads.
+- **`--feature-support` and the surface count different things** (§6.5):
+  raw traces on every row, against coefficients on the rows a fit uses.
+  Owner: the tool change's documentation.
+- **Run 1's term-level findings** (the report's §7) wait for run 2's
+  report, which reads them again on a valid surface.

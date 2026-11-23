@@ -45,6 +45,7 @@
 #### AMENDMENT 1 — 2026-11-23, after the run-1 read
 
 The registration's §6.3 (`analysis/c281_fit_registration_2026-11-23.md`).
+The maintainer accepted it the same day, the third part included.
 - **B is re-run with A, and the condition is re-read on run 2.** That
   read is the verdict: the arms are baked builds, and only run 2's
   vectors can be baked. Run 1's read stays above as exposure.

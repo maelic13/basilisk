@@ -88,6 +88,7 @@ before a re-run, never quietly re-run.
 #### AMENDMENT 1 — 2026-11-23, after run 1 and before run 2
 
 The registration's §6 (`analysis/c281_fit_registration_2026-11-23.md`).
+The maintainer accepted it in full the same day.
 - **The support rule:** support is counted on every row the linear
   stages read, at 200 rows, and the rank is read on 300,000 rows. A fit
   stops when a support-frozen slot sits in an unanchored table that

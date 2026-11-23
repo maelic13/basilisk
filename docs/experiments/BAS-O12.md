@@ -259,3 +259,13 @@
     checkpoint, against 10.7% at the header, so the lazy share rises
     about 27%. `LAZY_MARGIN` (700) has never been refit (C-98). How C.2.8
     holds or prices this is a registration decision.
+
+- **Follow-up to Correction 1's queen-mobility lead (2026-11-23, C.2.8's
+  Amendment 1; `analysis/c281_fit_registration_2026-11-23.md` §6.2).**
+  - On corpus A's whole train split, queen mobility 0 has 10 rows, and
+    mobility 1 has 278 (mg) and 224 (eg).
+  - Mobility 1 is the home queen's count before its own pawns move. So
+    the clamp value came from a few trapped queens, and it would misread
+    the opening by about 230 cp (inference, not measured).
+  - C.2.8's fit holds entry 0 at the seed, and the tuner's monotone
+    chain then stops entry 1 at it. The two entries belong to C.3.
