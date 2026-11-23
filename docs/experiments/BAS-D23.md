@@ -93,3 +93,40 @@ the number.
   - Run 1's bracket and its calibration above are withdrawn. Nothing reads
     them.
   - Run 2 writes `tools/results/c273/nodes_per_move.json`.
+
+- **Run 2, 2026-11-23, by the maintainer on an idle host: KEPT**
+  (`tools/results/c273/nodes_per_move.json`). Its checks hold:
+  - the binary `EDDBA36E…`, the conditions and the starts (`e64575c7…`,
+    the same 150 positions) are run 1's;
+  - all 150 games ended by the rules, none on time or the ply cap;
+  - the run read 18,177 searches.
+
+  | Moves | n | p25 | Median | p75 | p90 | Run 1 median |
+  |---|---:|---:|---:|---:|---:|---:|
+  | All | 18,177 | 78,246 | **121,819** | 176,936 | 244,078 | 106,873 |
+  | Ply 0–29 | 4,499 | 133,399 | 169,743 | 228,443 | 292,806 | 150,536 |
+  | Ply 30–79 | 7,100 | 100,030 | 134,873 | 185,833 | 250,094 | 116,563 |
+  | Ply 80+ | 6,578 | 47,301 | 71,338 | 106,378 | 157,207 | 60,008 |
+  | 3–6 men | 2,129 | 42,922 | **63,876** | 94,303 | 133,910 | 55,259 |
+  | 7–12 men | 4,440 | 54,242 | 83,270 | 124,869 | 185,744 | 68,269 |
+  | 13–32 men | 11,608 | 107,768 | 146,217 | 201,036 | 264,149 | 128,156 |
+
+- **The bracket, by the frozen rule:** 2,129 moves had at most 6 men (300
+  needed), so M is 63,876. The budgets are **21,000, 64,000 and
+  190,000**.
+- **The busy host cost run 1 12% of its nodes** overall, and 11% to 18% by
+  band. The stop rule moved every budget by one rounding step or more.
+- **What follows:**
+  - Every earlier truth read ran at 60,000 nodes. That is near the
+    deployed endgame median, but it is not one of the budgets, so C.2.7.4
+    runs all three on the head.
+  - Deployed endgame searches are short: the median at 3 to 6 men is
+    about half the median over all moves, because those positions come
+    late on a short clock.
+- **Against the prediction (run 2):** every part held.
+  - The overall median, 121,819, is inside [50,000, 300,000], near the
+    point of 130,000.
+  - The 3-to-6-man median is below the overall one (0.7).
+  - At least 300 endgame moves were sampled (0.75).
+  - The middle budget is below 200,000 (0.65).
+  - No game forfeited (0.9).
