@@ -1440,7 +1440,7 @@ has lost games in both engines (BAS-X02).
       - **Withdrawn:** the first recommendation, 0.557 with both starts
         fitted. It misread the pooled slope, which is mostly the king
         tables', and the flipped start, which is not a negated shape.
-    - [ ] **C.2.7** Endgame instruments and gate integrity
+    - [x] **C.2.7** Endgame instruments and gate integrity
       It was C.7.1 until 2026-11-11. Instruments and gate integrity
       (archived 6.6.a–e and 6.6.h). Split into four sub-steps on 2026-11-23
       (maintainer, on the audit's §5); the held-out tooling (FEN-hash
@@ -1548,7 +1548,7 @@ has lost games in both engines (BAS-X02).
           - **The bracket: 21,000, 64,000 and 190,000 nodes.** Every
             earlier truth read ran at 60,000, so C.2.7.4 runs all three on
             the head.
-        - [ ] **C.2.7.4** `[V]` The C head's endgame baselines
+        - [x] **C.2.7.4** `[V]` The C head's endgame baselines
           - The head over the whole cohort at 21,000, 64,000 and 190,000
             nodes under v2 (`endgame_budget_bracket.py run`). BAS-D22's
             60k report is at no bracket budget, so it is not reproduced.
@@ -1567,7 +1567,24 @@ has lost games in both engines (BAS-X02).
             checked equal to its records. It runs the bracket at 30 workers,
             then the enumeration (about 40 minutes, the whole CPU), and
             writes each step's exit status to `status.json`.
-          - **Waits on the maintainer:** the run.
+          - **Run** by the maintainer (`run_c274.py`, about 43 minutes).
+          Done 2026-11-23 (`analysis/c27_endgame_instruments_audit_2026-11-23.md`
+          §6):
+          - **Baselines** (`tools/results/c274/head/`, v2): the head
+            converts 443, 448 and 463 of 480 at 21k, 64k and 190k. The
+            bracket veto of the head against itself passes.
+          - **Single budgets are noisy.** At 60k the head reproduces
+            BAS-D22's 770 records exactly, so the evaluator split changed
+            nothing here. Yet 60k to 64k flips 22 positions (KNN-KP 10 to
+            4).
+          - **B.9.3 re-read** (C-133, C-142):
+            - the exhaustive classes change only where B.9.5 repaired:
+              same-coloured bishops are dead (F6's 765,152 overclaims now
+              0), and the pawnless scale of 0 no longer fires with pawns;
+            - nothing new is wrong;
+            - KBB-KB's scale 4 crosses 0.5% only because its denominator
+              shrank (V6, C.7.5);
+            - V3 to V6 remain at their recorded rates.
     - [ ] **C.2.8** `[V]` Matched fits and the label-contract gate
       It was C.2.6 until 2026-11-11.
       Matched whole-surface fits of A and B on the current surface, then the
@@ -1607,6 +1624,12 @@ has lost games in both engines (BAS-X02).
       - the deterministic endgame floors (KBNK, KQK, KRK, KBBK), which must
         all still pass.
       Corpus A's checkmate share is in its C.2.3 record.
+      Registered by C.2.7 (2026-11-23, its audit's §6): the endgame veto
+      is `endgame_budget_bracket.py veto` against
+      `tools/results/c274/head` at 21,000, 64,000 and 190,000 nodes. A
+      position vetoes at two of the three budgets, and an engine anomaly
+      at any one. The candidate is measured with `endgame_budget_bracket.py
+      run` at the same budgets.
       Registered by C.2.5 (2026-11-23, its packet §4):
       - The tables start from `tools/texel/seed_sf16.py --scale 0.35`,
         from one start. BAS-O12 bounds the start's effect below 2e-5.
@@ -2207,7 +2230,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.7.4 | LOCAL_QUALIFIED | V | Prepared and dry-run; the 40-minute run is the maintainer's |
 | C.2.8 | RESEARCH | V | Not started |
 | C.2.9 | RESEARCH | I1 | Not started |
 | C.2.10 | RESEARCH | R3 | Not started |

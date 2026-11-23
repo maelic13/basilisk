@@ -179,3 +179,73 @@ D24 (held-out tooling) has no consumer before C.7's first selection
 among endgame candidates. C.2.8 uses the cohort only as a veto, which a
 spent cohort keeps. "Every measurement sits in the step that reads it"
 puts D24 in C.7.3, which I recommend. Otherwise it stays here as C.2.7.5.
+
+## 6. Closure (2026-11-23)
+
+The maintainer agreed the split as proposed, with D24 moved to C.7.3.
+- **C.2.7.2** built the v2 contract and its guards.
+- **C.2.7.3** set the bracket from BAS-D23's kept run: 21,000, 64,000
+  and 190,000 nodes.
+- **C.2.7.4** measured the head (`tools/results/c274/`). It ran the
+  maintainer's command, `run_c274.py`, plus one check of mine at 60,000
+  nodes.
+
+**The C head's truth baselines** (`tools/results/c274/head/`,
+`truth-<budget>.json`, v2; binary `EDDBA36E…`, bench 4,777,412) convert
+443, 448 and 463 of 480 clean wins at the three budgets.
+
+| Family | 21k | 64k | 190k |
+|---|---:|---:|---:|
+| KR-KN | 21 | 23 | 22 |
+| KNN-KP | 4 | 4 | 14 |
+| KRP-KR | 21 | 22 | 24 |
+| KRP-KB | 23 | 22 | 23 |
+| KBP-KB | 23 | 22 | 24 |
+| KBP-KN | 22 | 22 | 23 |
+| KBPP-KB | 20 | 24 | 23 |
+| the 13 others | 23–24 each | 23–24 each | 23–24 each |
+
+KNN-K has no clean wins in the cohort, only its 16 draws.
+
+**The single-budget reads are noisy at the position level.**
+- The head at 60,000 nodes reproduces BAS-D22's 770 records exactly. So
+  the evaluator's module split changed nothing in these endgames, and
+  every difference below is the budget's alone.
+- From 60,000 to 64,000 nodes (7%), 22 positions change their conversion,
+  and KNN-KP alone goes from 10 to 4 of 24.
+- That is the case the two-of-three rule exists for. A position read at
+  one budget is a sample of a search's chaos, not a property of the
+  evaluation.
+
+**B.9.3's enumeration on the C head** (C-133, C-142; `compare_b93.py`,
+`compare_b93.json`), class for class against B.9.3's records:
+- **The exhaustive classes** (every three- and four-man class, KBPP-K,
+  KRP-KR) change only where B.9.5 repaired a site, and nothing new is
+  wrong.
+  - Same-coloured bishops are now a dead position: KBB-K's 765,152
+    positions that `--estimates` read as overclaimed (F6) now have 0.
+  - The pawnless scale of 0 no longer fires with pawns on the board:
+    KPP-K, KN-KP and KB-KP lose their defect lines, 2,395, 218,092 and
+    149,399 wrong before.
+  - KRP-KR's exhaustive lines are identical to B.9.3's.
+- **The random classes** move within sampling noise.
+  - The exception is KBB-KB's pawnless scale 4. Its wrong count is the
+    same (8,626 against 8,655), but the dead-position rule now takes 17%
+    of its positions. The rate therefore rises from 0.43% to 0.52%,
+    over the 0.5% line. It is one of V6's scale-4 classes, already
+    routed to C.7.5.
+- **The defects that remain** are B.9.3's kept ones, at their recorded
+  rates:
+  - V3, KRP-KR's draw rules;
+  - V4, the KRPP-KRP table (5.07% on this sample);
+  - V5, KBN-K's known win (0.6885%);
+  - V6, the pawnless scales 4 and 14.
+
+  None blocks a gate, since each has its leaf and retry trigger.
+
+**For C.2.8's gate:** the endgame veto is
+
+    python tools/diag/endgame_budget_bracket.py veto --baseline-dir tools/results/c274/head --candidate-dir <candidate dir> --budgets 21000,64000,190000
+
+with the candidate measured by `endgame_budget_bracket.py run` at the same
+budgets.
