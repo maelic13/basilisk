@@ -1347,7 +1347,7 @@ has lost games in both engines (BAS-X02).
         The deep endgame binds: validation's 41,943 eligible deep rows set
         the size. The tuner's model reproduces the engine on validation
         (`--verify` PASS). The test split is unclaimed.
-    - [ ] **C.2.4** `[R2]` Matched label arms
+    - [x] **C.2.4** `[R2]` Matched label arms
       Matched label arms (archived 8.4–8.5): corpus B row-identical to A
       except eligible tablebase rows relabelled by Syzygy WDL, with cursed
       results as draws and missing tables as unknown.
@@ -1362,6 +1362,29 @@ has lost games in both engines (BAS-X02).
         (C-61); relabelling cannot repair the larger rows of failed games
         (C-63); whole-game tablebase adjudication is a different change
         (C-64); blended targets lost (C-67).
+      Done 2026-11-23 (`analysis/c24_label_arms_2026-11-23.md`, BAS-O11):
+      - **The label contract** `basilisk-texel-labels-syzygy-v1` and
+        `tools/texel/relabel.py` (`fbeceaf`), with `test_relabel.py` in
+        CI. A row of six men or fewer with no castling right takes
+        Syzygy's verdict under its own rule-50 clock, in Stockfish's
+        root_probe form: a win when `dtz + clock <= 100`, a loss when
+        `-dtz + clock <= 100`, otherwise a draw. So cursed results are
+        draws. Missing tables are unknown, and nothing propagates into
+        larger rows.
+      - **Corpus B** (`tools/texel/data/corpusB/rows`, train
+        `B456BCE4…`) is corpus A row for row except 10,584 train labels
+        (0.28%), and `check` proves it. The changes are symmetric: 5,525
+        draws become decisive and 5,008 decisive labels become draws. The
+        clock draws 380 rows Syzygy alone would call decided. Basilisk's
+        own probe agrees on all 1,204 changed validation and test rows.
+        Labels stay WDL; no blended targets (C-67).
+      - **Whole-game adjudication: no arm now** (BAS-O11). It would change
+        2.58% of rows, 62,259 of them above six men (C-63), with errors in
+        both directions. A post-hoc relabel would isolate it, so the
+        verdict is about power, not confound. Retry triggers are recorded.
+      - **For C.2.8, the maintainer's decision:** the packet recommends
+        fitting A and B, and running the label-contract SPRT only if the
+        fits differ beyond noise.
     - [ ] **C.2.5** `[R2]` Initialization control
       Initialization control (archived 8.6): fit from the accepted and from
       neutral starts under identical K, data and schedule; register the
@@ -2039,7 +2062,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.4 | RESEARCH | R2 | Not started |
 | C.2.5 | RESEARCH | R2 | Not started |
 | C.2.7 | RESEARCH | R2 | Not started |
 | C.2.8 | RESEARCH | V | Not started |

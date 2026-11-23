@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.2.4** `[R2]` Matched label arms — Claude Opus
+**Next step:** **C.2.5** `[R2]` Initialization control — Claude Opus
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -70,7 +70,7 @@ the six-stage gating shape), are in
         - [x] **C.2.1.6** `[R2]` Texel handbook and the standing contract
     - [x] **C.2.2** `[R2]` Corpus design
     - [x] **C.2.3** `[V]` Generate and publish corpus A
-    - [ ] **C.2.4** `[R2]` Matched label arms
+    - [x] **C.2.4** `[R2]` Matched label arms
     - [ ] **C.2.5** `[R2]` Initialization control
     - [ ] **C.2.7** `[R2]` Endgame instruments and gate integrity
     - [ ] **C.2.8** `[V]` Matched fits and the label-contract gate
