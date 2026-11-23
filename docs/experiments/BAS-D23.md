@@ -49,8 +49,9 @@ the number.
 
 #### RESULT — append after exposure
 
-- **Run 2026-11-23 by the maintainer** on the registered conditions
-  (`tools/results/c273/nodes_per_move.json`). Its checks hold:
+- **Run 1, 2026-11-23, by the maintainer: DISCARDED** under the stop rule
+  (see below; `tools/results/c273/nodes_per_move_run1_discarded.json`).
+  Kept here as the record of what it read. Its checks hold:
   - the binary hash `EDDBA36E…` is the registered one;
   - all 150 games ended by the rules, none on time or the ply cap;
   - the run read 17,467 searches.
@@ -84,3 +85,11 @@ the number.
   - At least 300 endgame moves were sampled (0.75).
   - The middle budget is below 200,000 (0.65).
   - No game forfeited (0.9).
+
+- **Run 1 discarded (maintainer, 2026-11-23, after the result above).** The
+  host was not fully idle during run 1, so the stop rule applies: the run
+  is discarded and the read is made once more, on the same binary and
+  conditions, and that run is kept whatever it reads.
+  - Run 1's bracket and its calibration above are withdrawn. Nothing reads
+    them.
+  - Run 2 writes `tools/results/c273/nodes_per_move.json`.

@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.2.7.4** `[V]` The C head's endgame baselines — Claude Sonnet
+**Next step:** **C.2.7.3** `[V]` Deployed nodes and the budget bracket — Claude Sonnet
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -75,7 +75,7 @@ the six-stage gating shape), are in
     - [ ] **C.2.7** Endgame instruments and gate integrity
         - [x] **C.2.7.1** `[R2]` Audit against the Rarog snapshot
         - [x] **C.2.7.2** `[I2]` Truth contract v2 and guard tests
-        - [x] **C.2.7.3** `[V]` Deployed nodes and the budget bracket
+        - [ ] **C.2.7.3** `[V]` Deployed nodes and the budget bracket
         - [ ] **C.2.7.4** `[V]` The C head's endgame baselines
     - [ ] **C.2.8** `[V]` Matched fits and the label-contract gate
     - [ ] **C.2.9** `[I1]` Family screen and matched-ablation tools

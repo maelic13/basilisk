@@ -1522,12 +1522,12 @@ has lost games in both engines (BAS-X02).
             (458/480 against 361/480) trips 9 single-budget clean-win
             vetoes, 5 of them in KNN-KP. That is the case the frozen
             two-of-three-budgets rule exists for.
-        - [x] **C.2.7.3** `[V]` Deployed nodes and the budget bracket
+        - [ ] **C.2.7.3** `[V]` Deployed nodes and the budget bracket
           Port `nodes_per_move.py` and `endgame_budget_bracket.py`. Read
           nodes per search at the gate's time control on an idle host, and
           set three budgets straddling the median. The veto rule is frozen
           in the audit's §4: a position veto needs two of three budgets.
-          Done 2026-11-23 (BAS-D23):
+          In progress 2026-11-23 (BAS-D23):
           - **Built** (`901e519`, 16 tests in `test_nodes_bracket.py`):
             - `nodes_per_move.py` plays the gate's conditions: UHO starts,
               two engines a game, 15 games at once, the real clock;
@@ -1538,18 +1538,19 @@ has lost games in both engines (BAS-X02).
           - **The rule, frozen in BAS-D23:** M is the median over moves
             with at most 6 men (the overall median if there are under 300
             such moves), and the budgets are M/3, M and 3M.
-          - **Read** by the maintainer on an idle host, with the head's
-            binary `basilisk-c273-head-pext-pgo.exe` (bench 4,777,412):
-            - 150 games at 3+0.03, 15 at once, no forfeits;
-            - the median is 106,873 nodes a search, and 55,259 over
-              1,634 moves with 3 to 6 men.
-          - **The bracket: 18,000, 55,000 and 170,000 nodes.** No earlier
-            truth read ran at these budgets (all ran at 60,000), so
-            C.2.7.4 runs all three on the head.
+          - **Run 1 discarded:** the host was not fully idle, so by
+            BAS-D23's stop rule its bracket (18,000, 55,000 and 170,000)
+            is withdrawn.
+          - **Run 2 is the maintainer's**, on an idle host, with the same
+            binary `basilisk-c273-head-pext-pgo.exe` (bench 4,777,412)
+            and conditions. It is kept whatever it reads.
+          - Every earlier truth read ran at 60,000 nodes, so C.2.7.4 runs
+            all three of the bracket's budgets on the head.
         - [ ] **C.2.7.4** `[V]` The C head's endgame baselines
-          - The head over the whole cohort at 18,000, 55,000 and 170,000
-            nodes under v2 (`endgame_budget_bracket.py run`). BAS-D22's
-            60k report is at no bracket budget, so it is not reproduced.
+          - The head over the whole cohort at the three budgets of
+            BAS-D23's kept run, under v2 (`endgame_budget_bracket.py
+            run`). BAS-D22's 60k report is not reproduced unless 60,000
+            is one of them.
           - Re-read B.9.3's enumeration on the C head (C-133, C-142).
           - Re-run nothing else.
     - [ ] **C.2.8** `[V]` Matched fits and the label-contract gate
@@ -2191,7 +2192,8 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.7.4 | READY_FOR_IMPLEMENTATION | V | The bracket is 18,000, 55,000 and 170,000 (BAS-D23) |
+| C.2.7.3 | LOCAL_QUALIFIED | V | BAS-D23's run 1 discarded (the host was busy); run 2 needs an idle host |
+| C.2.7.4 | RESEARCH | V | Waits on C.2.7.3 |
 | C.2.8 | RESEARCH | V | Not started |
 | C.2.9 | RESEARCH | I1 | Not started |
 | C.2.10 | RESEARCH | R3 | Not started |
