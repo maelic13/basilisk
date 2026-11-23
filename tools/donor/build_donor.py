@@ -9,12 +9,15 @@ evaluation played in both searches:
   sf9587-stock    classical Stockfish 9587eeeb (`SF_classical`)
   sf9587-eval16   9587eeeb's search with sf_16's whole classical evaluation
 
-Every build is the tagged Stockfish tree plus one committed patch from this
-directory, compiled by calling clang++ directly (no make on this host), with
+Every build is the tagged Stockfish tree plus one patch, compiled by calling clang++ directly (no make on this host), with
 the same flags for the two engines of a host and no PGO. All four carry an
 `evalraw` command that prints the raw value of `Eval::evaluate` for the
 current position; `verify_donor.py` uses it to prove a hybrid's evaluation
 equals its origin's.
+
+The patches modify Stockfish's own source, so they are never tracked: each
+lives under tools/results/foreign-patches/donor/ on the building machine and
+must match its SHA-256 in tools/foreign_patches.sha256.
 
 A rebuilt executable is not byte-identical to an earlier one. The identity of
 a build is its inputs (the Stockfish commit, the patch's SHA-256, the compiler
@@ -43,6 +46,8 @@ import tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
+PATCHES = REPO / "tools" / "results" / "foreign-patches" / "donor"
+PATCH_HASHES = REPO / "tools" / "foreign_patches.sha256"
 
 COMMITS = {
     "sf_16": "68e1e9b3811e16cad014b590d7443b9063b3eb52",
@@ -114,11 +119,18 @@ def build(name: str, stockfish: pathlib.Path, out: pathlib.Path, jobs: int) -> d
     resolved = run(["git", "-C", str(stockfish), "rev-parse", f"{host['tag']}^{{commit}}"]).stdout.strip()
     if resolved != commit:
         raise BuildError(f"{stockfish} resolves {host['tag']} to {resolved or 'nothing'}, not {commit}.")
-    patch = HERE / f"{name}.patch"
+    patch = PATCHES / f"{name}.patch"
     if not patch.exists():
-        raise BuildError(f"no patch {patch}.")
+        raise BuildError(f"no patch {patch}: the donor patches are kept out of git; copy it there first.")
+    pins = {}
+    for line in PATCH_HASHES.read_text(encoding="utf-8").splitlines():
+        if line.strip() and not line.startswith("#"):
+            digest, rel = line.split(None, 1)
+            pins[rel.strip()] = digest
+    if pins.get(f"donor/{name}.patch") != hashlib.sha256(patch.read_bytes()).hexdigest().upper():
+        raise BuildError(f"{patch} does not match its SHA-256 in {PATCH_HASHES.name}.")
     if b"\r\n" in patch.read_bytes():
-        raise BuildError(f"{patch.name} has CRLF line endings; it is applied byte-exact (.gitattributes -text).")
+        raise BuildError(f"{patch.name} has CRLF line endings; it is applied byte-exact.")
 
     # Outside the repository on purpose: `git apply` inside a work tree skips
     # paths outside the current directory without saying so.

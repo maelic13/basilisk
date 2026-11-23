@@ -3,15 +3,18 @@
 
 Each engine is cloned from its local checkout into tools/results/board-compare/
 (never built in place: the checkouts are other people's working trees), checked
-out at the pinned commit, patched with the adapter recorded beside this file,
-and built with the contract's flags (CONTRACT.md, *Builds*). The bench binary
+out at the pinned commit, patched with its adapter, and built with the
+contract's flags (CONTRACT.md, *Builds*). The bench binary
 is copied to tools/results/board-compare/bin/<engine>-board-v3.exe beside a
 manifest of its source, toolchain, flags and hash, and its preflight is run.
 
     python tools/board_compare/build.py [--engine rarog] [--engine reckless]
 
-The pins and the adapter patches are the record; a rebuild on another commit
-is another arm and must say so.
+The adapters are patches of other repositories' sources, so they are never
+tracked: each lives under tools/results/foreign-patches/board_compare/ on the
+building machine and must match its SHA-256 in tools/foreign_patches.sha256.
+The pins and those hashes are the record; a rebuild on another commit is
+another arm and must say so.
 """
 
 from __future__ import annotations
@@ -28,12 +31,14 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 WORK = REPO / "tools" / "results" / "board-compare"
 POSITIONS = REPO / "tests" / "data" / "board_micro_positions.fen"
+PATCHES = REPO / "tools" / "results" / "foreign-patches"
+PATCH_HASHES = REPO / "tools" / "foreign_patches.sha256"
 
 ENGINES = {
     "rarog": {
         "checkout": Path("D:/code/rarog"),
         "commit": "611307e",
-        "patch": HERE / "rarog" / "board_xv2.diff",
+        "patch": PATCHES / "board_compare" / "rarog" / "board_xv2.diff",
         "bench": "board_xv2",
         "cargo": ["--locked"],
         "rustflags": "-C target-cpu=native --cfg rarog_pext",
@@ -42,7 +47,7 @@ ENGINES = {
     "reckless": {
         "checkout": Path("D:/code/Reckless"),
         "commit": "8d7d1dd",
-        "patch": HERE / "reckless" / "reckless-board-adapter.patch",
+        "patch": PATCHES / "board_compare" / "reckless" / "reckless-board-adapter.patch",
         "bench": "board_v2",
         "cargo": ["--locked", "--no-default-features", "--features", "board-bench"],
         "rustflags": "-C target-cpu=native",
@@ -56,7 +61,7 @@ ENGINES = {
     "stockfish19": {
         "checkout": Path("D:/code/stockfish"),
         "commit": "edb0d9db",
-        "patch": HERE / "stockfish19" / "stockfish19-board-adapter.patch",
+        "patch": PATCHES / "board_compare" / "stockfish19" / "stockfish19-board-adapter.patch",
         # `all`, not `build`: `build` first runs `net`, which downloads the
         # network; the adapter loads none (NNUE embedding is off).
         "make": ["-j8", "OS=Windows_NT", "BOARD_BENCH=1", "ARCH=x86-64-bmi2", "COMP=clang",
@@ -65,7 +70,7 @@ ENGINES = {
     "stockfish-classical": {
         "checkout": Path("D:/code/stockfish"),
         "commit": "9587eeeb",
-        "patch": HERE / "stockfish-classical" / "stockfish-classical-board-adapter.patch",
+        "patch": PATCHES / "board_compare" / "stockfish-classical" / "stockfish-classical-board-adapter.patch",
         "make": ["-j8", "BOARD_BENCH=yes", "ARCH=x86-64-bmi2", "COMP=clang",
                  "COMPCXX=C:/msys64/clang64/bin/clang++.exe", "build"],
     },
@@ -82,6 +87,23 @@ def run(cmd: list[str], cwd: Path, env: dict | None = None) -> str:
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest().upper()
+
+
+def checked_patch(path: Path) -> Path:
+    """The untracked adapter, refused unless it matches its recorded SHA-256."""
+    rel = path.relative_to(PATCHES).as_posix()
+    pins = {}
+    for line in PATCH_HASHES.read_text(encoding="utf-8").splitlines():
+        if line.strip() and not line.startswith("#"):
+            digest, name = line.split(None, 1)
+            pins[name.strip()] = digest
+    if rel not in pins:
+        raise SystemExit(f"{rel} has no line in {PATCH_HASHES.name}")
+    if not path.is_file():
+        raise SystemExit(f"no {path}: the adapters are kept out of git; copy it there first")
+    if sha256(path) != pins[rel]:
+        raise SystemExit(f"{path} does not match its SHA-256 in {PATCH_HASHES.name}")
+    return path
 
 
 def cargo_build(name: str, spec: dict, src: Path) -> tuple[Path, list[str]]:
@@ -115,6 +137,7 @@ def make_build(spec: dict, src: Path) -> tuple[Path, list[str]]:
 
 
 def build(name: str, spec: dict) -> None:
+    checked_patch(spec["patch"])
     src = WORK / "src" / name
     if src.exists():
         # Git marks its object files read-only, which Windows will not delete.

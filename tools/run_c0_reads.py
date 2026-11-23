@@ -51,7 +51,7 @@ CYCLES = 1500
 ORACLE = {"path": ENGINES / "oracle-b111-4d2742f.exe",
           "sha": "8ADEE9AE80FE0B7AF7135C766045E846824383A0EDB70241B82E4F20336C020C"}
 ORACLE_OPTION = "Use Basilisk HCE"
-# Built 2026-11-18 from tools/donor/*.patch; bench is the build's own
+# Built 2026-11-18 from the donor patches (tools/foreign_patches.sha256); bench is the build's own
 # signature (`bench 16 1 13 default depth classical` on the sf_16 hosts,
 # plain `bench` on the 9587eeeb hosts).
 DONOR = {
