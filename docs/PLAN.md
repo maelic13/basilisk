@@ -1635,9 +1635,24 @@ has lost games in both engines (BAS-X02).
         from one start. BAS-O12 bounds the start's effect below 2e-5.
       - Arms are compared by realized loss (`--loss --init`), never by one
         stage's model loss.
-      - The fit report explains the tables' re-levelling, up to 179 cp
-        with the mg pawn at −28 to −65 cp effective. The leads are queen
-        mobility on the −200 clamp and `ConnectedRankMg`.
+      - The fit report explains the tables' re-levelling, up to 179 cp.
+      In progress 2026-11-23 (BAS-O12, Correction 2): the re-levelling is
+      explained, and it raises a registration question.
+      - **Explained:**
+        - It is not a mobility trade, and the mg pawn is not negative:
+          removing one from a middlegame costs 111 to 120 cp fitted, 145
+          at the header.
+        - In endgames every piece is worth 12% to 35% more, the
+          expected response of one frozen K to endgames whose own K is
+          2.33 against 2.01.
+      - **The question:** the fitted vectors raise the lazy-checkpoint
+        share about 27% (C-97; `LAZY_MARGIN` never refit, C-98).
+      - **Also open:** `fit.py` cannot pass `--min-delta`. Its default
+        schedule (400 epochs at a rate of 1.0) is unvalidated, and
+        BAS-O12 needed about 3,000 epochs at 0.3.
+      - **Proposed, for sign-off:** split C.2.8 the way C.2.7 was split,
+        with a research sub-step that registers the fit and the gate
+        first.
     - [ ] **C.2.9** `[I1]` Family screen and matched-ablation tools
       Added 2026-11-18 (maintainer, after C.0). Two instruments the
       family order and every cluster read; neither changes a served

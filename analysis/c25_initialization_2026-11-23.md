@@ -108,6 +108,13 @@ Every arm moves each table's level a long way against the header:
 | eg rook | +169 to +179 |
 | eg queen | +127 to +141 |
 
+**Corrected 2026-11-23 (BAS-O12, Correction 2):** the next paragraph's
+effective mg pawn was a wrong inference, and neither lead below explains
+the levels. Measured directly, a pawn removed from a middlegame costs the
+fitted evaluation 111 to 120 cp (the header: 145). The re-levelling is a
+re-valuation by phase: in endgames every piece is worth 12% to 35% more,
+which is how a single frozen K meets endgames whose own K is higher.
+
 With material held at 83, the effective mg pawn ends between −28 and
 −65 cp before its other terms. That needs explaining before a bake.
 Inference, with two leads from the fitted vectors:

@@ -215,3 +215,47 @@
     vector's loss.
   - The flipped start was taken for the negated shape.
   - One pooled slope was taken to describe twelve tables.
+
+- **Correction 2 (2026-11-23, C.2.8's first read; `tools/results/c25/`
+  `gauge_read.py`, `piece_value_read.py` and their `.json`).** The
+  re-levelling finding is restated.
+  - *Not a mobility gauge.* Each piece's PST level could trade against
+    its mobility table's level, since the mobility anchor is an
+    unweighted mean. Weighted by each slot's use, the mobility levels move
+    the same way as the PST levels, not against them (eg queen +146 and
+    +61). The trade is refuted.
+  - *The effective mg pawn is not −28 to −65 cp.* That inference added a
+    table level to material and ignored the other pawn terms.
+    - The marginal value is measured directly: the evaluation drop when
+      one White piece is removed, all terms included, over 6,000
+      validation positions.
+    - Removing a pawn in a middlegame (phase 16–24) costs 111 to 120 cp
+      fitted, against 145 at the header.
+  - *The real re-valuation is by phase.* Median drop, header → H and
+    S613:
+
+    | Piece | phase 0–7 | phase 8–15 | phase 16–24 |
+    |---|---|---|---|
+    | pawn | 165 → 188, 182 | 146 → 144, 136 | 145 → 120, 111 |
+    | knight | 402 → 542, 544 | 452 → 533, 534 | 470 → 449, 450 |
+    | bishop | 435 → 553, 547 | 494 → 562, 554 | 537 → 498, 490 |
+    | rook | 736 → 948, 940 | 747 → 863, 850 | 739 → 702, 694 |
+    | queen | 1,410 → 1,649, 1,661 | 1,405 → 1,671, 1,662 | 1,423 → 1,488, 1,481 |
+
+    In endgames every piece is worth 12% to 35% more. In middlegames the
+    values move −20% (the pawn) to +4%.
+  - *Mechanism (inference).* One K is frozen for all phases, but the
+    header's own K per band is 2.33 in endgames against 2.01 overall and
+    1.24 in the opening (C.2.1, C-92). The fit cannot steepen the
+    endgame's sigmoid, so it steepens the endgame's scores. Material is
+    held (C-19), so the table levels carry it.
+  - *What the RESULT overstated.* "It is data-driven, since it does not
+    depend on the start" is unsupported. Every arm began from the
+    header's levels, so the levels' start-independence was never tested.
+    The levels did move by up to 179 cp under the gradient, which a flat
+    direction would not do.
+  - *Consequence for C.2.8: the magnitude contract (C-97).* The fitted
+    vectors send 13.4% to 13.6% of validation rows through the lazy
+    checkpoint, against 10.7% at the header, so the lazy share rises
+    about 27%. `LAZY_MARGIN` (700) has never been refit (C-98). How C.2.8
+    holds or prices this is a registration decision.
