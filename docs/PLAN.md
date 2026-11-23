@@ -1799,9 +1799,48 @@ has lost games in both engines (BAS-X02).
               with no game gate of its own. A2 is not re-fitted.
             - Then the pre-bake reads again, the bake, and C.2.8.4 with
               the repair in both arms.
+          - **Amendment 2 done, 2026-11-23:**
+            - The repair is `cd4e453`, with its span nit fixed in
+              `6be9af7`. The fingerprint is now 4,392,040.
+            - BAS-D24: the grid passes, 24/24 for KQ-K and KR-K at every
+              budget on both builds, and the ply lists are identical.
+            - Two fixtures moved, as the review decided (C-70):
+              - the blockade test is scale-free (`2d3622b`);
+              - the PeSTO orientation test is retired (`b912051`), with
+                orientation now checked at the import in `seed_sf16.py`
+                (`7796153`).
+            - Over the repair, A2's pre-bake reads all pass: the four
+              floors at 60,000 nodes, `test_eval`, `test_endgames`,
+              `test_search` and `--verify`. Bench 3,359,329.
+            - The review found the fit sound. Three fitted-constant
+              findings go to their owners:
+              - `Trapped*` on its 0 clamp: C.6, C-48;
+              - the three threat terms collapsed to 57: C.3;
+              - `QueenInfiltrationEg` at 186: C.6, and first in line if
+                the refit is retried.
+            - Baked as `cbc3676`, then reverted as `7f92ec9` while
+              C.2.8.4's veto is ruled on (below).
         - [ ] **C.2.8.4** `[V]` The registered gates
           Clean-PGO arms under identical conditions, and the maintainer's
           runs. Fit loss explains; only the SPRT decides.
+          - **Run 2026-11-23** (launcher `tools/run_c284_gates.py`;
+            BAS-E59):
+            - The arms: the refit `cbc3676` against the repaired head
+              `b912051`.
+            - **BAS-E59 accepts H1** at 1,110 games: **+85.2 ± 14.9 Elo**,
+              zero faults.
+            - **The bracket veto blocks:** 8 new clean-win discards
+              against the repaired head, in KBPP-KB, KNN-KP, KP-KP and
+              KRP-KR. Conversion is 434/445/458 of 480 against
+              443/448/460.
+          - **The review ruled** (the registration's §8) that the veto
+            binds. The SPRT is not weighed against it, and the refit is
+            not accepted on this evidence.
+            - §8's B2 read: B2 has 7 vetoes and repeats 3 of A2's 8. A2
+              vetoes B2 3 times, and B2 vetoes A2 6 times: "between",
+              with no verdict.
+            - So acceptance is the maintainer's ruling: keep a +85 Elo
+              refit against the veto, or repair the endgames first.
     - [ ] **C.2.9** `[I1]` Family screen and matched-ablation tools
       Added 2026-11-18 (maintainer, after C.0). Two instruments the
       family order and every cluster read; neither changes a served
@@ -1825,6 +1864,19 @@ has lost games in both engines (BAS-X02).
       - Families for the mask: space, mobility, threats, king danger with
         shelter and storm, pawn structure, passers, the piece terms.
         C.1's modules are its switch points on Basilisk's side.
+      - **The screen, done 2026-11-23** (`2a284cc`):
+        - `tools/diag/family_screen.py` (`collect`, `screen`) with
+          `test_family_screen.py`, run in CI with the tuner.
+        - The tuner gains `--dump-row-lines` for the join.
+        - It refuses a misaligned join, a donor table that does not sum,
+          and labels that are not results.
+        - A 3,000-row smoke on corpus A reads both ways for both donors.
+      - **The matched ablation mask is not started.** It needs:
+        - Basilisk's Ablate flavour rebuilt in `src/`;
+        - the same family bits patched into `9587eeeb`'s evaluation
+          through `build_oracle.ps1 -ExtraPatch`;
+        - each bit proved live at fixed depth on both sides.
+        The release bench to hold is now 4,392,040.
     - [ ] **C.2.10** `[R3]` Family order from games and screens
       Added 2026-11-18 (maintainer, after C.0): the decision point before
       the first family. On the refitted head it registers, prepares and
@@ -2416,9 +2468,9 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.8.3 | READY_FOR_IMPLEMENTATION | V | Run 2 returned: A2 fails the KR-K floor, nothing baked. Amendment 2 (the registration's §7): the top tiers take the donor's bare-king score, qualified on the conversion grid, then the bake |
-| C.2.8.4 | RESEARCH | V | Waits on C.2.8.3 |
-| C.2.9 | RESEARCH | I1 | Not started |
+| C.2.8.3 | LOCAL_QUALIFIED | V | Run 2 and Amendment 2's repair done; A2 baked as cbc3676 and reverted (7f92ec9) pending C.2.8.4's ruling |
+| C.2.8.4 | GAME_GATE | V | BAS-E59 H1 (+85.2 ± 14.9) but the bracket veto blocks (8 discards); the maintainer rules on acceptance (registration §8) |
+| C.2.9 | IMPLEMENTED | I1 | The family screen is in (2a284cc); the matched ablation mask is not started |
 | C.2.10 | RESEARCH | R3 | Not started |
 | C.3.1 | RESEARCH | R3 | Not started; C.0's contract is its packet §8.2 |
 | C.3.2 | RESEARCH | I2 | Not started |
