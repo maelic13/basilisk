@@ -2105,6 +2105,14 @@ has lost games in both engines (BAS-X02).
   within this constraint, and the order is discussed again when reached.
   Its instruments leaf, C.7.1, moved to C.2.7 on 2026-11-11, so the
   cluster starts at C.7.2.
+  From C.2.8.4 (2026-11-23, the registration's §8):
+  - Both whole-surface refits, A2 and B2, convert 2 to 9 fewer of the
+    truth cohort's 480 than the head at 21,000 and 64,000 nodes, closing
+    by 190,000. The losses fall in the same three families: KBPP-KB,
+    KNN-KP and KRP-KR.
+  - The bracket veto's two-of-three rule fires 3 to 6 times between two
+    fits of equal quality, so its floor between different evaluations is
+    several positions, not the 0 to 1 two heads give.
   Since 2026-11-18 (maintainer, after C.0): the endings hold 16% of the
   same-search deficit and the full board 68 to 69%. When C.6 closes, its
   frontier pair and screen are read against that. If the full board still

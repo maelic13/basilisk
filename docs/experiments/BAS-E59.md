@@ -80,3 +80,17 @@
   registration's §8). Acceptance is the maintainer's ruling: whether a
   +85 Elo refit can be kept against the veto's 8 endgame discards, or
   what repair comes first.
+- **The review's reading of §8's read** (2026-11-23):
+  - Two fits that differ by under 2 cp an entry veto each other 3 and 6
+    times. So between evaluations of equal quality, the two-of-three
+    rule's floor is 3 to 6 vetoes, against the 0 to 1 that two heads
+    differing only in the KXK score gave. No whole-surface refit can be
+    expected to pass it at zero tolerance.
+  - Both refits also sit 2 to 9 conversions under the base at every
+    budget, in the same three families. That part looks real: about 1%
+    of the cohort at fixed nodes, closing as the budget grows.
+  - So the 8 vetoes mix a floor of several positions with a small real
+    deficit, and the rule as frozen cannot separate them.
+  - The review recommends accepting and recalibrating the veto before
+    C.3's gate. The decision is the maintainer's, because it changes a
+    rule frozen before the data.
