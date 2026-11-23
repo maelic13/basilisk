@@ -1440,20 +1440,12 @@ has lost games in both engines (BAS-X02).
       - **Withdrawn:** the first recommendation, 0.557 with both starts
         fitted. It misread the pooled slope, which is mostly the king
         tables', and the flipped start, which is not a negated shape.
-    - [ ] **C.2.7** `[R2]` Endgame instruments and gate integrity
+    - [ ] **C.2.7** Endgame instruments and gate integrity
       It was C.7.1 until 2026-11-11. Instruments and gate integrity
-      (archived 6.6.a–e and 6.6.h).
-      - Audit the tools against the snapshot's endgame instruments
-        (`tools/diag/endgame_*.py`), and classify
-        every delta as portable, adapter-specific, covered or inapplicable
-        before changing any instrument.
-      - Add versioned report schemas, cohort digests and serial-identical
-        sharding.
-      - Add known-bad guard tests.
-      - Measure deployed nodes per move and derive Basilisk's own budget
-        bracket.
-      - Add FEN-hash holdouts, McNemar and spent-cohort rules.
-      - Re-run only the baselines this invalidates.
+      (archived 6.6.a–e and 6.6.h). Split into four sub-steps on 2026-11-23
+      (maintainer, on the audit's §5); the held-out tooling (FEN-hash
+      halves, the write-once registration, the spent-cohort rule) moved to
+      C.7.3, its first consumer.
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
       - The floors use one cold search at one budget (C-25); bracket 60k, 200k
@@ -1468,21 +1460,78 @@ has lost games in both engines (BAS-X02).
         `endgame_draws.epd` and the recogniser positions (Rarog EVAL-2,
         D.5.17; `analysis/rarog_sweep_2026-11-04.md`): Basilisk has had
         one colour asymmetry already, the pawnless tie.
-      In progress 2026-11-23
-      (`analysis/c27_endgame_instruments_audit_2026-11-23.md`):
-      - **The audit is done** and changed no instrument. Of 24 deltas, 16
-        are portable or covered, 6 need Basilisk adapters, and 2 are
-        prioritisers for C.7.2.
-      - **Found:**
-        - the truth report changed its termination rule without a new
-          schema, and the veto tool still defaults to the pre-fix
-          baseline;
-        - a thin family's zero variance reads −∞ sigma and blocks;
-        - the cohort files are not pinned byte-exact.
-        - No gate since 6.0.e used these tools, so no recorded result
-          changes.
-      - **Open, the maintainer's:** the split into C.2.7.2 to C.2.7.4 (the
-        packet's §5), and whether held-out tooling moves to C.7.3.
+        - [x] **C.2.7.1** `[R2]` Audit against the Rarog snapshot
+          Classify every delta between `tools/diag/endgame_*.py` and the
+          snapshot's endgame instruments as portable, adapter-specific,
+          covered or inapplicable before changing any instrument.
+          Done 2026-11-23
+          (`analysis/c27_endgame_instruments_audit_2026-11-23.md`):
+          - No instrument changed. Of 24 deltas, 16 are portable or
+            covered, 6 need Basilisk adapters, and 2 are prioritisers for
+            C.7.2.
+          - **Found:**
+            - the truth report changed its termination rule without a new
+              schema, and the veto and compare tools still default to the
+              pre-fix baseline;
+            - a thin family's zero variance reads −∞ sigma and blocks;
+            - the cohort files are not pinned byte-exact.
+          - No gate since 6.0.e used these tools, so no recorded result
+            changes.
+        - [x] **C.2.7.2** `[I2]` Truth contract v2 and guard tests
+          The audit's §4 handoff:
+          - a versioned truth schema with its layers and per-family
+            digests;
+          - no default baseline;
+          - McNemar with a thin-sample refusal;
+          - byte-exact cohort files;
+          - a known-bad test for every guard;
+          - the colour-mirror sweep over the endgame EPDs.
+          Done 2026-11-23 (tools and tests only; bench unchanged):
+          - **The contract:** `tools/diag/endgame_contract.py`.
+            - `endgame_truth.py` writes `basilisk-endgame-truth-v2`, with
+              layers, per-family digests and each game's moves.
+            - Every consumer loads through the contract. It accepts v2,
+              and v1 only when post-fix: the 6.0.b report is refused,
+              while the refixed arms and BAS-D22 are accepted.
+            - Digests are recomputed from the records, so a subset of
+              families compares by digest.
+          - **The guards:**
+            - `endgame_compare.py` tests conversion by McNemar, and a
+              thin or zero-variance family is INDETERMINATE instead of
+              ±∞;
+            - neither compare nor vetoes has a default baseline;
+            - `material_lost` is no longer an outcome;
+            - the cohort files are `-text`.
+          - **Tests:**
+            - `test_endgame_contract.py`: 22 tests, each guard on a
+              known-bad and a good input. A fake UCI engine that keeps
+              state across `ucinewgame` is caught sharded against
+              serial; one that resets reproduces. It runs in CI's texel
+              job beside `test_endgame_vetoes.py`.
+            - In `test_endgames`, the colour-mirror check covers 90
+              positions: the suite, the 60 drawn games, and the pawnless
+              and wrong-bishop recogniser positions. It passes, and with
+              the sign flip removed 78 of the 90 fail. `test_eval`
+              shares its helper (`tests/colour_mirror.h`).
+          - **Checked on the real engine** (`tools/results/c272/`,
+            BAS-D22's binary `31BC229A…`, KQ-K and KRP-KR at 60,000
+            nodes):
+            - serial and four workers are identical move for move;
+            - the v2 runner reproduces BAS-D22's 64 records exactly.
+          - **For C.2.7.3:** against the 6.0.b-era head, BAS-D22's head
+            (458/480 against 361/480) trips 9 single-budget clean-win
+            vetoes, 5 of them in KNN-KP. That is the case the frozen
+            two-of-three-budgets rule exists for.
+        - [ ] **C.2.7.3** `[V]` Deployed nodes and the budget bracket
+          Port `nodes_per_move.py` and `endgame_budget_bracket.py`. Read
+          nodes per search at the gate's time control on an idle host, and
+          set three budgets straddling the median. The veto rule is frozen
+          in the audit's §4: a position veto needs two of three budgets.
+        - [ ] **C.2.7.4** `[V]` The C head's endgame baselines
+          - Reproduce BAS-D22's 60k records on two families with the
+            current head, then run the bracket's other budgets under v2.
+          - Re-read B.9.3's enumeration on the C head (C-133, C-142).
+          - Re-run nothing else.
     - [ ] **C.2.8** `[V]` Matched fits and the label-contract gate
       It was C.2.6 until 2026-11-11.
       Matched whole-surface fits of A and B on the current surface, then the
@@ -1789,6 +1838,13 @@ has lost games in both engines (BAS-X02).
         `search_history_core.cpp:158-174`) whose keys won and drawn
         positions share, so a dead draw can stand at ±X.
     - [ ] **C.7.3** `[I2]` Generic winnability and scaling
+      Held-out tooling first (moved from C.2.7, 2026-11-23; audit D24):
+      - halves assigned by FEN hash;
+      - a write-once registration naming the deciding half and a runner-up;
+      - McNemar on discordant positions;
+      - plateaus reported as plateaus;
+      - a cohort that chose a winner is spent for selection and stays
+        valid as a veto.
       Generic winnability and scaling in the donor's form: pawn-count scaling,
       opposite-bishop scaling, rule-50 inside the scale and a complexity term;
       floored so a misfire discounts rather than throws a win.
@@ -2115,7 +2171,8 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.7 | RESEARCH | R2 | Audit done; the split into sub-steps waits on the maintainer |
+| C.2.7.3 | READY_FOR_IMPLEMENTATION | V | Port the two tools; the read needs an idle host |
+| C.2.7.4 | RESEARCH | V | Waits on C.2.7.3 |
 | C.2.8 | RESEARCH | V | Not started |
 | C.2.9 | RESEARCH | I1 | Not started |
 | C.2.10 | RESEARCH | R3 | Not started |
