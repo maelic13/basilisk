@@ -1285,7 +1285,7 @@ has lost games in both engines (BAS-X02).
         corpus's starts; 8,000 nodes, natural terminations; two rows per
         phase per game, equal output weights, 5% validation and 5% test by
         start; nested learning-curve fits in C.2.8.
-    - [ ] **C.2.3** `[V]` Generate and publish corpus A
+    - [x] **C.2.3** `[V]` Generate and publish corpus A
       Generate and publish corpus A with the B.11.1 head at a fixed node budget,
       natural termination, maintainer-run; audit the returned composition and
       publish it immutably (archived 8.3).
@@ -1297,6 +1297,56 @@ has lost games in both engines (BAS-X02).
         head (C-62); natural termination multiplied mates 57x in Rarog and
         inflated the king table, so register a tree read (C-56); Colosseum
         datagen only after A.9.1 (C-31).
+      Done 2026-11-23, by the agent on the maintainer's overnight leave.
+      Evidence: `tools/results/c22/`. Corpus A is `tools/texel/data/corpusA/`
+      (ignored), with rows in `rows/` (read-only).
+      - **C-32** (`0575687`): `tools/datagen.ps1` now refuses three things
+        before any game. These are book wrap and a Basilisk binary whose
+        manifest is missing, hashes another binary, or records a dirty tree
+        or no bench. After fastchess it audits the game count and every
+        `[Termination]`, so any ending but `normal` fails the run. Each guard
+        was tested both ways, among them an illegal-move engine (4 of 4
+        faults caught). The same edit fixed a latent bug: PowerShell names
+        are case-insensitive, so `$enginePath` overwrote `$EnginePath` and
+        the manifest check had never run.
+      - **The engine:** `basilisk-c2-corpusA-40ae560`, PGO pext from clean
+        `40ae560`, bench 4,777,412, `8D4925EC…`. It plays as the C.1 head
+        does (BAS-M23).
+      - **The book:** `corpusA_book_1m.epd`, `fcb02130…`. It holds 1,000,000
+        distinct pool starts at exactly 700k/100k/100k/50k/50k by start
+        phase, with 734,834 earlier corpus starts excluded, seed `20261122`.
+        It was sampled in one more read-only pass over the pool (§2 of the
+        packet), under the design the maintainer accepted. BAS-O10 read NOT
+        SUPPORTED, so there are no off-line starts.
+      - **The games:** 1,000,000, in ten slices of 100,000 with disjoint
+        book slices, seeds `20261122+k`, 8,000 nodes, Hash 16, 31
+        concurrent, no adjudication. They took 5 h 34 min, about 2,990 games
+        a minute. Every slice is `normal=100000`, 0 faults, and its
+        manifest holds the slice's `opening_sequence_sha256` (C-76).
+        Results: 37.81% 1-0, 30.72% 0-1, 31.47% drawn. Every decisive game
+        ends in checkmate (68.53% of games). The draws are 21.72%
+        threefold, 8.43% insufficient material, 0.94% fifty-move and 0.38%
+        stalemate.
+      - **C-76:** a 4,000-game pilot from the book's first 4,000 starts
+        replays move for move in slice 0, whose order and seed differ: all
+        4,000 games are identical (`replay_check.py`, which catches a
+        one-move change).
+      - **C-62:** on 20,000 slice-0 games, 2.54% of the 8,137 clean
+        tablebase wins reached were not won. BAS-E46 measured 19.77% at the
+        same 8,000 nodes on 1.9.3, and 13.65% at 25,000. The worst families
+        are KRP-KRP at 10.7% and KRPP-KR at 8.7%. So C.2.4's relabel prize
+        is about an eighth of what BAS-E46 sized.
+      - **C-56:** the tree read is registered in C.2.8 (`2193afb`).
+      - **Rows** (`basilisk-texel-rows-v1`, extractor at `2193afb`): cap 2
+        a phase a game, quiet filter, `--skip-end 6`, equal weights, 5%
+        validation and 5% test by start. Train is 3,770,000 rows,
+        754,000 a phase (`32CD3D63…`), from 896,341 games. Validation is
+        209,444 rows (`851B6FF8…`) from 49,737 games, and test 209,444
+        (`F2A07F4D…`) from 49,899. No game was rejected, and 4,023 gave no
+        candidate.
+        The deep endgame binds: validation's 41,943 eligible deep rows set
+        the size. The tuner's model reproduces the engine on validation
+        (`--verify` PASS). The test split is unclaimed.
     - [ ] **C.2.4** `[R2]` Matched label arms
       Matched label arms (archived 8.4–8.5): corpus B row-identical to A
       except eligible tablebase rows relabelled by Syzygy WDL, with cursed
@@ -1989,7 +2039,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.3 | RESEARCH | V | In progress: C-32 guards (`0575687`), the head built, the book sampled; datagen running |
 | C.2.4 | RESEARCH | R2 | Not started |
 | C.2.5 | RESEARCH | R2 | Not started |
 | C.2.7 | RESEARCH | R2 | Not started |
