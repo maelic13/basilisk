@@ -132,6 +132,8 @@ tools serve C.2's corpus work.
 | `diag/endgame_cohort.py`, `diag/endgame_cohort_v1.epd`, `.manifest.json` | The frozen Syzygy endgame cohort, generated and verified | C.7; A.8.13 |
 | `diag/endgame_compare.py` | Position-paired confidence analysis of two truth reports: McNemar for conversion, INDETERMINATE under 6 discordant positions, a subset of families comparable by digest | C.7; C.2.7.2 |
 | `diag/endgame_ceilings.py`, `diag/endgame_ceilings_v1.json`, `_v2.json` | Finite-node family ceilings derived from paired truth reports | C.7; BAS-E08, BAS-E50 |
+| `diag/family_screen.py` | The evaluation family screen both ways: each donor family (`sf9587`, `sf16` classical) added to Basilisk's served score, and each Basilisk family (traced tuner terms by slot group) added to the donor's, by phase band, with game-bootstrap intervals; override and specialised rows apart. Refuses a misaligned join or a donor table that does not sum | C.2.9 |
+| `diag/test_family_screen.py` | Known-bad tests for the screen's joins and parse, a planted family found both ways, and with `BASILISK_TEXEL` the tuner's `--dump-row-lines` against `--dump-coeffs` | C.2.9 |
 | `diag/endgame_vetoes.py` | Absolute theory and engine-anomaly vetoes for truth candidates; the baseline is always named | C.7; C.2.7.2 |
 | `diag/endgame_label_census.py`, `diag/endgame_label_census_v1.json` | Self-play labels checked against Syzygy on every corpus row of six men or fewer | C.2 |
 | `diag/datagen_label_audit.py` | How often datagen's WDL labels contradict tablebase truth | C.2 |

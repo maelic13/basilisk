@@ -287,6 +287,7 @@ static void usage(const char* exe) {
         << "  " << exe << " --list-params\n"
         << "  " << exe << " --dump-coeffs <dataset.csv> <out.f64> [--max-positions N]\n"
         << "  " << exe << " --count-support <dataset.csv> <out.txt> [--max-positions N]\n"
+        << "  " << exe << " --dump-row-lines <dataset.csv> <out.txt> [--max-positions N]\n"
         << "  Every mode also takes --init FILE (a complete `name index value` vector to\n"
         << "  start from) and --surface FILE (the surface manifest; --tune surface fits its\n"
         << "  free linear slots, --tune-kingsafety its king-safety knobs).\n"
@@ -1253,10 +1254,12 @@ static void cmd_list_params() {
 }
 
 // The rows a fit uses, in file order, and each one's coefficients: every
-// slot's d(played score)/d(weight) at the seed. --dump-coeffs and
-// --count-support both walk them here, so the support a manifest freezes on
-// is counted on exactly the rows and the definition the rank reads. Stops
-// after `limit` used rows when it is positive.
+// slot's d(played score)/d(weight) at the seed. --dump-coeffs,
+// --count-support and --dump-row-lines all walk them here, so the support a
+// manifest freezes on is counted on exactly the rows and the definition the
+// rank reads, and a row line names the coefficient row it belongs to. Stops
+// after `limit` used rows when it is positive. `row_fn` receives the
+// coefficients, the row's line in the file and the model.
 template <class RowFn>
 static void for_each_coeff_row(const std::string& path, int limit, RowFn&& row_fn) {
     RowReader rows(path);
@@ -1281,7 +1284,7 @@ static void for_each_coeff_row(const std::string& path, int limit, RowFn&& row_f
             coeff[static_cast<size_t>(i)] =
                 (model.trace->mg[i] * model.trace->phase + model.trace->eg[i] * (24 - model.trace->phase))
                 / 24.0 * model.scale;
-        row_fn(coeff);
+        row_fn(coeff, rows.lineno(), model);
         if (limit > 0 && ++used >= limit)
             break;
     }
@@ -1299,9 +1302,25 @@ static void cmd_dump_coeffs(const std::string& path, const std::string& out_path
         std::cerr << "Cannot write " << out_path << "\n";
         std::exit(1);
     }
-    for_each_coeff_row(path, limit, [&](const std::vector<double>& coeff) {
+    for_each_coeff_row(path, limit, [&](const std::vector<double>& coeff, int, const RowModel&) {
         out.write(reinterpret_cast<const char*>(coeff.data()),
                   static_cast<std::streamsize>(coeff.size() * sizeof(double)));
+    });
+}
+
+// The rows --dump-coeffs writes, one per line in the same order: the row's
+// line in the file, the score the engine serves (White's view) and 1 when a
+// release build serves it at the lazy checkpoint. A tool joins coefficient
+// rows to its own CSV rows by the line, and checks the join by the score on
+// the rows that --dump-eval's full evaluation also serves.
+static void cmd_dump_row_lines(const std::string& path, const std::string& out_path, int limit) {
+    std::ofstream out(out_path);
+    if (!out) {
+        std::cerr << "Cannot write " << out_path << "\n";
+        std::exit(1);
+    }
+    for_each_coeff_row(path, limit, [&](const std::vector<double>&, int line, const RowModel& model) {
+        out << line << ' ' << model.played_white << ' ' << (model.lazy ? 1 : 0) << '\n';
     });
 }
 
@@ -1312,7 +1331,7 @@ static void cmd_dump_coeffs(const std::string& path, const std::string& out_path
 static void cmd_count_support(const std::string& path, const std::string& out_path, int limit) {
     std::vector<long> support(EVAL_PARAM_FLAT_SIZE, 0);
     long used = 0;
-    for_each_coeff_row(path, limit, [&](const std::vector<double>& coeff) {
+    for_each_coeff_row(path, limit, [&](const std::vector<double>& coeff, int, const RowModel&) {
         for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i)
             if (coeff[static_cast<size_t>(i)] != 0.0)
                 ++support[static_cast<size_t>(i)];
@@ -2407,6 +2426,12 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         cmd_count_support(argv[2], argv[3], argc == 6 ? parse_int_arg(argv[5], "--max-positions") : 0);
+    } else if (mode == "--dump-row-lines") {
+        if (argc != 4 && !(argc == 6 && std::string(argv[4]) == "--max-positions")) {
+            usage(argv[0]);
+            return 1;
+        }
+        cmd_dump_row_lines(argv[2], argv[3], argc == 6 ? parse_int_arg(argv[5], "--max-positions") : 0);
     } else if (mode == "--verify") {
         if (argc != 3 && !(argc == 5 && std::string(argv[3]) == "--max-positions")) {
             usage(argv[0]);

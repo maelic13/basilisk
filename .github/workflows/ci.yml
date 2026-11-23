@@ -446,12 +446,15 @@ jobs:
             "$python" "tools/texel/$t.py" || exit 1
           done
 
-      # The endgame truth contract and its consumers' guards, each on a
-      # known-bad input. The runner tests need Syzygy and skip here.
+      # The endgame truth contract and its consumers' guards, and the family
+      # screen's joins, each on a known-bad input. The runner tests need
+      # Syzygy and skip here.
       - name: Endgame instrument tests
+        env:
+          BASILISK_TEXEL: ${{ github.workspace }}/build/texel/basilisk-texel
         run: |
           python="$RUNNER_TEMP/texel-venv/bin/python"
-          for t in test_endgame_vetoes test_endgame_contract; do
+          for t in test_endgame_vetoes test_endgame_contract test_family_screen; do
             echo "== $t"
             "$python" "tools/diag/$t.py" || exit 1
           done
