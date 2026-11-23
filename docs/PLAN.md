@@ -1652,7 +1652,7 @@ has lost games in both engines (BAS-X02).
       - **Also open:** `fit.py` cannot pass `--min-delta`. Its default
         schedule (400 epochs at a rate of 1.0) is unvalidated, and
         BAS-O12 needed about 3,000 epochs at 0.3.
-        - [ ] **C.2.8.1** `[R2]` Register the fit and the gates
+        - [x] **C.2.8.1** `[R2]` Register the fit and the gates
           The registration must settle, before any fit runs:
           - **The magnitude contract** (C-97, C-98): how the fit holds or
             prices the endgame re-valuation and the lazy share's rise.
@@ -1674,9 +1674,35 @@ has lost games in both engines (BAS-X02).
           - **Before any bake:** the reads registered above (C-56's king
             tree, `bench 13`, the floors, the endgame bracket veto).
           - **Each gate:** its prediction, bracket, cap and stop rule.
+          Done 2026-11-23 (`analysis/c281_fit_registration_2026-11-23.md`;
+          BAS-O13, BAS-E59, BAS-E60):
+          - **Magnitude:** one frozen K, `LAZY_MARGIN` unchanged. The
+            contract is read (lazy share, score change by band, piece
+            values by phase) and not enforced. Retries, in order: a
+            per-phase-K fit, then a lazy-margin refit.
+          - **Schedule:**
+            - the linear stages run at BAS-O12's validated rate 0.3,
+              patience 50, `--min-delta 1e-6`, 20,000 epochs at most;
+            - the polish runs at a quarter of the rate;
+            - king safety keeps its defaults.
+            - Anchors: L2 0, the surface's own only.
+          - **K:** fitted once on A's validation at the seed, and frozen
+            for both arms.
+          - **Gates:**
+            - BAS-E59, the A fit against the head: `[0,3]`, 4,000
+              pairs, with the bracket veto;
+            - BAS-E60, B against A, runs only if B's fit beats A's on B's
+              labels by at least 2e-5, with a game-bootstrap interval
+              excluding zero.
         - [ ] **C.2.8.2** `[I1]` The fit driver to the registered schedule
-          `fit.py` passes `--min-delta` and runs the registered stage
-          budgets, with tests; the tuner's travel guard stays.
+          The registration's §5, in `tools/texel/fit.py`:
+          - `--init FILE`, a seed vector rooted at the header;
+          - `--K` to freeze a K;
+          - `--min-delta` for the linear and polish stages;
+          - per-stage settings;
+          - the lazy-checkpoint count in its loss records.
+          Also `tools/texel/piece_values.py`, the marginal-value read, with
+          tests. The tuner's travel guard stays.
         - [ ] **C.2.8.3** `[V]` Fits of A and B and the fit report
           The maintainer's runs. The report reads every registered item
           before any bake.
@@ -2275,8 +2301,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.8.1 | RESEARCH | R2 | The re-levelling is explained (BAS-O12, Correction 2); the registration is next |
-| C.2.8.2 | RESEARCH | I1 | Waits on C.2.8.1 |
+| C.2.8.2 | READY_FOR_IMPLEMENTATION | I1 | The registration's §5 |
 | C.2.8.3 | RESEARCH | V | Waits on C.2.8.2 |
 | C.2.8.4 | RESEARCH | V | Waits on C.2.8.3 |
 | C.2.9 | RESEARCH | I1 | Not started |

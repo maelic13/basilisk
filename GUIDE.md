@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.2.8.1** `[R2]` Register the fit and the gates — Claude Opus
+**Next step:** **C.2.8.2** `[I1]` The fit driver to the registered schedule — Claude Sonnet
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -78,7 +78,7 @@ the six-stage gating shape), are in
         - [x] **C.2.7.3** `[V]` Deployed nodes and the budget bracket
         - [x] **C.2.7.4** `[V]` The C head's endgame baselines
     - [ ] **C.2.8** Matched fits and the label-contract gate
-        - [ ] **C.2.8.1** `[R2]` Register the fit and the gates
+        - [x] **C.2.8.1** `[R2]` Register the fit and the gates
         - [ ] **C.2.8.2** `[I1]` The fit driver to the registered schedule
         - [ ] **C.2.8.3** `[V]` Fits of A and B and the fit report
         - [ ] **C.2.8.4** `[V]` The registered gates
