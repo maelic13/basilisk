@@ -180,7 +180,7 @@ fifty-move, 2 stalemate. **Zero forfeits.** Instrument: branch `hybrid`
 - [BAS-O10](experiments/BAS-O10.md) — C.2.2's H-distribution read: three static evaluations against Stockfish 19 on game positions and one move off the game line. — COMPLETE: NOT SUPPORTED (valid; delta d16 −0.013, d95 +0.003, neither above 0); corpus A takes no off-line starts
 - [BAS-O11](experiments/BAS-O11.md) — C.2.4's tablebase label audit of corpus A: the local Syzygy relabel (corpus B) and whole-game adjudication. — COMPLETE: B changes 0.28% of rows, symmetrically; whole-game would change 2.58%; no whole-game arm now (power), retry trigger recorded
 - [BAS-O12](experiments/BAS-O12.md) — C.2.5's initialization control: four PST starts fitted at frozen K on corpus A, and the scale that converts a Stockfish 16 table. — COMPLETE (Correction 1): the start's effect is below one linear stage's resolution (2.1e-5 on the model, 1e-7 realized); no single slope converts a table, so C.2.8 seeds at 0.35 by the frozen rule; only the king tables are unidentified; the tables re-level by up to 179 cp
-- [BAS-O13](experiments/BAS-O13.md) — C.2.8's matched whole-surface fits of corpora A and B from Stockfish 16's tables at one frozen K. — RUN 1 NOT BAKED: A 0.09648 (−2.67% on the header); the support freeze stranded 242 slots as their tables re-levelled; amendment before a re-run
+- [BAS-O13](experiments/BAS-O13.md) — C.2.8's matched whole-surface fits of corpora A and B from Stockfish 16's tables at one frozen K. — RUN 1 NOT BAKED: A 0.09648 (−2.67% on the header); the support freeze stranded 242 slots as their tables re-levelled; Amendment 1 counts support on the whole split; run 2 pending
 - [BAS-D22](experiments/BAS-D22.md) — B.11.1 fixed-node meters: depth at 300k nodes, branching, endgame truth cohort. — observation: 3.3-ply gap (was 12.2), 458/480 converted
 
 **Internal consistency.** Measured directly, full Stockfish beat Basilisk 1.9.3
@@ -409,7 +409,7 @@ future work needs to re-open either cluster is now counted rather than guessed.
 
 - [BAS-E58](experiments/BAS-E58.md) — C.0 static screens: the head's evaluation against the two donor candidates on its own games — COMPLETE: 0.68% behind `9587eeeb` on regular rows, equal in the middlegame; a bounded refit closes 56% of the static gap
 - [BAS-E59](experiments/BAS-E59.md) — C.2.8.4: the whole-surface refit on corpus A against the head, SPRT `[0,3]`. — registered
-- [BAS-E60](experiments/BAS-E60.md) — C.2.8.4: the Syzygy label contract, B's fit against A's, a conditional SPRT `[0,3]`. — CONDITION FAILED on run 1 (B worse on its own labels by 2.0e-5); no games
+- [BAS-E60](experiments/BAS-E60.md) — C.2.8.4: the Syzygy label contract, B's fit against A's, a conditional SPRT `[0,3]`. — CONDITION FAILED on run 1 (B worse on its own labels by 2.0e-5); no games; re-read on run 2 with a label-specific part (Amendment 1)
 
 - [BAS-X11](experiments/BAS-X11.md) — current standing, 12,000-game Colosseum round robin — see entry
 

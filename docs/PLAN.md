@@ -1742,6 +1742,23 @@ has lost games in both engines (BAS-X02).
               rule before a re-run. The report recommends counting it on
               the whole train split, with a guard against frozen entries
               in a free-level table.
+          - **Amendment 1 recorded, 2026-11-23** (the registration's §6;
+            BAS-O13, BAS-E60; reads in `tools/results/c283/amend1/`):
+            - Support is counted on every row the linear stages read,
+              at 200 rows. By count, two slots stay frozen
+              (`MobQMg[0]` and `MobQEg[0]`, 10 rows each), and no PST
+              entry has under 1,457 rows.
+            - A fit stops when a support-frozen slot sits in an
+              unanchored table that still has a free member.
+            - The rank sample grows to 300,000 rows. At 30,000 it fails
+              under the new freeze.
+            - Both fits are re-run. BAS-E60's condition is re-read on
+              run 2, with a label-specific part added: on run 1 the
+              labels' own share was 1.3e-6 of a 2.0e-5 difference.
+            - BAS-O13's predictions stand. `bench 13` and the condition
+              are restated after run 1.
+            - Next: the tool change to C.2.8.2's driver (§6.5) with its
+              dry run on corpus A, then run 2.
         - [ ] **C.2.8.4** `[V]` The registered gates
           Clean-PGO arms under identical conditions, and the maintainer's
           runs. Fit loss explains; only the SPRT decides.
@@ -2337,7 +2354,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.8.3 | RESEARCH | V | Run 1 returned: the support freeze stranded PST entries; the registration's Amendment 1 (R2) first |
+| C.2.8.3 | READY_FOR_IMPLEMENTATION | V | Amendment 1 recorded (the registration's §6): the tool change and its dry run on corpus A, then run 2 of both fits |
 | C.2.8.4 | RESEARCH | V | Waits on C.2.8.3 |
 | C.2.9 | RESEARCH | I1 | Not started |
 | C.2.10 | RESEARCH | R3 | Not started |

@@ -84,3 +84,44 @@ before a re-run, never quietly re-run.
   - no falsifier triggered.
 - **By the stop rule** the schedule is amended in the registration before
   a re-run. The report's §3 gives the options.
+
+#### AMENDMENT 1 — 2026-11-23, after run 1 and before run 2
+
+The registration's §6 (`analysis/c281_fit_registration_2026-11-23.md`).
+- **The support rule:** support is counted on every row the linear
+  stages read, at 200 rows, and the rank is read on 300,000 rows. A fit
+  stops when a support-frozen slot sits in an unanchored table that
+  still has a free member.
+- **By count** (`tools/results/c283/amend1/`): on the split's 3,547,892
+  rows, two slots are under 200, `MobQMg[0]` and `MobQEg[0]` at 10 rows.
+  The RESULT's "only 4" was a scaled estimate. So 1,023 linear slots are
+  free in run 2, against 783 in run 1 and 1,025 in BAS-O12.
+- **Run 2:** one run per corpus from the tool change's commit, A then B
+  with A's K. Everything else is as registered.
+- **Controls,** not predictions: the seed's hash, K 1.960321, the seed's
+  loss 0.10122069, the seed's bench 4,777,412, and one derived surface
+  for both arms.
+
+**The frozen predictions stand,** and run 1's score stays.
+- The loss interval [0.0958, 0.0964] is not moved. It came from BAS-O12's
+  full surface, and run 2 is its first fair test.
+- The other items were exposed by run 1 on nearly the same fit. They are
+  read again and earn no calibration credit.
+
+**Predictions for run 2, made after run 1's exposure:**
+- A's realized loss is at most 0.09632, point 0.0962: 0.8. That recovers
+  at least 1.6e-4 of run 1's 2.6e-4 gap to BAS-O12.
+- The levels return toward BAS-O12's: the eg rook table's mean shift
+  from the seed, over its 64 entries, exceeds +100 cp (run 1 +52 on its
+  free entries, BAS-O12 +180): 0.65.
+- `MobQMg[1]` and `MobQEg[1]` end at 0, on the held entry: 0.75.
+- `bench 13` falls by 10% to 40% from 4,777,412: 0.6. It grows by more
+  than 5%: 0.1. This replaces "within 10%", whose model was wrong: one
+  count is not a measure of the tree.
+- BAS-E60's condition fails again: 0.9. Its label-specific part is under
+  1e-5: 0.9.
+- **Falsifier of the amendment:** a loss above 0.09640. The freed slots
+  would then explain under a third of the gap, and the gap is explained
+  before any bake. The candidates are the 0.35 seed, the king-safety
+  stage before the linear one, and K.
+- The registered falsifiers stand.

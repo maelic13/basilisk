@@ -2,6 +2,8 @@
 
 - State / class: closed, `R2`. Registered before any C.2.8 fit or game.
   BAS-O13 holds the fits; BAS-E59 and BAS-E60 hold the gates.
+  Amendment 1 (§6, 2026-11-23), after run 1, changes the support rule
+  and registers run 2.
 - Owner / date: agent, PLAN C.2.8.1, on Opus at the maintainer's choice.
 - Inputs:
   - BAS-O12 with Corrections 1 and 2;
@@ -135,3 +137,293 @@ The magnitude reads become a committed tool, `tools/texel/piece_values.py`
 (from `tools/results/c25/piece_value_read.py`), with tests, and the
 contract's guards stay. Non-goals: no change to the tuner's loss, the
 surface or any engine source.
+
+## 6. Amendment 1: the support rule and run 2 (2026-11-23)
+
+- State / class: recorded, `R2`, after run 1 and before any re-run. It
+  answers the fit report's return
+  (`analysis/c283_fit_report_2026-11-23.md` §3) under BAS-O13's stop rule.
+- Owner / date: agent, on Fable at the maintainer's choice.
+- New reads, in `tools/results/c283/amend1/` (ignored), by the tuner in
+  `build/c283/texel` (the restored header; `surface.py check` passes):
+  - `support_full.py`, `.json` and `.log`: every slot's support on the
+    whole train split;
+  - `rank_trial.py` and `.log`: the rank on larger samples.
+
+**Decision.** Count support on every row the linear stages read, keep the
+threshold at 200 rows, and re-run both fits.
+- By count, two slots stay frozen, not four, and no PST entry is near the
+  threshold.
+- A fit fails when a support-frozen slot sits in an unanchored table that
+  still has a free member.
+- The rank sample grows to 300,000 rows. At 30,000 it fails under the new
+  freeze.
+- BAS-E60's condition is re-read on run 2, with a label-specific part
+  added.
+- BAS-O13's predictions are not re-frozen. Run 2 is the loss interval's
+  first fair test.
+- The main counter-argument is the report's option 2: hold a frozen entry
+  relative to its table. It is the general repair, and it is machinery
+  for a case this corpus does not have. It is registered as the retry.
+
+### 6.1 The new reads
+
+**Support on the whole split** (`support_full.py`). The dense matrix of
+the split is 33 GB, so the split was dumped in 26 chunks
+(`--dump-coeffs`) and each chunk counted.
+- Controls: the first 30,000 rows reproduce run 1's 242 slots and their
+  counts, and the rows sum to the fit's 3,547,892.
+- **Two free linear slots have under 200 rows:** `MobQMg[0]` and
+  `MobQEg[0]`, 10 rows each.
+- Queen mobility 1 has 278 rows (mg) and 224 (eg). It was absent from the
+  sample, so the report's scaled estimate counted four slots.
+- The other 240 slots that run 1 froze have 224 rows or more. The 242
+  have a median of 12,378.
+- The rarest PST entries: the knight on h8, 1,457 rows; the mg king on
+  a8, 1,923.
+
+**The rank sample** (`rank_trial.py`). With the whole split's freeze,
+1,023 slots are free.
+- On the first 30,000 rows `rank` fails, 1,012 of 1,013: queen mobility 1
+  has no row there.
+- On 100,000, 200,000 and 300,000 rows it passes, 1,013 of 1,013, with a
+  smallest relative singular value of 0.002. The rarest free slot has 4,
+  7 and 15 rows in those samples.
+
+**The stranding, from the vectors.** The report's table reproduces: the
+153 non-king PST entries run 1 held moved 0, while the rest of their
+tables moved −215 (mg pawn) to +52 (eg rook).
+- In BAS-O12's full-surface fits the same entries moved by their own
+  data. In the endgame tables they moved with the rest: eg rook +171
+  against +180, eg knight +104 against +80 (S613). In two tables they
+  moved apart from it: mg rook +14 against −53. So a gap between these
+  entries and their table is not by itself a stranding.
+- **The freeze also changed the levels (inference).** Run 1's free
+  entries re-levelled unlike BAS-O12's: eg rook +52 against +180, eg
+  queen +33 against +150, eg knight +19 against +80. A piece-times-pawn
+  product re-values a piece on a held square, and a table level cannot.
+  So run 1 carried more of the re-valuation in the products.
+
+**A second tie: the tuner's monotone chains.** A support-frozen slot is
+held at the seed's value. That is sound only where its neighbours cannot
+move away from it. Two structures tie a slot to its neighbours:
+- a free table level, the report's finding;
+- a non-decreasing chain (`enforce_chain` in `tuner.cpp`): the mobility
+  tables, the passer ranks and the pawn-threat chain. A held entry
+  bounds the free entries on both sides of it.
+
+Run 1 held 11 of each queen-mobility table's 28 entries (0 to 4 and 22
+to 27), so the 17 between them could move only between two held values.
+The report did not read this.
+
+**Run 1's label read, taken apart** (the report's §5 and its logs):
+
+| Realized loss, K 1.960321 | A's labels | B's labels |
+|---|---:|---:|
+| A fit | 0.09648236 | 0.09632117 |
+| B fit | 0.09650363 | 0.09634110 |
+| B fit's advantage | −2.13e-5 | −1.99e-5 |
+
+The B fit is worse on both label sets by about 2.1e-5: a slightly worse
+vector, by its path, whatever the labels. What belongs to the labels is
+the difference of the two advantages: **+1.3e-6**.
+
+### 6.2 The support rule
+
+**Chosen: the report's option 1 by exact count, with a guard.**
+- **Support** is the number of rows whose coefficient for the slot is
+  nonzero (`--dump-coeffs`'s rows and definition), counted on every row
+  the linear stages read: the whole train split at `--max-positions 0`.
+- **The threshold stays 200 rows** (C-52). Counted on 30,000 rows it
+  meant about 23,650 rows of the split, 118 times what C-52 asks.
+- **The rank** is read on a sample, 300,000 rows for run 2, over the
+  slots the count left free.
+- **The guard:** a fit stops before any stage when a support-frozen slot
+  belongs to a table that still has a free linear member and no mean
+  anchor. A table is a registry group of more than one slot.
+  - Such a table's level is free, or is held only weakly by another
+    term. The ten non-king PSTs are the measured case.
+  - The test reads the manifest alone and errs toward stopping. A stop
+    costs a returned leaf, and a missed one cost run 1.
+- **A support-frozen slot in a mean-anchored table is allowed** and
+  recorded. Its table's level is held, so it is not stranded.
+
+**The two slots that stay frozen.** `MobQMg[0]` and `MobQEg[0]` are held
+at the seed's 0, the bottom of a monotone chain. So no queen-mobility
+entry can end below 0.
+- BAS-O12's free fits put entries 0 and 1 on the −200 clamp, mg and eg,
+  and eg entries 2 and 3 at −133 and −16 (S613). Run 2 will stop them at
+  0.
+- That is accepted. The floor is the seed's own lowest value, the table
+  stays monotone, and the rows concerned are 0.2% of the split.
+- It is also the safer value (inference, not measured). Queen mobility 1
+  is what a queen on its home square counts before its own pawns move:
+  the bishop's square alone (`src/eval_attacks.h`, the mobility area).
+  The corpus starts at book exits, so its 224 to 278 such rows are
+  mostly trapped queens. At −200, the first pawn move from the starting
+  position would swing the score by about 230 cp.
+- The report reads both queen-mobility tables and names the entries
+  standing on the held one. The entry's definition belongs to C.3.
+
+**Refused:**
+- **Scaling the threshold to the sample** (about 1.7 rows of 30,000). A
+  slot at the threshold is absent from such a sample 18% of the time.
+  Queen mobility 1 was: the scaled rule freezes it, and the count does
+  not. The count costs one pass over the split.
+- **Holding a frozen entry relative to its table** (option 2). A tied
+  entry enters the gradient and the anchor projection: a tuner change
+  with its own tests, for no slot of this corpus. Retry trigger: the
+  guard stops a fit.
+- **Anchoring the PST levels** (option 3). It changes C-19's gauge and
+  the tracked surface, which §5 excludes. With material held as well,
+  the levels that carry the endgame re-valuation §1 chose to keep could
+  not move. Retry trigger: C.6's screen of the level against the
+  products (C-118), or a guard stop that option 2 cannot serve.
+- **Freeing every slot**, BAS-O12's surface. It puts queen mobility 0 on
+  a clamp from 10 rows, and entry 1 with it.
+
+### 6.3 B's re-run and BAS-E60's condition
+
+**Chosen: B is re-run with A, and the condition is re-read on run 2. Run
+2's read is the verdict.**
+- BAS-E60's arms are baked builds, and only run 2's vectors can be baked.
+- The rule must not depend on the outcome. Had run 1's read passed, B
+  would be re-run; so a failed read is not taken from it either.
+- The cost is one more fit, about half an hour.
+- Run 1's read stays on the record as exposure, and BAS-E60's prediction
+  for run 2 is restated with it.
+
+**The condition gains a third part.** Run 1 exposed a confound (§6.1):
+the registered quantity is the sum of a path difference between two
+vectors and the labels' own effect, and the first was 15 times the
+second.
+- A path difference of run 1's size with the other sign would pass both
+  registered parts with no label effect. The bootstrap does not guard
+  against it: it resamples validation games, not fits.
+- **The label-specific part:** the B fit's advantage on B's labels, less
+  its advantage on A's labels, is at least 2e-5.
+  - Only relabelled rows carry it (604 of 209,444 validation rows), so
+    the path difference cancels.
+- All three parts must hold. The registered two are read and reported as
+  registered.
+- The addition can stop a gate and cannot start one, so it rescues
+  nothing. On run 1 every part fails.
+- The counter-argument: the condition changes after exposure. It only
+  tightens, and without it the gate can test a fit's luck instead of the
+  labels (C-57).
+
+**Against re-running B at all:** run 1's read was matched, and its
+label-specific part is 15 times under the bar. Freeing 240 rare slots
+will not multiply it by 15. That is the prediction (0.9), not a reason
+to take a verdict from vectors that will never play.
+
+### 6.4 The predictions
+
+**Chosen: BAS-O13's frozen list is not re-frozen, and run 1's score
+stays.**
+- **The loss interval stands.** It came from BAS-O12's full surface,
+  which is run 2's surface plus two slots. Run 2 is its first fair test,
+  and the test of the report's explanation of run 1's miss. Moving the
+  interval now would turn that explanation into a prediction it never
+  was.
+- **The items run 1 hit** stand and are read again. Run 1 exposed them on
+  nearly the same fit, so a second hit earns no calibration credit.
+- **K at the seed** is now a control: the seed and A's validation are
+  unchanged, so it must reproduce 1.960321.
+- **Two items are restated for run 2,** marked as made after run 1:
+  `bench 13`, whose model was wrong, and BAS-E60's condition, which was
+  exposed.
+- **New predictions** test this amendment's own claims: the loss
+  recovers, the levels return toward BAS-O12's, and queen mobility stops
+  at the held entry. BAS-O13 holds the list.
+
+**What was wrong in the model:**
+- The registration took the tracked surface for the fit's surface. Its
+  numbers came from tuner runs with no freeze, and nobody ran `fit.py`'s
+  own surface step on corpus A before registering. The tool change's dry
+  run now does (§6.5).
+- One `bench 13` count was taken for a measure of the tree. Two fits
+  within 2 cp an entry differ by 14% (the report's §4).
+
+### 6.5 The tool change (C.2.8.2's driver)
+
+Specified here and implemented in its own step. Non-goals: the tracked
+surface, the tuner's loss, clamps and chains, the schedule, the seed and
+the K rule.
+
+**`surface.py rank`:**
+- It takes two row sets, named apart: the support rows and the rank
+  sample.
+- **Support is an exact count** over the support rows, by
+  `--dump-coeffs`'s rows and definition. `--feature-support` is not that
+  count: it reads raw traces on every row, so it counts left-out rows,
+  and a middlegame slot in a pure endgame.
+- The count streams, since the dense matrix of the split is 33 GB. A
+  counting mode in the tuner and chunked dumps are both acceptable, and
+  a counting mode changes no loss.
+- Freezing uses that count. Each frozen slot's reason gives its count
+  and the number of rows counted.
+- The rank is read on the sample, over the slots the count left free. A
+  free slot with no row in the sample fails `rank` by name, as a sample
+  too small, apart from an identity.
+- The guard of §6.2 fails `rank`, names every offending slot and its
+  table, and writes no manifest.
+- Every support-frozen slot is printed, with its count and whether its
+  table is anchored.
+
+**`fit.py`:**
+- The support rows are the linear stages' rows (`--max-positions`).
+  `--rank-positions` stays the rank sample, and its default becomes
+  300,000.
+- `run.json` records the rows counted, the threshold, the frozen slots
+  with their counts, and the number of free linear slots.
+- A `rank` failure stops the run before K is fitted, as any failed step
+  does.
+- Its docstring and the HANDBOOK's §6 and §9 say what is counted on
+  which rows.
+
+**Tests,** each failing on its known-bad input:
+- The streamed count equals `count_nonzero` of the dense dump, slot for
+  slot, on `test_positions.csv` (with the tuner).
+- Run 1's defect: a slot under the threshold in the sample and over it
+  in the support rows stays free, and the reverse freezes.
+- A free slot absent from the sample fails as a sample too small. A
+  duplicated column still fails as a null direction.
+- The guard: a support-frozen entry fails by name in an unanchored table
+  with a free member. It passes in a mean-anchored table, as a table's
+  only slot, and where every other member is fixed.
+- `fit.py`'s `rank` command carries the linear stages' row count as the
+  support rows.
+
+**CI's texel job** runs all of them with `BASILISK_TEXEL` set, so the
+tuner test runs there and is not skipped. The job names its test files
+one by one, so a new file is added to that list.
+
+**Qualification on corpus A,** a dry run of the surface step with no
+fit, before hand-over:
+- every slot's support equals `support_full.json`'s, all 1,159;
+- exactly `MobQMg[0]` and `MobQEg[0]` freeze, 1,023 slots stay free, and
+  the rank is 1,013 of 1,013 on 300,000 rows;
+- with the support rows cut to 30,000 it finds run 1's 242 slots, and
+  the guard fails on them: run 1's surface is the known-bad input;
+- corpus B's train split gives the same manifest, byte for byte.
+
+### 6.6 Run 2
+
+- **Source:** the tool change's commit. The header and the engine are
+  unchanged, so the seed's bench is 4,777,412.
+- **Settings:** §2's schedule and §3's seed, unchanged. Support at 200
+  rows on the whole split, and `--rank-positions 300000`.
+- **Order:** A, then B with A's K, in new run directories. Run 1's stay.
+- **Controls,** which must reproduce or the reading stops:
+  - the seed's hash, K 1.960321 and the seed's loss 0.10122069, as in
+    run 1;
+  - the dry run's derived surface, the same file in A and B.
+- **Reads:** §4's list again, and:
+  - the frozen slots and the guard's result;
+  - the 153 entries run 1 stranded, each table's against its rest;
+  - each table's level shift beside run 1's and BAS-O12's;
+  - both queen-mobility tables;
+  - the three parts of BAS-E60's condition.
+- **Stop rule:** BAS-O13's, unchanged. One run per corpus; a failed
+  guard, rank or stage is reported and amended here before another run.

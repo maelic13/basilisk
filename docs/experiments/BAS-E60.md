@@ -41,3 +41,21 @@
   fit noise is the size of B's whole label effect.
 - Run 1's surface defect affects both arms identically. The registration's
   amendment decides whether B is re-run and the condition re-read.
+
+#### AMENDMENT 1 — 2026-11-23, after the run-1 read
+
+The registration's §6.3 (`analysis/c281_fit_registration_2026-11-23.md`).
+- **B is re-run with A, and the condition is re-read on run 2.** That
+  read is the verdict: the arms are baked builds, and only run 2's
+  vectors can be baked. Run 1's read stays above as exposure.
+- **A third part is added.** On run 1 the B fit was worse than the A fit
+  on A's labels too, by 2.1e-5. So the registered quantity was a path
+  difference between two vectors, and the labels' own share was +1.3e-6.
+  - The label-specific part: the B fit's advantage on B's labels, less
+    its advantage on A's labels, is at least 2e-5. Only relabelled rows
+    carry it (604 of 209,444 validation rows).
+  - All three parts must hold. The registered two are read and reported
+    as registered.
+  - The addition can stop the gate and cannot start it.
+- **Prediction for run 2, made after exposure:** the condition fails,
+  0.9; the label-specific part is under 1e-5, 0.9.
