@@ -1411,6 +1411,19 @@ has lost games in both engines (BAS-X02).
       seed stands. By outcome a donor value converts at 0.613 Basilisk
       centipawns a Stockfish unit, against B.0's 0.557 by magnitude; the
       fixed-K screen (C-23) decides between them.
+      In progress 2026-11-23 (`analysis/c25_initialization_2026-11-23.md`,
+      BAS-O12):
+      - **Built:** the seed builder `tools/texel/seed_sf16.py` (`c423754`),
+        which transplants `sf_16`'s table shapes and keeps their levels,
+        and the tuner's `--min-delta` (`1f16f4c`).
+      - **Measured:** four fits on corpus A at frozen K. The header start
+        ends 2.1e-5 below the Stockfish 16 start. The seed's scale does
+        not matter (2.4e-6). The eg shapes converge at `b` 0.57 from every
+        start; the mg shapes stay where they start. Every arm re-levels
+        the tables by up to 179 cp, which is for C.2.8's fit report.
+      - **Open, the maintainer's:** the seed scale (0.557 recommended;
+        BAS-O12's frozen rule gives 0.35 from unidentified mg shapes) and
+        whether C.2.8 fits both starts.
     - [ ] **C.2.7** `[R2]` Endgame instruments and gate integrity
       It was C.7.1 until 2026-11-11. Instruments and gate integrity
       (archived 6.6.a–e and 6.6.h).
@@ -2062,7 +2075,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.5 | RESEARCH | R2 | Not started |
+| C.2.5 | RESEARCH | R2 | BAS-O12 run; the seed scale and C.2.8's start wait on the maintainer |
 | C.2.7 | RESEARCH | R2 | Not started |
 | C.2.8 | RESEARCH | V | Not started |
 | C.2.9 | RESEARCH | I1 | Not started |

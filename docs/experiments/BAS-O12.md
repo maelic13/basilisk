@@ -77,3 +77,58 @@
     tolerance, and the converged run decides.
 
 #### RESULT — append after exposure
+
+- **Run 2026-11-23 under Amendment 1** (`tools/results/c25/`, tuner `1f16f4c`;
+  reads by `tools/results/c25/read_o12.py`, `o12_report.json`). Every arm
+  stopped on patience, so all four converged under the tolerance:
+
+  | Arm | Stopped | Best holdout | Pooled `b` | `b` mg | `b` eg |
+  |---|---:|---:|---:|---:|---:|
+  | H | 2,699 | 0.0961773 | 0.355 | 0.252 | 0.578 |
+  | S557 | 3,109 | 0.0962005 | 0.393 | 0.314 | 0.567 |
+  | S613 | 3,200 | 0.0961981 | 0.398 | 0.320 | 0.569 |
+  | F613 | 3,074 | 0.0962145 | 0.300 | 0.173 | 0.576 |
+
+  The header's own tables, unfitted, regress on Stockfish 16's shape at
+  0.354.
+- **Start: it matters, slightly.** H converges 2.1e-5 below S613, and the
+  3,000-epoch floors of the first run put it 3.5e-5 below. Both are
+  outside the 2e-5 tolerance, so by the frozen rule C.2.8's registration
+  names its start as a variable. The two scales converge 2.4e-6 apart: a
+  fit does not care whether the seed is converted at 0.557 or 0.613.
+- **Scale: by the frozen rule, 0.35; the read's premise failed.**
+  - H's pooled `b` is 0.355, under 0.40, so the rule seeds at 0.35.
+  - But the rule assumed a fit that travels to a data-determined shape,
+    and the mg shapes do not. `b` stays where each start put it: H goes
+    from 0.354 to 0.355, S613 from 0.613 to 0.398, and F613 from −0.613
+    to 0.300.
+  - The eg shapes do converge: 0.567 to 0.578 from all four starts, the
+    flipped one included. That is B.0's 0.557, not C.0's 0.613.
+  - So the pooled 0.35 measures the mg tables' weak identification, not a
+    conversion. The scale question goes back to the maintainer
+    (`analysis/c25_initialization_2026-11-23.md`).
+- **Orientation: the registered read failed; the seed is right
+  (inference).**
+  - On the registered read, mean absolute PST change, F613 travelled less
+    than S613 (76.1 against 77.9 cp), against the prediction.
+  - Post-hoc, the travel splits into level and shape. Each table's level
+    moves the same in every arm, 66 to 69 cp on average. Shape travel is
+    S613 27.8 and F613 29.3.
+  - S613 also reaches a holdout 1.6e-5 better.
+  - From the flipped start, the fit turns the eg tables back to Stockfish
+    16's orientation (`b` eg +0.576) and the mg ones part of the way
+    (+0.173 from −0.613).
+- **A finding for C.2.8:** every arm re-levels the tables by the same large
+  amounts. Against the header, mg pawn moves −126 to −163 cp, eg rook +169
+  to +179, eg queen +127 to +141, and eg knight and bishop +85 to +95. The
+  data moves effective piece values a long way against the fixed material.
+  That is either a real re-valuation, or a near-collinear direction the
+  rank check passes. C.2.8 reads it before any bake.
+- **Against the prediction:**
+  - Start-independence (0.7): false, by 2.1e-5.
+  - `b` 0.355 is inside the 80% band (0.30 to 0.80), well below the point
+    0.55, and near neither ratio.
+  - The orientation prediction (0.9) failed on its registered read.
+  - The wrong part of the model: a converged linear fit was taken to
+    identify every table's shape. It identifies the eg shapes and the
+    levels, not the mg shapes.
