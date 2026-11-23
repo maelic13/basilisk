@@ -1729,6 +1729,19 @@ has lost games in both engines (BAS-X02).
           - The fits run one after the other, never together: both build
             in `build/fit` and bake into `src/eval_params.h`.
           - B takes A's K from A's `run.json`.
+          - **Run 1 returned, 2026-11-23**
+            (`analysis/c283_fit_report_2026-11-23.md`, BAS-O13): not
+            baked.
+            - A's loss is 0.09648, 2.67% below the header's. The floors
+              pass. BAS-E60's condition fails.
+            - But `fit.py`'s surface froze 242 slots on support counted
+              in a 30,000-row sample. Only 4 are rare at full scale. 204
+              are PST entries, stranded at the seed while their tables
+              re-levelled by up to 215 cp.
+            - The registration's Amendment 1 (`R2`) chooses the support
+              rule before a re-run. The report recommends counting it on
+              the whole train split, with a guard against frozen entries
+              in a free-level table.
         - [ ] **C.2.8.4** `[V]` The registered gates
           Clean-PGO arms under identical conditions, and the maintainer's
           runs. Fit loss explains; only the SPRT decides.
@@ -2324,7 +2337,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.8.3 | READY_FOR_IMPLEMENTATION | V | The two fits are the maintainer's runs, A then B |
+| C.2.8.3 | RESEARCH | V | Run 1 returned: the support freeze stranded PST entries; the registration's Amendment 1 (R2) first |
 | C.2.8.4 | RESEARCH | V | Waits on C.2.8.3 |
 | C.2.9 | RESEARCH | I1 | Not started |
 | C.2.10 | RESEARCH | R3 | Not started |

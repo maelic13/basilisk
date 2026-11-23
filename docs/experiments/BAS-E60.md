@@ -30,3 +30,14 @@
   the corrected rows carry more than C.2.4's numbers allow.
 
 #### RESULT — append after exposure
+
+- **Condition read on run 1, 2026-11-23** (BAS-O13; the report's §5).
+  On B's validation labels at K 1.960321:
+  - the B fit's realized loss is 0.09634110;
+  - the A fit's is 0.09632117.
+
+  B is worse by 2.0e-5. The condition needs it better by at least 2e-5,
+  so it fails without the bootstrap, and no game is played. Run-to-run
+  fit noise is the size of B's whole label effect.
+- Run 1's surface defect affects both arms identically. The registration's
+  amendment decides whether B is re-run and the condition re-read.

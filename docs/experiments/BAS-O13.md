@@ -56,3 +56,31 @@ exits 3 or fails a guard is reported, and its schedule is amended here
 before a re-run, never quietly re-run.
 
 #### RESULT — append after exposure
+
+- **Run 1, 2026-11-23** (`tools/results/c283/`, source `bdaa95a`; the
+  report is `analysis/c283_fit_report_2026-11-23.md`). Both fits
+  completed, and every stage stopped by its own rule.
+  - K 1.960321.
+  - Realized validation loss: A **0.09648236** and B 0.09650363, against
+    the header's 0.09914295 at the same K (−2.67%).
+  - Lazy share 12.60%.
+  - Endgame knight, bishop and rook values +25%, +20% and +21%.
+  - `bench 13` A 3,392,955 (−29.0%), B 3,868,741.
+  - The floors pass.
+  - BAS-E60's condition fails: on B's labels, B's fit is worse than A's
+    by 2.0e-5.
+- **Not baked: a protocol defect.** `fit.py`'s surface froze 242 slots
+  under 200 rows of support counted on a 30,000-row sample. Scaled to the
+  full train split, only 4 of them fall under 200. 204 of the 242 are PST
+  entries. They stayed at the seed while their tables re-levelled, up to
+  −215 cp. This stranded steps such as a 112 cp jump between a pawn on
+  f6 and on f7. BAS-O12, the source of the loss interval, had no such
+  freeze and reached 0.09622, so the interval's miss is this defect.
+- **Score:**
+  - hits: K, the 2.5% gain, no exit 3, the endgame values, the lazy
+    share, the floors, BAS-E60's condition;
+  - misses: the loss interval and `bench` within 10%;
+  - the bracket veto is not yet read;
+  - no falsifier triggered.
+- **By the stop rule** the schedule is amended in the registration before
+  a re-run. The report's §3 gives the options.
