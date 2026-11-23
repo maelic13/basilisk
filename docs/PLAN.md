@@ -1527,6 +1527,20 @@ has lost games in both engines (BAS-X02).
           nodes per search at the gate's time control on an idle host, and
           set three budgets straddling the median. The veto rule is frozen
           in the audit's §4: a position veto needs two of three budgets.
+          In progress 2026-11-23 (BAS-D23 registered):
+          - **Built** (`901e519`, 16 tests in `test_nodes_bracket.py`):
+            - `nodes_per_move.py` plays the gate's conditions: UHO starts,
+              two engines a game, 15 games at once, the real clock;
+            - `endgame_budget_bracket.py` has `run`, which refuses
+              differing cohorts or a misnamed budget, and `veto`, the
+              two-of-three rule.
+            - Both were dry-run (`tools/results/c273/dry/`).
+          - **The rule, frozen in BAS-D23:** M is the median over moves
+            with at most 6 men (the overall median if there are under 300
+            such moves), and the budgets are M/3, M and 3M.
+          - **Waits on the maintainer:** the read needs an idle host (the
+            head's binary `basilisk-c273-head-pext-pgo.exe`, bench
+            4,777,412).
         - [ ] **C.2.7.4** `[V]` The C head's endgame baselines
           - Reproduce BAS-D22's 60k records on two families with the
             current head, then run the bracket's other budgets under v2.
@@ -2171,7 +2185,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.7.3 | READY_FOR_IMPLEMENTATION | V | Port the two tools; the read needs an idle host |
+| C.2.7.3 | LOCAL_QUALIFIED | V | Tools built, BAS-D23 registered; the read needs an idle host |
 | C.2.7.4 | RESEARCH | V | Waits on C.2.7.3 |
 | C.2.8 | RESEARCH | V | Not started |
 | C.2.9 | RESEARCH | I1 | Not started |

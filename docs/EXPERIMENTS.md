@@ -144,6 +144,7 @@ X is good/bad”. If conditions or artifacts are unknown, say so.
 | [BAS-M21](experiments/BAS-M21.md) | The HCE frontier field on the MacBook Air M4: BAS-M18's field rebuilt natively, a 12-engine round robin. | OBSERVATION, stopped at 7,896 of 13,200 games: head 3340, 10th of 12, 203 below Stockfish 16 HCE; BAS-M18's gaps reproduce to within 16; no faults |
 | [BAS-M22](experiments/BAS-M22.md) | The HCE frontier field on Windows arm64 (Snapdragon X Plus): a 9-engine round robin, seven engines native arm64 and Komodo 14.1 and Dragon 3.3 as x64 under emulation. | OBSERVATION, stopped at 9,495 of 14,400 games: head 3338, 8th of 9 and last of the native engines, 197 below Stockfish 16 HCE; native engines reproduce BAS-M21's gaps to within 20; emulated Dragon 3.3 reads 37–52 low; no faults |
 | [BAS-M23](experiments/BAS-M23.md) | The HCE frontier field at `3+0.03` with Rarog's compact-kernel head, the C.1 head and Basilisk 1.11.0: a 12-engine round robin, 52,800 games. | OBSERVATION, read from the GUI's standings: the C.1 head and 1.11.0 level at 3415; Rarog's head 3509, 94 above; Stockfish 16 HCE 190 above; no forfeits |
+| [BAS-D23](experiments/BAS-D23.md) | C.2.7.3: deployed nodes per search at the gate's conditions (3+0.03, 15 games at once), and the three endgame veto budgets they set. | registered |
 
 ## 3. Search and selectivity
 
