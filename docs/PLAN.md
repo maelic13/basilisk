@@ -1385,7 +1385,7 @@ has lost games in both engines (BAS-X02).
       - **For C.2.8, the maintainer's decision:** the packet recommends
         fitting A and B, and running the label-contract SPRT only if the
         fits differ beyond noise.
-    - [ ] **C.2.5** `[R2]` Initialization control
+    - [x] **C.2.5** `[R2]` Initialization control
       Initialization control (archived 8.6): fit from the accepted and from
       neutral starts under identical K, data and schedule; register the
       production rule before the test split opens.
@@ -1411,19 +1411,35 @@ has lost games in both engines (BAS-X02).
       seed stands. By outcome a donor value converts at 0.613 Basilisk
       centipawns a Stockfish unit, against B.0's 0.557 by magnitude; the
       fixed-K screen (C-23) decides between them.
-      In progress 2026-11-23 (`analysis/c25_initialization_2026-11-23.md`,
-      BAS-O12):
+      Done 2026-11-23 (`analysis/c25_initialization_2026-11-23.md`,
+      BAS-O12 with its Correction 1). The maintainer left the decision to
+      the agent, asking for the reasoning to be checked.
       - **Built:** the seed builder `tools/texel/seed_sf16.py` (`c423754`),
         which transplants `sf_16`'s table shapes and keeps their levels,
         and the tuner's `--min-delta` (`1f16f4c`).
-      - **Measured:** four fits on corpus A at frozen K. The header start
-        ends 2.1e-5 below the Stockfish 16 start. The seed's scale does
-        not matter (2.4e-6). The eg shapes converge at `b` 0.57 from every
-        start; the mg shapes stay where they start. Every arm re-levels
-        the tables by up to 179 cp, which is for C.2.8's fit report.
-      - **Open, the maintainer's:** the seed scale (0.557 recommended;
-        BAS-O12's frozen rule gives 0.35 from unidentified mg shapes) and
-        whether C.2.8 fits both starts.
+      - **Measured:** four fits on corpus A at frozen K: the header start,
+        Stockfish 16's at 0.557 and 0.613, and 0.613 flipped by rank.
+        - Every table converges from every start except the mg king,
+          which the data does not identify; the eg queen and eg pawn
+          converge slowly.
+        - No single slope converts a Stockfish 16 table: the converged
+          tables' slopes run from −1.21 to +3.0.
+        - The header start's 2.1e-5 lead is on the tuner's model. On the
+          fitted vectors' realized losses it is 1e-7, below what one
+          linear stage resolves (about 2e-5).
+        - Every arm re-levels the tables by up to 179 cp, which is for
+          C.2.8's fit report.
+      - **Production rule** (registered before the test split opens):
+        - C.2.8 starts from `seed_sf16.py --scale 0.35`, BAS-O12's frozen
+          rule, from one start.
+        - Arms are compared by realized loss.
+        - A ported threshold is converted by the leaf that ports it,
+          at 0.557 or 0.613.
+        - Retry trigger: a header-start arm, if C.2.8's king-table read
+          flags the mg king or its gate fails while the loss improves.
+      - **Withdrawn:** the first recommendation, 0.557 with both starts
+        fitted. It misread the pooled slope, which is mostly the king
+        tables', and the flipped start, which is not a negated shape.
     - [ ] **C.2.7** `[R2]` Endgame instruments and gate integrity
       It was C.7.1 until 2026-11-11. Instruments and gate integrity
       (archived 6.6.a–e and 6.6.h).
@@ -1457,8 +1473,9 @@ has lost games in both engines (BAS-X02).
       Matched whole-surface fits of A and B on the current surface, then the
       registered label-contract gate (archived 8.7–8.8); fit loss explains,
       the SPRT decides.
-      The piece-square tables re-fit here, from B.10's flipped values: they
-      have never been fitted in their correct orientation, and the old
+      The piece-square tables re-fit here, from C.2.5's Stockfish 16 seed
+      (below). B.10's flipped values have never been fitted in their correct
+      orientation, and the old
       `1e-6` anchor moved them about 0.1 cp. The registration sets their
       anchor loose enough to let them move. The fit reports each table's
       movement (B.10's directional screen), and the gate tests the refitted
@@ -1490,6 +1507,14 @@ has lost games in both engines (BAS-X02).
       - the deterministic endgame floors (KBNK, KQK, KRK, KBBK), which must
         all still pass.
       Corpus A's checkmate share is in its C.2.3 record.
+      Registered by C.2.5 (2026-11-23, its packet §4):
+      - The tables start from `tools/texel/seed_sf16.py --scale 0.35`,
+        from one start. BAS-O12 bounds the start's effect below 2e-5.
+      - Arms are compared by realized loss (`--loss --init`), never by one
+        stage's model loss.
+      - The fit report explains the tables' re-levelling, up to 179 cp
+        with the mg pawn at −28 to −65 cp effective. The leads are queen
+        mobility on the −200 clamp and `ConnectedRankMg`.
     - [ ] **C.2.9** `[I1]` Family screen and matched-ablation tools
       Added 2026-11-18 (maintainer, after C.0). Two instruments the
       family order and every cluster read; neither changes a served
@@ -2075,7 +2100,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.5 | RESEARCH | R2 | BAS-O12 run; the seed scale and C.2.8's start wait on the maintainer |
 | C.2.7 | RESEARCH | R2 | Not started |
 | C.2.8 | RESEARCH | V | Not started |
 | C.2.9 | RESEARCH | I1 | Not started |

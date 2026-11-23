@@ -132,3 +132,86 @@
   - The wrong part of the model: a converged linear fit was taken to
     identify every table's shape. It identifies the eg shapes and the
     levels, not the mg shapes.
+
+- **Correction 1 (2026-11-23, a re-read before C.2.5 closed;
+  `tools/results/c25/verify_o12.py`, `real_losses.py` and their `.txt`
+  outputs).** Four statements in the RESULT are wrong. The verdicts are
+  restated below.
+  - *F613 did not start at* `b` *−0.613.* A rank flip is not a negation.
+    The flipped seed's `b` was +0.168 pooled, −0.009 mg and +0.553 eg:
+    most eg tables are nearly rank-symmetric, so the flip left them in
+    place. "The fit turns a mirrored eg table back" and "F613 from
+    −0.613" are withdrawn.
+  - *The mg shapes are identified, all but the king's.* Between arms, the
+    RMS shape distance falls to 0.4 to 2.6 cp in every mg table but the
+    king's, which goes from 51.4 to 17.5 cp (H against S613) and from 90.2
+    to 36.5 (S613 against F613). Every eg table ends within 4 cp, except
+    the queen (up to 10.3, H against S613) and the pawn (up to 11.8,
+    against F613). The pooled `b` moved with the start because Stockfish 16's
+    king tables carry 63% of the mg spread and 56% of the eg: the pooled
+    slope is mostly the king's.
+  - *No single* `b` *converts a table.* The converged tables' own slopes
+    run from −1.21 (mg queen) to +3.0 (eg pawn), the same in every arm.
+    The eg 0.57 that matched B.0 is mostly the eg king's 0.55 and the eg
+    queen's 1.33, averaged; it is not a conversion.
+  - *The losses read were the tuner's model, not the fitted vectors'.*
+    The linear stage holds each row's lazy checkpoint and endgame scale
+    where its own seed put them, so four arms are four different models.
+    Realized by `--loss --init` at K 2.009866 on validation (the header
+    sends 21,034 rows through the lazy checkpoint):
+
+    | Arm | Model | Realized | Gap | Lazy-checkpoint rows |
+    |---|---:|---:|---:|---:|
+    | H | 0.0961773 | 0.0962263 | +4.9e-5 | 26,909 |
+    | S557 | 0.0962005 | 0.0962093 | +0.9e-5 | 26,680 |
+    | S613 | 0.0961981 | 0.0962262 | +2.8e-5 | 26,693 |
+    | F613 | 0.0962145 | 0.0962452 | +3.1e-5 | 26,528 |
+
+    | Band, realized | H | S557 | S613 | F613 | S613 − H |
+    |---|---:|---:|---:|---:|---:|
+    | opening | 0.1644140 | 0.1643879 | 0.1644304 | 0.1644418 | +1.6e-5 |
+    | early_mid | 0.1317463 | 0.1316984 | 0.1317035 | 0.1317666 | −4.3e-5 |
+    | middlegame | 0.0841586 | 0.0841608 | 0.0841694 | 0.0841994 | +1.1e-5 |
+    | endgame | 0.0411445 | 0.0411037 | 0.0411137 | 0.0410905 | −3.1e-5 |
+    | deep_endgame | 0.0441991 | 0.0442315 | 0.0442488 | 0.0442550 | +5.0e-5 |
+
+    Realized, H and S613 end 1e-7 apart, and S557 ends 1.7e-5 below
+    both, where the model put S557 and S613 2.4e-6 apart. One linear
+    stage resolves arms no better than about 2e-5. `fit.py` re-linearizes
+    at every stage and reads its losses realized, so C.2.8 does not
+    inherit this.
+- **The verdicts, restated:**
+  - *Scale: the frozen rule stands, and C.2.8 seeds at 0.35.* H's pooled
+    `b` is 0.3547, under 0.40, so neither ratio describes a table. The
+    correction strengthens that branch's premise, and it withdraws the
+    RESULT's case for 0.557. Seeds at 0.557 and 0.613 end inside the
+    instrument's resolution of each other, so the scale costs the fit
+    nothing measurable. A ported threshold, which no refit absorbs, is
+    left to the leaf that ports it, as the rule says.
+  - *Start: below this instrument's resolution.* It is outside 2e-5 on
+    the registered read (2.1e-5) and 1e-7 realized. The rule's branch
+    for a difference is followed: it is stated by band above, and
+    C.2.8's registration names its start.
+  - *Orientation: the registered read failed, and could not decide it;
+    the seed is right by construction.* The flip barely moves the eg
+    tables, and the travel read is dominated by level moves every arm
+    shares.
+    - The identified tables reach the same shapes from the flipped
+      start, so their orientation is set by the data.
+    - The mg king keeps much of its seed's orientation (36.5 cp from the
+      flipped arm's fit), and the eg pawn some (8.2 cp). There the seed
+      is right by construction: in Basilisk's a1-first White view the mg
+      king's first rank holds 14 to 93 cp and its eighth −53 to −108.
+    - The flipped start ends worse on both losses (1.6e-5 model, 1.9e-5
+      realized), at the resolution.
+  - *The level finding stands,* with H's mg pawn 35 cp below the
+    others. Two leads for C.2.8:
+    - Queen mobility at 0 and 1 squares sits on the tuner's −200 clamp,
+      mg and eg, in every arm.
+    - `ConnectedRankMg` index 6 goes from 0 to 208 to 215.
+- **Against the prediction, amended:** three parts of the model were
+  wrong, not one.
+  - A single linear stage's model loss was taken for the fitted
+    vector's loss.
+  - The flipped start was taken for the negated shape.
+  - One pooled slope was taken to describe twelve tables.

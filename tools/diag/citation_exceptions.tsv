@@ -140,3 +140,4 @@ af110e02	external	Stockfish: "Remove classical evaluation", 2023-07-11 (PLAN Pha
 c6ff7fc	external	Rarog: the live head (branch d7-kernel) read for the 2026-11-21 import under the maintainer-asked exception
 61c9c51	external	Rarog: D.7.12, the score printed on a fitted scale and UCI_ShowWDL (the 2026-11-21 import)
 78d4681	external	Rarog: D.7.12, tools/wdl_fit.py, the method reference for C.13.1 (the 2026-11-21 import)
+68e1e9b3	external	Stockfish: the sf_16 release tag, the classical evaluation donor and C.2.5's PST seed
