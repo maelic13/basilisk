@@ -112,12 +112,17 @@ class Convergence(unittest.TestCase):
     def tearDownClass(cls):
         cls.tmp.cleanup()
 
-    def fit(self, lr: str, epochs: str, name: str) -> tuple[subprocess.CompletedProcess, Path]:
+    def fit(self, lr: str, epochs: str, name: str,
+            *extra: str) -> tuple[subprocess.CompletedProcess, Path]:
         out = self.root / f"{name}.txt"
         done = tuner("--surface", str(self.surface), "--tune", "surface", str(self.train),
                      str(self.holdout), str(out), "--K", str(K), "--lr", lr, "--epochs", epochs,
-                     "--patience", "30", "--max-positions", "0")
+                     "--patience", "30", "--max-positions", "0", *extra)
         return done, out
+
+    def target(self, out: Path) -> int:
+        return next(int(line.split()[2]) for line in out.read_text().splitlines()
+                    if line.startswith(f"{TARGET} 0 "))
 
     def test_a_run_with_room_reaches_the_optimum(self):
         done, out = self.fit("1.0", "600", "room")
@@ -131,6 +136,22 @@ class Convergence(unittest.TestCase):
         done, out = self.fit("0.3", "100", "short")
         self.assertEqual(done.returncode, 3, done.stdout[-2000:] + done.stderr)
         self.assertIn("FATAL", done.stderr)
+        self.assertFalse(out.exists(), "an unconverged run must not write a vector")
+
+    def test_a_gain_tolerance_still_reaches_the_optimum(self):
+        # --min-delta stops a run whose gains have fallen below it; one this
+        # small must not stop it short of the optimum.
+        done, out = self.fit("1.0", "600", "tolerant", "--min-delta", "1e-7")
+        self.assertEqual(done.returncode, 0, done.stdout[-2000:] + done.stderr)
+        self.assertIn("above 1e-07", done.stdout)
+        self.assertLessEqual(abs(self.target(out) - (self.seed_value + SHIFT)), 4)
+
+    def test_a_tolerance_cannot_pass_off_a_short_schedule(self):
+        # A tolerance so large that no gain counts stops at the patience
+        # bound, but the travel guard still sees the schedule set the move.
+        done, out = self.fit("0.3", "100", "lenient", "--min-delta", "1")
+        self.assertEqual(done.returncode, 3, done.stdout[-2000:] + done.stderr)
+        self.assertIn("Stopped at epoch 30", done.stdout)
         self.assertFalse(out.exists(), "an unconverged run must not write a vector")
 
 

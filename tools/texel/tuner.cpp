@@ -84,6 +84,7 @@ struct TuneOptions {
     double smooth = 0.0;  // second-difference penalty on the ordered tables; 0 = off
     double K = 0.0;       // the frozen K; 0 = fit it on the holdout, as before
     int patience = 20;    // stop when the holdout has not improved for this many epochs; 0 = off
+    double min_delta = 0.0;  // a gain counts for patience only above this; 0 = any gain
 };
 
 // ---------------------------------------------------------------------------
@@ -317,6 +318,8 @@ static void usage(const char* exe) {
         << "  --smooth X         second-difference penalty on the ordered tables (default 0 = off)\n"
         << "  --K K              the frozen K (also --tune-kingsafety); default: fitted on the holdout\n"
         << "  --patience N       stop when the holdout has not improved for N epochs (default 20; 0 = off)\n"
+        << "  --min-delta X      count a holdout gain for --patience only when it exceeds X (default 0);\n"
+        << "                     a run stopped by patience has converged, and the best vector is kept\n"
         << "  --max-positions N  cap positions loaded from each file (default 5000000; 0 = all)\n"
         << "  A fit whose holdout still improved at its last epoch, or whose largest move\n"
         << "  reached 0.9 x lr x epochs, exits 3: its schedule, not the data, stopped it.\n";
@@ -354,6 +357,8 @@ static TuneOptions parse_tune_options(int argc, char* argv[]) {
             opts.K = parse_double_arg(argv[argi++], "--K");
         } else if (opt == "--patience" && argi < argc) {
             opts.patience = parse_int_arg(argv[argi++], "--patience");
+        } else if (opt == "--min-delta" && argi < argc) {
+            opts.min_delta = parse_nonneg_double_arg(argv[argi++], "--min-delta");
         } else {
             std::cerr << "Unknown or incomplete option: " << opt << "\n";
             usage(argv[0]);
@@ -1837,6 +1842,11 @@ static void cmd_tune(const TuneOptions& opts) {
     double best_holdout = initial_holdout_loss;
     int best_epoch = 0;
     int last_epoch = 0;
+    // Patience reads gains above --min-delta: the loss and epoch of the last
+    // such gain. With --min-delta 0 they are the best loss and its epoch.
+    double gain_holdout = initial_holdout_loss;
+    int gain_epoch = 0;
+    bool stopped_by_patience = false;
 
     std::vector<double> grad(active.size(), 0.0);
     std::vector<double> m(active.size(), 0.0);
@@ -1908,6 +1918,10 @@ static void cmd_tune(const TuneOptions& opts) {
             best_epoch = epoch;
             std::copy(w, w + EVAL_PARAM_FLAT_SIZE, best_w);
         }
+        if (holdout_loss < gain_holdout - opts.min_delta) {
+            gain_holdout = holdout_loss;
+            gain_epoch = epoch;
+        }
         last_epoch = epoch;
 
         if (epoch == 1 || epoch % 10 == 0 || epoch == opts.epochs) {
@@ -1923,9 +1937,12 @@ static void cmd_tune(const TuneOptions& opts) {
                             epoch, train_loss, holdout_loss, ms);
         }
         // Converged: the holdout has not improved for `patience` epochs.
-        if (opts.patience > 0 && epoch - best_epoch >= opts.patience) {
-            std::cout << "Stopped at epoch " << epoch << ": no holdout gain for "
-                      << opts.patience << " epochs.\n";
+        if (opts.patience > 0 && epoch - gain_epoch >= opts.patience) {
+            std::cout << "Stopped at epoch " << epoch << ": no holdout gain";
+            if (opts.min_delta > 0.0)
+                std::cout << " above " << opts.min_delta;
+            std::cout << " for " << opts.patience << " epochs.\n";
+            stopped_by_patience = true;
             break;
         }
     }
@@ -1941,7 +1958,7 @@ static void cmd_tune(const TuneOptions& opts) {
         const double bound = opts.lr * static_cast<double>(last_epoch);
         std::cout << "Largest move " << travel << " of the schedule's bound " << bound
                   << " (lr " << opts.lr << " x " << last_epoch << " epochs).\n";
-        if (best_epoch == last_epoch && best_epoch > 0) {
+        if (!stopped_by_patience && best_epoch == last_epoch && best_epoch > 0) {
             std::cerr << "FATAL: the holdout was still improving at the last epoch, " << last_epoch
                       << "; the run was stopped by its schedule, not converged.\n";
             std::exit(3);
