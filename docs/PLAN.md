@@ -1554,6 +1554,20 @@ has lost games in both engines (BAS-X02).
             60k report is at no bracket budget, so it is not reproduced.
           - Re-read B.9.3's enumeration on the C head (C-133, C-142).
           - Re-run nothing else.
+          Prepared 2026-11-23 (`tools/results/c274/`):
+          - **Binaries:**
+            - truth: the head's `basilisk-c273-head-pext-pgo.exe`
+              (`EDDBA36E…`, bench 4,777,412);
+            - enumeration: `endgame_verdicts.exe` built at `f69a54a`
+              (`1E1F5266…`). It passes its golden fixture test and
+              reproduces B.9.3's KPvK and KBNvK counts.
+          - **Dry runs:** a sliver of the bracket at the three budgets, and
+            the bracket veto of the head against itself (PASS).
+          - **The runner:** `run_c274.py` holds B.9.3's class lists,
+            checked equal to its records. It runs the bracket at 30 workers,
+            then the enumeration (about 40 minutes, the whole CPU), and
+            writes each step's exit status to `status.json`.
+          - **Waits on the maintainer:** the run.
     - [ ] **C.2.8** `[V]` Matched fits and the label-contract gate
       It was C.2.6 until 2026-11-11.
       Matched whole-surface fits of A and B on the current surface, then the
@@ -2193,7 +2207,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.7.4 | READY_FOR_IMPLEMENTATION | V | The bracket is 21,000, 64,000 and 190,000 (BAS-D23 run 2) |
+| C.2.7.4 | LOCAL_QUALIFIED | V | Prepared and dry-run; the 40-minute run is the maintainer's |
 | C.2.8 | RESEARCH | V | Not started |
 | C.2.9 | RESEARCH | I1 | Not started |
 | C.2.10 | RESEARCH | R3 | Not started |
