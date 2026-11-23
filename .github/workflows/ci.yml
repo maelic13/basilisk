@@ -441,7 +441,7 @@ jobs:
           BASILISK_TEXEL: ${{ github.workspace }}/build/texel/basilisk-texel
         run: |
           python="$RUNNER_TEMP/texel-venv/bin/python"
-          for t in test_extract test_surface test_bake test_sample_fens test_fit; do
+          for t in test_extract test_surface test_bake test_sample_fens test_fit test_relabel; do
             echo "== $t"
             "$python" "tools/texel/$t.py" || exit 1
           done

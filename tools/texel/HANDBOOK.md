@@ -43,7 +43,7 @@ knobs with curvature; C.9 decides whether the evaluation gets one.
 | Self-play PGNs | `tools/texel/data/<set>.pgn` (ignored) | Each has `<set>.pgn.manifest.txt` from `datagen.ps1`: engine and book hashes, nodes, seed, natural terminations only. |
 | Corpora | `tools/texel/data/<set>/` (ignored) | `train.csv`, `validation.csv`, `test.csv`, `manifest.json`, under the row contract. Never edited after publication. |
 | Fit runs | `tools/results/fit-<name>/` (ignored) | One directory per run, never reused. |
-| Tablebases | `D:/chess/tablebases/syzygy3456` | Not read by the labels today. A tablebase relabel would be a new row contract (§3). |
+| Tablebases | `D:/chess/tablebases/syzygy3456` | Read only by `relabel.py`, whose corpora name the label contract `basilisk-texel-labels-syzygy-v1` (§3). |
 
 ---
 
@@ -56,6 +56,7 @@ extended by naming what it now accepts.
 | Contract | Defined in | What it guarantees |
 |---|---|---|
 | `basilisk-texel-rows-v1` | `extract.py` | Rows `fen,result,game_id,start_id,ply,phase`. Only rules endings are labelled, with every rejection counted, and the run fails past 1%. Train, validation and test are split by the start's hash. The three files and `manifest.json` (inputs and outputs hashed) are published together and never overwritten. The test split is opened once through `claim_test.py`. |
+| `basilisk-texel-labels-syzygy-v1` | `relabel.py` | A rows-v1 corpus derived from a game-result one, its manifest naming the source by hash. Only `result` changes, and only on a row of six men or fewer with no castling right whose tables probe. There it is the verdict under the row's rule-50 clock, in Stockfish's root_probe form: a win when `dtz + clock <= 100`, a loss when `-dtz + clock <= 100`, otherwise a draw. A verdict labels only its own row. `check` proves the identity. |
 | `basilisk-texel-surface-v1` | `surface.py` → `surface_v1.tsv` | Every slot of the tuner's registry is classed free, fixed or excluded, with a stage, anchor, bounds, step and reason. Built from the registry by rule; `check` fails on drift. |
 | `basilisk-texel-vector-v1` | `tuner.cpp`, `bake.py` | A complete `name index value` vector carrying `# root` and `# seed` hashes (FNV-1a 64 over its canonical lines). `--init` refuses a partial one; `bake.py` refuses one whose root is not the header it would overwrite. |
 | `basilisk-texel-fit-v1` | `fit.py` → `run.json` | A run's inputs and outputs, hashed, and every step's command, exit status, time and log. |
