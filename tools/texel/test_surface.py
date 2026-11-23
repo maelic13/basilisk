@@ -217,10 +217,39 @@ class Guard(unittest.TestCase):
 
 
 class Orientation(unittest.TestCase):
-    def test_pesto_fixture_reads_whole(self):
-        tables = surface.pesto_tables()
-        self.assertEqual(len(tables), 12)
-        self.assertEqual(tables[1][0], -167)  # mg knight a8, as published
+    """seed_sf16.py's import check: chess facts, not a published table."""
+
+    def tables(self):
+        import seed_sf16
+        tables = {"mg": [[0] * 64 for _ in range(6)], "eg": [[0] * 64 for _ in range(6)]}
+        for sq in range(64):
+            rank = sq // 8 + 1
+            tables["mg"][5][sq] = 270 - 30 * rank  # a home-rank king
+            tables["mg"][1][sq] = 10 * min(rank, 6)  # a knight that likes to advance
+            tables["eg"][0][sq] = 4 * rank if 2 <= rank <= 7 else 0  # a pawn's march
+        return seed_sf16, tables
+
+    def test_a_home_rank_king_passes(self):
+        seed_sf16, tables = self.tables()
+        self.assertEqual(seed_sf16.orientation_violations(tables), [])
+        seed_sf16.check_orientation(tables, flip=False)
+
+    def test_its_rank_flip_fails_by_name(self):
+        seed_sf16, tables = self.tables()
+        tables["mg"][5] = seed_sf16.flipped(tables["mg"][5])
+        broken = seed_sf16.orientation_violations(tables)
+        self.assertEqual(len(broken), 1)
+        self.assertIn("king", broken[0])
+        with self.assertRaises(SystemExit):
+            seed_sf16.check_orientation(tables, flip=False)
+
+    def test_the_flipped_arm_must_break_every_fact(self):
+        seed_sf16, tables = self.tables()
+        seed_sf16.check_orientation(tables, flip=True)  # all three break once flipped
+        # An upside-down pawn table keeps its fact once flipped.
+        tables["eg"][0] = seed_sf16.flipped(tables["eg"][0])
+        with self.assertRaises(SystemExit):
+            seed_sf16.check_orientation(tables, flip=True)
 
 
 @unittest.skipUnless(os.environ.get("BASILISK_TEXEL"), "set BASILISK_TEXEL to a basilisk-texel binary")

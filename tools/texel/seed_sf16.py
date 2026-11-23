@@ -23,6 +23,14 @@ the shape of ``sf_16``'s ``psqt.cpp`` (GPL-3, like Basilisk).
   as they are.
 * **Direction arm.** ``--flip`` mirrors every table by rank, the wrong
   orientation, for the two-arm direction test (C-22, C-23).
+* **Orientation, checked at the import.** The parsed tables, in Stockfish's
+  units before scale and level, must obey three chess facts that the parser
+  did not produce: the middlegame king is worth more on its first rank than
+  on its eighth, the middlegame knight more on the sixth rank than on the
+  third, and the endgame pawn (``PBonus``, the separately indexed path) more
+  on the sixth than on the third. An unflipped seed that breaks any is
+  refused; a flipped seed must break all three. PeSTO is no reference here:
+  its king table is not shaped like Stockfish 16's.
 
 The vector's ``# root`` is the header's default vector, so a fit started from
 it bakes into this header.
@@ -81,6 +89,42 @@ def sf16_tables(text: str) -> dict[str, list[list[int]]]:
     return tables
 
 
+ORIENTATION_FACTS = (
+    # (phase, piece, higher rank, lower rank, what it says), ranks 1 to 8
+    ("mg", 5, 1, 8, "the middlegame king is worth more on its first rank than on its eighth"),
+    ("mg", 1, 6, 3, "the middlegame knight is worth more on the sixth rank than on the third"),
+    ("eg", 0, 6, 3, "the endgame pawn is worth more on the sixth rank than on the third"),
+)
+
+
+def rank_mean(table: list[int], rank: int) -> float:
+    return sum(table[(rank - 1) * 8 + f] for f in range(8)) / 8
+
+
+def flipped(table: list[int]) -> list[int]:
+    return [table[(7 - s // 8) * 8 + s % 8] for s in range(64)]
+
+
+def orientation_violations(tables: dict[str, list[list[int]]]) -> list[str]:
+    """The orientation facts a set of tables (White's view, a1 first) breaks."""
+    return [fact for phase, piece, high, low, fact in ORIENTATION_FACTS
+            if not rank_mean(tables[phase][piece], high) > rank_mean(tables[phase][piece], low)]
+
+
+def check_orientation(tables: dict[str, list[list[int]]], flip: bool) -> None:
+    """Refuse an unflipped seed that breaks a fact, and a flipped one that
+    keeps any: the wrong arm must be wrong."""
+    if flip:
+        broken = orientation_violations({p: [flipped(t) for t in tables[p]] for p in tables})
+        if len(broken) != len(ORIENTATION_FACTS):
+            raise SystemExit("the flipped tables still keep an orientation fact; the parse is "
+                             "not what --flip assumes")
+    else:
+        broken = orientation_violations(tables)
+        if broken:
+            raise SystemExit("the parsed tables are upside down: " + "; ".join(broken))
+
+
 def live(piece: int) -> list[int]:
     return list(range(8, 56)) if piece == 0 else list(range(64))
 
@@ -98,7 +142,7 @@ def seed_vector(header_text: str, tables, scale: float, flip: bool):
             squares = live(piece)
             sf = tables[phase][piece]
             if flip:
-                sf = [sf[(7 - s // 8) * 8 + s % 8] for s in range(64)]
+                sf = flipped(sf)
             cur_mean = sum(current[name][s] for s in squares) / len(squares)
             sf_mean = sum(sf[s] for s in squares) / len(squares)
             table = dict(current[name])
@@ -123,6 +167,7 @@ def main(argv=None) -> int:
         raise SystemExit(f"refusing to overwrite {args.out}")
     header_text = args.header.read_text(encoding="utf-8")
     tables = sf16_tables(read_psqt(args.stockfish))
+    check_orientation(tables, args.flip)
     vector, root = seed_vector(header_text, tables, args.scale, args.flip)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w", encoding="utf-8", newline="\n") as out:

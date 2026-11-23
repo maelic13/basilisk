@@ -22,7 +22,7 @@ The tracked manifest is their output, and ``check`` fails when it drifts.
     python tools/texel/surface.py rank   --tuner EXE --corpus CSV [--support-positions N]
                                          [--rank-positions N] [--min-support N]
                                          [--out DERIVED.tsv]
-    python tools/texel/surface.py check-vector --tuner EXE VECTOR [--seed]
+    python tools/texel/surface.py check-vector --tuner EXE VECTOR
 
 ``rank`` reads a corpus on two row sets, named apart (C-52, the C.2.8
 registration's Amendment 1):
@@ -50,15 +50,15 @@ entries that way. A frozen slot in a mean-anchored table is allowed and
 printed. With ``--out`` and no failure it writes the corpus's manifest.
 
 ``check-vector`` validates a complete ``name index value`` vector: every slot
-exactly once, the structural zeros zero, and with ``--seed`` the PST
-orientation test (a seed table sits closer to PeSTO's a1-first table than to
-its rank mirror).
+exactly once, the structural zeros zero. It no longer holds a table to PeSTO:
+that test failed the correct Stockfish 16 seed and ties on any re-levelled
+table. A seed's orientation is checked where a table is imported, by
+``seed_sf16.py``'s chess facts.
 """
 
 from __future__ import annotations
 
 import argparse
-import re
 import subprocess
 import sys
 import tempfile
@@ -71,8 +71,6 @@ HEADER = ("index", "group", "sub", "seed", "class", "stage", "anchor", "lo", "hi
 DEFAULT_MANIFEST = ROOT / "tools" / "texel" / "surface_v1.tsv"
 
 PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
-PST_GROUPS = [f"Pst{phase}{piece}" for phase in ("Mg", "Eg")
-              for piece in ("Pawn", "Knight", "Bishop", "Rook", "Queen", "King")]
 MOBILITY_GROUPS = [f"Mob{piece}{phase}" for piece in "NBRQ" for phase in ("Mg", "Eg")]
 # The king-danger knobs: they shape the integer index the safety table is read
 # at, so no linear trace reaches them. Bounds are the descent's, and each first
@@ -501,38 +499,16 @@ def cmd_rank(args) -> int:
     return 0
 
 
-def pesto_tables() -> list[list[int]]:
-    """PeSTO's twelve tables as published (rank 8 first, mg then eg, pawn to
-    king), read from the one fixture that holds them, tests/test_eval.cpp."""
-    text = (ROOT / "tests" / "test_eval.cpp").read_text(encoding="utf-8")
-    start = text.index("PESTO_PUBLISHED[2][6][64] = {")
-    body = text[start:text.index("};", start)]
-    numbers = [int(n) for n in re.findall(r"-?\d+", body.split("= {", 1)[1])]
-    if len(numbers) != 2 * 6 * 64:
-        raise SystemExit(f"error: read {len(numbers)} PeSTO values, not 768")
-    return [numbers[k * 64:(k + 1) * 64] for k in range(12)]
-
-
 def cmd_check_vector(args) -> int:
     rows = classify(registry(args.tuner, args.vector))  # the tuner refuses a partial vector
     errors = [f"{row.group}[{row.sub}] = {row.seed}, a dead slot"
               for row in rows if row.klass == "fixed"
               and row.reason.startswith(("dead", "structural zero")) and row.seed != 0]
-    if args.seed:
-        tables = pesto_tables()
-        for k, group in enumerate(PST_GROUPS):
-            table = [row.seed for row in rows if row.group == group]
-            to_a1_first = sum(abs(table[sq] - tables[k][sq ^ 56]) for sq in range(64))
-            to_mirror = sum(abs(table[sq] - tables[k][sq]) for sq in range(64))
-            if not to_a1_first < to_mirror:
-                errors.append(f"{group}: closer to PeSTO's rank mirror ({to_mirror}) than to its "
-                              f"a1-first table ({to_a1_first}); the table is upside down")
     if errors:
         print("\n".join(errors), file=sys.stderr)
         print(f"FAIL: {args.vector}", file=sys.stderr)
         return 1
-    print(f"PASS: {args.vector}: all {len(rows)} slots"
-          + (", the PSTs a1-first" if args.seed else ""))
+    print(f"PASS: {args.vector}: all {len(rows)} slots")
     return 0
 
 
@@ -559,8 +535,6 @@ def main() -> int:
             cmd.add_argument("--out", type=Path)
         if name == "check-vector":
             cmd.add_argument("vector", type=Path)
-            cmd.add_argument("--seed", action="store_true",
-                             help="also the PST orientation test, for a seed vector")
     args = parser.parse_args()
     return {"build": cmd_build, "check": cmd_check, "rank": cmd_rank,
             "check-vector": cmd_check_vector}[args.command](args)

@@ -192,9 +192,11 @@ mobility tables' frozen entry 0 is their floor.
    * `test_eval`'s line.
 6. Bake the final vector in its own engine commit. A test whose precondition
    depends on fitted weights gets its fixture fixed in a separate commit, with
-   the reason (C-70). C.2.8's first bake also moves `test_eval`'s PST
-   orientation test from the engine's defaults onto the seed vector, so a
-   fitted table is no longer held to PeSTO.
+   the reason (C-70). C.2.8's first bake retired `test_eval`'s PST
+   orientation test: it held fitted tables to PeSTO, and its criterion
+   failed the correct Stockfish 16 seed and ties on a re-levelled table.
+   Orientation is checked where a table is imported: `seed_sf16.py` refuses
+   parsed tables that break its three chess facts.
 7. Build clean PGO and run the registered gate.
 8. After selection, claim the test split once and report it.
 
