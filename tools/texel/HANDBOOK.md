@@ -142,10 +142,29 @@ knobs and 96 fixed. What is fixed, and why:
   * `ImbOur[6]` and `ImbOur[9]` restate the pair while no side has three
     bishops.
 
-`rank` must find full rank under the anchors on every corpus. Slots under
-`--min-support` rows (200 by default) are frozen for that corpus. The linear
-clamps stay in the tuner's code. They are checked at the seed, never move a
-held slot, and run after the anchors.
+`rank` reads a corpus on two row sets, named apart:
+* **Support** is counted on the rows the linear stages read: `fit.py` passes
+  its `--max-positions` as `--support-positions`. A slot's support is the
+  number of those rows whose coefficient is nonzero, counted exactly by the
+  tuner's streamed `--count-support`. Slots under `--min-support` rows (200
+  by default) are frozen for that corpus, and each reason gives the count
+  and the rows counted. `--feature-support` counts something else: raw
+  traces on every row, left-out rows included.
+* **The rank** is read on the first `--rank-positions` rows (300,000 by
+  default), over the slots the count left free. It must be full under the
+  anchors. A free slot with no row in that sample fails by name, as a sample
+  too small, apart from an identity.
+
+**The guard.** `rank` fails, and writes no manifest, when a support-frozen
+slot belongs to a table (a group of more than one slot) that keeps a free
+linear member and no mean anchor. Such a table's level can move away from
+the frozen entry. A frozen slot in a mean-anchored table is allowed and
+printed.
+
+The linear clamps and monotone chains stay in the tuner's code. They are
+checked at the seed, never move a held slot, and run after the anchors. A
+held entry in a chain bounds its free neighbours: on corpus A, the queen
+mobility tables' frozen entry 0 is their floor.
 
 ---
 
@@ -211,6 +230,15 @@ Each of these cost real work here.
    not bench equality alone.
 9. **Loss is not Elo.** Register the gate.
 10. **Check exit status directly**, not through a pipe: `cmd > log 2>&1; echo $?`.
+11. **Support counted on a sample is a different threshold.** C.2.8's run 1
+    froze slots under 200 rows of a 30,000-row sample, about 23,650 rows of
+    the train split. That froze 242 slots where the whole split freezes two.
+    Its 204 frozen PST entries stayed at the seed while their tables
+    re-levelled by up to 215 cp. Support is counted on the fit's own rows.
+12. **Two fits of nearly the same data differ by about 2e-5 by their path
+    alone.** C.2.8's corpus-B fit was worse than corpus A's on both label
+    sets by that much. Compare matched arms on each other's labels, and take
+    the difference of their advantages.
 
 ---
 
@@ -229,7 +257,9 @@ Measured on the Ryzen 9 5950X in 2026-11 (C.2.1). The fit timings are for a
 | Rows left out of the fit (overrides and verdicts) | about 7% |
 | Rows at the lazy checkpoint | about 9% |
 | K on that corpus's validation | 1.714; by band 1.44 (opening) to 1.94 (endgame) |
-| `rank` on 30,000 rows | 2 min; under 200 rows of support, 269 slots |
+| `rank` on 30,000 rows (C.2.1, support on the sample) | 2 min; under 200 rows of support, 269 slots |
+| Support on corpus A's train split (3,547,892 rows) | under 200 rows: 2 slots, `MobQMg[0]` and `MobQEg[0]` |
+| `rank` on 300,000 rows, corpus A | 1,013 of 1,013 under the anchors |
 | `fit.py` end to end, 100,000 rows, trees built | well under a minute after the builds |
 | Full scale, 3.5M rows | sparse rows; a dense matrix would need 14 GB |
 

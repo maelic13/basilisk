@@ -9,6 +9,13 @@ It replaces tools/texel/phase911.ps1. What it guarantees (PLAN C.2.1.4):
   recorded. The corpus is a basilisk-texel-rows-v1 manifest whose files hash
   as published, with no parse errors. The surface manifest is checked against
   the tuner's registry. Every input and output is hashed in ``run.json``.
+* **The corpus's surface** is ``surface.py rank``'s. Support is counted
+  exactly on the rows the linear stages read (``--max-positions``), and every
+  slot under ``--min-support`` is frozen; the rank is read on the first
+  ``--rank-positions`` rows. A support-frozen slot in a table whose level is
+  free, or a free slot absent from the rank sample, stops the run before K is
+  fitted. ``run.json`` records the rows counted, the threshold, the frozen
+  slots with their counts and the free linear count.
 * **It builds its own binaries** from that tree, a traced tuner and a release
   engine, in ``--build-dir``, and never touches a production binary. The
   release engine must reproduce ``--expect-bench`` before anything is fitted.
@@ -217,6 +224,40 @@ def write_seed(path: Path, vector: list[tuple[str, int, int]], header_text: str)
                     encoding="utf-8", newline="\n")
 
 
+def rank_command(surface_tool: list[str], tuner: Path, manifest: Path, train: Path, derived: Path,
+                 args) -> list[str]:
+    """`surface.py rank` on the linear stages' rows (the support rows) and the
+    rank sample, named apart."""
+    return [*surface_tool, "rank", "--tuner", str(tuner), "--manifest", str(manifest),
+            "--corpus", str(train), "--support-positions", str(args.max_positions),
+            "--rank-positions", str(args.rank_positions), "--min-support", str(args.min_support),
+            "--out", str(derived)]
+
+
+FROZEN_REASON = re.compile(r"frozen: (\d+) rows of support, under (\d+), on (\d+) rows of ")
+
+
+def support_record(derived: Path) -> dict:
+    """The derived manifest's support freeze, for ``run.json``."""
+    lines = [line.split("\t") for line in derived.read_text(encoding="utf-8").splitlines()[1:]]
+    head, rows = lines[0], lines[1:]
+    col = {name: k for k, name in enumerate(head)}
+    frozen, counted, threshold = [], set(), set()
+    for row in rows:
+        match = FROZEN_REASON.match(row[col["reason"]])
+        if match:
+            frozen.append({"slot": f"{row[col['group']]}[{row[col['sub']]}]", "support": int(match.group(1))})
+            threshold.add(int(match.group(2)))
+            counted.add(int(match.group(3)))
+    if len(counted) > 1 or len(threshold) > 1:
+        raise FitError(f"{derived} froze on more than one row count or threshold")
+    return {"rows_counted": counted.pop() if counted else None,
+            "min_support": threshold.pop() if threshold else None,
+            "frozen": frozen,
+            "free_linear": sum(1 for row in rows
+                               if row[col["class"]] == "free" and row[col["stage"]] == "linear")}
+
+
 def stage_command(stage: str, tuner: Path, common: list[str], train: Path, validation: Path,
                   out: Path, K: float, args) -> tuple[list[str], dict]:
     """One stage's tuner command and the settings it runs with."""
@@ -278,11 +319,10 @@ def fit(args, run: Run) -> None:
     surface_tool = [sys.executable, str(ROOT / "tools" / "texel" / "surface.py")]
     run.step("surface-check", [*surface_tool, "check", "--tuner", str(tuner), "--manifest", str(args.surface)])
     derived = run.out / "surface.tsv"
-    run.step("surface-rank", [*surface_tool, "rank", "--tuner", str(tuner), "--manifest", str(args.surface),
-                              "--corpus", str(args.corpus / "train.csv"), "--max-positions",
-                              str(args.rank_positions), "--min-support", str(args.min_support),
-                              "--out", str(derived)])
+    run.step("surface-rank", rank_command(surface_tool, tuner, args.surface, args.corpus / "train.csv",
+                                          derived, args))
     rec["surface"]["derived"] = {"file": derived.name, "sha256": sha256(derived)}
+    rec["surface"]["support"] = support_record(derived)
     train = args.corpus / corpus["output"]["train"]["file"]
     validation = args.corpus / corpus["output"]["validation"]["file"]
     run.step("verify-seed", [str(tuner), "--verify", str(validation), "--max-positions", "0"])
@@ -379,7 +419,8 @@ def main() -> int:
     parser.add_argument("--smooth", type=float, default=0.0)
     parser.add_argument("--max-positions", type=int, default=5_000_000)
     parser.add_argument("--ks-positions", type=int, default=100_000)
-    parser.add_argument("--rank-positions", type=int, default=30_000)
+    parser.add_argument("--rank-positions", type=int, default=300_000,
+                        help="the rank sample; support is counted on the linear stages' rows")
     parser.add_argument("--min-support", type=int, default=200)
     args = parser.parse_args()
     args.corpus = args.corpus.resolve()

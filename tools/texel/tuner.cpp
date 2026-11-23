@@ -286,6 +286,7 @@ static void usage(const char* exe) {
         << "  " << exe << " --dump-played <dataset.csv> <out.txt>\n"
         << "  " << exe << " --list-params\n"
         << "  " << exe << " --dump-coeffs <dataset.csv> <out.f64> [--max-positions N]\n"
+        << "  " << exe << " --count-support <dataset.csv> <out.txt> [--max-positions N]\n"
         << "  Every mode also takes --init FILE (a complete `name index value` vector to\n"
         << "  start from) and --surface FILE (the surface manifest; --tune surface fits its\n"
         << "  free linear slots, --tune-kingsafety its king-safety knobs).\n"
@@ -1251,23 +1252,20 @@ static void cmd_list_params() {
         std::printf("%zu\t%s\t%d\t%d\n", i, all[i].group, all[i].sub, *all[i].value);
 }
 
-// The fit's coefficient matrix on the rows a fit uses: for each row, every
-// slot's d(played score)/d(weight) at the seed, float64 little-endian, one
-// row of EVAL_PARAM_FLAT_SIZE after another. tools/texel/surface.py reads it
-// for each slot's support and for the rank of the free columns.
-static void cmd_dump_coeffs(const std::string& path, const std::string& out_path, int limit) {
+// The rows a fit uses, in file order, and each one's coefficients: every
+// slot's d(played score)/d(weight) at the seed. --dump-coeffs and
+// --count-support both walk them here, so the support a manifest freezes on
+// is counted on exactly the rows and the definition the rank reads. Stops
+// after `limit` used rows when it is positive.
+template <class RowFn>
+static void for_each_coeff_row(const std::string& path, int limit, RowFn&& row_fn) {
     RowReader rows(path);
     auto ev_ptr = std::make_unique<Evaluator>();
     Board board;
     std::string fen, target;
-    std::ofstream out(out_path, std::ios::binary);
-    if (!out) {
-        std::cerr << "Cannot write " << out_path << "\n";
-        std::exit(1);
-    }
     ModelCounts counts;
     std::vector<double> coeff(EVAL_PARAM_FLAT_SIZE);
-    long written = 0;
+    long used = 0;
     while (rows.next(fen, target)) {
         if (auto r = board.try_set_fen(fen); !r) { rows.reject("FEN error: " + std::string(r.error())); continue; }
         g_trace = {};
@@ -1283,14 +1281,51 @@ static void cmd_dump_coeffs(const std::string& path, const std::string& out_path
             coeff[static_cast<size_t>(i)] =
                 (model.trace->mg[i] * model.trace->phase + model.trace->eg[i] * (24 - model.trace->phase))
                 / 24.0 * model.scale;
-        out.write(reinterpret_cast<const char*>(coeff.data()),
-                  static_cast<std::streamsize>(coeff.size() * sizeof(double)));
-        if (limit > 0 && ++written >= limit)
+        row_fn(coeff);
+        if (limit > 0 && ++used >= limit)
             break;
     }
     counts.print(path);
     if (counts.mismatches)
         std::exit(2);
+}
+
+// The fit's coefficient matrix on the rows a fit uses, float64 little-endian,
+// one row of EVAL_PARAM_FLAT_SIZE after another. tools/texel/surface.py reads
+// it for the rank of the free columns on a sample.
+static void cmd_dump_coeffs(const std::string& path, const std::string& out_path, int limit) {
+    std::ofstream out(out_path, std::ios::binary);
+    if (!out) {
+        std::cerr << "Cannot write " << out_path << "\n";
+        std::exit(1);
+    }
+    for_each_coeff_row(path, limit, [&](const std::vector<double>& coeff) {
+        out.write(reinterpret_cast<const char*>(coeff.data()),
+                  static_cast<std::streamsize>(coeff.size() * sizeof(double)));
+    });
+}
+
+// Each slot's support on the rows a fit uses: the number of rows whose
+// coefficient (--dump-coeffs's) is nonzero, streamed, so a whole train split
+// needs no dense matrix. Writes `rows N`, then `index count` for every slot.
+// It reads the evaluation and changes no weight and no loss.
+static void cmd_count_support(const std::string& path, const std::string& out_path, int limit) {
+    std::vector<long> support(EVAL_PARAM_FLAT_SIZE, 0);
+    long used = 0;
+    for_each_coeff_row(path, limit, [&](const std::vector<double>& coeff) {
+        for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i)
+            if (coeff[static_cast<size_t>(i)] != 0.0)
+                ++support[static_cast<size_t>(i)];
+        ++used;
+    });
+    std::ofstream out(out_path);
+    if (!out) {
+        std::cerr << "Cannot write " << out_path << "\n";
+        std::exit(1);
+    }
+    out << "rows " << used << "\n";
+    for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i)
+        out << i << ' ' << support[static_cast<size_t>(i)] << "\n";
 }
 
 // The played score of every row, side to move, hashed in file order exactly as
@@ -2366,6 +2401,12 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         cmd_dump_coeffs(argv[2], argv[3], argc == 6 ? parse_int_arg(argv[5], "--max-positions") : 0);
+    } else if (mode == "--count-support") {
+        if (argc != 4 && !(argc == 6 && std::string(argv[4]) == "--max-positions")) {
+            usage(argv[0]);
+            return 1;
+        }
+        cmd_count_support(argv[2], argv[3], argc == 6 ? parse_int_arg(argv[5], "--max-positions") : 0);
     } else if (mode == "--verify") {
         if (argc != 3 && !(argc == 5 && std::string(argv[3]) == "--max-positions")) {
             usage(argv[0]);

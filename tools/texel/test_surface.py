@@ -132,6 +132,89 @@ class Rank(unittest.TestCase):
         self.assertEqual(report.derived[0].anchor, "")  # a set of one is no anchor
         self.assertEqual(report.null, 0)
 
+    def test_a_tall_sample_reads_the_same_rank(self):
+        # The QR step for a tall sample keeps the singular values.
+        x = self.rng.normal(size=(2000, 4))
+        matrix = np.column_stack([x, x[:, 0] - x[:, 2]])
+        report = surface.analyse(matrix, free_rows(5), 1, 1e-6, "synthetic")
+        self.assertEqual(report.null, 1)
+        self.assertEqual(len(report.relative), 5)
+
+
+class SupportRows(unittest.TestCase):
+    """Support counted on the support rows, apart from the rank sample
+    (the C.2.8 registration's Amendment 1)."""
+
+    def setUp(self):
+        self.rng = np.random.default_rng(11)
+        self.sample = self.rng.normal(size=(300, 3))
+        self.sample[:, 2] = 0.0
+        self.sample[:5, 2] = 1.0  # 5 rows of 300 in the sample
+
+    def test_run_1s_defect_rare_in_the_sample_but_supported_stays_free(self):
+        # Run 1 froze a slot by its count in a 30,000-row sample.
+        report = surface.analyse(self.sample, free_rows(3), 10, 1e-6, "c", support=[300, 300, 500],
+                                 support_rows=10_000)
+        self.assertEqual(report.frozen, [])
+        self.assertEqual(report.derived[2].klass, "free")
+
+    def test_frequent_in_the_sample_but_rare_in_the_support_rows_freezes(self):
+        sample = self.rng.normal(size=(300, 3))
+        report = surface.analyse(sample, free_rows(3), 10, 1e-6, "c", support=[300, 300, 7],
+                                 support_rows=10_000)
+        self.assertEqual(report.frozen, [2])
+        self.assertIn("frozen: 7 rows of support, under 10, on 10000 rows of c",
+                      report.derived[2].reason)
+
+    def test_a_free_slot_absent_from_the_sample_is_a_sample_too_small(self):
+        sample = self.rng.normal(size=(300, 3))
+        sample[:, 1] = 0.0
+        report = surface.analyse(sample, free_rows(3), 10, 1e-6, "c", support=[300, 300, 300],
+                                 support_rows=10_000)
+        self.assertEqual(report.absent, [1])
+        self.assertEqual(report.null, 0)  # named apart, not as an identity
+
+    def test_a_duplicated_column_is_still_a_null_direction(self):
+        x = self.rng.normal(size=(300, 2))
+        sample = np.column_stack([x, x[:, 0]])
+        report = surface.analyse(sample, free_rows(3), 10, 1e-6, "c", support=[300, 300, 300],
+                                 support_rows=10_000)
+        self.assertEqual(report.absent, [])
+        self.assertEqual(report.null, 1)
+
+
+class Guard(unittest.TestCase):
+    """A support-frozen slot must not sit in a table whose level is free."""
+
+    def report(self, rows, support):
+        sample = np.random.default_rng(3).normal(size=(300, len(rows)))
+        return surface.analyse(sample, rows, 10, 1e-6, "c", support=support, support_rows=10_000)
+
+    def test_it_fails_by_name_in_an_unanchored_table_with_a_free_member(self):
+        report = self.report(free_rows(4), [300, 300, 300, 5])
+        self.assertEqual(report.stranded, [(3, "G")])
+        self.assertFalse(report.anchored[3])
+
+    def test_it_passes_in_a_mean_anchored_table(self):
+        report = self.report(free_rows(4, "mean:G"), [300, 300, 300, 5])
+        self.assertEqual(report.stranded, [])
+        self.assertTrue(report.anchored[3])
+
+    def test_it_passes_for_a_tables_only_slot(self):
+        rows = [surface.Row(0, "A", 0, 0), surface.Row(1, "B", 0, 0)]
+        self.assertEqual(self.report(rows, [300, 5]).stranded, [])
+
+    def test_it_passes_where_every_other_member_is_fixed(self):
+        rows = free_rows(3)
+        rows[0].fixed("structural zero")
+        rows[1].fixed("gauge anchor")
+        self.assertEqual(self.report(rows, [300, 300, 5]).stranded, [])
+
+    def test_an_anchor_left_with_one_member_holds_nothing(self):
+        # Freezing one of two anchored entries frees the other's level.
+        report = self.report(free_rows(2, "mean:G"), [300, 5])
+        self.assertEqual(report.stranded, [(1, "G")])
+
 
 class Orientation(unittest.TestCase):
     def test_pesto_fixture_reads_whole(self):
@@ -148,6 +231,25 @@ class AgainstTheTuner(unittest.TestCase):
                                "--tuner", os.environ["BASILISK_TEXEL"]],
                               capture_output=True, text=True, check=False)
         self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+
+    def test_the_streamed_count_is_the_dense_dumps(self):
+        import subprocess
+        import tempfile
+        tuner = str(Path(os.environ["BASILISK_TEXEL"]).resolve())
+        rows = HERE / "test_positions.csv"
+        width = len(surface.read_manifest(surface.DEFAULT_MANIFEST))
+        for limit in ([], ["--max-positions", "4"]):
+            with self.subTest(limit=limit), tempfile.TemporaryDirectory() as tmp:
+                dump, counted = Path(tmp) / "c.f64", Path(tmp) / "s.txt"
+                for mode, out in (("--dump-coeffs", dump), ("--count-support", counted)):
+                    done = subprocess.run([tuner, mode, str(rows), str(out), *limit],
+                                          capture_output=True, text=True, check=False)
+                    self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
+                matrix = np.fromfile(dump, dtype="<f8").reshape(-1, width)
+                used, support = surface.read_support(counted, width)
+                self.assertEqual(used, matrix.shape[0])
+                self.assertGreater(used, 0)
+                self.assertEqual(support, np.count_nonzero(matrix, axis=0).tolist())
 
 
 if __name__ == "__main__":

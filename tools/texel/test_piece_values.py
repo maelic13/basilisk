@@ -148,6 +148,28 @@ class FitDriver(unittest.TestCase):
         self.assertIn("--tune-kingsafety", cmd)
         self.assertEqual(settings, {"max_positions": 100000})
 
+    def test_rank_counts_support_on_the_linear_stages_rows(self) -> None:
+        cmd = fit.rank_command(["surface.py"], Path("tuner"), Path("m.tsv"), Path("train.csv"),
+                               Path("d.tsv"), self.args(max_positions=1234, rank_positions=300000,
+                                                        min_support=200))
+        self.assertEqual(cmd[cmd.index("--support-positions") + 1], "1234")
+        self.assertEqual(cmd[cmd.index("--rank-positions") + 1], "300000")
+        self.assertNotIn("--max-positions", cmd)
+
+    def test_the_support_record(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            derived = Path(tmp) / "d.tsv"
+            derived.write_text(
+                "# basilisk-texel-surface-v1 test\n"
+                "index\tgroup\tsub\tseed\tclass\tstage\tanchor\tlo\thi\tstep\treason\n"
+                "0\tMobQMg\t0\t0\tfixed\t\t\t\t\t\tfrozen: 10 rows of support, under 200, "
+                "on 3547892 rows of train.csv\n"
+                "1\tMobQMg\t1\t0\tfree\tlinear\tmean:MobQMg\t\t\t\ta traced linear term\n",
+                encoding="utf-8")
+            record = fit.support_record(derived)
+        self.assertEqual(record, {"rows_counted": 3547892, "min_support": 200,
+                                  "frozen": [{"slot": "MobQMg[0]", "support": 10}], "free_linear": 1})
+
     def test_loss_records_carry_the_lazy_share(self) -> None:
         text = ("v.csv: 2000 rows used (227 at the lazy checkpoint), 115 overrides\n"
                 "rows: 2000\nK: 2.009866\nloss: 0.09982406\n")

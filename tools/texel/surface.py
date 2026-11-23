@@ -19,16 +19,35 @@ The tracked manifest is their output, and ``check`` fails when it drifts.
 
     python tools/texel/surface.py build  --tuner EXE [--out FILE]
     python tools/texel/surface.py check  --tuner EXE [--manifest FILE]
-    python tools/texel/surface.py rank   --tuner EXE --corpus CSV [--max-positions N]
-                                         [--min-support N] [--out DERIVED.tsv]
+    python tools/texel/surface.py rank   --tuner EXE --corpus CSV [--support-positions N]
+                                         [--rank-positions N] [--min-support N]
+                                         [--out DERIVED.tsv]
     python tools/texel/surface.py check-vector --tuner EXE VECTOR [--seed]
 
-``rank`` reads the fit's coefficient matrix on a corpus (``basilisk-texel
---dump-coeffs``): each free linear slot's support (rows where its coefficient
-is nonzero), and the rank of the free columns under the mean anchors. It
-fails when a direction the data cannot see survives the anchors. With
-``--out`` it writes the corpus's manifest, with every free linear slot under
-``--min-support`` fixed (support-based freezing).
+``rank`` reads a corpus on two row sets, named apart (C-52, the C.2.8
+registration's Amendment 1):
+
+* **The support rows**, the first ``--support-positions`` rows a fit uses (0:
+  all of them; ``fit.py`` passes its linear stages' ``--max-positions``).
+  Each free linear slot's support is the number of those rows whose
+  coefficient is nonzero, ``--dump-coeffs``'s rows and definition, counted
+  exactly by the tuner's streamed ``--count-support``. Every slot under
+  ``--min-support`` is frozen, and its reason gives the count and the rows
+  counted. Counted on a sample, the same threshold would be a far stricter
+  one: 200 rows of 30,000 froze 240 slots that the whole split supports.
+  ``--feature-support`` counts something else, raw traces on every row.
+* **The rank sample**, the first ``--rank-positions`` rows: the dense
+  coefficient matrix (``--dump-coeffs``) and the rank of the free columns
+  under the mean anchors. It fails when a direction the data cannot see
+  survives the anchors, and, by name, when a free slot has no row in the
+  sample: a sample too small, not an identity.
+
+**The guard.** ``rank`` fails, naming every slot and table, when a
+support-frozen slot belongs to a table (a registry group of more than one
+slot) that keeps a free linear member and no mean anchor. Such a table's
+level can move while the frozen entry stays: run 1 of C.2.8 stranded 153 PST
+entries that way. A frozen slot in a mean-anchored table is allowed and
+printed. With ``--out`` and no failure it writes the corpus's manifest.
 
 ``check-vector`` validates a complete ``name index value`` vector: every slot
 exactly once, the structural zeros zero, and with ``--seed`` the PST
@@ -319,13 +338,40 @@ class RankReport:
     relative: object
     null: int
     directions: list[tuple[float, list[tuple[str, float]]]]
+    support_rows: int = 0
+    absent: list[int] = field(default_factory=list)
+    stranded: list[tuple[int, str]] = field(default_factory=list)
+    anchored: dict[int, bool] = field(default_factory=dict)
 
 
-def analyse(matrix, rows: list[Row], min_support: int, weak: float, corpus: str) -> RankReport:
+def stranded_slots(derived: list[Row], frozen: list[int]) -> tuple[list[tuple[int, str]], dict[int, bool]]:
+    """The guard: each support-frozen slot whose table (a group of more than
+    one slot) keeps a free linear member and no mean anchor, with its group;
+    and, for every frozen slot, whether its table's level is held."""
+    groups: dict[str, list[int]] = {}
+    for row in derived:
+        groups.setdefault(row.group, []).append(row.index)
+    stranded, anchored = [], {}
+    for slot in frozen:
+        members = groups[derived[slot].group]
+        free = [m for m in members if derived[m].klass == "free" and derived[m].stage == "linear"]
+        held = any(derived[m].anchor for m in free)
+        anchored[slot] = held
+        if len(members) > 1 and free and not held:
+            stranded.append((slot, derived[slot].group))
+    return stranded, anchored
+
+
+def analyse(matrix, rows: list[Row], min_support: int, weak: float, corpus: str,
+            support=None, support_rows: int | None = None) -> RankReport:
     """Support-based freezing and the rank of the free linear columns under
-    the mean anchors, for one coefficient matrix (rows x slots)."""
+    the mean anchors. `matrix` is the rank sample's coefficients (rows x
+    slots). `support` is each slot's count on the support rows; without it the
+    sample is its own support rows."""
     import numpy as np
-    support = np.count_nonzero(matrix, axis=0)
+    if support is None:
+        support, support_rows = np.count_nonzero(matrix, axis=0), matrix.shape[0]
+    support = np.asarray(support)
     linear = [row.index for row in rows if row.stage == "linear"]
     frozen = [slot for slot in linear if support[slot] < min_support]
     frozen_set = set(frozen)
@@ -333,7 +379,8 @@ def analyse(matrix, rows: list[Row], min_support: int, weak: float, corpus: str)
     # A frozen member leaves its anchor's set; a set of one is no anchor at all.
     derived = [Row(**vars(row)) for row in rows]
     for slot in frozen:
-        derived[slot].fixed(f"frozen: {support[slot]} rows of support, under {min_support}, on {corpus}")
+        derived[slot].fixed(f"frozen: {support[slot]} rows of support, under {min_support}, "
+                            f"on {support_rows} rows of {corpus}")
     by_anchor: dict[str, list[int]] = {}
     for slot in free:
         if derived[slot].anchor:
@@ -341,17 +388,28 @@ def analyse(matrix, rows: list[Row], min_support: int, weak: float, corpus: str)
     for members in by_anchor.values():
         if len(members) < 2:
             derived[members[0]].anchor = ""
-    basis = constrained_basis(free, derived)
-    reduced = matrix[:, free] @ basis
+    stranded, anchored = stranded_slots(derived, frozen)
+    # A free slot with no row in the sample is a sample too small, named apart
+    # from an identity; the rank is read over the rest.
+    in_sample = np.count_nonzero(matrix, axis=0)
+    absent = [slot for slot in free if in_sample[slot] == 0]
+    present = [slot for slot in free if in_sample[slot] > 0]
+    basis = constrained_basis(present, derived)
+    reduced = matrix[:, present] @ basis
     scale = np.linalg.norm(reduced, axis=0)
     scale[scale == 0] = 1.0
-    _, sing, vt = np.linalg.svd(reduced / scale, full_matrices=False)
-    relative = sing / sing[0] if len(sing) and sing[0] > 0 else np.zeros(reduced.shape[1])
-    if len(relative) < reduced.shape[1]:  # fewer rows than columns: the rest are null
-        relative = np.concatenate([relative, np.zeros(reduced.shape[1] - len(relative))])
+    reduced = reduced / scale
     # Exact null directions sit at rounding level; a direction well above that
     # but still tiny is an identity the data nearly obeys, named but not fatal.
     exact = max(reduced.shape) * np.finfo(np.float64).eps * 16
+    if reduced.shape[0] > 2 * reduced.shape[1]:
+        # A tall sample: the triangular factor has the same singular values
+        # and right vectors, without the sample-sized left factor.
+        reduced = np.linalg.qr(reduced, mode="r")
+    _, sing, vt = np.linalg.svd(reduced, full_matrices=False)
+    relative = sing / sing[0] if len(sing) and sing[0] > 0 else np.zeros(reduced.shape[1])
+    if len(relative) < reduced.shape[1]:  # fewer rows than columns: the rest are null
+        relative = np.concatenate([relative, np.zeros(reduced.shape[1] - len(relative))])
     null = int(np.sum(relative <= exact))
     directions = []
     for k in range(1, int(np.sum(relative <= weak)) + 1):
@@ -360,30 +418,63 @@ def analyse(matrix, rows: list[Row], min_support: int, weak: float, corpus: str)
         direction = basis @ (vt[-k] / scale)
         top = np.argsort(-np.abs(direction))[:6]
         directions.append((float(relative[-k]),
-                           [(f"{rows[free[t]].group}[{rows[free[t]].sub}]", float(direction[t])) for t in top]))
-    return RankReport(support, frozen, free, derived, relative, null, directions)
+                           [(f"{rows[present[t]].group}[{rows[present[t]].sub}]", float(direction[t]))
+                            for t in top]))
+    return RankReport(support, frozen, free, derived, relative, null, directions,
+                      int(support_rows), absent, stranded, anchored)
+
+
+def read_support(path: Path, width: int) -> tuple[int, list[int]]:
+    """`basilisk-texel --count-support`'s file: the rows counted, then each
+    slot's count, every slot exactly once and in order."""
+    lines = path.read_text(encoding="utf-8").split()
+    if len(lines) != 2 + 2 * width or lines[0] != "rows":
+        raise SystemExit(f"error: {path} is not a support count for {width} slots")
+    pairs = [(int(lines[k]), int(lines[k + 1])) for k in range(2, len(lines), 2)]
+    if [index for index, _ in pairs] != list(range(width)):
+        raise SystemExit(f"error: {path} does not list the slots in order")
+    return int(lines[1]), [count for _, count in pairs]
+
+
+def tuner_step(command: list[str]) -> None:
+    done = subprocess.run(command, capture_output=True, text=True, check=False)
+    if done.returncode != 0:
+        raise SystemExit(f"error: {' '.join(command)}:\n{done.stdout}{done.stderr}")
 
 
 def cmd_rank(args) -> int:
     import numpy as np
     rows = read_manifest(args.manifest)
     with tempfile.TemporaryDirectory() as tmp:
+        counted = Path(tmp) / "support.txt"
+        command = [str(args.tuner), "--count-support", str(args.corpus), str(counted)]
+        if args.support_positions:
+            command += ["--max-positions", str(args.support_positions)]
+        tuner_step(command)
+        support_rows, support = read_support(counted, len(rows))
         dump = Path(tmp) / "coeffs.f64"
         command = [str(args.tuner), "--dump-coeffs", str(args.corpus), str(dump)]
-        if args.max_positions:
-            command += ["--max-positions", str(args.max_positions)]
-        done = subprocess.run(command, capture_output=True, text=True, check=False)
-        if done.returncode != 0:
-            raise SystemExit(f"error: {' '.join(command)}:\n{done.stdout}{done.stderr}")
+        if args.rank_positions:
+            command += ["--max-positions", str(args.rank_positions)]
+        tuner_step(command)
         matrix = np.fromfile(dump, dtype="<f8").reshape(-1, len(rows))
-    print(f"{matrix.shape[0]:,} rows of {args.corpus}")
-    report = analyse(matrix, rows, args.min_support, args.weak, args.corpus.name)
+    print(f"support rows: {support_rows:,} of {args.corpus}; rank sample: {matrix.shape[0]:,} rows")
+    report = analyse(matrix, rows, args.min_support, args.weak, args.corpus.name, support, support_rows)
     linear = len(report.free) + len(report.frozen)
-    print(f"free linear slots: {linear}; under {args.min_support} rows of support: {len(report.frozen)}")
-    for slot in report.frozen[:20]:
-        print(f"  {rows[slot].group}[{rows[slot].sub}]: {report.support[slot]} rows")
-    if len(report.frozen) > 20:
-        print(f"  ... {len(report.frozen) - 20} more")
+    print(f"free linear slots: {linear}; under {args.min_support} rows of support: {len(report.frozen)}; "
+          f"free: {len(report.free)}")
+    for slot in report.frozen:
+        held = "its table's level held" if report.anchored[slot] else "no anchor"
+        print(f"  frozen {rows[slot].group}[{rows[slot].sub}]: {report.support[slot]} rows ({held})")
+    failed = False
+    for slot, group in report.stranded:
+        print(f"FAIL: {rows[slot].group}[{rows[slot].sub}] is frozen in {group}, whose level is free: "
+              f"the table can move away from it", file=sys.stderr)
+        failed = True
+    for slot in report.absent:
+        print(f"FAIL: {rows[slot].group}[{rows[slot].sub}] is free but has no row in the "
+              f"{matrix.shape[0]:,}-row rank sample: the sample is too small", file=sys.stderr)
+        failed = True
     width = len(report.relative)
     print(f"rank of the free columns under the anchors: {width - report.null} of {width}; "
           f"smallest relative singular values {', '.join(f'{v:.3g}' for v in report.relative[-6:])}")
@@ -395,6 +486,8 @@ def cmd_rank(args) -> int:
     if report.null:
         print(f"FAIL: {report.null} directions of the free surface are invisible to the data.",
               file=sys.stderr)
+        failed = True
+    if failed:
         return 1
     if args.out:
         errors = invariants(report.derived)
@@ -402,7 +495,8 @@ def cmd_rank(args) -> int:
             print("\n".join(errors), file=sys.stderr)
             return 1
         write_manifest(report.derived, args.out, f"derived from {DEFAULT_MANIFEST.name} on "
-                                                 f"{args.corpus.name}, min support {args.min_support}")
+                                                 f"{args.corpus.name}, min support {args.min_support} "
+                                                 f"on {support_rows} rows")
         print(f"wrote {args.out}: {summary(report.derived)}")
     return 0
 
@@ -455,7 +549,10 @@ def main() -> int:
             cmd.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
         if name == "rank":
             cmd.add_argument("--corpus", type=Path, required=True)
-            cmd.add_argument("--max-positions", type=int, default=0)
+            cmd.add_argument("--support-positions", type=int, default=0,
+                             help="the support rows: the first N rows a fit uses, 0 for all")
+            cmd.add_argument("--rank-positions", type=int, default=300_000,
+                             help="the rank sample: the first N rows a fit uses")
             cmd.add_argument("--min-support", type=int, default=200)
             cmd.add_argument("--weak", type=float, default=1e-6,
                              help="name every direction with a relative singular value under this")
