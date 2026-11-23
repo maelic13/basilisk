@@ -126,11 +126,13 @@ tools serve C.2's corpus work.
 
 | Tool | Purpose | Used by |
 |---|---|---|
-| `diag/endgame_truth.py` | The Syzygy-truth endgame corpus and conversion baseline | C.7; BAS-E47 |
+| `diag/endgame_truth.py` | The Syzygy-truth endgame corpus and conversion baseline; writes `basilisk-endgame-truth-v2` | C.7; BAS-E47; C.2.7.2 |
+| `diag/endgame_contract.py` | The truth report's contract: schema, layers, per-family cohort digests, the post-fix v1 adapter, and `identical` for two runs record by record | C.2.7.2 |
+| `diag/test_endgame_contract.py` | Known-bad tests for the contract and its consumers, including a sharded run against a fake engine that keeps state | C.2.7.2 |
 | `diag/endgame_cohort.py`, `diag/endgame_cohort_v1.epd`, `.manifest.json` | The frozen Syzygy endgame cohort, generated and verified | C.7; A.8.13 |
-| `diag/endgame_compare.py` | Position-paired confidence analysis of two truth reports | C.7 |
+| `diag/endgame_compare.py` | Position-paired confidence analysis of two truth reports: McNemar for conversion, INDETERMINATE under 6 discordant positions, a subset of families comparable by digest | C.7; C.2.7.2 |
 | `diag/endgame_ceilings.py`, `diag/endgame_ceilings_v1.json`, `_v2.json` | Finite-node family ceilings derived from paired truth reports | C.7; BAS-E08, BAS-E50 |
-| `diag/endgame_vetoes.py` | Absolute theory and engine-anomaly vetoes for truth candidates | C.7 |
+| `diag/endgame_vetoes.py` | Absolute theory and engine-anomaly vetoes for truth candidates; the baseline is always named | C.7; C.2.7.2 |
 | `diag/endgame_label_census.py`, `diag/endgame_label_census_v1.json` | Self-play labels checked against Syzygy on every corpus row of six men or fewer | C.2 |
 | `diag/datagen_label_audit.py` | How often datagen's WDL labels contradict tablebase truth | C.2 |
 | `diag/endgame_search_occurrence.py` | How often reference endgame families occur inside search trees | C.7 |

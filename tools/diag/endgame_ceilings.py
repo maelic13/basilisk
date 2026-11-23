@@ -19,6 +19,8 @@ import json
 import sys
 from pathlib import Path
 
+from endgame_contract import load_truth_report
+
 
 CONTRACT_FIELDS = (
     "nodes_per_move",
@@ -38,14 +40,9 @@ def sha256_file(path: Path) -> str:
 
 
 def load_report(path: Path) -> dict:
-    try:
-        report = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"cannot read {path}: {exc}") from exc
-    if report.get("schema") != "basilisk-endgame-truth-v1":
-        raise ValueError(f"{path}: not a basilisk-endgame-truth-v1 report")
-    if not isinstance(report.get("families"), dict):
-        raise ValueError(f"{path}: missing families")
+    # The shared contract refuses pre-fix v1 reports, so the ceilings derived
+    # from them (endgame_ceilings_v1.json, BAS-E50) cannot be regenerated.
+    report = load_truth_report(path)
     if not isinstance(report.get("cohort"), dict):
         raise ValueError(f"{path}: not a frozen-cohort report")
     return report

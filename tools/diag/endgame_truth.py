@@ -19,6 +19,11 @@ It separates the four things the endgame audit requires be kept apart:
 A played draw is statistical evidence, not theoretical truth: only the
 `theory_*` fields are truth here, and they come from the tablebase.
 
+The report is `basilisk-endgame-truth-v2` (`endgame_contract.py`): it stamps
+its measurement layers, a per-family cohort digest and every game's moves.
+Version 1 changed its termination rule in place (BAS-E47), so a v1 report is
+read only when it is shown to be post-fix.
+
 Cursed wins matter and are kept distinct. Syzygy WDL 2 is a clean win, 1 is a
 win that the fifty-move rule turns into a draw. Downgrading a 2 to a 1 is a
 KBN-K failure mode: the engine can still "see" a win that the fifty-move rule
@@ -56,6 +61,8 @@ from pathlib import Path
 import chess
 import chess.engine
 import chess.syzygy
+
+from endgame_contract import LAYERS, SCHEMA_V2, family_digest, overall_digest
 
 PIECE_OF = {
     "Q": chess.QUEEN,
@@ -261,6 +268,7 @@ def play_and_grade(
     dtz_progress = 0
     first_discard_ply = None
     anomaly = None
+    moves = []
 
     for ply in range(max_plies):
         if board.is_checkmate():
@@ -317,6 +325,7 @@ def play_and_grade(
             anomaly = {"move": result.move.uci()}
             break
         board.push(result.move)
+        moves.append(result.move.uci())
 
         # Grade only moves made from a position the tablebase calls a CLEAN
         # win. A cursed win (WDL 1) is already unconvertible under the
@@ -353,6 +362,8 @@ def play_and_grade(
         # idea, so it is a diagnostic to inspect, not a failure to count.
         "shed_material_ply": shed_material_ply,
         "anomaly": anomaly,
+        # The game itself, so two runs can be shown identical move for move.
+        "moves": " ".join(moves),
     }
 
 
@@ -629,7 +640,10 @@ def main() -> int:
             parser.error(str(exc))
 
     report = {
-        "schema": "basilisk-endgame-truth-v1",
+        "schema": SCHEMA_V2,
+        # Which question this report answers (DESIGN's four layers): it
+        # explains or refutes a candidate and never accepts one.
+        "layers": LAYERS,
         "engine": str(engine_path),
         "engine_sha256": sha256_file(engine_path),
         "syzygy": [str(d) for d in syzygy_dirs],
@@ -774,6 +788,9 @@ def main() -> int:
                 theory[{2: "win", 1: "cursed_win", 0: "draw",
                         -1: "blessed_loss", -2: "loss"}[verdict]] += 1
                 prepared.append((index, frozen, fen, verdict, start_dtz))
+            family_sha = family_digest(
+                (item[1]["id"] if item[1] else item[0], item[2]) for item in prepared
+            )
 
             if executor:
                 played_results = executor.map([item[2] for item in prepared])
@@ -888,6 +905,7 @@ def main() -> int:
                     "reported only for pawnless strong side vs bare king, "
                     "where DTZ equals DTM"
                 )
+            entry["cohort_sha256"] = family_sha
             if args.per_position or cohort_path:
                 entry["positions"] = records
             report["families"][name] = entry
@@ -911,6 +929,14 @@ def main() -> int:
                 # diagnostic report that proves it.
                 pass
         tb.close()
+
+    family_shas = {
+        name: entry["cohort_sha256"] for name, entry in report["families"].items()
+    }
+    report["cohort_identity"] = {
+        "family_sha256": family_shas,
+        "sha256": overall_digest(family_shas),
+    }
 
     rendered = json.dumps(report, indent=2) + "\n"
     if args.output:

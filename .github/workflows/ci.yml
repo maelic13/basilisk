@@ -446,6 +446,16 @@ jobs:
             "$python" "tools/texel/$t.py" || exit 1
           done
 
+      # The endgame truth contract and its consumers' guards, each on a
+      # known-bad input. The runner tests need Syzygy and skip here.
+      - name: Endgame instrument tests
+        run: |
+          python="$RUNNER_TEMP/texel-venv/bin/python"
+          for t in test_endgame_vetoes test_endgame_contract; do
+            echo "== $t"
+            "$python" "tools/diag/$t.py" || exit 1
+          done
+
   sanitize:
     name: sanitize (linux ASan+UBSan)
     runs-on: ubuntu-26.04

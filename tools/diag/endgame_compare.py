@@ -11,6 +11,17 @@ Policy (PLAN 6.0.d):
   * report family changes at or beyond 2 standard errors;
   * block family regressions at or beyond 3 standard errors.
 
+Conversion is binary per position, so it is tested by McNemar on the
+discordant positions only: agreement carries no information. Under
+MIN_DISCORDANT discordant positions (or, for the per-position rates, positions
+that moved) a result is INDETERMINATE, and a zero-variance sample never yields
+an infinite sigma: three positions that each lose a conversion once read as a
+block (C.2.7.1's audit), which a thin family must never manufacture.
+
+The candidate may cover a subset of the baseline's families, compared family
+by family under the cohort digest `endgame_contract.py` recomputes from the
+records. There is no default baseline: it is always named.
+
 This statistical layer does not replace the absolute theory/anomaly vetoes in
 PLAN 6.0.e.
 """
@@ -24,8 +35,11 @@ import statistics
 import sys
 from pathlib import Path
 
+from endgame_contract import load_truth_report
+
 
 REPORT_SIGMA = 2.0
+MIN_DISCORDANT = 6
 FAMILY_BLOCK_SIGMA = 3.0
 CONTRACT_FIELDS = (
     "nodes_per_move",
@@ -34,19 +48,12 @@ CONTRACT_FIELDS = (
     "persistent_tt_per_game",
     "score_adjudication",
 )
-COHORT_FIELDS = ("manifest_sha256", "book_sha256", "position_count")
+COHORT_FIELDS = ("manifest_sha256", "book_sha256")
 METRICS = ("conversion", "win_preservation", "dtz_progress")
 
 
 def load_report(path: Path) -> dict:
-    try:
-        report = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"cannot read {path}: {exc}") from exc
-    if report.get("schema") != "basilisk-endgame-truth-v1":
-        raise ValueError(f"{path}: not a basilisk-endgame-truth-v1 report")
-    if not isinstance(report.get("families"), dict):
-        raise ValueError(f"{path}: missing families")
+    report = load_truth_report(path)
     if not isinstance(report.get("cohort"), dict):
         raise ValueError(f"{path}: not a frozen-cohort report")
     return report
@@ -66,8 +73,15 @@ def position_map(report: dict, family: str) -> dict[str, dict]:
 
 
 def paired_families(baseline: dict, candidate: dict) -> dict[str, list[tuple]]:
-    if list(baseline["families"]) != list(candidate["families"]):
-        raise ValueError("family names or ordering differ")
+    names = list(candidate["families"])
+    absent = [name for name in names if name not in baseline["families"]]
+    if absent:
+        raise ValueError(f"families absent from the baseline: {','.join(absent)}")
+    if [name for name in baseline["families"] if name in candidate["families"]] != names:
+        raise ValueError("family ordering differs")
+    for name in names:
+        if baseline["_family_digests"].get(name) != candidate["_family_digests"].get(name):
+            raise ValueError(f"{name}: cohort digests differ")
     for field in CONTRACT_FIELDS:
         if baseline.get(field) != candidate.get(field):
             raise ValueError(f"contract mismatch for {field}")
@@ -77,7 +91,7 @@ def paired_families(baseline: dict, candidate: dict) -> dict[str, list[tuple]]:
 
     paired = {}
     total_positions = 0
-    for family in baseline["families"]:
+    for family in names:
         left = position_map(baseline, family)
         right = position_map(candidate, family)
         if set(left) != set(right):
@@ -91,10 +105,10 @@ def paired_families(baseline: dict, candidate: dict) -> dict[str, list[tuple]]:
             rows.append((position_id, base_record, cand_record))
         paired[family] = rows
         total_positions += len(rows)
-    if total_positions != baseline["cohort"]["position_count"]:
+    if total_positions != candidate["cohort"]["position_count"]:
         raise ValueError(
             f"paired records cover {total_positions} positions, expected "
-            f"{baseline['cohort']['position_count']}"
+            f"{candidate['cohort']['position_count']}"
         )
     return paired
 
@@ -133,29 +147,40 @@ def paired_stats(pairs: list[tuple], metric: str) -> dict | None:
 
     differences = [after - before for before, after in values]
     delta = statistics.fmean(differences)
-    standard_error = (
-        statistics.stdev(differences) / math.sqrt(len(differences))
-        if len(differences) > 1 else None
-    )
-    if standard_error is None:
-        sigma = None
-    elif standard_error == 0.0:
-        sigma = 0.0 if delta == 0.0 else math.copysign(math.inf, delta)
-    else:
-        sigma = delta / standard_error
-    return {
+    stats = {
         "n": len(values),
         "baseline": statistics.fmean(before for before, _ in values),
         "candidate": statistics.fmean(after for _, after in values),
         "delta": delta,
-        "standard_error": standard_error,
-        "sigma": sigma,
     }
+    if metric == "conversion":
+        improved = sum(1 for d in differences if d > 0)
+        regressed = sum(1 for d in differences if d < 0)
+        discordant = improved + regressed
+        stats |= {"method": "mcnemar", "improved": improved,
+                  "regressed": regressed, "discordant": discordant,
+                  "standard_error": None}
+        if discordant < MIN_DISCORDANT:
+            return stats | {"sigma": None, "indeterminate":
+                            f"{discordant} discordant positions, under {MIN_DISCORDANT}"}
+        return stats | {"sigma": (improved - regressed) / math.sqrt(discordant)}
+    moved = sum(1 for d in differences if d != 0)
+    stats |= {"method": "paired_mean", "moved": moved}
+    if moved < MIN_DISCORDANT:
+        return stats | {"standard_error": None, "sigma": None, "indeterminate":
+                        f"{moved} positions moved, under {MIN_DISCORDANT}"}
+    standard_error = statistics.stdev(differences) / math.sqrt(len(differences))
+    if standard_error == 0.0:
+        return stats | {"standard_error": 0.0, "sigma": None,
+                        "indeterminate": "zero variance"}
+    return stats | {"standard_error": standard_error, "sigma": delta / standard_error}
 
 
 def classify(stats: dict | None, family: bool) -> str:
-    if stats is None or stats["sigma"] is None:
+    if stats is None:
         return "not_applicable"
+    if stats.get("indeterminate"):
+        return "indeterminate"
     sigma = stats["sigma"]
     if family and sigma <= -FAMILY_BLOCK_SIGMA:
         return "block"
@@ -166,8 +191,8 @@ def classify(stats: dict | None, family: bool) -> str:
     return "within_band"
 
 
-def finite(value: float | None) -> float | str | None:
-    if value is None or math.isfinite(value):
+def finite(value):
+    if not isinstance(value, float) or math.isfinite(value):
         return value
     return "+infinity" if value > 0 else "-infinity"
 
@@ -179,13 +204,8 @@ def render_stats(stats: dict | None, action: str) -> dict:
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--baseline",
-        type=Path,
-        default=root / "tools/results/endgame-truth-6.0.b/basilisk.json",
-    )
+    parser.add_argument("--baseline", required=True, type=Path)
     parser.add_argument("--candidate", required=True, type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
@@ -202,6 +222,7 @@ def main() -> int:
     family_results = {}
     blocks = []
     reports = []
+    indeterminate = []
 
     for metric in METRICS:
         stats = paired_stats(aggregate_pairs, metric)
@@ -220,11 +241,15 @@ def main() -> int:
                 blocks.append(f"{family}/{metric}")
             elif action.startswith("report_"):
                 reports.append(f"{family}/{metric}")
+            elif action == "indeterminate":
+                indeterminate.append(f"{family}/{metric}")
 
     verdict = "block" if blocks else "report" if reports else "pass"
     result = {
-        "schema": "basilisk-endgame-paired-confidence-v1",
+        "schema": "basilisk-endgame-paired-confidence-v2",
         "policy": {
+            "conversion_test": "McNemar on discordant positions",
+            "min_discordant": MIN_DISCORDANT,
             "independent_unit": "frozen position",
             "aggregate_report_sigma": REPORT_SIGMA,
             "family_report_sigma": REPORT_SIGMA,
@@ -237,13 +262,15 @@ def main() -> int:
         "verdict": verdict,
         "blocks": blocks,
         "reports": reports,
+        "indeterminate": indeterminate,
+        "families_compared": list(families),
         "aggregate": aggregate,
         "families": family_results,
     }
 
     print(f"verdict: {verdict.upper()}")
     for metric, stats in aggregate.items():
-        if stats["action"] != "not_applicable":
+        if stats["action"] not in ("not_applicable", "indeterminate"):
             print(
                 f"aggregate/{metric}: {stats['baseline']:.4f} -> "
                 f"{stats['candidate']:.4f}, delta {stats['delta']:+.4f}, "
