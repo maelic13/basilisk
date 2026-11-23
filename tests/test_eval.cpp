@@ -15,6 +15,7 @@
 #include "bitboard.h"
 #include "wac.h"
 #include "zobrist.h"
+#include "colour_mirror.h"
 #include "test_harness.h"
 
 #include <cmath>
@@ -36,60 +37,6 @@ static int eval_fen(const char* fen) {
     return ev.evaluate(b);
 }
 
-// Build a FEN for the "mirror" of a position: all colors swapped, ranks flipped,
-// and side-to-move flipped.  The structural evaluation should be identical to
-// the original (both sides see the same position from their own king's view).
-static std::string mirror_fen(const char* fen) {
-    Board orig;
-    orig.set_fen(fen);
-
-    // Build piece-placement string: iterate mirrored ranks top→bottom
-    std::string placement;
-    for (int r = 7; r >= 0; r--) {
-        // Source rank in the original board (rank r of mirror = rank (7-r) of original)
-        int orig_rank = 7 - r;
-        int empty = 0;
-        for (int f = 0; f < 8; f++) {
-            Square sq = make_square(File(f), Rank(orig_rank));
-            Piece  p  = orig.piece_on(sq);
-            if (p == NO_PIECE) { empty++; continue; }
-            if (empty) { placement += static_cast<char>('0' + empty); empty = 0; }
-            // Swap color: white piece becomes black and vice-versa
-            Color     mc = ~color_of(p);
-            PieceType pt = type_of(p);
-            static const char piece_chars[] = ".pnbrqk";
-            char ch = piece_chars[pt];
-            if (mc == WHITE) ch = static_cast<char>(ch - 'a' + 'A');
-            placement += ch;
-        }
-        if (empty) placement += static_cast<char>('0' + empty);
-        if (r > 0)  placement += '/';
-    }
-
-    // Flip side to move
-    char stm = (orig.turn() == WHITE) ? 'b' : 'w';
-
-    // Mirror castling rights: WK↔BK, WQ↔BQ
-    std::string castling;
-    if (orig.castling() & BK_CASTLE) castling += 'K';
-    if (orig.castling() & BQ_CASTLE) castling += 'Q';
-    if (orig.castling() & WK_CASTLE) castling += 'k';
-    if (orig.castling() & WQ_CASTLE) castling += 'q';
-    if (castling.empty()) castling = "-";
-
-    // Mirror EP square (flip rank)
-    std::string ep = "-";
-    if (orig.ep_square() != SQ_NONE) {
-        Square mep = flip_rank(orig.ep_square());
-        static const char files[] = "abcdefgh";
-        static const char ranks[] = "12345678";
-        ep  = std::string() + files[file_of(mep)] + ranks[rank_of(mep)];
-    }
-
-    return placement + " " + stm + " " + castling + " " + ep
-         + " " + std::to_string(orig.rule50_count())
-         + " " + std::to_string(orig.fullmove());
-}
 
 // ---------------------------------------------------------------------------
 // Tests

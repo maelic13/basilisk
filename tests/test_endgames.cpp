@@ -25,6 +25,7 @@
 #include "zobrist.h"
 #include "syzygy.h"
 #include "syzygy_fixture.h"
+#include "colour_mirror.h"
 #include "test_harness.h"
 
 #include <algorithm>
@@ -628,10 +629,9 @@ static void test_kpk_matches_syzygy() {
 // queen; and the near-draw factor was 4 against any material, where the
 // donor gives 14 against more than a bishop.
 // ---------------------------------------------------------------------------
-static void test_pawnless_scale_truth_table() {
-    struct Row { const char* fen; int scale; const char* note; };
-    // White is the side the scaler asks about; Black to move throughout.
-    static const Row ROWS[] = {
+// White is the side the scaler asks about; Black to move throughout.
+struct PawnlessRow { const char* fen; int scale; const char* note; };
+static const PawnlessRow PAWNLESS_ROWS[] = {
         { "4k3/8/8/2bn4/8/8/8/3QK3 b - - 0 1", 64, "KQ-KBN unscaled" },
         { "4k3/8/8/2bb4/8/8/8/3QK3 b - - 0 1", 64, "KQ-KBB unscaled" },
         { "4k3/8/8/2nn4/8/8/8/3QK3 b - - 0 1", 64, "KQ-KNN unscaled" },
@@ -641,8 +641,10 @@ static void test_pawnless_scale_truth_table() {
         { "4k3/8/8/2r5/8/8/8/2BRK3 b - - 0 1", 14, "KRB-KR near draw, 14" },
         { "4k3/8/8/2r5/8/8/8/2NRK3 b - - 0 1", 14, "KRN-KR near draw, 14" },
         { "4k3/8/8/2rb4/8/8/8/3QK3 b - - 0 1", 14, "KQ-KRB near draw, 14" },
-    };
-    for (const Row& row : ROWS) {
+};
+
+static void test_pawnless_scale_truth_table() {
+    for (const PawnlessRow& row : PAWNLESS_ROWS) {
         begin_section(row.note);
         Board b;
         b.set_fen(row.fen);
@@ -682,6 +684,42 @@ static const char* WRONG_BISHOP_FENS[] = {
     "7k/7P/6K1/8/8/3B4/8/8 w - - 0 1",  // on its false PV, stalemate near
 };
 static constexpr int64_t WRONG_BISHOP_NODE_CAP = 200000;
+
+// Every position the endgame suites and the recogniser tables use equals its
+// colour mirror. The pawnless tie once scaled a position and its mirror
+// differently; a recogniser that keys on White is the same defect class.
+static void test_colour_mirror(const std::vector<EpdEntry>& entries,
+                               const std::string& draws_path) {
+    std::vector<std::string> fens;
+    for (const EpdEntry& e : entries)
+        fens.push_back(e.fen);
+    std::ifstream in(draws_path);
+    std::string line;
+    int draws = 0;
+    while (std::getline(in, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        const std::size_t c0 = line.find(" c0 ");
+        fens.push_back(c0 == std::string::npos ? line : line.substr(0, c0));
+        ++draws;
+    }
+    for (const PawnlessRow& row : PAWNLESS_ROWS)
+        fens.emplace_back(row.fen);
+    for (const char* fen : WRONG_BISHOP_FENS)
+        fens.emplace_back(fen);
+
+    begin_section("colour mirror: endgame suites and recogniser positions");
+    int asymmetric = 0;
+    for (const std::string& fen : fens) {
+        const int a = eval_white(fen);
+        const int m = -eval_white(mirror_fen(fen));
+        if (a != m && asymmetric++ < 5)
+            std::printf("    asymmetric: %s (%d vs %d)\n", fen.c_str(), a, m);
+    }
+    std::printf("%zu positions (%d drawn games) ", fens.size(), draws);
+    EXPECT(draws >= 60);
+    EXPECT_EQ(asymmetric, 0);
+    end_section();
+}
 
 static void test_wrong_bishop_draw_in_search() {
     const auto& FENS = WRONG_BISHOP_FENS;
@@ -815,6 +853,7 @@ int main(int argc, char** argv) {
     test_pawnless_scale_truth_table();
     test_wrong_bishop_draw_in_search();
     test_recognised_draw_takes_no_correction();
+    test_colour_mirror(entries, dir + "endgame_draws.epd");
 
     return harness_summary();
 }
