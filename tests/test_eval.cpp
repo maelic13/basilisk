@@ -698,8 +698,13 @@ static void test_rook_ending_scaling() {
     // front of both, so the extra pawn is heavily discounted.
     begin_section("blockaded KRPP-KRP keeps far less than a clean extra pawn");
     int blocked = eval_fen("7r/8/5k2/4p3/4PP2/8/8/R5K1 w - - 0 1");
-    // Calibrated to discriminate, not decorate: 19 with the rule, 53 without.
-    EXPECT(blocked < 35);
+    // The control moves only the defending king, two files, out of the zone
+    // the rule keys on, as the Philidor test above moves only the rook. The
+    // bound is a ratio, so a refit's larger scores do not break it (C-70).
+    // Calibrated to discriminate: with the rule 22 of 63 (35%) on the header
+    // and 53 of 146 (36%) on C.2.8's fit; without it 59 of 63 and 143 of 146.
+    int unblocked = eval_fen("7r/8/3k4/4p3/4PP2/8/8/R5K1 w - - 0 1");
+    EXPECT(blocked * 2 < unblocked);
     EXPECT(blocked != 0);
     end_section();
 }
