@@ -16,6 +16,9 @@ One causal axis: the fitted surface. Both carry the repair.
                 Hash 64, margin 20 ms, paired reversed UHO in random order,
                 no adjudication, no tablebases, cap 4,000 pairs, seed 280401
                 (tools/results/c284-sprt/).
+  --run companion  BAS-E61: the same candidate against the head before the
+                top-tier repair (basilisk-c273-head, 901e519), seed 280403
+                (tools/results/c284-companion/).
 
 A finished SPRT (result.json) is never extended or replaced: the launcher
 exits 2. An interrupted one resumes from its checkpoint with the same command.
@@ -44,7 +47,11 @@ BASE = {"path": ENGINES / "basilisk-c284-base-pext-pgo.exe",
 CAND = {"path": ENGINES / "basilisk-c284-refit-pext-pgo.exe",
         "sha": "B2495083137483857DB82C2A9A556D1262BD454140F014FF2804439D86AC7C8C",
         "bench": 3359329, "revision": "cbc3676454ac97a28c88f1c739c845b66006be18"}
+OLD_HEAD = {"path": ENGINES / "basilisk-c273-head-pext-pgo.exe",
+            "sha": "EDDBA36E38C212B3132A9399ACE9F49CC943416DEF1F33B4B7EB90DFE7363A9B",
+            "bench": 4777412, "revision": "901e5199419f0d46bc56617de60bec4ab97dba85"}
 SEED = 280401
+COMPANION_SEED = 280403
 BUDGETS = "21000,64000,190000"
 SYZYGY = "D:/chess/tablebases/syzygy3456"
 
@@ -65,15 +72,17 @@ def check_arm(arm: dict) -> None:
                           f"not {value!r}.")
 
 
-def sprt(dry_run: bool) -> int:
-    run_dir = RESULTS / "c284-sprt"
+def sprt(dry_run: bool, baseline: dict | None = None, name: str = "c284-sprt", seed: int = SEED,
+         base_name: str = "Basilisk head") -> int:
+    base = baseline or BASE
+    run_dir = RESULTS / name
     if not dry_run and (run_dir / "result.json").exists():
         raise Refused(f"STALE RESULT - {run_dir} holds a finished run; it is not extended or replaced.")
-    params = {"MarginMs": 20, "Seed": SEED, "Dir": str(run_dir), "Mode": "sprt", "Bracket": "default",
+    params = {"MarginMs": 20, "Seed": seed, "Dir": str(run_dir), "Mode": "sprt", "Bracket": "default",
               "MaxPairs": 4000, "Hash": 64, "Threads": 1, "BaseMs": 3000, "IncrementMs": 30,
               "EngineA": str(CAND["path"]), "NameA": "Basilisk C.2.8 refit",
-              "EngineB": str(BASE["path"]), "NameB": "Basilisk head",
-              "ExpectBench": [CAND["bench"], BASE["bench"]], "ExpectSha256": [CAND["sha"], BASE["sha"]]}
+              "EngineB": str(base["path"]), "NameB": base_name,
+              "ExpectBench": [CAND["bench"], base["bench"]], "ExpectSha256": [CAND["sha"], base["sha"]]}
     parts = [f"& {ps(REPO / 'tools' / 'colosseum.ps1')}"]
     parts += [f"-{key} {ps(value)}" for key, value in params.items()]
     if dry_run:
@@ -110,12 +119,15 @@ def veto(dry_run: bool) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--run", required=True, choices=("veto", "sprt"))
+    parser.add_argument("--run", required=True, choices=("veto", "sprt", "companion"))
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
     try:
         check_arm(BASE)
         check_arm(CAND)
+        if args.run == "companion":
+            check_arm(OLD_HEAD)
+            return sprt(args.dry_run, OLD_HEAD, "c284-companion", COMPANION_SEED, "Basilisk head before the repair")
         return sprt(args.dry_run) if args.run == "sprt" else veto(args.dry_run)
     except Refused as refusal:
         print(refusal, file=sys.stderr)
