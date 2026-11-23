@@ -457,3 +457,102 @@ fit, before hand-over:
   Owner: the tool change's documentation.
 - **Run 1's term-level findings** (the report's §7) wait for run 2's
   report, which reads them again on a valid surface.
+
+## 7. Amendment 2: the top tiers stop borrowing the fitted score (2026-11-23)
+
+- State / class: recorded, `R2`, after run 2's report
+  (`analysis/c283_run2_report_2026-11-23.md` §6) and before any bake.
+  Under the maintainer's authority of the same night: a defect found in
+  C.2.8 is fixed by the implementing session and the work continues.
+- Owner / date: agent, on Fable.
+
+**Decision.** Do not bake A2 on this head, and do not relax the floor.
+Give the queen and rook tiers the donor's bare-king score in place of the
+winner's ordinary score, on the head, for both arms. A2 is not re-fitted.
+- The main counter-argument: it is an engine change made because a
+  candidate failed a floor. It is answered by where the change sits: the
+  floor reads a coupling, not the fit (§7.1), every later refit would
+  meet it again, and both arms of BAS-E59 carry the repair.
+
+### 7.1 The defect
+
+- **Measured** (the report's §6): A2's baked build converts KR-K 23 of 24
+  at 60,000 nodes and 22 of 24 at 50,000. On
+  `4K3/8/8/8/8/5k2/8/1R6 w` it finds no mate in 100 plies at 40,000 to
+  60,000 nodes, and mates in 29 to 47 at 70,000 and above.
+- **The same position is fragile everywhere:** the head takes 27 to 51
+  plies across budgets, and B2 passes with 63.
+- **The cause is a coupling** (`src/eval_endgame.h`, the top tiers). A
+  bare king against a queen or rook scores its tier plus the winner's
+  ordinary evaluation, so the piece-square and mobility tables are the
+  only mating gradient. `mate_drive` adds 5 and 4 cp a step under them.
+  - Those rows are overrides, and the fit leaves every override out. So
+    the tables are fitted on other positions and then used here.
+  - The gradient is not missing. From the start to a near-mate
+    (`7k/8/5K2/8/8/8/8/1R6`) the score rises 162 on the header, 212 on A2
+    and 207 on B2 (`--dump-eval`). It has no shape the technique needs,
+    and it changes with every refit.
+- **Competing explanation, refuted:** the tier's cap flattening A2's
+  larger scores. A2's KR-K scores are 26,908 to 27,120 in a tier 2,599
+  wide.
+
+### 7.2 The mechanism
+
+In the two top tiers, `ordinary` is replaced by the donor's
+`Endgame<KXK>` form (classical Stockfish, `sf_16`'s `endgame.cpp`):
+the winner's material, a push of the bare king to the edge, and a pull
+of the kings together.
+- **Material:** the frozen `EG_MAT` constants and the pawn count, as
+  `kxk_score` reads them. No fitted slot.
+- **The drive:** the donor's two tables, converted at 100 to its endgame
+  pawn. Its span stays under one pawn (87 cp against 100), so it orders
+  positions of equal material and never outranks a pawn.
+- **Unchanged:** the tier bases, the caps, the order of the tiers, the
+  minor-piece mates and `mate_drive`.
+
+**Invariants:**
+- More material never scores lower inside a tier, and a promotion to a
+  queen still outranks one to a rook.
+- No term of a top-tier score reads `g_eval_params`. The test: the same
+  position scores the same under two different parameter sets.
+- A top-tier score stays inside its tier.
+- The fit is untouched: `--verify` passes, and A2's realized loss on
+  validation reproduces 0.09612177 on the repaired tuner.
+
+**Interactions:** the lazy path runs `apply_endgame` too and needs no
+term the lazy block lacks. The rule-50 damping keeps the tier bases.
+
+### 7.3 Qualification and the gate
+
+Deterministic, with no game gate of its own. The change reorders scores
+only inside a tier, so no decision outside a bare-king ending moves, and
+the conversion instrument measures those endings directly.
+- **The grid:** `test_endgames --conversion` for KQ-K and KR-K at 40,000,
+  50,000, 60,000, 70,000, 80,000, 100,000 and 120,000 nodes: 24 of 24
+  everywhere, on the repaired head and with A2 baked on it.
+- **Independence:** the two builds give the same ply list for KQ-K and
+  KR-K at every budget.
+- **The other floors:** all four families at the registered 60,000 nodes,
+  `test_endgames`, `test_search`, `test_eval`, and the sanitizer job for
+  the touched file.
+- **`bench 13`:** recorded for the repaired head. If it moves, the
+  fingerprint record moves with it, and BAS-E59's baseline is rebuilt on
+  the repaired head, as its registration says.
+- **Predictions, frozen now:** the grid passes, 0.8; the ply lists are
+  identical, 0.95.
+- **Falsifier:** any KR-K or KQ-K failure in the grid. The coupling is
+  then not the cause, the leaf returns here, and nothing is baked.
+
+### 7.4 What follows
+
+- The repair is its own engine commit with its tests, reviewed against
+  this section before the bake.
+- Then run 2's pre-bake reads are repeated on A2 over the repaired head,
+  A2 is baked, and C.2.8.4 runs as registered. BAS-E59 keeps one causal
+  axis: both arms carry the repair.
+- **Refused:** baking B2 because it passed (BAS-E60's condition failed,
+  and 63 plies is the same fragility); a larger node budget or a longer
+  mate budget (relaxing the floor); constraining the fit's tables to
+  serve this ending.
+- **For C.7:** the pawnless classes that still use `mate_drive`'s 5 and 4
+  (KQ-KR and its kin) borrow the fitted score the same way.

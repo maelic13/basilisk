@@ -1782,6 +1782,23 @@ has lost games in both engines (BAS-X02).
                 writes no manifest.
               - Corpus B's manifest is A's, byte for byte (`E37D5983…`).
             - Next: run 2, the maintainer's two fits.
+          - **Run 2 returned, 2026-11-23**
+            (`analysis/c283_run2_report_2026-11-23.md`): every control
+            and every Amendment 1 prediction holds, and A's loss is
+            0.09612. But A2's baked build converts KR-K 23 of 24 at
+            60,000 nodes, so nothing is baked.
+          - **Amendment 2 recorded, 2026-11-23** (the registration's §7):
+            - A bare king against a queen or rook scores its tier plus
+              the winner's ordinary evaluation. So tables fitted on
+              other rows are that ending's only mating gradient.
+            - The two top tiers take the donor's bare-king form instead:
+              frozen material, an edge push and a king pull, with no
+              fitted slot.
+            - Qualified on the conversion grid (KQ-K and KR-K, 40,000
+              to 120,000 nodes, on the repaired head and with A2 baked),
+              with no game gate of its own. A2 is not re-fitted.
+            - Then the pre-bake reads again, the bake, and C.2.8.4 with
+              the repair in both arms.
         - [ ] **C.2.8.4** `[V]` The registered gates
           Clean-PGO arms under identical conditions, and the maintainer's
           runs. Fit loss explains; only the SPRT decides.
@@ -2399,7 +2416,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.8.3 | READY_FOR_IMPLEMENTATION | V | Amendment 1's tool change is in and qualified (`9570c36`); run 2 of both fits is the maintainer's, A then B |
+| C.2.8.3 | READY_FOR_IMPLEMENTATION | V | Run 2 returned: A2 fails the KR-K floor, nothing baked. Amendment 2 (the registration's §7): the top tiers take the donor's bare-king score, qualified on the conversion grid, then the bake |
 | C.2.8.4 | RESEARCH | V | Waits on C.2.8.3 |
 | C.2.9 | RESEARCH | I1 | Not started |
 | C.2.10 | RESEARCH | R3 | Not started |
