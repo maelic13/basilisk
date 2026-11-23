@@ -14,6 +14,13 @@ and next step).
 
 ## [Unreleased]
 
+### Changed
+
+- Mating a lone king with a queen or a rook now follows a fixed technique:
+  drive the defending king to the edge and bring the attacking king closer.
+  Before, the score in these endings came from the general evaluation, so
+  retuning that evaluation could leave an easy rook mate unfinished.
+
 ---
 
 ## [1.11.0] - 2026-11-18

@@ -445,6 +445,47 @@ static int kxk_score(const Board& b, Color strong) {
     return (strong == WHITE) ? v : -v;
 }
 
+// ---- KQ-K and KR-K: the top tiers' score -----------------------------------
+// The donor's Endgame<KXK> (classical Stockfish, sf_16's endgame.cpp): the
+// winner's material, a push of the bare king to the edge and a pull of the
+// kings together. Its two tables are in the donor's internal units and are
+// converted at 100 to the donor's endgame pawn (208).
+//
+// It replaced the winner's ordinary score, which made the fitted PSTs and
+// mobility tables these mates' only gradient. Those rows are overrides that
+// a Texel fit leaves out, so every refit reshaped the gradient blind, and
+// C.2.8's run 2 left KR-K unconverted at 40,000 to 60,000 nodes (the C.2.8
+// registration's Amendment 2). Nothing here reads g_eval_params.
+static constexpr int KXK_DONOR_PAWN_EG = 208;
+
+constexpr int kxk_push_to_edge(Square s) {
+    const int r = int(rank_of(s)), f = int(file_of(s));
+    const int rd = r < 4 ? r : 7 - r, fd = f < 4 ? f : 7 - f;
+    return 90 - (7 * fd * fd / 2 + 7 * rd * rd / 2);  // 27 in the centre, 90 in a corner
+}
+
+constexpr int kxk_push_close(int king_distance) { return 140 - 20 * king_distance; }
+
+// The drive's whole span, both tables at their extremes, stays under one pawn
+// (87 cp), so it orders positions of equal material and never outranks one.
+static_assert((90 + kxk_push_close(1) - 27 - kxk_push_close(7)) * 100 / KXK_DONOR_PAWN_EG
+                  < EG_MAT[PAWN],
+              "the KQ-K/KR-K drive must span less than a pawn");
+
+// The winner's score above its tier, White-independent (strong's view).
+static int top_tier_score(const Board& b, Color strong) {
+    const Color weak = ~strong;
+    const int material = popcount(b.piece_bb(strong, PAWN))   * EG_MAT[PAWN]
+                       + popcount(b.piece_bb(strong, KNIGHT)) * EG_MAT[KNIGHT]
+                       + popcount(b.piece_bb(strong, BISHOP)) * EG_MAT[BISHOP]
+                       + popcount(b.piece_bb(strong, ROOK))   * EG_MAT[ROOK]
+                       + popcount(b.piece_bb(strong, QUEEN))  * EG_MAT[QUEEN];
+    const int drive = (kxk_push_to_edge(b.king_square(weak))
+                       + kxk_push_close(KING_DIST[b.king_square(strong)][b.king_square(weak)]))
+                    * 100 / KXK_DONOR_PAWN_EG;
+    return material + drive;
+}
+
 // ---- Rook-ending draw scaling: KRPKR and KRPPKRP ---------------------------
 //
 // These are SCALING functions, not verdicts. They do not claim a position is
@@ -706,21 +747,21 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
         }
 
         // ---- Bare king against a queen or rook: the top tiers -------------
-        // A tier holds the winner's ordinary score above its base: that score
-        // already counts material, pawns included, and carries the gradient
-        // the search converts these mates with (BAS-E30: KQ-K and KR-K
-        // 100/100). What the tiers add is the order: a queen outranks a rook,
-        // and both outrank every minor-piece mate, so a promotion to a queen
-        // always beats one to a knight or bishop, and shedding never gains.
+        // A tier holds top_tier_score above its base: the winner's frozen
+        // material and the donor's KXK drive, which the search converts these
+        // mates with. What the tiers add is the order: a queen outranks a
+        // rook, and both outrank every minor-piece mate, so a promotion to a
+        // queen always beats one to a knight or bishop, and shedding never
+        // gains.
         for (int s = 0; s < NCOLORS; s++) {
             const Color strong = Color(s), weak = ~strong;
             if (!lone_king(weak) || (!cnt[strong][QUEEN] && !cnt[strong][ROOK]))
                 continue;
             TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
-            const int ordinary = std::max((strong == WHITE) ? score : -score, 0);
+            const int above = top_tier_score(b, strong);
             const int v = cnt[strong][QUEEN]
-                ? BARE_KING_QUEEN_TIER + std::min(ordinary, BARE_KING_CAP - BARE_KING_QUEEN_TIER)
-                : BARE_KING_ROOK_TIER + std::min(ordinary, BARE_KING_QUEEN_TIER - 1 - BARE_KING_ROOK_TIER);
+                ? BARE_KING_QUEEN_TIER + std::min(above, BARE_KING_CAP - BARE_KING_QUEEN_TIER)
+                : BARE_KING_ROOK_TIER + std::min(above, BARE_KING_QUEEN_TIER - 1 - BARE_KING_ROOK_TIER);
             return (strong == WHITE) ? v : -v;
         }
 

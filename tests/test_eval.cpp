@@ -204,6 +204,60 @@ static void test_bare_king_material_is_monotone() {
     end_section();
 }
 
+static void test_top_tiers_read_no_fitted_weight() {
+    // KQ-K and KR-K score their tier plus frozen material and the donor's
+    // KXK drive (the C.2.8 registration's Amendment 2). Before, they added
+    // the winner's ordinary score, so every refit reshaped the only gradient
+    // these mates were converted with.
+    static const char* const FENS[] = {
+        "4K3/8/8/8/8/5k2/8/1R6 w - - 0 1",   // C.2.8 run 2's unconverted KR-K
+        "8/8/3k4/8/8/2K5/8/Q7 w - - 0 1",
+        "8/2P5/3k4/8/8/2K5/8/R7 w - - 0 1",
+    };
+    int before[3];
+    for (int i = 0; i < 3; i++)
+        before[i] = eval_fen(FENS[i]);
+    const EvalParams saved = g_eval_params;
+    for (int sq = 0; sq < 64; sq++) {
+        for (int pt = 0; pt < 6; pt++) {
+            g_eval_params.pst_eg[pt][sq] += 37 * (sq % 5) - 50;
+            g_eval_params.pst_mg[pt][sq] -= 23 * (sq % 3);
+        }
+    }
+    for (int i = 0; i < 15; i++) {
+        g_eval_params.mob_r_eg[i] += 40 - 9 * i;
+        g_eval_params.mob_r_mg[i] += 5 * i;
+    }
+    init_eval_tables();
+    int after[3];
+    for (int i = 0; i < 3; i++)
+        after[i] = eval_fen(FENS[i]);
+    g_eval_params = saved;
+    init_eval_tables();
+    begin_section("bare king: a top-tier score reads no fitted weight");
+    for (int i = 0; i < 3; i++)
+        EXPECT_EQ(before[i], after[i]);
+    end_section();
+
+    begin_section("bare king: a top-tier score stays inside its tier");
+    const int r = eval_fen(FENS[0]), q = eval_fen(FENS[1]), rp = eval_fen(FENS[2]);
+    EXPECT(r > BARE_KING_ROOK_TIER && r < BARE_KING_QUEEN_TIER);
+    EXPECT(rp > BARE_KING_ROOK_TIER && rp < BARE_KING_QUEEN_TIER);
+    EXPECT(q > BARE_KING_QUEEN_TIER);
+    end_section();
+
+    // The drive spans less than a pawn, so material orders the tier: a pawn
+    // more wins whatever the kings, and the edge and the closer king win at
+    // equal material.
+    begin_section("bare king: the drive orders equal material, a pawn outranks it");
+    const int centre_far = eval_fen("7K/8/8/8/3k4/8/8/R7 w - - 0 1");
+    const int edge_near  = eval_fen("7R/8/8/8/8/8/2K5/k7 w - - 0 1");
+    const int centre_far_pawn = eval_fen("7K/8/8/8/3k4/8/7P/R7 w - - 0 1");
+    EXPECT(edge_near > centre_far);
+    EXPECT(centre_far_pawn > edge_near);
+    end_section();
+}
+
 static void test_material_advantage() {
     // Extra queen (white, white to move): large positive
     begin_section("extra queen (white): large positive eval");
@@ -1131,6 +1185,7 @@ int main() {
     test_pawnless_scaler_tie();
     test_symmetry_sweep();
     test_bare_king_material_is_monotone();
+    test_top_tiers_read_no_fitted_weight();
 
     std::printf("\nMaterial advantage\n");
     test_material_advantage();
