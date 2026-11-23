@@ -461,15 +461,17 @@ static constexpr int KXK_DONOR_PAWN_EG = 208;
 constexpr int kxk_push_to_edge(Square s) {
     const int r = int(rank_of(s)), f = int(file_of(s));
     const int rd = r < 4 ? r : 7 - r, fd = f < 4 ? f : 7 - f;
-    return 90 - (7 * fd * fd / 2 + 7 * rd * rd / 2);  // 27 in the centre, 90 in a corner
+    return 90 - (7 * fd * fd / 2 + 7 * rd * rd / 2);  // 28 in the centre, 90 in a corner
 }
 
 constexpr int kxk_push_close(int king_distance) { return 140 - 20 * king_distance; }
 
 // The drive's whole span, both tables at their extremes, stays under one pawn
 // (87 cp), so it orders positions of equal material and never outranks one.
-static_assert((90 + kxk_push_close(1) - 27 - kxk_push_close(7)) * 100 / KXK_DONOR_PAWN_EG
-                  < EG_MAT[PAWN],
+static_assert((kxk_push_to_edge(Square(0)) + kxk_push_close(1)            // a1, kings touching
+               - kxk_push_to_edge(Square(27)) - kxk_push_close(7))       // d4, kings apart
+                  * 100 / KXK_DONOR_PAWN_EG
+              < EG_MAT[PAWN],
               "the KQ-K/KR-K drive must span less than a pawn");
 
 // The winner's score above its tier, White-independent (strong's view).
