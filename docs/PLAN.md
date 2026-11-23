@@ -1468,6 +1468,21 @@ has lost games in both engines (BAS-X02).
         `endgame_draws.epd` and the recogniser positions (Rarog EVAL-2,
         D.5.17; `analysis/rarog_sweep_2026-11-04.md`): Basilisk has had
         one colour asymmetry already, the pawnless tie.
+      In progress 2026-11-23
+      (`analysis/c27_endgame_instruments_audit_2026-11-23.md`):
+      - **The audit is done** and changed no instrument. Of 24 deltas, 16
+        are portable or covered, 6 need Basilisk adapters, and 2 are
+        prioritisers for C.7.2.
+      - **Found:**
+        - the truth report changed its termination rule without a new
+          schema, and the veto tool still defaults to the pre-fix
+          baseline;
+        - a thin family's zero variance reads −∞ sigma and blocks;
+        - the cohort files are not pinned byte-exact.
+        - No gate since 6.0.e used these tools, so no recorded result
+          changes.
+      - **Open, the maintainer's:** the split into C.2.7.2 to C.2.7.4 (the
+        packet's §5), and whether held-out tooling moves to C.7.3.
     - [ ] **C.2.8** `[V]` Matched fits and the label-contract gate
       It was C.2.6 until 2026-11-11.
       Matched whole-surface fits of A and B on the current surface, then the
@@ -2100,7 +2115,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.7 | RESEARCH | R2 | Not started |
+| C.2.7 | RESEARCH | R2 | Audit done; the split into sub-steps waits on the maintainer |
 | C.2.8 | RESEARCH | V | Not started |
 | C.2.9 | RESEARCH | I1 | Not started |
 | C.2.10 | RESEARCH | R3 | Not started |
