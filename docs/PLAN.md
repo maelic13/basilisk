@@ -1762,6 +1762,26 @@ has lost games in both engines (BAS-X02).
               registration's §6.7).
             - Next: the tool change to C.2.8.2's driver (§6.5) with its
               dry run on corpus A, then run 2.
+          - **The tool change, 2026-11-23** (`9570c36`; §6.5, tools only,
+            bench unchanged):
+            - The tuner's `--count-support` streams each slot's support
+              on `--dump-coeffs`'s rows; `--dump-coeffs` is byte-identical.
+            - `surface.py rank` freezes on that count over the linear
+              stages' rows. It reads the rank on a 300,000-row sample. It
+              fails on a free slot absent from the sample and on a frozen
+              slot in a free-level table.
+            - `fit.py` records the freeze in `run.json`.
+            - Tests fail on each known-bad input, including the old tuner.
+            - **Dry run** (`tools/results/c283/amend1/dry/`):
+              - Corpus A: all 1,159 counts equal `support_full.json`'s on
+                3,547,892 rows. Only `MobQMg[0]` and `MobQEg[0]` freeze,
+                1,023 slots stay free, and the rank is 1,013 of 1,013.
+              - Cut to 30,000 support rows, it reproduces run 1's 242
+                slots and counts. The guard then fails on 155 of them
+                (153 non-king PST entries and both `ConnectedRank`) and
+                writes no manifest.
+              - Corpus B's manifest is A's, byte for byte (`E37D5983…`).
+            - Next: run 2, the maintainer's two fits.
         - [ ] **C.2.8.4** `[V]` The registered gates
           Clean-PGO arms under identical conditions, and the maintainer's
           runs. Fit loss explains; only the SPRT decides.
@@ -2379,7 +2399,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.8.3 | READY_FOR_IMPLEMENTATION | V | Amendment 1 accepted (maintainer, 2026-11-23; the registration's §6): the tool change and its dry run on corpus A, then run 2 of both fits |
+| C.2.8.3 | READY_FOR_IMPLEMENTATION | V | Amendment 1's tool change is in and qualified (`9570c36`); run 2 of both fits is the maintainer's, A then B |
 | C.2.8.4 | RESEARCH | V | Waits on C.2.8.3 |
 | C.2.9 | RESEARCH | I1 | Not started |
 | C.2.10 | RESEARCH | R3 | Not started |
