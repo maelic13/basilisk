@@ -556,3 +556,59 @@ the conversion instrument measures those endings directly.
   serve this ending.
 - **For C.7:** the pawnless classes that still use `mate_drive`'s 5 and 4
   (KQ-KR and its kin) borrow the fitted score the same way.
+
+## 8. The bracket veto blocks the refit (2026-11-23)
+
+- State / class: recorded, `R2`, on the gate's veto result
+  (`tools/results/c284/veto/`), while BAS-E59's SPRT runs.
+- Owner / date: agent, on Fable.
+
+**Decision.** The veto binds: A2 is not accepted on this evidence, and
+its SPRT is not weighed against it. One read on existing vectors decides
+what the veto means before anything else is built. The acceptance rule
+itself is the maintainer's.
+
+**The result** (refit against the repaired head, 21,000, 64,000 and
+190,000 nodes): 8 clean wins are lost at two or more budgets.
+- KBPP-KB 3, KNN-KP 2, KRP-KR 2, KP-KP 1 (at all three budgets).
+- Conversion totals of 480: refit 434, 445, 458; base 443, 448, 460.
+  The gap closes as the budget grows.
+
+**Reads added here** (the same tool on the existing brackets):
+
+| Baseline | Candidate | Vetoes |
+|---|---|---:|
+| repaired head | refit | 8 |
+| refit | repaired head | 3 |
+| C.2.7's head | repaired head | 1 |
+| repaired head | C.2.7's head | 0 |
+
+- The refit loses 8 and gains 3. Two heads that differ only in the
+  KQ-K and KR-K score trip 1 and 0.
+- So the rule's floor under a small change is about one, and 8 is not
+  that. What is not known is its floor between two evaluations of equal
+  quality and different shape: the rule was frozen before any bracket
+  data, and no such pair has been read.
+
+**The read, registered before it runs:** B2 baked over the repaired
+head, its bracket at the three budgets, and the veto of B2 against the
+repaired head, of A2 against B2, and of B2 against A2. The two fits
+differ by under 2 cp an entry and by 23% in `bench 13`.
+- **Systematic:** B2 repeats 5 or more of A2's 8 positions. The fitted
+  surface loses those conversions. The refit stays rejected, and the
+  vetoed families' terms are read before any retry.
+- **Churn:** B2 repeats 2 or fewer of them, and A2 and B2 veto each
+  other 5 or more times each way. The two-of-three rule then cannot tell
+  a refit from a different tree, and it is not a zero-tolerance
+  instrument for a whole-surface refit. That is a finding for the
+  maintainer, and acceptance stays blocked until they rule.
+- **Between:** reported as measured, with no verdict.
+- Prediction, frozen now: systematic 0.45, churn 0.3, between 0.25.
+
+**Not done tonight:**
+- No rule is changed after exposure. PLAN's endgame doctrine says a
+  correctness veto is not traded for aggregate gain.
+- No retry is built before the read. A per-phase K is the first
+  registered retry, and it answers a magnitude cause; the read says
+  whether any refit could pass this veto.
+- Nothing with the bake in it is pushed or opened as a pull request.
