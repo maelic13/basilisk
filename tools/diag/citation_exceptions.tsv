@@ -1,7 +1,11 @@
 # Cited hashes that are not Basilisk commits reachable here (check_citations.py).
 # hash<TAB>kind<TAB>reason. Kinds: external (another repository's commit),
 # content (a file or patch hash), lost (a Basilisk commit lost before citations
-# had to stay reachable; the citing record carries its recipe instead).
+# had to stay reachable; the citing record carries its recipe instead), local
+# (a Basilisk commit on a tag kept only on the maintainer's machine, because it
+# holds another engine's code; HISTORY *Preserved commits*).
+01df815	local	Basilisk: the oracle/hybrid tag, local only since 2026-11-23 (Stockfish 9587eeeb's source)
+324ace4	local	Basilisk: the oracle/hybrid-diag tag, local only since 2026-11-23 (Stockfish 9587eeeb's source)
 9587eeeb	external	Stockfish: the classical (HCE-era) donor and oracle search
 ec6f5b5	external	Rarog: the live head read for BAS-X36 under A.12's exception
 019646a	external	Rarog: the live head read for BAS-X41 under A.12's exception
