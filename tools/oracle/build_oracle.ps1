@@ -16,7 +16,8 @@
       5. the oracle's own bench as its node fingerprint.
 
     -ExtraPatch applies further patches after the bridge patch, for the
-    Stockfish-side instruments in docs/reference/rarog/refs/ (A.5.4, B.0).
+    Stockfish-side instruments, kept locally under
+    tools/results/reference/rarog/refs/ (A.5.4, B.0; docs/reference/README.md).
     They must not touch src/: the identity check runs again after each.
 
     The binary and a manifest with every input's identity are copied to
@@ -59,7 +60,7 @@ try {
     Invoke-Checked 'checkout of src/' { git -C $work checkout $srcCommit -- src }
     Invoke-Checked 'bridge patch' { git -C $work apply --ignore-whitespace $patch }
     Invoke-Checked 'src/ identity check' { git -C $work diff --quiet $srcCommit -- src }
-    # Stockfish-side instrument patches (B.0): the snapshot's
+    # Stockfish-side instrument patches (B.0): the local
     # oracle-hybrid-ablate.patch adds the matched AblationMask option. They
     # never touch src/, so the identity check binds again after each one.
     $extraPatchRecords = @()
