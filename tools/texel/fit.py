@@ -203,6 +203,20 @@ def load_seed(path: Path, header_text: str) -> list[tuple[str, int, int]]:
     return read_vector(path)
 
 
+def write_seed(path: Path, vector: list[tuple[str, int, int]], header_text: str) -> None:
+    """The run's seed, rooted at the header's defaults.
+
+    The tuner carries an `--init` file's `# root` line into every vector it
+    writes and otherwise roots the chain at the vector it was given. A seed
+    from `--init` is not the header's vector, so without the line the fitted
+    vector would not trace back to this header and `bake.py` would refuse it.
+    """
+    root = bake.vector_hash(bake.header_vector(header_text, bake.parse_param_list(header_text)))
+    path.write_text(f"# {bake.VECTOR_SCHEMA}\n# root {root}\n"
+                    + "".join(f"{n} {i} {v}\n" for n, i, v in vector),
+                    encoding="utf-8", newline="\n")
+
+
 def stage_command(stage: str, tuner: Path, common: list[str], train: Path, validation: Path,
                   out: Path, K: float, args) -> tuple[list[str], dict]:
     """One stage's tuner command and the settings it runs with."""
@@ -283,7 +297,7 @@ def fit(args, run: Run) -> None:
     else:
         vector = registry
         rec["seed"] = {"source": "the compiled header"}
-    seed.write_text("".join(f"{n} {i} {v}\n" for n, i, v in vector), encoding="utf-8", newline="\n")
+    write_seed(seed, vector, HEADER.read_text(encoding="utf-8"))
     if args.K:
         loss = parse_loss(run.step("K-given", [str(tuner), "--init", str(seed), "--loss",
                                                str(validation), "--K", str(args.K)]))

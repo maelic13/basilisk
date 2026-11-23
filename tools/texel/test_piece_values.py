@@ -106,6 +106,17 @@ class FitDriver(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, self.assertRaisesRegex(fit.FitError, "missing"):
             fit.load_seed(self.seed_file(Path(tmp), drop=1), HEADER_TEXT)
 
+    def test_the_written_seed_traces_back_to_this_header(self) -> None:
+        # The dry run that found it: a seed written without its root made the
+        # tuner root the chain at the seed, and bake.py refused the result.
+        with tempfile.TemporaryDirectory() as tmp:
+            vector = fit.load_seed(self.seed_file(Path(tmp)), HEADER_TEXT)
+            written = Path(tmp) / "00-seed.txt"
+            fit.write_seed(written, vector, HEADER_TEXT)
+            text = written.read_text(encoding="utf-8")
+        errors = bake.check_dump(text, bake.parse_param_list(HEADER_TEXT), HEADER_TEXT)
+        self.assertEqual(errors, [])
+
     def args(self, **kw):
         base = dict(lr=0.3, patience=50, epochs=20000, min_delta=1e-6, max_positions=0,
                     l2=0.0, smooth=0.0, ks_positions=100000)
