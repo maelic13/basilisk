@@ -1694,7 +1694,7 @@ has lost games in both engines (BAS-X02).
             - BAS-E60, B against A, runs only if B's fit beats A's on B's
               labels by at least 2e-5, with a game-bootstrap interval
               excluding zero.
-        - [ ] **C.2.8.2** `[I1]` The fit driver to the registered schedule
+        - [x] **C.2.8.2** `[I1]` The fit driver to the registered schedule
           The registration's §5, in `tools/texel/fit.py`:
           - `--init FILE`, a seed vector rooted at the header;
           - `--K` to freeze a K;
@@ -1703,9 +1703,32 @@ has lost games in both engines (BAS-X02).
           - the lazy-checkpoint count in its loss records.
           Also `tools/texel/piece_values.py`, the marginal-value read, with
           tests. The tuner's travel guard stays.
+          Done 2026-11-23 (`9640b24`, `3d66c84`; tools only, bench
+          unchanged):
+          - `fit.py` gains `--init`, `--K` and `--min-delta`. It records
+            each stage's settings and the lazy share in every loss.
+          - `piece_values.py` reproduces BAS-O12's piece-value read
+            exactly. Its 16 tests (`test_piece_values.py`) also cover
+            the driver's seed check, stage commands and loss parsing; it
+            runs in CI's texel job.
+          - **Dry runs** (`tools/results/c282/`):
+            - The first stopped at the tuner's travel guard on a
+              five-epoch schedule, as designed.
+            - The second found a bug: the seed was written without its
+              `# root` line, so the bake refused the fitted vector as
+              stale. Fixed, with a test.
+            - The third ran seed, K, king safety, bake, rebuild and verify
+              end to end, and restored the header.
+          - **For C.2.8.3's bake:** on fitted weights `test_eval` fails
+            the four PST orientation tests, as HANDBOOK step 6 foresees,
+            and the pawnless mate-drive test. Their fixtures move in
+            their own commits (C-70).
         - [ ] **C.2.8.3** `[V]` Fits of A and B and the fit report
           The maintainer's runs. The report reads every registered item
           before any bake.
+          - The fits run one after the other, never together: both build
+            in `build/fit` and bake into `src/eval_params.h`.
+          - B takes A's K from A's `run.json`.
         - [ ] **C.2.8.4** `[V]` The registered gates
           Clean-PGO arms under identical conditions, and the maintainer's
           runs. Fit loss explains; only the SPRT decides.
@@ -2301,8 +2324,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.8.2 | READY_FOR_IMPLEMENTATION | I1 | The registration's §5 |
-| C.2.8.3 | RESEARCH | V | Waits on C.2.8.2 |
+| C.2.8.3 | READY_FOR_IMPLEMENTATION | V | The two fits are the maintainer's runs, A then B |
 | C.2.8.4 | RESEARCH | V | Waits on C.2.8.3 |
 | C.2.9 | RESEARCH | I1 | Not started |
 | C.2.10 | RESEARCH | R3 | Not started |
