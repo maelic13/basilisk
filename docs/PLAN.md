@@ -1585,8 +1585,10 @@ has lost games in both engines (BAS-X02).
             - KBB-KB's scale 4 crosses 0.5% only because its denominator
               shrank (V6, C.7.5);
             - V3 to V6 remain at their recorded rates.
-    - [ ] **C.2.8** `[V]` Matched fits and the label-contract gate
-      It was C.2.6 until 2026-11-11.
+    - [ ] **C.2.8** Matched fits and the label-contract gate
+      It was C.2.6 until 2026-11-11. Split into four sub-steps on
+      2026-11-23 (maintainer), so the fit and the gate are registered by
+      research before anything runs.
       Matched whole-surface fits of A and B on the current surface, then the
       registered label-contract gate (archived 8.7–8.8); fit loss explains,
       the SPRT decides.
@@ -1650,9 +1652,37 @@ has lost games in both engines (BAS-X02).
       - **Also open:** `fit.py` cannot pass `--min-delta`. Its default
         schedule (400 epochs at a rate of 1.0) is unvalidated, and
         BAS-O12 needed about 3,000 epochs at 0.3.
-      - **Proposed, for sign-off:** split C.2.8 the way C.2.7 was split,
-        with a research sub-step that registers the fit and the gate
-        first.
+        - [ ] **C.2.8.1** `[R2]` Register the fit and the gates
+          The registration must settle, before any fit runs:
+          - **The magnitude contract** (C-97, C-98): how the fit holds or
+            prices the endgame re-valuation and the lazy share's rise.
+            The starting position:
+            - one frozen K, as the protocol has it;
+            - `LAZY_MARGIN` unchanged in the candidate, so one causal
+              axis;
+            - the lazy share and the per-phase piece values read as the
+              contract's reads;
+            - retries registered: a per-phase-K fit and a lazy-margin
+              refit.
+          - **The schedule:** `fit.py`'s stage budgets, validated for
+            Basilisk with `--min-delta` (8.7.b).
+          - **The anchors** for the tables, loose enough to move them.
+          - **The gates:** one causal axis each (C-57).
+            - The refit against the head.
+            - Corpus A against B, conditional on the fits differing
+              beyond noise (C.2.4's packet §6).
+          - **Before any bake:** the reads registered above (C-56's king
+            tree, `bench 13`, the floors, the endgame bracket veto).
+          - **Each gate:** its prediction, bracket, cap and stop rule.
+        - [ ] **C.2.8.2** `[I1]` The fit driver to the registered schedule
+          `fit.py` passes `--min-delta` and runs the registered stage
+          budgets, with tests; the tuner's travel guard stays.
+        - [ ] **C.2.8.3** `[V]` Fits of A and B and the fit report
+          The maintainer's runs. The report reads every registered item
+          before any bake.
+        - [ ] **C.2.8.4** `[V]` The registered gates
+          Clean-PGO arms under identical conditions, and the maintainer's
+          runs. Fit loss explains; only the SPRT decides.
     - [ ] **C.2.9** `[I1]` Family screen and matched-ablation tools
       Added 2026-11-18 (maintainer, after C.0). Two instruments the
       family order and every cluster read; neither changes a served
@@ -2245,7 +2275,10 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.8 | RESEARCH | V | Not started |
+| C.2.8.1 | RESEARCH | R2 | The re-levelling is explained (BAS-O12, Correction 2); the registration is next |
+| C.2.8.2 | RESEARCH | I1 | Waits on C.2.8.1 |
+| C.2.8.3 | RESEARCH | V | Waits on C.2.8.2 |
+| C.2.8.4 | RESEARCH | V | Waits on C.2.8.3 |
 | C.2.9 | RESEARCH | I1 | Not started |
 | C.2.10 | RESEARCH | R3 | Not started |
 | C.3.1 | RESEARCH | R3 | Not started; C.0's contract is its packet §8.2 |
