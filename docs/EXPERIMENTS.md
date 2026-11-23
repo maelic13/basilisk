@@ -178,6 +178,7 @@ fifty-move, 2 stalemate. **Zero forfeits.** Instrument: branch `hybrid`
 - [BAS-O09](experiments/BAS-O09.md) — C.0 evaluation donor: `9587eeeb`'s and `sf_16`'s classical evaluations, each in both searches. — COMPLETE: equal within about 8 Elo in either search (`sf_16`'s −3.7 and −1.6); `sf_16` stays the donor
 - [BAS-O10](experiments/BAS-O10.md) — C.2.2's H-distribution read: three static evaluations against Stockfish 19 on game positions and one move off the game line. — COMPLETE: NOT SUPPORTED (valid; delta d16 −0.013, d95 +0.003, neither above 0); corpus A takes no off-line starts
 - [BAS-O11](experiments/BAS-O11.md) — C.2.4's tablebase label audit of corpus A: the local Syzygy relabel (corpus B) and whole-game adjudication. — COMPLETE: B changes 0.28% of rows, symmetrically; whole-game would change 2.58%; no whole-game arm now (power), retry trigger recorded
+- [BAS-O12](experiments/BAS-O12.md) — C.2.5's initialization control: four PST starts fitted at frozen K on corpus A, and the scale that converts a Stockfish 16 table. — REGISTERED
 - [BAS-D22](experiments/BAS-D22.md) — B.11.1 fixed-node meters: depth at 300k nodes, branching, endgame truth cohort. — observation: 3.3-ply gap (was 12.2), 458/480 converted
 
 **Internal consistency.** Measured directly, full Stockfish beat Basilisk 1.9.3
