@@ -60,3 +60,15 @@ The maintainer accepted it the same day, the third part included.
   - The addition can stop the gate and cannot start it.
 - **Prediction for run 2, made after exposure:** the condition fails,
   0.9; the label-specific part is under 1e-5, 0.9.
+
+- **The verdict, run 2, 2026-11-23**
+  (`analysis/c283_run2_report_2026-11-23.md` §5), at K 1.960321:
+  - on B's labels, the A fit 0.09594769 and the B fit 0.09595246, so B's
+    advantage is −4.8e-6;
+  - on A's labels, A 0.09612177 and B 0.09612822, so B's advantage is
+    −6.5e-6;
+  - the label-specific part is +1.7e-6.
+
+  The first and third parts fail, so no game is played. Corpus A stands,
+  and C.2.4's retry trigger applies. Both run-2 predictions hit.
+- Disposition: CLOSED, condition failed.

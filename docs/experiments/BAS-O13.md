@@ -126,3 +126,33 @@ The maintainer accepted it in full the same day.
   before any bake. The candidates are the 0.35 seed, the king-safety
   stage before the linear one, and K.
 - The registered falsifiers stand.
+
+#### RESULT — run 2, 2026-11-23 (under Amendment 1)
+
+- Report: `analysis/c283_run2_report_2026-11-23.md`; records in
+  `tools/results/c283/A2/` and `B2/` (source `fef59ab`).
+- **The controls reproduce:**
+  - the seed `C73430E6…`;
+  - K 1.960321;
+  - the seed's losses 0.10122069 (A) and 0.10108955 (B);
+  - the seed's bench 4,777,412;
+  - one derived surface, `E37D5983…`, with only `MobQMg[0]` and
+    `MobQEg[0]` frozen and 1,023 linear slots free.
+- Every stage stopped by its own rule.
+- **A's realized validation loss is 0.09612177,** 3.04% below the
+  header's. It is 3.6e-4 below run 1 and 1.0e-4 below BAS-O12's H arm.
+- **Levels:** the eg rook +185, the eg queen +166, the eg knight +94, the
+  mg pawn −137, in line with BAS-O12's free fits.
+- **Endgame values:** knight +38%, bishop +29%, rook +30%. The lazy share
+  is 13.89%.
+- **`bench 13`:** A2 3,103,977 (−35.0%); B2 3,825,925.
+- **The floors:** A2's baked build fails KR-K at 60,000 nodes (23 of 24),
+  and at 40,000 and 50,000. The cause is a coupling, which Amendment 2
+  repaired on the head (`cd4e453`, BAS-D24). Over the repair, A2 converts
+  KQ-K and KR-K 24 of 24 at every budget from 40,000 to 120,000.
+- **Score:**
+  - frozen items: the loss interval hits on its first fair test; the
+    floors miss before the repair;
+  - Amendment 1's predictions: all seven hit;
+  - the falsifiers did not trigger;
+  - the bracket veto is read with BAS-E59.
