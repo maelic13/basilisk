@@ -14,11 +14,17 @@ It replaces tools/texel/phase911.ps1. What it guarantees (PLAN C.2.1.4):
   release engine must reproduce ``--expect-bench`` before anything is fitted.
 * **The model is the engine's.** ``basilisk-texel --verify`` passes on
   validation before the fit and again on the baked build after it.
-* **K is fitted once**, on validation at the seed, and frozen for every stage.
+* **The seed** is the compiled header's vector, or ``--init FILE``: a
+  complete vector whose root is this header (``bake.check_dump``), such as
+  ``seed_sf16.py``'s.
+* **K is fitted once**, on validation at the seed, and frozen for every stage;
+  or ``--K`` gives it, so a matched arm reuses another corpus's K.
 * **The stages run in order**, each from the vector the last one wrote
   (``--init``), never through a bake: by default king safety, the linear
-  surface, king safety again, and a linear polish at a quarter of the rate. A
-  stage the tuner calls unconverged (exit 3) stops the run.
+  surface, king safety again, and a linear polish at a quarter of the rate
+  and twice the patience. ``--min-delta`` reaches both linear stages. Each
+  stage's settings are recorded. A stage the tuner calls unconverged (exit 3)
+  stops the run.
 * **The result is checked as built.** The final vector is baked into
   ``src/eval_params.h`` and both binaries rebuilt. The rebuilt tuner must hold
   that vector exactly, ``--verify`` must pass, and the new bench, the played
@@ -31,7 +37,8 @@ It replaces tools/texel/phase911.ps1. What it guarantees (PLAN C.2.1.4):
 
 The held-out reads: the loss at the frozen K by phase band, on validation,
 and on the train rows the fit did not read (``--max-positions`` short of the
-file).
+file). Every loss record carries the rows served at the lazy checkpoint, one
+of the magnitude contract's reads (C-97).
 """
 
 from __future__ import annotations
@@ -43,6 +50,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -50,6 +58,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import bake  # noqa: E402
 HEADER = ROOT / "src" / "eval_params.h"
 SURFACE = ROOT / "tools" / "texel" / "surface_v1.tsv"
 SCHEMA = "basilisk-texel-fit-v1"
@@ -165,9 +175,16 @@ def registry_vector(run: Run, tuner: Path, name: str) -> list[tuple[str, int, in
     return rows
 
 
+ROWS_LINE = re.compile(r"(\d+) rows used \((\d+) at the lazy checkpoint\)")
+
+
 def parse_loss(text: str) -> dict:
     report: dict = {"bands": {}}
     for line in text.splitlines():
+        rows = ROWS_LINE.search(line)
+        if rows and "lazy_rows" not in report:
+            report["lazy_rows"] = int(rows.group(2))
+            report["lazy_share"] = int(rows.group(2)) / int(rows.group(1)) if int(rows.group(1)) else None
         if line.startswith(("rows:", "K:", "loss:")):
             key, value = line.split(":")
             report[key] = float(value)
@@ -175,6 +192,40 @@ def parse_loss(text: str) -> dict:
             name = line.split()[1].rstrip(":")
             report["bands"][name] = line.split(":", 1)[1].strip()
     return report
+
+
+def load_seed(path: Path, header_text: str) -> list[tuple[str, int, int]]:
+    """A seed vector file, checked to be complete and rooted at this header."""
+    text = path.read_text(encoding="utf-8")
+    errors = bake.check_dump(text, bake.parse_param_list(header_text), header_text)
+    if errors:
+        raise FitError(f"{path} is not a seed for this header: " + "; ".join(errors))
+    return read_vector(path)
+
+
+def stage_command(stage: str, tuner: Path, common: list[str], train: Path, validation: Path,
+                  out: Path, K: float, args) -> tuple[list[str], dict]:
+    """One stage's tuner command and the settings it runs with."""
+    if stage == "kingsafety":
+        settings = {"max_positions": args.ks_positions}
+        return ([str(tuner), *common, "--tune-kingsafety", str(train), str(validation), str(out),
+                 "--K", str(K), "--max-positions", str(args.ks_positions)], settings)
+    settings = {
+        "lr": args.lr / 4 if stage == "polish" else args.lr,
+        "patience": args.patience * 2 if stage == "polish" else args.patience,
+        "epochs": args.epochs,
+        "min_delta": args.min_delta,
+        "max_positions": args.max_positions,
+        "l2": args.l2,
+        "smooth": args.smooth,
+    }
+    command = [str(tuner), *common, "--tune", "surface", str(train), str(validation), str(out),
+               "--K", str(K), "--epochs", str(settings["epochs"]), "--lr", str(settings["lr"]),
+               "--patience", str(settings["patience"]), "--max-positions", str(settings["max_positions"]),
+               "--l2", str(settings["l2"]), "--smooth", str(settings["smooth"])]
+    if settings["min_delta"] > 0:
+        command += ["--min-delta", str(settings["min_delta"])]
+    return command, settings
 
 
 def stages(spec: str) -> list[str]:
@@ -223,9 +274,23 @@ def fit(args, run: Run) -> None:
     run.step("verify-seed", [str(tuner), "--verify", str(validation), "--max-positions", "0"])
 
     seed = run.out / "00-seed.txt"
-    vector = registry_vector(run, tuner, "seed-vector")
+    registry = registry_vector(run, tuner, "seed-vector")
+    if args.init:
+        vector = load_seed(args.init, HEADER.read_text(encoding="utf-8"))
+        if [(n, i) for n, i, _ in vector] != [(n, i) for n, i, _ in registry]:
+            raise FitError(f"{args.init} does not list the tuner's slots in its order")
+        rec["seed"] = {"source": str(args.init.resolve()), "sha256": sha256(args.init)}
+    else:
+        vector = registry
+        rec["seed"] = {"source": "the compiled header"}
     seed.write_text("".join(f"{n} {i} {v}\n" for n, i, v in vector), encoding="utf-8", newline="\n")
-    loss = parse_loss(run.step("K-fit", [str(tuner), "--init", str(seed), "--loss", str(validation)]))
+    if args.K:
+        loss = parse_loss(run.step("K-given", [str(tuner), "--init", str(seed), "--loss",
+                                               str(validation), "--K", str(args.K)]))
+        rec["K_source"] = "given (--K)"
+    else:
+        loss = parse_loss(run.step("K-fit", [str(tuner), "--init", str(seed), "--loss", str(validation)]))
+        rec["K_source"] = "fitted on validation at the seed"
     K = loss["K"]
     rec["K"] = K
     rec["seed_loss"] = loss
@@ -239,18 +304,10 @@ def fit(args, run: Run) -> None:
     for number, stage in enumerate(stages(args.stages), start=1):
         out = run.out / f"{number:02d}-{stage}.txt"
         common = ["--init", str(previous), "--surface", str(derived)]
-        if stage == "kingsafety":
-            command = [str(tuner), *common, "--tune-kingsafety", str(train), str(validation), str(out),
-                       "--K", str(K), "--max-positions", str(args.ks_positions)]
-        else:
-            lr = args.lr / 4 if stage == "polish" else args.lr
-            patience = args.patience * 2 if stage == "polish" else args.patience
-            command = [str(tuner), *common, "--tune", "surface", str(train), str(validation), str(out),
-                       "--K", str(K), "--epochs", str(args.epochs), "--lr", str(lr),
-                       "--patience", str(patience), "--max-positions", str(args.max_positions),
-                       "--l2", str(args.l2), "--smooth", str(args.smooth)]
+        command, settings = stage_command(stage, tuner, common, train, validation, out, K, args)
         run.step(f"stage-{number}-{stage}", command)
-        rec["stages"].append({"stage": stage, "vector": out.name, "sha256": sha256(out)})
+        rec["stages"].append({"stage": stage, "settings": settings, "vector": out.name,
+                              "sha256": sha256(out)})
         run.save()
         previous = out
     final = previous
@@ -295,6 +352,12 @@ def main() -> int:
     parser.add_argument("--expect-bench", type=int, default=0,
                         help="the seed's bench 13, checked before anything is fitted")
     parser.add_argument("--stages", default="kingsafety,linear,kingsafety,polish")
+    parser.add_argument("--init", type=Path,
+                        help="the seed vector (complete, rooted at this header); default the header's")
+    parser.add_argument("--K", type=float, default=0.0,
+                        help="freeze this K instead of fitting it at the seed")
+    parser.add_argument("--min-delta", type=float, default=0.0,
+                        help="a gain counts for the linear stages' patience only above this")
     parser.add_argument("--epochs", type=int, default=400)
     parser.add_argument("--lr", type=float, default=1.0)
     parser.add_argument("--patience", type=int, default=20)
@@ -308,6 +371,12 @@ def main() -> int:
     args.corpus = args.corpus.resolve()
     args.surface = args.surface.resolve()
     args.build_dir = args.build_dir.resolve()
+    if args.init:
+        args.init = args.init.resolve()
+        if not args.init.is_file():
+            parser.error(f"seed vector not found: {args.init}")
+    if args.K < 0 or args.min_delta < 0:
+        parser.error("--K and --min-delta cannot be negative")
 
     try:
         run = Run(args.out.resolve())
