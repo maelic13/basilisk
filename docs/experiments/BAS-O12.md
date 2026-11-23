@@ -58,4 +58,22 @@
     tables' scale under Basilisk's other terms, not under Stockfish 16's.
 - Stop rule: one run per arm, never re-run on the same inputs.
 
+- **Amendment 1 (2026-11-23, after the first run, before any read of a
+  fitted vector).**
+  - *What failed:* the registered schedule did not converge. H, S557 and
+    S613 were still improving at epoch 3,000, by about 3e-8 an epoch, so
+    the tuner exited 3 and wrote no vector; F613 wrote one.
+  - *Exposed:* the best holdout losses at epoch 3,000, which are floors: H
+    0.0961693, S557 0.0962042, S613 0.0962045, F613 0.0962163.
+  - *The instrument:* the tuner gains `--min-delta` (`1f16f4c`, tested in
+    `test_fit.py`). Patience then counts only gains above it, and the
+    travel guard still refuses a run its schedule carried.
+  - *The amended schedule,* every arm re-run with nothing else changed:
+    `--epochs 20000 --patience 50 --min-delta 1e-6`. That stops when 50
+    epochs gain under 1e-6, a twentieth of the start-independence
+    tolerance.
+  - The predictions and the verdict rule stand as frozen. The exposed
+    floors already put H ahead of S613 by 3.5e-5, outside the 2e-5
+    tolerance, and the converged run decides.
+
 #### RESULT — append after exposure
