@@ -28,172 +28,172 @@ struct EvalParams {
     int pst_mg[6][64] = {
         // PAWN
         {    0,    0,    0,    0,    0,    0,    0,    0,
-           -30,   -2,  -17,  -23,  -13,   35,   39,  -29,
-           -24,   -6,  -11,  -11,    3,    2,   24,  -10,
-           -24,   -3,   -5,    6,   13,    6,    3,  -23,
-           -10,   12,    6,   18,   22,   12,   15,  -22,
-            -5,    7,   26,   31,   65,   56,   25,  -20,
-            98,  134,   61,   95,   68,  126,   34,  -11,
+          -144, -139, -134, -126, -115,  -97, -109, -155,
+          -160, -160, -154, -152, -135, -148, -142, -154,
+          -149, -158, -148, -154, -152, -137, -153, -146,
+          -121, -141, -138, -130, -122, -121, -128, -112,
+           -96,  -99,  -93,  -78,  -64,  -25,  -51,  -68,
+           -92,  -72,  -45,  -31,  -15, -125, -201, -220,
              0,    0,    0,    0,    0,    0,    0,    0 },
         // KNIGHT
-        { -105,  -21,  -58,  -33,  -17,  -28,  -19,  -23,
-           -29,  -53,  -12,   -3,   -1,   18,  -14,  -19,
-           -23,   -9,   12,   10,   19,   17,   25,  -16,
-           -13,    4,   16,   13,   28,   19,   21,   -7,
-            -9,   17,   22,   54,   37,   68,   18,   22,
-           -47,   58,   38,   65,   84,  110,   73,   44,
-           -73,  -41,   66,   33,   25,   62,    7,  -17,
-          -167,  -89,  -34,  -49,   61,  -97,  -15, -107 },
+        {  -81,  -60,  -86,  -55,  -60,  -68,  -80,  -90,
+           -68,  -58,  -55,  -50,  -51,  -58,  -59,  -66,
+           -38,  -32,  -37,  -38,  -30,  -40,  -31,  -48,
+           -12,    6,    1,  -14,   -8,   -5,   -8,  -32,
+           -13,   -5,    2,   32,   -8,   16,   -3,    7,
+           -10,  -26,   27,   19,   47,   79,   20,   -9,
+           -24,  -33,   12,   14,   20,   41,   -1,   62,
+          -181, -157,    3,    9,    5,  -36,   64, -118 },
         // BISHOP
-        {  -33,   -3,  -14,  -21,  -13,  -12,  -39,  -21,
-             4,   15,   16,    0,    7,   21,   33,    1,
-             0,   15,   15,   15,   14,   27,   18,   10,
-            -6,   13,   13,   26,   34,   12,   10,    4,
-            -4,    5,   19,   50,   37,   37,    7,   -2,
-           -16,   37,   43,   35,   35,   51,   37,   -1,
-           -26,   10,  -18,  -11,   24,   57,   23,  -47,
-           -29,    4,  -77,  -37,  -25,  -41,    7,   -8 },
+        {  -24,  -15,  -50,  -59,  -47,  -56,  -37,  -59,
+           -19,  -35,  -30,  -56,  -50,  -37,  -36,  -52,
+           -26,   -5,  -31,  -35,  -41,  -34,  -15,  -31,
+           -12,  -12,  -14,  -24,  -12,  -22,  -23,  -13,
+           -27,   -5,   -2,   13,   -3,    3,  -20,  -34,
+           -21,  -13,   -8,   14,   27,   58,   23,   -2,
+           -52,  -27,  -16,   -9,  -28,   -3,  -50,  -57,
+           -23,  -37,  -85, -121,  -37, -113,  -54,  -56 },
         // ROOK
-        {  -15,  -12,   -2,   12,   14,   11,  -34,  -26,
-           -44,  -16,  -20,  -10,   -1,   11,   -6,  -71,
-           -45,  -25,  -16,  -17,    3,    0,   -5,  -33,
-           -36,  -26,  -12,   -1,    9,   -7,    6,  -23,
-           -24,  -11,    7,   26,   24,   35,   -8,  -20,
-            -5,   19,   26,   36,   17,   45,   61,   16,
-            26,   31,   57,   62,   80,   67,   26,   44,
-            32,   42,   32,   51,   63,    9,   31,   43 },
+        {  -86,  -81,  -82,  -72,  -61,  -58,  -51,  -80,
+           -98,  -87,  -84,  -74,  -71,  -51,  -41,  -69,
+           -93,  -79,  -88,  -76,  -65,  -57,  -50,  -55,
+          -109,  -82,  -81,  -73,  -56,  -55,  -33,  -72,
+           -89,  -65,  -57,  -41,  -21,  -20,  -27,  -31,
+           -82,  -54,  -47,  -42,   26,   28,   44,  -23,
+           -82,  -75,  -49,  -26,  -24,   49,    3,  -18,
+           -52,  -31,  -27,   -2,   11,   27,   30,   63 },
         // QUEEN
-        {   -1,  -18,   -9,   10,  -15,  -25,  -31,  -50,
-           -35,   -8,   11,    2,    8,   15,   -3,    1,
-           -14,    2,  -11,   -2,   -5,    2,   14,    5,
-            -9,  -26,   -9,  -10,   -2,   -4,    3,   -3,
-           -27,  -27,  -15,  -16,   -1,   18,   -2,    1,
-           -13,  -15,    7,    8,   29,   57,   47,   57,
-           -24,  -39,   -4,    0,  -16,   51,   28,   54,
-           -28,    0,   27,   12,   47,   41,   43,   45 },
+        {   59,   55,   57,   53,   73,   77,   78,   70,
+            45,   47,   46,   58,   59,   71,   77,   76,
+            55,   46,   53,   45,   51,   75,   65,   71,
+            46,   50,   44,   47,   63,   68,   53,   60,
+            84,   95,   97,   87,  103,  114,   87,  109,
+            78,   79,   80,  104,   85,  144,  104,  124,
+            52,   45,   80,   76,   69,  113,   95,  155,
+            47,  103,  100,  131,   71,  182,  213,  179 },
         // KING
-        {  -15,   36,   12,  -54,    8,  -29,   21,    6,
-             1,    7,   -8,  -64,  -43,  -16,   13,    8,
-           -14,  -14,  -22,  -46,  -44,  -30,  -15,  -27,
-           -49,   -1,  -27,  -39,  -46,  -44,  -33,  -51,
-           -17,  -20,  -12,  -27,  -30,  -25,  -14,  -36,
-            -9,   24,    2,  -16,  -20,    6,   22,  -22,
-            29,   -1,  -20,   -7,   -8,   -4,  -38,  -29,
-           -65,   23,   16,  -15,  -56,  -34,    2,   13 }
+        {    5,   28,   10,  -70,  -14,  -54,   21,   30,
+            39,    3,   -6,   -8,  -16,  -16,   24,   20,
+            22,   35,   11,    0,  -23,  -33,  -14,  -35,
+            33,   56,   -9,  -20,  -32,  -31,  -51, -122,
+           -38,   29,   11,   -7,    1,  -20,  -33, -134,
+           -13,   32,   18,  -44,   -4,   50,   18,  -77,
+           -41,  -27,   23,   27,  -57,  -41,   26, -154,
+           -66,   35,   -5,  -13,  -27, -119,    0, -137 }
     };
 
     int pst_eg[6][64] = {
         // PAWN
         {    0,    0,    0,    0,    0,    0,    0,    0,
-            -2,   -4,   10,    0,   14,    7,   -5,  -19,
-            -3,   -1,    4,   19,    8,   11,   -5,  -13,
-            15,    2,  -12,   -6,   -3,  -12,    1,   -4,
-            33,   23,   13,    2,   -2,    4,   18,   16,
-            56,   37,   41,   22,   26,   51,   56,   24,
-           134,  108,  109,  107,  105,  104,  112,  108,
+            33,   30,   14,   -7,   32,   20,   12,   -2,
+            24,   13,    2,   -4,    2,    4,   -6,   -7,
+            33,   26,    4,    2,    4,    8,    8,    0,
+            69,   46,   24,    2,   11,   19,   31,   30,
+           186,  151,  109,   63,   73,  110,  127,  134,
+           270,  232,  214,  152,  154,  194,  220,  244,
              0,    0,    0,    0,    0,    0,    0,    0 },
         // KNIGHT
-        {  -29,  -51,  -23,  -15,  -22,  -18,  -50,  -64,
-           -42,  -20,  -10,   -5,   -2,  -20,  -23,  -44,
-           -23,   -3,   -1,   15,   10,   -3,  -20,  -22,
-           -18,   -6,   16,   25,   16,   17,    4,  -18,
-           -17,    3,   22,   22,   22,   11,    8,  -18,
-           -24,  -20,   10,    9,   -1,  -18,  -19,  -41,
-           -25,   -8,  -25,   -2,   -9,  -25,  -24,  -52,
-           -58,  -38,  -13,  -28,  -31,  -27,  -63,  -99 },
+        {  114,   50,   74,   88,   70,   63,   53,  121,
+            82,   81,   72,   71,   61,   59,   71,   86,
+            78,   69,   66,   78,   80,   58,   59,   75,
+            95,   78,   83,   98,  104,   92,   88,  109,
+           107,   77,   81,   96,   91,   90,   89,   84,
+            63,   82,   81,   80,   69,   73,   74,   88,
+            73,   88,   68,  105,   75,   62,   75,   66,
+            70,  112,   66,   78,   73,   67,   27,   31 },
         // BISHOP
-        {  -23,   -9,  -23,   -5,   -9,  -16,   -5,  -17,
-           -14,  -18,   -7,   -1,    4,   -9,  -15,  -27,
-           -12,   -3,    8,   10,   13,    3,   -7,  -15,
-            -6,    3,   13,   19,    7,   10,   -3,   -9,
-            -3,    9,   12,    9,   14,   10,    3,    2,
-             2,   -8,    0,   -1,   -2,    6,    0,    4,
-            -8,   -5,    7,  -12,   -3,  -13,   -4,  -14,
-           -14,  -21,  -11,   -8,   -7,   -9,  -17,  -24 },
+        {  100,   86,   94,   87,   93,   95,   63,   84,
+           115,   86,   84,   95,   91,   88,   81,   58,
+            95,  106,  108,   97,  111,   91,   82,   84,
+            85,   98,  106,  108,  101,  102,   95,   70,
+           100,  100,   93,  107,  112,   96,  111,   94,
+            96,  106,  102,   95,  104,  108,  104,  103,
+           117,   99,   91,   92,   97,  105,  111,   78,
+           114,   82,  110,  114,   90,  109,  109,  126 },
         // ROOK
-        {   -9,    2,    3,   -1,   -5,  -10,    4,  -20,
-            -6,   -6,    0,    2,   -9,   -9,  -11,   -3,
-            -4,    0,   -5,   -1,   -7,  -12,   -8,  -16,
-             3,    5,    8,    4,   -5,   -6,   -8,  -11,
-             4,    3,   13,    1,    2,    1,   -1,    2,
-             7,    7,    7,    5,    4,   -3,   -5,   -3,
-            11,   11,    9,    9,   -3,    3,    8,    3,
-            13,   10,   18,   15,   12,   12,    8,    5 },
+        {  185,  184,  188,  179,  163,  174,  158,  155,
+           176,  178,  187,  172,  164,  157,  145,  133,
+           181,  192,  193,  173,  164,  177,  169,  149,
+           215,  207,  206,  195,  188,  199,  191,  178,
+           222,  217,  205,  194,  185,  195,  199,  192,
+           216,  213,  200,  197,  164,  175,  173,  185,
+           200,  198,  192,  182,  171,  162,  177,  176,
+           208,  211,  218,  210,  197,  198,  190,  180 },
         // QUEEN
-        {  -33,  -28,  -22,  -43,   -5,  -32,  -20,  -41,
-           -22,  -23,  -30,  -16,  -16,  -23,  -36,  -32,
-           -16,  -27,   15,    6,    9,   17,   10,    5,
-           -18,   28,   19,   47,   31,   34,   39,   23,
-             3,   22,   24,   45,   57,   40,   57,   36,
-           -20,    6,    9,   49,   47,   35,   19,    9,
-           -17,   20,   32,   41,   58,   25,   30,    0,
-            -9,   22,   22,   27,   25,   19,   10,   20 },
+        {  167,  179,  176,  213,  153,  106,   62,  102,
+           223,  202,  229,  222,  226,  184,  134,  164,
+           204,  245,  248,  262,  261,  252,  239,  234,
+           263,  261,  288,  296,  288,  280,  292,  293,
+            76,  105,  101,  149,  154,  143,  178,  135,
+            70,  100,  122,  124,  192,  151,  171,  120,
+           104,  107,  148,  167,  201,  170,  136,  101,
+           136,  112,  142,  126,  209,  117,   70,   77 },
         // KING
-        {  -53,  -34,  -21,  -11,  -28,  -14,  -24,  -43,
-           -27,  -11,    4,   13,   14,    4,   -5,  -17,
-           -19,   -3,   11,   21,   23,   16,    7,   -9,
-           -18,   -4,   21,   24,   27,   23,    9,  -11,
-            -8,   22,   24,   27,   26,   33,   26,    3,
-            10,   17,   23,   15,   20,   43,   37,   13,
-           -12,   17,   14,   17,   17,   33,   21,   10,
-           -74,  -35,  -18,  -18,  -11,   14,   -4,  -19 }
+        {  -45,  -36,   -5,    0,  -20,   -1,  -41,  -72,
+           -34,   -9,    3,    4,   11,    6,  -12,  -28,
+           -49,  -26,    8,   21,   22,   14,   -4,  -13,
+           -49,  -18,   21,   34,   35,   28,   10,   -7,
+           -17,    7,   35,   47,   47,   45,   33,   12,
+           -11,   30,   46,   64,   59,   59,   56,   31,
+           -88,   -3,   32,   38,   42,   48,   54,   10,
+          -153,  -54,  -52,  -25,    1,   32,   22,  -45 }
     };
 
     // ---- Passed pawn bonuses [rank 0..7] ------------------------------------
-    int passed_mg[8] = { 0, 4, 5, 5, 23, 91, 91, 0 };
-    int passed_eg[8] = { 0, 5, 6, 49, 84, 113, 123, 0 };
+    int passed_mg[8] = { 0, 0, 0, 8, 17, 17, 91, 0 };
+    int passed_eg[8] = { 0, 0, 0, 13, 43, 70, 123, 0 };
 
 
     // Dynamic passer bonuses (per-rank multipliers; evaluated outside pawn hash)
     int pass_free_mg = 0;  // stop square empty
-    int pass_free_eg = 5;  // stop square empty
-    int pass_safe_eg = 10;  // stop square not attacked by enemy (additional)
+    int pass_free_eg = 10;  // stop square empty
+    int pass_safe_eg = 15;  // stop square not attacked by enemy (additional)
 
     // ---- Pawn structure (signed values; negative = penalty) ----------------
-    int doubled_mg = 0;
-    int doubled_eg = -7;
-    int isolated_mg = -3;
-    int isolated_eg = -13;
-    int connected_mg = 14;
+    int doubled_mg = -1;
+    int doubled_eg = -14;
+    int isolated_mg = 0;
+    int isolated_eg = -8;
+    int connected_mg = 7;
     int connected_eg = 0;
-    int backward_mg = -1;
-    int backward_eg = -11;
+    int backward_mg = 0;
+    int backward_eg = -6;
 
     // ---- Pawn-structure refinement (Step 3.4) ----------------------------------
     // Pawn-cache-safe (depend only on pawns). The flat doubled/isolated/
     // connected/backward terms stay active beside them.
-    int connected_rank_mg[8] = { 0, 2, 6, -3, 0, 1, 0, 0 };  // connected/phalanx by rel rank
-    int connected_rank_eg[8] = { 0, 0, -2, 1, 5, 6, 0, 0 };
-    int weak_unopposed_mg = -9;  // weak (isolated/backward) pawn on a half-open file
-    int weak_unopposed_eg = -2;
-    int blocked_pawn_mg[2] = { -8, 2 };  // own pawn rammed by an enemy pawn, rel rank 5 / 6
-    int blocked_pawn_eg[2] = { -4, 0 };
-    int pawn_majority_mg = 4;  // own pawn majority on a flank (breakthrough potential)
-    int pawn_majority_eg = 11;
+    int connected_rank_mg[8] = { 0, -1, 14, 11, 20, 55, 215, 0 };  // connected/phalanx by rel rank
+    int connected_rank_eg[8] = { 0, -1, 15, 15, 30, 55, 112, 0 };
+    int weak_unopposed_mg = -11;  // weak (isolated/backward) pawn on a half-open file
+    int weak_unopposed_eg = -8;
+    int blocked_pawn_mg[2] = { -23, -26 };  // own pawn rammed by an enemy pawn, rel rank 5 / 6
+    int blocked_pawn_eg[2] = { -17, -84 };
+    int pawn_majority_mg = -12;  // own pawn majority on a flank (breakthrough potential)
+    int pawn_majority_eg = 37;
 
     // ---- Passed-pawn promotion-path safety (Step 3.4; piece-dependent) ----
-    int passed_path_safe_eg = 9;  // promotion path free of enemy attack (x rel rank)
-    int passed_block_defended_eg = 5;  // immediate block square defended by us
-    int passed_king_block_eg = 19;  // (enemy - own) king distance to the block square
+    int passed_path_safe_eg = 14;  // promotion path free of enemy attack (x rel rank)
+    int passed_block_defended_eg = 6;  // immediate block square defended by us
+    int passed_king_block_eg = 14;  // (enemy - own) king distance to the block square
 
     // ---- Small positional terms (Step 3.7) ---------------------------------
     // Traced one-hot/linear and fitted by the tuner.
-    int reachable_outpost_mg = 7;  // per outpost square a knight can hop to
-    int reachable_outpost_eg = 2;
-    int bad_bishop_mg = -7;  // per own pawn on the bishop's colour
-    int bad_bishop_eg = -13;
-    int minor_king_ring_mg = 6;  // our minor attacking the enemy king ring
-    int minor_king_ring_eg = -2;
-    int rook_king_ring_mg = -2;  // our rook attacking the enemy king ring
-    int rook_king_ring_eg = -4;
-    int rook_closed_mg = -7;  // rook on a closed file (own + enemy pawn present)
-    int rook_closed_eg = 1;
-    int rook_queen_file_mg = 5;  // our rook shares a file with the enemy queen
-    int rook_queen_file_eg    = 0;
-    int connected_rooks_mg = 8;  // our rooks defend each other along an open line
-    int connected_rooks_eg = 3;
-    int bishop_pair_pawns_mg = 3;  // bishop pair scaled by own pawn count
-    int bishop_pair_pawns_eg = 1;
+    int reachable_outpost_mg = 10;  // per outpost square a knight can hop to
+    int reachable_outpost_eg = 13;
+    int bad_bishop_mg = -2;  // per own pawn on the bishop's colour
+    int bad_bishop_eg = -12;
+    int minor_king_ring_mg = 3;  // our minor attacking the enemy king ring
+    int minor_king_ring_eg = 1;
+    int rook_king_ring_mg = -40;  // our rook attacking the enemy king ring
+    int rook_king_ring_eg = -6;
+    int rook_closed_mg = -17;  // rook on a closed file (own + enemy pawn present)
+    int rook_closed_eg = -1;
+    int rook_queen_file_mg = 18;  // our rook shares a file with the enemy queen
+    int rook_queen_file_eg = -2;
+    int connected_rooks_mg = -5;  // our rooks defend each other along an open line
+    int connected_rooks_eg = 33;
+    int bishop_pair_pawns_mg = 11;  // bishop pair scaled by own pawn count
+    int bishop_pair_pawns_eg = 7;
 
     // ---- Material imbalance (Step 3.8; SF-style quadratic) ----------------
     // Piece index: 0 = bishop pair, 1 = pawn, 2 = knight, 3 = bishop, 4 = rook,
@@ -203,21 +203,21 @@ struct EvalParams {
     // coefficients (feature = count products), so they are traced normally and
     // fit by the linear tuner.
     int imb_linear[6] = { 0, 0, 0, 4, 8, 2 };
-    int imb_our[21] = { 0, 2, 5, 0, 10, -2, 0, 9, 2, 3, 0, 9, 4, 6, 6, 0, 18, 1, 3, 5, 2 };
-    int imb_their[21] = { 0, 3, 0, 0, 9, 0, 1, 12, 0, 0, -1, 16, 2, -4, 0, 1, 27, 5, 4, 3, 0 };
+    int imb_our[21] = { 0, 2, 4, -11, 24, -15, 0, 15, -26, 3, -40, 34, -12, -9, -11, -49, 62, -52, -58, -75, 2 };
+    int imb_their[21] = { 0, 8, 0, -1, 18, 0, 13, 22, -2, 0, -21, 19, -11, -13, 0, 1, 27, 5, 4, 3, 0 };
 
     // ---- HCE survey additions (Step 3.9; SF11-classical) --------------------
     // Traced and fitted.
-    int minor_behind_pawn_mg = 5;  // minor shielded by a friendly pawn directly ahead
-    int minor_behind_pawn_eg  = 0;
+    int minor_behind_pawn_mg = 10;  // minor shielded by a friendly pawn directly ahead
+    int minor_behind_pawn_eg = 1;
     // ---- Simpler-form repairs (seeded to preserve behaviour) --------------
     // king_protector was ONE scalar applied to both knights and bishops, so the
     // fit could never learn that the two pieces value king proximity
     // differently. Split per piece type, so the fit can separate them.
-    int king_protector_n_mg = 1;   // knight distance-to-own-king
-    int king_protector_n_eg = 0;
-    int king_protector_b_mg = -2;   // bishop distance-to-own-king
-    int king_protector_b_eg = 0;
+    int king_protector_n_mg = -10;   // knight distance-to-own-king
+    int king_protector_n_eg = -3;
+    int king_protector_b_mg = -9;   // bishop distance-to-own-king
+    int king_protector_b_eg = -1;
     // Outposts were priced for knights only. A bishop on a protected advanced
     // square the enemy cannot challenge with a pawn is the same concept and was
     // simply missing. Seeded inert.
@@ -228,30 +228,30 @@ struct EvalParams {
     // Manta losing ~-23 Elo across two gates by hand-scaling exactly this class
     // of reference-family concept.
 
-    int queen_infiltration_mg = 18;  // our queen safely deep in the enemy half
-    int queen_infiltration_eg = 15;
-    int pawn_islands_mg = -4;  // per disconnected own-pawn group (penalty)
-    int pawn_islands_eg = 6;
+    int queen_infiltration_mg = -45;  // our queen safely deep in the enemy half
+    int queen_infiltration_eg = 186;
+    int pawn_islands_mg = -14;  // per disconnected own-pawn group (penalty)
+    int pawn_islands_eg = 7;
 
     // ---- Bishop pair -------------------------------------------------------
-    int bp_mg = 30;
-    int bp_eg = 50;
+    int bp_mg = 87;
+    int bp_eg = 26;
 
     // ---- Rook bonuses ------------------------------------------------------
-    int rook_open_mg = 32;
-    int rook_open_eg = 7;
-    int rook_semi_mg = 13;
-    int rook_semi_eg = 13;
+    int rook_open_mg = 33;
+    int rook_open_eg = 14;
+    int rook_semi_mg = 10;
+    int rook_semi_eg = 0;
     int rook_7th_mg = 4;
     int rook_7th_eg = 22;
-    int rook_behind_passer_mg = 14;
-    int rook_behind_passer_eg = 25;
-    int enemy_rook_passer_mg  = 10;  // subtracted (enemy rook behind our passer)
-    int enemy_rook_passer_eg  = 20;  // subtracted
+    int rook_behind_passer_mg = 3;
+    int rook_behind_passer_eg = 21;
+    int enemy_rook_passer_mg = 7;  // subtracted (enemy rook behind our passer)
+    int enemy_rook_passer_eg = 102;  // subtracted
 
     // ---- Knight outpost ----------------------------------------------------
-    int knight_outpost_mg = 33;
-    int knight_outpost_eg = 15;
+    int knight_outpost_mg = 19;
+    int knight_outpost_eg = 20;
 
     // ---- Mobility: per-count one-hot tables (Step 3.3) ---------------------
     // Indexed by the safe-mobility square count. First seeded as table[i] = i *
@@ -260,47 +260,47 @@ struct EvalParams {
     // (The mobility *area* is unchanged here — its SF-style refinement, excluding
     // own K/Q, blocked pawns, and pinned pieces via blockers_for_king, is a
     // behaviour change deferred to Phase 4.4 where it interacts with the fit.)
-    int mob_n_mg[9] = { 0, 5, 9, 15, 20, 24, 31, 36, 40 };
-    int mob_n_eg[9] = { 0, 5, 10, 16, 21, 26, 30, 35, 37 };
-    int mob_b_mg[14] = { 0, 4, 7, 12, 22, 28, 32, 36, 40, 45, 50, 55, 60, 65 };
-    int mob_b_eg[14] = { 0, 7, 14, 21, 29, 37, 45, 50, 56, 63, 69, 76, 84, 91 };
-    int mob_r_mg[15] = { -1, 1, 1, 1, 2, 7, 7, 10, 13, 14, 14, 14, 14, 14, 14 };
-    int mob_r_eg[15] = { 0, 7, 14, 21, 28, 36, 45, 50, 58, 67, 71, 77, 83, 90, 96 };
-    int mob_q_mg[28] = { 0, 2, 4, 6, 8, 9, 11, 13, 16, 18, 20, 23, 25, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54 };
-    int mob_q_eg[28] = { 0, 12, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 144, 156, 168, 180, 192, 204, 216, 228, 240, 252, 264, 276, 288, 300, 312, 324 };
+    int mob_n_mg[9] = { -22, -12, 9, 21, 27, 32, 37, 43, 44 };
+    int mob_n_eg[9] = { -177, -35, 11, 34, 52, 71, 72, 77, 77 };
+    int mob_b_mg[14] = { -16, -2, 12, 20, 28, 35, 37, 38, 40, 42, 42, 50, 65, 65 };
+    int mob_b_eg[14] = { -70, -14, 15, 34, 47, 55, 63, 69, 74, 74, 74, 74, 74, 74 };
+    int mob_r_mg[15] = { -39, -16, 4, 4, 9, 9, 9, 11, 12, 13, 13, 18, 24, 26, 26 };
+    int mob_r_eg[15] = { -127, 12, 16, 34, 41, 50, 62, 68, 73, 77, 84, 86, 86, 91, 91 };
+    int mob_q_mg[28] = { 0, 0, 0, 4, 16, 16, 16, 20, 24, 26, 28, 29, 33, 33, 34, 35, 35, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37 };
+    int mob_q_eg[28] = { 0, 0, 0, 0, 15, 103, 123, 143, 159, 179, 185, 195, 203, 205, 210, 212, 214, 217, 217, 217, 217, 217, 217, 217, 217, 217, 217, 217 };
 
     // ---- Pawn threats to enemy pieces (re-tuned Phase 4.2) -----------------
-    int threat_minor_mg = 58;
-    int threat_minor_eg = 25;
-    int threat_rook_mg  = 58;
-    int threat_rook_eg  = 25;
-    int threat_queen_mg = 58;
-    int threat_queen_eg = 25;
+    int threat_minor_mg = 87;
+    int threat_minor_eg = 57;
+    int threat_rook_mg = 87;
+    int threat_rook_eg = 57;
+    int threat_queen_mg = 87;
+    int threat_queen_eg = 57;
 
     // ---- Threats package (Step 3.1; SF-style) -------------------------------
     // Per-type arrays are indexed by the attacked PieceType [0..6].
     // (Phase 4.2 fit; it absorbed the old flat hanging-piece penalty.)
-    int threat_by_minor_mg[7] = { 0, 2, 38, 47, 59, 51, 0 };  // weak/defended enemy attacked by N/B
-    int threat_by_minor_eg[7] = { 0, 26, 3, 11, 22, 30, 0 };
-    int threat_by_rook_mg[7] = { 0, -4, 17, 25, 4, 46, 0 };  // weak enemy attacked by rook
-    int threat_by_rook_eg[7] = { 0, 25, 19, 22, 8, 33, 0 };
-    int threat_by_king_mg     = 20;  // weak enemy attacked by our king
-    int threat_by_king_eg = 40;
-    int threat_hanging_mg = 24;  // per weak enemy that is undefended or doubly attacked
-    int threat_hanging_eg = 25;
-    int weak_queen_prot_mg = 17;  // per weak enemy whose only defender is its queen
-    int weak_queen_prot_eg    =  7;
-    int restricted_mg = 5;  // per square the enemy attacks but cannot safely hold
-    int restricted_eg = -4;
-    int threat_push_mg = 20;  // per enemy non-pawn attackable by a safe pawn push
-    int threat_push_eg = 14;
+    int threat_by_minor_mg[7] = { 0, -3, 32, 46, 81, 70, 0 };  // weak/defended enemy attacked by N/B
+    int threat_by_minor_eg[7] = { 0, 28, 44, 31, 33, 55, 0 };
+    int threat_by_rook_mg[7] = { 0, -7, 19, 25, 6, 48, 0 };  // weak enemy attacked by rook
+    int threat_by_rook_eg[7] = { 0, 36, 53, 62, 11, 94, 0 };
+    int threat_by_king_mg = 15;  // weak enemy attacked by our king
+    int threat_by_king_eg = 47;
+    int threat_hanging_mg = 18;  // per weak enemy that is undefended or doubly attacked
+    int threat_hanging_eg = 8;
+    int weak_queen_prot_mg = 6;  // per weak enemy whose only defender is its queen
+    int weak_queen_prot_eg = 14;
+    int restricted_mg = 8;  // per square the enemy attacks but cannot safely hold
+    int restricted_eg = -2;
+    int threat_push_mg = 24;  // per enemy non-pawn attackable by a safe pawn push
+    int threat_push_eg = 29;
 
     // ---- King safety (Phase 4.1 fit via --tune-kingsafety) -----------------
-    int ks_unit[7] = { 0, 0, 4, 0, 2, 0, 0 };  // attacker weight by PieceType
+    int ks_unit[7] = { 0, 0, 2, 0, 4, 0, 0 };  // attacker weight by PieceType
     int ks_coord_bonus = 2;  // extra attack_units when 2+ attackers in zone
 
     // Penalty lookup: index = clamped attack_units [0..24]
-    int safety_table[25] = { -3, 0, 0, 12, 28, 31, 45, 59, 76, 88, 105, 121, 156, 167, 189, 226, 256, 293, 301, 331, 339, 360, 393, 393, 430 };
+    int safety_table[25] = { -3, 0, 0, 11, 11, 20, 35, 35, 61, 69, 93, 129, 152, 189, 189, 256, 256, 271, 271, 339, 339, 422, 422, 493, 553 };
 
     // ---- King safety v2 danger inputs (Step 3.2) ----------------------------
     // These feed the attack_units -> safety_table funnel as extra index
@@ -312,16 +312,16 @@ struct EvalParams {
     int ks_king_blockers = 3;  // per own piece pinned/blocking in front of the king (Phase 4.1)
     int ks_central_king = 1;  // king central with castling rights gone
     int ks_shelter_storm = 1;  // king pawn-shelter exposure folded into danger
-    int ks_noqueen_num    = 2;  // no-enemy-queen danger scaling numerator
+    int ks_noqueen_num = 3;  // no-enemy-queen danger scaling numerator
     int ks_noqueen_den = 5;  // ... denominator
 
     // ---- King pawn shelter / storm -----------------------------------------
-    int shelter_missing_center = 18;  // mg penalty, open center file near king
-    int shelter_missing_flank = 7;  // mg penalty, open flank file near king
+    int shelter_missing_center = 19;  // mg penalty, open center file near king
+    int shelter_missing_flank = -8;  // mg penalty, open flank file near king
     int shelter_close1 = 21;  // mg bonus for pawn 1 rank ahead of king
-    int shelter_close2 = 7;  // mg bonus for pawn 2 ranks ahead of king
-    int storm_weight_kf = -1;  // mg penalty per rank, king file
-    int storm_weight_adj = 1;  // mg penalty per rank, adjacent files
+    int shelter_close2 = 14;  // mg bonus for pawn 2 ranks ahead of king
+    int storm_weight_kf = -4;  // mg penalty per rank, king file
+    int storm_weight_adj = -1;  // mg penalty per rank, adjacent files
 
     // ---- Passed pawn king proximity (endgame) ------------------------------
     int prox_base = 0;  // constant in (prox_base + rel_r) distance multiplier
@@ -329,15 +329,15 @@ struct EvalParams {
     // ---- Space evaluation --------------------------------------------------
     int space_mg = 0;
     // Step 3.6 space refinement:
-    int space_piece_mg = 0;  // space weighted by own non-pawn piece count
-    int space_blocked_mg = -2;  // space weighted by own blocked-pawn count
+    int space_piece_mg = 1;  // space weighted by own non-pawn piece count
+    int space_blocked_mg = -1;  // space weighted by own blocked-pawn count
 
     // ---- Trapped bishop ----------------------------------------------------
-    int trapped_mg = 60;
-    int trapped_eg = 40;
+    int trapped_mg = 0;
+    int trapped_eg = 0;
 
     // ---- Tempo bonus -------------------------------------------------------
-    int tempo = 22;
+    int tempo = 27;
 };
 
 // ---- Helpers for iterating EVAL_PARAM_LIST generically --------------------
@@ -539,14 +539,13 @@ constexpr int EVAL_PARAM_FLAT_SIZE = eval_param_offset(EPG_COUNT);
 // Per-trace record populated by Evaluator::evaluate() when TEXEL_TRACE is
 // defined. mg[i] / eg[i] hold the signed count contribution of flat param i
 // to the middlegame / endgame accumulator (positive = white favoured).
-// phase is the computed game phase [0..24]. rest absorbs nonlinear/frozen
-// contributions so that reconstruct(trace, w) + rest == actual_score_white
-// when w == default weights (acceptance guarantee).
+// phase is the computed game phase [0..24]. What the score holds beyond the
+// traced terms -- the frozen additions, the endgame step, the damping and the
+// lazy checkpoint -- is recorded in g_rest (EvalRestTrace below).
 struct EvalTrace {
     int16_t mg[EVAL_PARAM_FLAT_SIZE];
     int16_t eg[EVAL_PARAM_FLAT_SIZE];
     int phase;
-    int rest; // set by caller (tuner); not written by evaluate()
 };
 
 // Thread-local trace populated by every evaluate() call in TEXEL_TRACE builds.
@@ -556,5 +555,45 @@ extern thread_local EvalTrace g_trace;
 // Reconstruct the linear part of the eval from trace counts and weights.
 // Returns (mg_dot * phase + eg_dot * (24 - phase)) / 24.
 int reconstruct(const EvalTrace& tr, const EvalParams& w);
+
+// What `rest` is made of, recorded beside the trace so that it can be
+// reported by source. The untraced additions to the running sum, by the term
+// that made them; the sum the final taper read; that taper; and the score
+// apply_endgame returned from it. All in White's view. evaluate() writes it;
+// the caller zeroes it with g_trace.
+enum EvalRestSource : int {
+    REST_PASSER_RANK,  // the rank half of the passer king-proximity product
+    REST_MATE_DRIVE,   // the bare-material mate drive
+    REST_SOURCE_NB
+};
+// What apply_endgame did to the tapered score it was given: left it, scaled it
+// by num / den (C++ integer division), or replaced it outright with a known
+// result. `verdict` is its draw verdict.
+enum EvalEndgameKind : int { EG_UNCHANGED, EG_SCALED, EG_OVERRIDE };
+struct EvalEndgameStep {
+    int kind;
+    int num, den;
+    bool verdict;
+};
+struct EvalRestTrace {
+    int mg[REST_SOURCE_NB];
+    int eg[REST_SOURCE_NB];
+    int sum_mg, sum_eg;
+    int tapered;
+    int endgame;
+    EvalEndgameStep step;  // apply_endgame on `tapered`
+    // The lazy checkpoint, which a traced build evaluates past: whether a
+    // release build would have served the cheap block's value here, that
+    // block's taper, apply_endgame on it, and what that step did. The trace
+    // the cheap block wrote up to the checkpoint is g_lazy_trace.
+    bool lazy;
+    int lazy_tapered;
+    int lazy_endgame;
+    EvalEndgameStep lazy_step;
+};
+extern thread_local EvalRestTrace g_rest;
+extern thread_local EvalTrace g_lazy_trace;
+// apply_endgame's last step, set by every call.
+extern thread_local EvalEndgameStep g_endgame_step;
 
 #endif // TEXEL_TRACE

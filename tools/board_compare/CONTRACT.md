@@ -3,7 +3,9 @@
 The contract every engine's board harness meets, so that Basilisk's board
 can be timed beside Rarog's and Reckless's on the same work. Basilisk's
 side is `tests/board_micro.cpp` (its other columns are Basilisk-only);
-the other engines' adapters live beside this file, and
+the other engines' adapters are patches of their sources, kept out of
+git under `tools/results/foreign-patches/board_compare/` and pinned by
+SHA-256 in `tools/foreign_patches.sha256`, and
 `tools/board_compare/build.py` builds them from pinned commits.
 `tests/board_performance.cpp` keeps the older five-position contract,
 cross-engine-board-v1, unchanged.

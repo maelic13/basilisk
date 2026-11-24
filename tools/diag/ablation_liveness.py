@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Prove every matched AblationMask bit changes fixed-depth search work."""
+"""Prove every bit of a matched ablation mask changes fixed-depth search work.
+
+`--mask search` reads the search mask (`AblationMask`, the oracle's), and
+`--mask eval` the evaluation-family mask (`EvalAblationMask`, Basilisk's
+Ablate flavour and the oracle's evaluation patch)."""
 
 from __future__ import annotations
 
@@ -24,6 +28,17 @@ BITS = (
     "extensions",
     "lmr",
 )
+# The evaluation families, in src/eval.h's EvalAblationBit order.
+EVAL_BITS = (
+    "space",
+    "mobility",
+    "threats",
+    "king",
+    "pawn_structure",
+    "passers",
+    "pieces",
+)
+MASKS = {"search": ("AblationMask", BITS), "eval": ("EvalAblationMask", EVAL_BITS)}
 INFO_LINE = re.compile(r"^info depth (\d+).*?\bnodes (\d+)")
 OPTION_LINE = re.compile(r"^option name (.*?) type ", re.IGNORECASE)
 
@@ -75,7 +90,7 @@ def completed_nodes(lines: list[str], depth: int) -> int:
 
 class EngineSession:
     def __init__(self, path: pathlib.Path, options, mask: int,
-                 hash_mb: int, timeout: int):
+                 hash_mb: int, timeout: int, option: str = "AblationMask"):
         self.path = path
         self.timeout = timeout
         self.process = subprocess.Popen(
@@ -96,7 +111,7 @@ class EngineSession:
             }
             required = [
                 ("Hash", str(hash_mb)), ("Threads", "1"),
-                ("AblationMask", str(mask)), *options,
+                (option, str(mask)), *options,
             ]
             missing = [name for name, _ in required if name.casefold() not in advertised]
             if missing:
@@ -166,11 +181,12 @@ class EngineSession:
 
 
 def measure(path: pathlib.Path, options, positions: list[str], depth: int,
-            hash_mb: int, timeout: int) -> dict:
-    masks = (0, *(1 << bit for bit in range(len(BITS))))
+            hash_mb: int, timeout: int, kind: str = "search") -> dict:
+    option, bits = MASKS[kind]
+    masks = (0, *(1 << bit for bit in range(len(bits))))
     rows = []
     for mask in masks:
-        session = EngineSession(path, options, mask, hash_mb, timeout)
+        session = EngineSession(path, options, mask, hash_mb, timeout, option=option)
         try:
             nodes = [session.search(fen, depth) for fen in positions]
         finally:
@@ -179,7 +195,7 @@ def measure(path: pathlib.Path, options, positions: list[str], depth: int,
 
     baseline = rows[0]
     checks = []
-    for bit, name in enumerate(BITS):
+    for bit, name in enumerate(bits):
         row = rows[bit + 1]
         changed = [
             index + 1 for index, (base, masked) in enumerate(
@@ -198,7 +214,7 @@ def measure(path: pathlib.Path, options, positions: list[str], depth: int,
         })
     dead = [check["name"] for check in checks if not check["live"]]
     if dead:
-        raise RuntimeError(f"dead AblationMask bit(s): {', '.join(dead)}")
+        raise RuntimeError(f"dead {option} bit(s): {', '.join(dead)}")
     return {"runs": rows, "checks": checks}
 
 
@@ -209,6 +225,7 @@ def main() -> int:
                         help="LABEL=PATH[|Name=Value...] (repeatable)")
     parser.add_argument("--positions", type=pathlib.Path,
                         default=repo / "tools" / "diag" / "suite_v2.epd")
+    parser.add_argument("--mask", choices=sorted(MASKS), default="search")
     parser.add_argument("--limit", type=int, default=8)
     parser.add_argument("--depth", type=int, default=9)
     parser.add_argument("--hash", type=int, default=64)
@@ -224,7 +241,7 @@ def main() -> int:
     engines = []
     for spec in args.engine:
         label, path, options = parse_engine_spec(spec)
-        result = measure(path, options, positions, args.depth, args.hash, args.timeout)
+        result = measure(path, options, positions, args.depth, args.hash, args.timeout, args.mask)
         engines.append({
             "label": label,
             "path": str(path),
@@ -232,12 +249,14 @@ def main() -> int:
             "options": dict(options),
             **result,
         })
-        print(f"{label}: all {len(BITS)} bits live")
+        print(f"{label}: all {len(MASKS[args.mask][1])} {args.mask} bits live")
 
+    option, bits = MASKS[args.mask]
     report = {
         "schema": "basilisk-matched-ablation-liveness-v1",
         "created_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "bit_order": [{"bit": bit, "name": name} for bit, name in enumerate(BITS)],
+        "mask": {"kind": args.mask, "option": option},
+        "bit_order": [{"bit": bit, "name": name} for bit, name in enumerate(bits)],
         "positions": {
             "path": str(positions_path),
             "sha256": sha256(positions_path),

@@ -297,12 +297,14 @@ it come from other people's published work:
   refitted for Basilisk, and some are still Stockfish's. The time manager's
   formula and constants are Stockfish's, as are a few small tables in the
   search's histories. Several endgame scaling rules follow classical
-  Stockfish's, and a few small utility routines stay close to Stockfish's
-  code. Classical Stockfish's evaluation is the model for Basilisk's
-  evaluation work.
+  Stockfish's, as does the technique for mating a lone king with a queen or
+  a rook, with its tables. A few small utility routines stay close to
+  Stockfish's code. Classical Stockfish's evaluation is the model for
+  Basilisk's evaluation work, and the piece-square tables were fitted
+  starting from classical Stockfish 16's.
 - **PeSTO** (Ronald Friederich, published on the Chess Programming Wiki under
-  CC BY-SA 3.0). Basilisk's piece-square tables are derived from PeSTO's,
-  with a few values from classical Stockfish's.
+  CC BY-SA 3.0). Releases up to 1.11.0 used piece-square tables derived
+  from PeSTO's; later versions no longer do.
 - **Fathom** (MIT). Syzygy tablebase probing; see *License* above.
 - **The Chess Programming Wiki and the open chess-engine community**, for
   published ideas, testing practice and protocol conventions.

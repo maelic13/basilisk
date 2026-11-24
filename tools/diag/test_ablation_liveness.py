@@ -33,7 +33,7 @@ class AblationLivenessTests(unittest.TestCase):
 
     def test_every_bit_must_change_at_least_one_position(self):
         class FakeSession:
-            def __init__(self, path, options, mask, hash_mb, timeout):
+            def __init__(self, path, options, mask, hash_mb, timeout, option):
                 self.mask = mask
 
             def search(self, fen, depth):
@@ -49,7 +49,7 @@ class AblationLivenessTests(unittest.TestCase):
 
     def test_dead_bit_is_rejected(self):
         class FakeSession:
-            def __init__(self, path, options, mask, hash_mb, timeout):
+            def __init__(self, path, options, mask, hash_mb, timeout, option):
                 self.mask = mask
 
             def search(self, fen, depth):
@@ -59,8 +59,27 @@ class AblationLivenessTests(unittest.TestCase):
                 pass
 
         with mock.patch.object(ablation, "EngineSession", FakeSession):
-            with self.assertRaisesRegex(RuntimeError, "null_move"):
+            with self.assertRaisesRegex(RuntimeError, "AblationMask bit.*null_move"):
                 ablation.measure(pathlib.Path("engine"), [], ["a"], 9, 64, 5)
+
+    def test_the_eval_mask_sets_its_own_option_and_names_its_families(self):
+        seen = set()
+
+        class FakeSession:
+            def __init__(self, path, options, mask, hash_mb, timeout, option):
+                self.mask = mask
+                seen.add(option)
+
+            def search(self, fen, depth):
+                return 100 if self.mask == 1 << 5 else 100 + self.mask
+
+            def close(self):
+                pass
+
+        with mock.patch.object(ablation, "EngineSession", FakeSession):
+            with self.assertRaisesRegex(RuntimeError, "EvalAblationMask bit.*passers"):
+                ablation.measure(pathlib.Path("engine"), [], ["a"], 9, 64, 5, "eval")
+        self.assertEqual(seen, {"EvalAblationMask"})
 
 
 if __name__ == "__main__":

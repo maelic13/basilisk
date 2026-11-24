@@ -20,8 +20,10 @@ already used as a PGN start position is removed before reservoir sampling, so
 the new EPD cannot replay an earlier opening.
 
 Example:
-  python tools/texel/sample_fens.py A:\\Chess\\Beast\\data\\txt\\positions.txt \
-    --out tools\\texel\\data\\beast_seed.epd --count 100000
+  python tools/texel/sample_fens.py <the Beast pool's positions.txt> \
+    --out tools/texel/data/beast_seed.epd --count 100000
+
+The pool lives outside the repository; tools/texel/HANDBOOK.md names where.
 """
 
 from __future__ import annotations
@@ -31,31 +33,23 @@ import glob
 import os
 import random
 import sys
+from pathlib import Path
 from typing import Iterable
 
 
-PHASE_W = {"n": 1, "b": 1, "r": 2, "q": 4,
-           "N": 1, "B": 1, "R": 2, "Q": 4}
-PHASE_BUCKETS = (
-    ("opening", 20, 24),
-    ("early_mid", 14, 19),
-    ("middlegame", 8, 13),
-    ("endgame", 3, 7),
-    ("deep_endgame", 0, 2),
-)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import extract  # noqa: E402  (the one phase rule, shared with the extractor)
+
+PHASE_BUCKETS = extract.PHASE_BUCKETS
 
 
 def phase_bucket(epd: str) -> int:
-    phase = min(sum(PHASE_W.get(char, 0) for char in epd.split()[0]), 24)
-    for index, (_, lo, hi) in enumerate(PHASE_BUCKETS):
-        if lo <= phase <= hi:
-            return index
-    raise ValueError(f"phase outside 0..24: {phase}")
+    return extract.phase_bucket(extract.placement_phase(epd.split()[0]))
 
 
-def bucket_targets(total: int) -> list[int]:
-    base, extra = divmod(total, len(PHASE_BUCKETS))
-    return [base + (1 if index < extra else 0) for index in range(len(PHASE_BUCKETS))]
+def bucket_targets(total: int, weights: list[float] | None = None) -> list[int]:
+    """Starts per phase bucket: `weights` (five, positive) or equal ones."""
+    return extract.allocate(total, weights or [1.0] * len(PHASE_BUCKETS))
 
 
 def iter_files(sources: list[str]) -> Iterable[str]:
@@ -207,7 +201,11 @@ def main() -> int:
     parser.add_argument("--oversample", type=int, default=3,
                         help="sample this many times --count before validation")
     parser.add_argument("--natural-phase-mix", action="store_true",
-                        help="use one global reservoir instead of five equal phase reservoirs")
+                        help="use one global reservoir instead of five phase reservoirs")
+    parser.add_argument("--phase-weights", type=extract.parse_phase_weights,
+                        default=extract.parse_phase_weights("1,1,1,1,1"), metavar="A,B,C,D,E",
+                        help="the book's start-phase mix, opening to deep endgame (default equal); "
+                             "a corpus registers it")
     parser.add_argument("--min-pieces", type=int, default=6)
     parser.add_argument("--max-pieces", type=int, default=32)
     parser.add_argument("--allow-check", action="store_true")
@@ -230,7 +228,7 @@ def main() -> int:
 
     rng = random.Random(args.seed)
     multiplier = 1 if args.no_validate else args.oversample
-    targets = bucket_targets(args.count)
+    targets = bucket_targets(args.count, args.phase_weights)
     if args.natural_phase_mix:
         reservoirs: list[list[str]] = [[]]
         capacities = [args.count * multiplier]

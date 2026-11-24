@@ -207,6 +207,11 @@ static void test_uci_output() {
     EXPECT(run.output.find("option name TM_Debug") == std::string::npos);
     EXPECT(run.output.find("option name DecisionTrace") == std::string::npos);
 #endif
+#ifdef BASILISK_ABLATION
+    EXPECT(run.output.find("option name EvalAblationMask type spin default 0 min 0 max 127") != std::string::npos);
+#else
+    EXPECT(run.output.find("option name EvalAblationMask") == std::string::npos);
+#endif
     // A Tune build exposes the kernel's search coordinates.
 #if defined(BASILISK_TUNE)
     EXPECT(run.output.find("option name CoreRfpPerPly") != std::string::npos);
@@ -454,6 +459,15 @@ static void test_malformed_go() {
 
 static void test_unknown_setoption() {
     Parameters p;
+#ifdef BASILISK_ABLATION
+    p.set_option("name EvalAblationMask value 511");
+    begin_section("ablation mask clamps to its UCI range");
+    EXPECT_EQ(p.eval_ablation_mask, 127);
+    p.set_option("name EvalAblationMask value -1");
+    EXPECT_EQ(p.eval_ablation_mask, 0);
+    end_section();
+#endif
+
     const std::string a = capture([&] { p.set_option("name NoSuchOption value 5"); });
     begin_section("15.0.d: unknown setoption name is diagnosed");
     EXPECT(contains(a, "NoSuchOption"));

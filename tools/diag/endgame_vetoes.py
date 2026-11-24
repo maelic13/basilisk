@@ -33,7 +33,6 @@ KNOWN_OUTCOMES = ANOMALY_OUTCOMES | {
     "stalemate",
     "insufficient_material",
     "fifty_move",
-    "material_lost",
     "ply_limit",
 }
 REQUIRED_FIELDS = {
@@ -110,13 +109,9 @@ def evaluate_vetoes(families: dict[str, list[tuple]]) -> dict[str, list[str]]:
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--baseline",
-        type=Path,
-        default=root / "tools/results/endgame-truth-6.0.b/basilisk.json",
-    )
+    # Always named: the old default was a pre-fix report (C.2.7.1's audit).
+    parser.add_argument("--baseline", required=True, type=Path)
     parser.add_argument("--candidate", required=True, type=Path)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()

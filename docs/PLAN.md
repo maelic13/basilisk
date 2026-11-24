@@ -109,7 +109,7 @@ stage.
 | Programme | Measured deficit | Planned recovery | Basis |
 |---|---:|---:|---|
 | B search | 322.7 (1.9.3; re-measured at A.7.3) | 150–250 | Rarog's clusters 1 and 2 recovered about 230 pool Elo against a 248 equal-time deficit; Basilisk's deficit is larger and its estimator coarser |
-| C evaluation | 232.8 | 60–120 | BAS-E07 says the gap is values rather than missing terms; Rarog's refits paid +22.0, +6.7 and +11.8 (BAS-X23); Basilisk's HCE is already the stronger of the two |
+| C evaluation | 217.3 (232.8 before C.0) | 80–140 | A bounded refit closes 56% of the static gap and five donor families add outcome information (BAS-E58); two thirds of the deficit is realised on the full board (BAS-O08); Rarog's units recovered 32% of its deficit (C-124) |
 | D clock, SMP, robustness | unmeasured | 15–40 | Stockfish-shaped time management; 4T quality |
 | Speed inside B and C | — | 10–30 | Per-node cost of the new search and evaluation modules |
 
@@ -127,6 +127,23 @@ miss and this table is corrected rather than defended.
 - All four targets fell at 1T after B, Houdini 3 by +161.9.
 - C's band stands until C.0 re-reads it against the donor its
   comparison picks (`analysis/b111_checkpoint_2026-11-18.md`).
+
+**Corrected at C.0 (2026-11-18).**
+
+- The same-search deficit reads **217.3** [207.1, 228.0] on the 1.11.0
+  head (BAS-O08, 3,000 games), and 215.7 against the donor C.0 kept,
+  `sf_16`'s classical evaluation (BAS-O09).
+- C's band moves from 60–120 to **80–140**. BAS-E07's reading, on which
+  the old band rested, does not hold on this head (BAS-E58). The first
+  two gates test the new one: a C.2.8 gate or a first family under +10
+  puts the expectation in its lower half.
+- The target, Stockfish 16 HCE, is 193 ahead head to head, which is more
+  than the band holds. Phase C was reworked for it on 2026-11-18
+  (maintainer): the families are ordered by where the deficit is and
+  the order is re-decided from games (C.2.10), each donor form is checked
+  against a donor fixture, Basilisk's own terms stay where they add
+  information, and the residual is investigated before the closing fits
+  (C.8.1).
 
 ## 2. Operating rules
 
@@ -397,6 +414,7 @@ derivations are in the linked records.
 | Diagnostic counters: one table, each counter with its unit and denominator; names and units are the cross-engine contract, extended at the end and never renamed | `src/search_diagnostics.h`; `tools/diag/run_suite.py` |
 | Cross-engine board timings are compared only on the `cross-engine-board-v1` profile and its five-position corpus | `tests/board_performance.cpp` |
 | Per-node search code does not allocate or lock: allocations grow per iteration, never per node, at Threads 1 and 4; every allocator, copy or lock call the shipped code can reach from `negamax`, quiescence and the evaluation is a known guarded path | `tests/test_allocation_guard.cpp`; `tools/diag/hot_path_calls.py` on a `PROFILE_SYMBOLS` PGO build; `agents/implementation.md` *Per-node code* |
+| Texel fits: game-result labels from rules endings, splits by start, a test split claimed once; every coordinate classed in the surface manifest with full rank under its anchors; the played score modelled and verified row by row; K fitted once; complete vectors chained between stages and baked whole, with provenance; the tree restored after every run | `tools/texel/HANDBOOK.md` §3; the contracts `basilisk-texel-rows-v1`, `-surface-v1`, `-vector-v1`, `-fit-v1`; PROCESS *Texel procedure* |
 
 ### Known defects
 
@@ -413,8 +431,7 @@ their leaves or are carried below; B.9.4 read each one before the release.
 
 | Owner | Defects |
 |---|---|
-| C.2.1–C.2.2 | C-1 the tuner's missing scalers; C-2 `--verify` cannot fail; C-8 the extractor's de-dup ignores the clock; C-26 to C-30 the data pipeline (book, sampler, split, labels, row identity); C-49 K refitted per run |
-| C.3, C.5, C.6 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
+| C.4, C.5, C.6 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
 | C.7 | B.9.3's V3 KRP-KR's draw rules, V4 the KRPP-KRP table, V6 the pawnless scales 4 and 14 (C.7.5); V5 KBN-K's known win, kept with a retry trigger (C.7.6); decided 2026-11-16, known limitations for 1.11.0 |
 | D.1 | A-47 the fail-high stop's hole: a window that never returns is never checked (`analysis/b5_failhigh_stop_2026-10-25.md` §2.3); A-46 reserve arithmetic; A-45 no sub-second horizon (both kept by B.9.4) |
 | D.3 | A-59 the tablebase root's DTZ ranking; A-57 cold root reads on the clock, a known limitation (both kept by B.9.4) |
@@ -539,12 +556,37 @@ re-pinned Colosseum to 0.5.0. B.11 closed the programme:
 
 ## Phase C — Evaluation programme (search frozen)
 
-**Goal:** recover the measured same-search evaluation deficit, with the search
-frozen at the B.11.1 head. The families are re-implemented in classical
-Stockfish's shape where its conditioning is stronger, and Basilisk's are kept
-where the evidence says ours is better. The whole surface is refit after
-every family cluster, and endgame handling gets its own bounded cluster that
-absorbs the archived Phase 6 remainder.
+**Goal (maintainer, 2026-11-18): a frontier-class hand-crafted
+evaluation.** The target before NNUE is Stockfish 16 with `Use NNUE=false`
+(§1). The head is 193 behind it head to head (BAS-M18), and inside one
+search the head's evaluation is 215.7 behind that engine's evaluation
+(BAS-O08, BAS-O09). So the gap to the target is about the size of the
+evaluation deficit, and this phase is where it closes or does not. The
+search stays frozen at the B.11.1 head.
+
+How the phase is built for it:
+- **By where the deficit is.** Two thirds of it is realised on the full
+  board (C.0), so the full-board families go first, and the order is
+  decided again from games before the first family opens (C.2.10).
+- **The union, not a replacement.** A donor form is built where it carries
+  information Basilisk's whole score lacks, and a Basilisk term stays
+  where it carries information the donor's whole score lacks. Statically
+  the two together beat the donor alone by more than the donor beats
+  Basilisk (BAS-E58): the case that the donor can be passed, not only
+  reached.
+- **Faithful forms, own values.** Each donor form is checked against a
+  donor fixture before any fit, and every value is then fitted on
+  Basilisk's own games.
+- **The whole surface is refit after every family cluster**, and endgame
+  handling gets its own bounded cluster that absorbs the archived Phase 6
+  remainder.
+- **The phase ends on its meters, not on its list.** The frontier pair is
+  read after every accepted cluster, and the residual is investigated
+  before the closing fits (C.8.1).
+
+The expectation is lower than the goal and is stated in §1's budget: 80
+to 140 from the listed clusters, against about 195 needed. C.2.10 and the
+first family's gate say early whether the phase is on course.
 
 **Why classical Stockfish `9587eeeb`.** It is the last classical Stockfish
 master, the evaluator Basilisk's oracle measured (BAS-O02), and the reference
@@ -575,6 +617,13 @@ engine. So the donor is chosen by measurement in C.0 (the donor choice
 below): Stockfish 16's classical evaluation unless that comparison says
 otherwise. The other evaluation is the second seed column.
 
+**Decided at C.0 (2026-11-18): the donor is `sf_16`'s classical
+evaluation.** Each evaluation was played in both searches, 3,000 games a
+host: `sf_16`'s read −3.7 [−10.9, +3.5] in its own search and −1.6
+[−9.4, +6.1] in `9587eeeb`'s, so the comparison does not say otherwise
+(BAS-O09). The oracle's own evaluation, `9587eeeb`'s, stays a valid
+stand-in for the donor's in the meter.
+
 **The question C.0 must answer first.** BAS-E07 concluded that the 232.8-Elo
 gap is the *values* of features Basilisk already has, that the six terms it
 lacks cannot carry it, and that static fitting is exhausted: cycle 6 washed
@@ -586,23 +635,42 @@ an unchanged search. C.0 measures residuals by cohort on the B.11.1 head before
 choosing. If it finds values, not structure, the family clusters shrink to
 refits and C.2's corpus and label work carries the programme.
 
-**Cluster shape for C.** Each family cluster goes through seven stages:
+**Answered at C.0 (2026-11-18): both, by family.** The values are off
+their optimum on this head: a bounded refit closes 56% of the static gap
+to the donor. The donor's space, mobility, king-safety, winnable and
+pawn-structure terms also carry outcome information Basilisk's whole
+score lacks; its passer, threat, rook and queen terms carry none
+(BAS-E58). The family clusters stand, each screened before it is built.
+
+**Cluster shape for C.** Each family cluster goes through eight stages
+(reworked 2026-11-18, after C.0):
 1. The family's current terms are traced, and their activation and residual
-   measured on the fitting corpus by cohort.
-2. The donor's form is read for conditioning and populations.
-3. A design states which terms are replaced, which stay, and which
-   neighbouring families share inputs, so those inputs are computed once.
+   measured on the fitting corpus by cohort. The family screen is read both
+   ways on that day's head: what the donor's terms add to Basilisk's score,
+   and what Basilisk's terms add to the donor's.
+2. The donor's form is read for conditioning and populations, in both donor
+   evaluations where they differ.
+3. A design states which terms are built, which are replaced, which stay
+   (the union rule above), and which neighbouring families share inputs, so
+   those inputs are computed once. A term whose gain alone includes zero is
+   not built; a unit expected under 5 Elo waits for Phase H.
 4. Implementation, with `EvalTrace` coverage for every new slot and the
-   reconstruction test.
+   reconstruction test. **The donor fixture comes before any fit:** with
+   the donor's values, the family's middlegame and endgame rows reproduce
+   the unpatched donor's on a fixture of game positions, to the trace's
+   resolution. Every deliberate departure is listed with its reason and
+   has its own test.
 5. A whole-surface Texel refit, with the frozen test split reported once.
 6. A PGO bake and SPRT, `[0,3]` (`[3,10]` when the family's residual is
    large).
-7. The ledger row.
+7. The frontier pair after an accepted gate: the new head against
+   Stockfish 16 HCE, 3,000 games at `3+0.03`, the phase's progress meter.
+8. The ledger row.
 
 Fit loss is a screen and a falsifier, never acceptance: better holdout loss
 has lost games in both engines (BAS-X02).
 
-- [ ] **C.0** `[R3]` Evaluation programme investigation
+- [x] **C.0** `[R3]` Evaluation programme investigation
   Investigation: the family map refreshed on the B.11.1 head, residuals and
   activation by cohort, the donor comparison, BAS-E07's
   values-versus-structure question, the shared-input plan, the cluster order
@@ -685,7 +753,8 @@ has lost games in both engines (BAS-X02).
     danger, shelter, storm, space, tempo, the king's mg PST) stays live
     in rook endings and partly stands in for the missing eg king danger
     (E1). Calibration by phase (C-92) reads it; phase and eg king danger
-    change together (both in C.3 since 2026-11-05), never one at a time.
+    change together (both in C.3 since 2026-11-05, C.4 since
+    2026-11-18), never one at a time.
   - E8: space (C-119) is computed at every phase with no npm gate and
     lacks the donor's bonus for squares behind own pawns; its handoff
     carries E6's sign.
@@ -704,123 +773,475 @@ has lost games in both engines (BAS-X02).
     lost, but on an HCE a signed residual points at a term's value, the
     question BAS-E07 asks. It complements C-91 (the static score against
     the engine's own re-search) by naming concepts rather than terms.
-  - A regime check for C.3's phase key (TE-2): Triumviratus's network
+  - A regime check for C.4's phase key (TE-2): Triumviratus's network
     divided positions by material × queens (normalised mutual information
     0.43) better than by material bands (0.34); a cheap read of whether
     Basilisk's fitted terms split the same way.
   - A measurement holds only in the regime it was taken (TM-5).
-- [ ] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
+  **Closed 2026-11-18** (`analysis/c0_evaluation_programme_2026-11-18.md`;
+  BAS-E58, BAS-O08, BAS-O09).
+  - **Donor: `sf_16`'s classical evaluation.** In play it and
+    `9587eeeb`'s are equal within about 8 Elo in either search (−3.7 in
+    `sf_16`'s, −1.6 in `9587eeeb`'s, 3,000 games each); the frozen rule
+    keeps the default. `9587eeeb`'s is the second seed column.
+  - **Size: E(0) = +217.3 [+207.1, +228.0]** in `9587eeeb`'s search, and
+    +215.7 against the donor.
+  - **Values or structure: both, by family.** A bounded refit of the
+    existing terms closes 56% of the static gap, so BAS-E07's "fitting is
+    exhausted" does not hold on this head. The donor's space, mobility,
+    king-safety, winnable and pawn-structure terms add outcome
+    information; its passer, threat, rook and queen terms add none.
+  - **Where: the full board.** 68 to 69% of the meter's excess score is
+    realised at phase 18–24, where the donor's space and mobility lead
+    the family screen.
+  - Handoffs: C.1 is `READY_FOR_IMPLEMENTATION` (§8.1); the first
+    family's contract is §8.2; the corpus, refit and label rules are
+    §7.5.
+  - Applied 2026-11-18 on the maintainer's sign-off (the packet's
+    Amendment 1): the mobility and space cluster is C.3 and king safety
+    C.4, C.2.9 holds the family instruments, C.2.10 decides the order
+    from games, and C.8.1 investigates the residual.
+- [x] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
   `src/eval.cpp` split into family modules, one attack-map and mobility-area
   producer, `EvalTrace` unchanged in meaning, lazy-path semantics preserved;
-  exact fingerprint; pooled NPS within noise.
+  exact fingerprint; pooled NPS within noise, amended on 2026-11-20 to a
+  measured and accepted cost (below).
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Split the untraced `rest` bucket by source (C-90); a corpus-wide score
     hash and the three running-sum reads (`eval.cpp:1206`, `:1897`, `:1975`)
     as the behaviour-neutral proof (C-104); a cache-purity test (C-105); the
     order of terms around the lazy return documented (C-6).
+  C.0 handoff (2026-11-18), `READY_FOR_IMPLEMENTATION`:
+  `analysis/c0_evaluation_programme_2026-11-18.md` §8.1 freezes the
+  modules, the producer's contents, the invariants, the proof and the
+  files that list the evaluator's sources. Its §9.4 amends it
+  (2026-11-18): `src/eval.cpp` stays the one translation unit and the
+  modules are headers, because the oracle's build names that file; and
+  the oracle rebuilt from the restructured commit must read the same
+  nodes.
+  Implemented 2026-11-19, `LOCAL_QUALIFIED` (the packet's §10): bench
+  4,777,412, and the served, verdict, trace and lazy-audit digests over
+  254,486 positions unchanged; the suites, the sanitizer build and the
+  rebuilt oracle (266,667 nodes) pass; the cache-purity and
+  lazy-checkpoint tests fail on deliberate breaks. The untraced remainder
+  is reported by source and nothing is unattributed. The pooled NPS
+  read fails (2026-11-19, the packet's §10.8): −0.71%, 95% interval
+  [−0.94%, −0.48%] over six undisturbed cycles. Two bit-exact repairs read
+  worse, −2.73% and −1.61%, and are reverted (the packet's §10.9).
+  Closed 2026-11-20 (maintainer) with the cost accepted, the packet's
+  §10.10:
+  - C.1 is the ground for what follows: C.2.9's matched ablation switches
+    its modules, each cluster edits one module and adds its inputs to the
+    producer, and its digest and tests prove each later change.
+  - Under 1% NPS is under about 1 Elo. The clusters rewrite this code, and
+    its code generation swung by up to 2.7% under the two repairs.
+  - The later clusters gate against the post-C.1 head, so the cost is paid
+    once and hides no later read.
+  - C.12 recovers it against the pre-C.1 base.
 - [ ] **C.2** Fit pipeline, corpus, labels and gate instruments
   Fit pipeline, corpus and label contract (archived 8.1–8.8), and since
   2026-11-11 the endgame instruments (C.2.7, which was C.7.1): PLAN §3
   gives every evaluation gate its endgame truth vetoes, so the
   instruments are audited before the first evaluation gate (C.2.8, which
   was C.2.6), not after four family gates.
-    - [ ] **C.2.1** `[I1]` Fit-tooling contract and Texel handbook
+    - [x] **C.2.1** Fit-tooling contract and Texel handbook
       Fit-tooling contract (archived 8.1.a–h). The leaf adds the Texel data
-      contract it writes to *Standing contracts* (A.12).
-      - K is fitted once and frozen across stages and arms.
-      - Initial vectors are complete and explicit, and B.10's PST
-        orientation test passes on them before any fit reads them.
-      - Train, validation and test splits are by game, and the test split is
-        claimed atomically, once.
-      - Every coordinate is classed free, fixed or excluded, with gauge
-        anchors and reconstruction (Manta's catalogue, BAS-X14).
-      - Every input and output is hashed, and source and binary are restored.
-      - Labels must be exactly 0, ½ or 1, with rejection accounting.
-      - Contracts are versioned, and the snapshot's fit tools
-        (`tools/texel/`) are ported where useful; Basilisk's own
-        `tools/texel/phase911.ps1` driver is adopted into the contract or
-        retired.
-      - A Basilisk Texel handbook is written. Rarog's, the snapshot's
-        `analysis/texel_fitting_handbook.md`, is a template, not a source of
-        constants.
-      Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
-      IDs are its items):
-      - The tuner's delta scale (`tools/texel/tuner.cpp:423-438`) omits the
-        rook-ending and pawnless-minor scalers and the override rows, and
-        applies OCB unconditionally (C-1): mirror every scaler or exclude
-        override rows, with a per-row engine-against-tuner scale check.
-        `--verify` is circular (C-2): compare against an independently
-        accumulated raw score. Fit the played function, lazy path included
-        (C-5).
-      - Contract: K fixed once on validation (C-49); three splits with a
-        frozen test opened once (C-50); residuals on unused train rows (C-51);
-        a coordinate manifest with support-based freezing (C-52); explicit
-        prior vectors (C-53); Rarog's stage schedule (C-54); never hand-revert
-        a block (C-55).
-      - Anchors: gauge freedoms (C-19: `phase911.ps1` runs `--tune all`, which
-        frees material and every PST); per-coordinate king-safety steps
-        (C-18); shelter and storm fitted by some stage (C-21); dead and
-        collinear imbalance slots in the manifest (C-20).
-      - Data and driver: the split by start, not start plus moves (C-28);
-        games rejected by termination (C-29); game id and ply per row for
-        clustered errors (C-30); scores re-dumped after a refit (C-69);
-        fixtures that depend on fitted weights fixed in their own commit
-        (C-70); fit-driver invariants (C-71); the dense matrix at full scale
-        (C-73); B.10's orientation test limited to seeds (C-22).
-      Code audit inputs (2026-10-27, `analysis/code_audit_2026-10-27.md`
-      §6, a read of `tools/texel/` at `fe20f09`; items T1–T5 are new, the
-      rest confirmed C-1, C-2, C-5, C-8, C-19, C-20, C-27 to C-29, C-49,
-      C-50 and C-71 by reading). Parity of the linear part is sound:
-      PST mirroring, phase buckets, tempo, rule-50 damping, imbalance
-      and perspective match `evaluate` term for term, and runs are
-      deterministic (sequential double accumulation).
-      - T1: the Adam schedule, not the data, bounds how far a coordinate
-        can travel — full-batch Adam moves a one-signed coordinate about
-        `lr` per epoch (`tuner.cpp:67-68`, `:1154`; `phase911.ps1:41`
-        runs 100 epochs at 0.3, so about 30 cp), and there is no
-        convergence criterion; C-66's 11–57 cp PST movements would be
-        clipped. Test: a one-feature synthetic CSV whose optimum is 60 cp
-        from the seed must be reached; fail a run whose best epoch is the
-        last or whose travel reaches 0.9 × lr × epochs.
-      - T2: `bake.py` writes every slot that differs with no provenance or
-        completeness check (`bake.py:173-174`; the dump carries no header
-        hash): a stale dump reverted 42 members and both PST blocks in a
-        dry run and skipped 92 absent members silently. Slot placement
-        and CRLF are correct. Test: `test_bake` cases that fail on a
-        missing member, an unknown name and a hash mismatch.
-      - T3: hidden clamps apply to every coordinate whatever group is
-        fitted (`tuner.cpp:458-545`, called at `:1157`): sign priors,
-        `passed[0/7] = 0`, `ThreatQueen ≥ ThreatRook ≥ ThreatMinor`, a
-        sequential max that biases mobility upward; none is in a
-        manifest, and they would mask a sign bug. All defaults are inside
-        them today. Test: the clamps leave the defaults unchanged, and
-        inactive slots equal the base after a fit.
-      - T4: `--tune all` moves `SafetyTable` linearly with no monotone
-        projection (`tuner.cpp:1372`), and `--tune-kingsafety` then clamps
-        each entry between its neighbours (`:1395-1398`): on a
-        non-monotone table `lo > hi`, undefined behaviour for
-        `std::clamp`. `T[0]` and `T[1]` are never descent knobs. Test: the
-        table is asserted non-decreasing when the stage starts.
-      - T5: resolved by A.16, which removed the winnable term, its seven
+      contract it writes to *Standing contracts* (A.12). Split on 2026-11-22
+      (maintainer) into six sub-steps in the order they run. The archived
+      contract merged eight leaves, two of them `R2`, and the audits added
+      about twenty defects, each with its test. Every input below sits under
+      the sub-step that owns it. The IDs are the Rarog audit's
+      (`analysis/rarog_audit_2026-10-24.md`, C-*), the code audit's
+      (`analysis/code_audit_2026-10-27.md` §6, a read of `tools/texel/` at
+      `fe20f09`, T1–T5) and C.0's (its packet §7.5).
+      - Parity of the linear part is sound (the code audit): PST mirroring,
+        phase buckets, tempo, rule-50 damping, imbalance and perspective
+        match `evaluate` term for term, and runs are deterministic
+        (sequential double accumulation).
+      - T5 is resolved by A.16, which removed the winnable term, its seven
         slots and its tuner group; C.7.3's complexity term needs an
         instrument of its own.
-      - An option to register, not a default (2026-11-11; Rarog's
-        EVAL-13): a second-difference penalty on the mobility tables and
-        the pawn table, so a fit cannot leave a sawtooth in a term that
-        should be smooth.
-      - Hygiene: no workflow runs `tools/texel/test_*.py` (two of three
-        need python-chess, absent here) and `test_edge.csv` is
-        referenced nowhere; `phase911.ps1` reads `$LASTEXITCODE` through
-        `Tee-Object` and is Windows-only; `import_beast.py` is obsolete;
-        the usage text omits four modes; comments cite 1,183 or 1,190
-        parameters against `EVAL_PARAM_FLAT_SIZE` 1,178; the README and
-        `sample_fens.py` hard-code `A:/` paths; the L2 penalty is left out
-        of the reported loss, `--l2 0` is rejected, and `fit_K` stops
-        silently at its [0.5, 2.5] bounds. C-1 addition: the KmK rule picks
-        the strong side by the score's sign, so that scale depends on the
-        sign too.
-    - [ ] **C.2.2** `[R2]` Corpus design
+        - [x] **C.2.1.1** `[I1]` Rows, labels and splits
+          The data contract, versioned (archived 8.1.c, 8.1.f, 8.1.g).
+          - Every row carries its game id, its start's id and its ply,
+            for clustered errors (C-30).
+          - Labels are exactly 0, ½ or 1, with the accepted count and every
+            rejection reason published. The run fails on a suspiciously
+            large rejection fraction.
+          - Games are rejected by termination (C-29).
+          - Train, validation and test splits are by start, not start plus
+            moves (C-28), three of them (C-50). The test split is claimed
+            atomically, once, after model selection.
+          - Materially different corpus semantics get a named, versioned
+            contract. Rarog's snapshot tools (`tools/texel/`: the book
+            builder, the yield and relabelling tools, the manifest
+            writers) are ported where useful. No gate is widened until
+            unknown data fails it.
+          Done 2026-11-22 (`d8017a7`). The contract is
+          `basilisk-texel-rows-v1`, defined in `tools/texel/extract.py`:
+          - **Rows.** Each file opens with a schema line, then
+            `fen,result,game_id,start_id,ply,phase`. The result is White's
+            `1`, `0.5` or `0`, and the ids are 16 hex digits of SHA-256 over
+            the game and over its start.
+          - **Labels.** A game is labelled only if it ended by the rules:
+            - a game result, with any `Termination` header `normal`;
+            - a final position that is a mate the result agrees with, or a
+              stalemate, insufficient material, the fifty-move rule or a
+              position seen three times, with a draw recorded.
+
+            Every rejection is counted by reason in the manifest, and the
+            run fails past `--max-reject-pct`, 1% by default.
+          - **Splits.** Train, validation and test by the start's hash, so
+            every game from one start shares a split, published together
+            with `manifest.json` (inputs and outputs hashed) and never over
+            an existing file.
+          - **The test split.** `tools/texel/claim_test.py` claims it once,
+            by exclusive create, after checking it against the manifest.
+          - **Both extractors** decide each game with one function, and
+            their outputs are byte-identical.
+          - **The tuner** reads v1 through one row reader, a malformed v1
+            row being fatal; legacy `FEN;target` files still load.
+            `phase911.ps1 -Stage extract` now refuses, pending C.2.1.4.
+
+          Checks:
+          - `tools/texel/test_extract.py`, 20 tests, catches three
+            deliberate breaks: a split keyed on the moves, the ply off by
+            one, and a mate labelled against its result.
+          - The tuner's `--verify` reconstructs a v1 corpus exactly (60 of
+            60). It exits 2 on a five-column v1 row and on a 0.7 target.
+
+          Not ported:
+          - Rarog's book builder and yield read, which are C.2.2's (C-75).
+          - Its tablebase relabeller, which waits for the label policy.
+          - The de-duplication key, which still ignores the clocks; that is
+            C-8, C.2.2's.
+        - [x] **C.2.1.2** `[I2]` Tuner correctness
+          The tuner computes what the engine serves, and its checks can
+          fail.
+          - The delta scale (`tools/texel/tuner.cpp:423-438`) omits the
+            rook-ending and pawnless-minor scalers and the override rows,
+            and applies OCB unconditionally (C-1). Mirror every scaler or
+            exclude the rows, with a per-row engine-against-tuner scale
+            check. The KmK rule picks the strong side by the score's sign,
+            so that scale depends on the sign too.
+          - Rows carrying a known-win override or a draw verdict take no
+            part in K or in any loss (C.0: left in, they moved K from
+            0.00606 to 0.00428).
+          - `--verify` is circular (C-2): compare against an independently
+            accumulated raw score.
+          - Fit the played function, lazy path included (C-5).
+          - T3: hidden clamps apply to every coordinate whatever group is
+            fitted (`tuner.cpp:458-545`, called at `:1157`): sign priors,
+            `passed[0/7] = 0`, `ThreatQueen ≥ ThreatRook ≥ ThreatMinor`,
+            and a sequential max that biases mobility upward. None is in a
+            manifest, and they would mask a sign bug. All defaults are
+            inside them today. Test: the clamps leave the defaults
+            unchanged, and inactive slots equal the base after a fit.
+          - T4: `--tune all` moves `SafetyTable` linearly with no monotone
+            projection (`tuner.cpp:1372`), and `--tune-kingsafety` then
+            clamps each entry between its neighbours (`:1395-1398`). On a
+            non-monotone table `lo > hi`, which is undefined behaviour for
+            `std::clamp`. `T[0]` and `T[1]` are never descent knobs. Test:
+            the table is asserted non-decreasing when the stage starts.
+          - The L2 penalty is left out of the reported loss, `--l2 0` is
+            rejected, and `fit_K` stops silently at its [0.5, 2.5] bounds.
+          Done 2026-11-22. The tuner now fits the score the engine serves,
+          read from the evaluator's own record of it, not re-derived from
+          its rules:
+          - **The record** (`1248530`, traced builds only; release bench
+            4,777,412 and every C.1 digest unchanged).
+            - `apply_endgame` records at each exit whether it left the
+              score, scaled it by num / den, or overrode it, and its draw
+              verdict.
+            - At the lazy checkpoint a traced build records whether a
+              release build would stop there, apply_endgame on that value,
+              and the trace written up to that point.
+          - **The model** (`99ea86f`) plays each row as the engine does: the
+            cheap block's value where a release build stops lazily, the
+            engine's own endgame step, and the damping.
+            - Every stage is recomputed in the engine's integer arithmetic
+              and checked against the evaluator: the running sum, the
+              taper, the endgame step, the damping, and the lazy taper and
+              step. A mismatch is fatal at load (C-1, C-5).
+            - Overrides and draw verdicts take no part in K or any loss, in
+              both fits.
+            - The gradient is the trace times the seed's scale and the
+              damping's slope.
+          - **`--verify`** checks that model on every row against the sum
+            the evaluator accumulated itself, so it can fail (C-2).
+          - **`--played-hash`** hashes the played scores as
+            `tests/eval_hash.cpp` hashes a release build's, so equal hashes
+            prove the lazy path and the endgame steps row for row.
+          - **The other items:**
+            - the clamps must leave the seed unchanged, or the fit stops;
+            - slots outside the fitted group are held at the seed and
+              asserted after the fit (T3);
+            - the king-safety stage asserts a non-decreasing table (T4);
+            - `--l2 0` is accepted, and the objective is reported beside
+              the data loss;
+            - K at a bound of its search is fatal.
+
+          Read on 111,112 rows extracted from `armA_basilisk8k.pgn`:
+          - In train, 92,758 rows are used, 8,468 of them at the lazy
+            checkpoint; 7,168 overrides and 74 verdicts are left out. The
+            three splits pass `--verify`.
+          - The played hash equals the release `served_hash` on all three
+            splits. The traced full value, which the tuner used to fit,
+            hashes differently on each.
+
+          Deliberate breaks, each caught:
+          - dropping the frozen additions fails `--verify` on 2,792 rows;
+          - ignoring the endgame scale fails it on 143;
+          - playing the full value on lazy rows changes the played hash;
+          - a clamp narrowed below the seed stops `--tune`;
+          - a dented safety table stops the king-safety stage;
+          - inverted labels drive K to its bound, which is fatal.
+
+          Known limits, recorded rather than repaired:
+          - A row's lazy membership and its pawnless scaler's strong side
+            are the seed's, as in any linearisation; a row the fit moves
+            across the margin keeps its seed path.
+          - `--dump-eval` still prints the full traced evaluation, which
+            `tools/diag/scale_ratio.py` reads as such.
+        - [x] **C.2.1.3** `[R2]` Coordinate manifest and initial vectors
+          Archived 8.1.b and 8.1.d, with Manta's catalogue (BAS-X14).
+          - Every coordinate is classed free, fixed or excluded, with gauge
+            anchors and reconstruction. Every production scalar has one
+            instrument, or a written invariant or unidentifiable
+            disposition.
+          - Gauge freedoms (C-19): `phase911.ps1` runs `--tune all`, which
+            frees material and every PST.
+          - Per-coordinate king-safety steps (C-18); shelter and storm
+            fitted by some stage (C-21); dead and collinear imbalance
+            slots in the manifest (C-20); support-based freezing (C-52).
+          - Initial vectors are complete and explicit (C-53), every surface
+            coordinate recorded, and a partial or missing-by-accident
+            vector rejected. B.10's PST orientation test passes on them
+            before any fit reads them, limited to seeds (C-22).
+          Done 2026-11-22 (`a2df86d`). `tools/texel/surface_v1.tsv`
+          (basilisk-texel-surface-v1) classes all 1,159 slots, one row each
+          with its reason. It is generated by `tools/texel/surface.py` from
+          the tuner's own registry, and `check` fails when it drifts from
+          the rules.
+          - **The counts:** 1,025 free linear, 38 free king-safety knobs,
+            96 fixed, none excluded.
+          - **Ten mean anchors** hold a set's mean at the seed where the
+            data cannot see its level: both king PSTs, and the eight
+            mobility tables, where every piece reads one entry.
+          - **Held as gauge anchors:** material, while the PSTs are free
+            (C-19); `KsNoqueenDen`; and `SafetyTable[0]`. Each king reads the
+            table once with opposite signs, so `SafetyTable[1]` is now a knob
+            (C-18).
+          - **King-safety knobs** carry their own bounds and first step, a
+            tenth of their range, and each step halves on its own (C-18).
+          - **The shelter and storm terms are free linear** (C-21).
+          - **Dead slots are held:** pawns on ranks 1 and 8, relative ranks
+            0 and 7, the never-read piece indices, and the `ImbTheir`
+            diagonal.
+          - **Duplicates are held** (C-20), including three the rank
+            analysis found and the audits had not:
+            - `ImbLinear` is material and the bishop pair again;
+              `ImbOur[0]` is the pair, and `ImbOur[1]` is
+              `BishopPairPawns*`.
+            - `Rook7thMg/Eg` is the rook PST's seventh-rank squares, since
+              it has no other condition.
+            - `PassedMg/Eg[6]` is the pawn PST's seventh rank, since such a
+              pawn is always passed.
+            - The taper's phase is a weighted piece count, so a piece's mg
+              PST level (and `BpMg`) is exactly a phase-weighted sum of the
+              imbalance's cross terms. The queen's cross term is held, one
+              per identity: `ImbTheir[15..19]` and `ImbOur[20]`.
+            - `ImbOur[6]` and `ImbOur[9]` restate the pair while no side has
+              three bishops.
+          - **`rank`** reads `basilisk-texel --dump-coeffs` (float64). On
+            30,000 rows of `armA_basilisk8k.pgn` the free columns under the
+            anchors have full rank: 1,013 of 1,013, the smallest relative
+            singular value 0.0024. With support freezing at 200 rows (C-52),
+            269 slots freeze and 746 of 746 remain. `--out` writes the
+            corpus's manifest.
+          - **The tuner:**
+            - `--init FILE` takes a complete vector and refuses a partial,
+              duplicated or unknown entry (C-53).
+            - `--surface FILE` with `--tune surface` fits the free linear
+              slots under the mean anchors, and with `--tune-kingsafety` its
+              knobs.
+            - On real data, a 30-epoch fit moved 738 slots, no other slot
+              moved, and each anchored mean stayed within rounding (0.2).
+          - **`check-vector --seed`** runs the PST orientation test on a seed
+            vector (C-22), and catches a rank-mirrored eg knight table.
+
+          Checks:
+          - `tools/texel/test_surface.py`, 11 tests.
+          - Removing the king-PST anchor fails the rules test and the
+            registry check, and `rank` names the two king-PST levels.
+
+          Left as they are:
+          - The named tuner groups (`texel` and the rest) are unchanged:
+            they still skip shelter and storm and free the collinear slots.
+            The contract's path is the surface, and C.2.1.4's driver uses
+            only that.
+          - The linear clamps stay in the tuner's code, guarded at the seed
+            (T3).
+          - `test_eval`'s orientation test still reads the engine's
+            defaults, which are seeds until the first bake; C.2.8's bake
+            moves it onto the seed vector.
+        - [x] **C.2.1.4** `[I1]` Fit driver and provenance
+          Archived 8.1.a and 8.1.e.
+          - K is fitted once on validation and frozen across stages and
+            arms (C-49), and K and held-out loss are reported by phase band
+            (C.0).
+          - T1: the Adam schedule, not the data, bounds how far a
+            coordinate can travel. Full-batch Adam moves a one-signed
+            coordinate about `lr` per epoch (`tuner.cpp:67-68`, `:1154`;
+            `phase911.ps1:41` runs 100 epochs at 0.3, so about 30 cp), and
+            there is no convergence criterion; C-66's 11–57 cp PST
+            movements would be clipped, and C.0's screening fit hit the
+            bound at epoch 16. Test: a one-feature synthetic CSV whose
+            optimum is 60 cp from the seed must be reached; fail a run
+            whose best epoch is the last or whose travel reaches
+            0.9 × lr × epochs.
+          - Rarog's stage schedule (C-54); residuals on unused train rows
+            (C-51); never hand-revert a block (C-55).
+          - Every input and output is hashed (corpora, row order, splits,
+            configs, binaries, source revisions, tablebases, vectors,
+            reports), and source and the production binary are restored
+            byte for byte on success or failure.
+          - T2: `bake.py` writes every slot that differs with no provenance
+            or completeness check (`bake.py:173-174`; the dump carries no
+            header hash). A stale dump reverted 42 members and both PST
+            blocks in a dry run and skipped 92 absent members silently.
+            Slot placement and CRLF are correct. Test: `test_bake` cases
+            that fail on a missing member, an unknown name and a hash
+            mismatch.
+          - Scores re-dumped after a refit (C-69); fixtures that depend on
+            fitted weights fixed in their own commit (C-70); the fit
+            driver's invariants (C-71); the dense matrix at full scale
+            (C-73).
+          - Basilisk's `tools/texel/phase911.ps1` driver is adopted into the
+            contract or retired. A new driver is Python (`agents/implementation.md`
+            *Tools*); `phase911.ps1` reads `$LASTEXITCODE` through
+            `Tee-Object` and is Windows-only.
+          - An option to register, not a default (2026-11-11; Rarog's
+            EVAL-13): a second-difference penalty on the mobility tables
+            and the pawn table, so a fit cannot leave a sawtooth in a term
+            that should be smooth.
+          Done 2026-11-22.
+          - **The tuner** (`d21de4f`, `3169663`):
+            - **Sparse rows.** Only nonzero coefficients are stored (C-73);
+              a fit's vector is byte-identical to the dense form's.
+            - **K.** `--K` freezes it (C-49), and `--loss` reports the loss
+              by phase band at any vector, optionally after `--skip` rows,
+              the residuals on unused train rows (C-51).
+            - **Convergence (T1).** `--patience` stops a converged run. A
+              run whose holdout still improves at its last epoch, or whose
+              largest move reaches 0.9 × lr × epochs, exits 3 without
+              writing a vector.
+            - **`--smooth`**, registered and off by default: a
+              second-difference penalty on the mobility tables and the
+              passer and connected-pawn rank tables.
+            - **Provenance.** Every written vector carries the hash of its
+              seed and of its chain's root.
+            - **The clamps never move a held slot** and run after the mean
+              anchors: an ordering chain bounds a free entry by its held
+              neighbours.
+          - **`bake.py` (T2)** refuses a vector that has no schema line,
+            misses a member, names an unknown one, or has a root that is not
+            this header's defaults.
+          - **`tools/texel/fit.py`** (`40e7a1e`, `10c08da`) replaces
+            `phase911.ps1`, which is retired (`987732e`).
+            - It needs a clean tree, rehashes the corpus files against their
+              manifest, gates parse errors at 0, and checks the surface.
+            - It builds its own traced tuner and release engine and checks
+              the seed's bench.
+            - It verifies the model, fits K once on validation, and runs the
+              stages king safety, linear, king safety and polish (C-54),
+              each from the vector the last one wrote.
+            - It bakes the final vector and rebuilds. The rebuilt tuner must
+              hold that vector exactly and pass `--verify`; the new bench,
+              the played hash of validation (C-69) and `test_eval` are
+              recorded. A failing test is reported, not edited (C-70).
+            - It hashes every input and output in `run.json` and restores
+              `src/eval_params.h` byte for byte on success or failure
+              (C-71), leaving the baked header and its diff in the run
+              directory.
+            - It bakes the whole final vector, never a block of it (C-55;
+              the handbook says why).
+
+          Checks:
+          - **`tools/texel/test_fit.py`.** One unclamped slot,
+            `PawnIslandsMg`, is labelled so its optimum is 60 cp above the
+            seed. A run with room lands within 4 cp; lr 0.3 × 100 epochs
+            exits 3. With the checks disabled, the second test fails.
+          - **`test_bake.py`**, 7 tests, covers each refusal.
+          - **The driver end to end** on the 100,000-row `armA` corpus:
+            - the seed's bench was 4,777,412;
+            - K was 1.714, by band from 1.44 in the opening to 1.94 in the
+              endgame;
+            - the four stages chained, and the validation loss went from
+              0.08973 to 0.08885;
+            - the baked build verified, with bench 3,219,101 and `test_eval`
+              126 of 126;
+            - the header was restored. That is a toolchain check, not a fit
+              to keep.
+          - **The driver's refusals.** A forced failure after the bake
+            restored the header byte for byte. A dirty tree and a used run
+            directory are refused.
+
+          Found on the way, and fixed: the first end-to-end run stopped at
+          the polish stage's seed check. The mean anchors had shifted free
+          mobility entries past frozen neighbours, and `ThreatMinorMg` had
+          risen past a held `ThreatRookMg`, because the ordering clamps
+          could only raise the later entry. The clamps now bound a free
+          entry by its held neighbours instead.
+        - [x] **C.2.1.5** `[I1]` Texel tooling hygiene and CI
+          - No workflow runs `tools/texel/test_*.py`; two of three need
+            python-chess, absent here.
+          - `test_edge.csv` is referenced nowhere, and `import_beast.py` is
+            obsolete.
+          - The usage text omits four modes, and comments cite 1,183 or
+            1,190 parameters against `EVAL_PARAM_FLAT_SIZE` 1,178.
+          - The README and `sample_fens.py` hard-code `A:/` paths.
+          Done 2026-11-22 (`58baa0e`):
+          - **CI.** A new `texel` job builds the traced tuner and runs
+            `test_extract`, `test_surface`, `test_bake`, `test_sample_fens`
+            and `test_fit` with `BASILISK_TEXEL` set. It puts python-chess
+            1.11.2 and numpy in a venv, and `CI complete` needs it. The
+            YAML parses and every step's Python passes here; the Linux job
+            itself first runs on push.
+          - **Removed:** `test_edge.csv` and `import_beast.py`. The one
+            record that linked the importer now names its last commit,
+            `23f5557`.
+          - **The usage text** names all eleven modes, as checked against
+            the dispatch. The stale counts (1,116, 1,190; the registry is
+            now 1,159) are gone from the usage text and comments;
+            `--audit-coverage` prints the live count.
+          - **No `A:/` path** remains: the README and `sample_fens.py`
+            point to the handbook for where the Beast pool lives.
+        - [x] **C.2.1.6** `[R2]` Texel handbook and the standing contract
+          Archived 8.1.h. A Basilisk Texel handbook: canonical paths,
+          immutable resources, supported commands, the surface partition,
+          the pipeline, traps, reference timings and the recovery
+          procedure. Rarog's, the snapshot's
+          `analysis/texel_fitting_handbook.md`, is a template, not a source
+          of constants. The data contract C.2.1.1 to C.2.1.4 settle is
+          written into *Standing contracts*.
+          Done 2026-11-22.
+          - **`tools/texel/HANDBOOK.md`:** what a fit is; the resources and
+            where they live; the four named contracts (rows, surface,
+            vector, fit); every tool and tuner mode; the played-score model;
+            the surface partition and its identities; a fit end to end; ten
+            traps, among them C-55's "never bake or revert one block of a
+            joint fit"; measured reference numbers; and the recovery
+            procedure. Rarog's handbook gave the shape only.
+          - **PROCESS *Texel procedure*** points to the handbook, and its
+            policy now matches the contracts. The old "sequential joint
+            bake" rule is gone: stages chain through `--init` and the whole
+            vector is baked once.
+          - ***Standing contracts*** gains the Texel row.
+          - **The Texel toolchain's leaves, C.2.1.1 to C.2.1.6, are done**,
+            so C.2.1 closes.
+    - [x] **C.2.2** `[R2]` Corpus design
       Corpus design (archived 8.2.a–e).
       - The source store is located and hashed.
       - Buckets use evaluator phase, not ply; only opening starts feed the
@@ -838,7 +1259,33 @@ has lost games in both engines (BAS-X02).
         key's false clock premise (C-8); book yield per start phase and an
         exact quota (C-75); transient material (C-77); extractor priors
         (C-74).
-    - [ ] **C.2.3** `[V]` Generate and publish corpus A
+      C.0 inputs (2026-11-18, its packet §5.4 and §7.5): the first read
+      is H-distribution, the evaluators on positions one move off the
+      game line beside the game positions; the gate games (25,970 games,
+      254,486 rows) can serve as validation; 48% of quiet game rows are
+      at phase 9 or below, where 16% of the same-search deficit is.
+      Done 2026-11-22 (`analysis/c22_corpus_design_2026-11-22.md`):
+      - **Repaired** (`040dbea`): C-8 (the de-duplication key holds the
+        rule-50 clock), C-26 (datagen needs an explicit book) and C-27 (the
+        sampler shares the extractor's phase rule and states its mix).
+      - **Measured:** the Beast pool hashed, read-only; the yield per start
+        phase (C-75); and the rows' dependence within a game, ICC 0.69. So
+        corpus A is sized in games: about 1.4 effective independent rows a
+        game is the ceiling.
+      - **Registered:** the design, and BAS-O10, the H-distribution read
+        (`7e3bfe3`).
+      - **Decided (maintainer):** equal output phase weights and about
+        1,000,000 games.
+      - **BAS-O10: valid, NOT SUPPORTED.** The game-line deficit is there
+        (+0.015 and +0.019 skill), and one move off the line it is no
+        wider (deltas −0.013 and +0.003). So corpus A's starts are pool
+        positions only.
+      - **The design:** a 1,000,000-start book of distinct pool positions
+        at 70/10/10/5/5 by start phase, disjoint from every earlier
+        corpus's starts; 8,000 nodes, natural terminations; two rows per
+        phase per game, equal output weights, 5% validation and 5% test by
+        start; nested learning-curve fits in C.2.8.
+    - [x] **C.2.3** `[V]` Generate and publish corpus A
       Generate and publish corpus A with the B.11.1 head at a fixed node budget,
       natural termination, maintainer-run; audit the returned composition and
       publish it immutably (archived 8.3).
@@ -850,7 +1297,57 @@ has lost games in both engines (BAS-X02).
         head (C-62); natural termination multiplied mates 57x in Rarog and
         inflated the king table, so register a tree read (C-56); Colosseum
         datagen only after A.9.1 (C-31).
-    - [ ] **C.2.4** `[R2]` Matched label arms
+      Done 2026-11-23, by the agent on the maintainer's overnight leave.
+      Evidence: `tools/results/c22/`. Corpus A is `tools/texel/data/corpusA/`
+      (ignored), with rows in `rows/` (read-only).
+      - **C-32** (`0575687`): `tools/datagen.ps1` now refuses three things
+        before any game. These are book wrap and a Basilisk binary whose
+        manifest is missing, hashes another binary, or records a dirty tree
+        or no bench. After fastchess it audits the game count and every
+        `[Termination]`, so any ending but `normal` fails the run. Each guard
+        was tested both ways, among them an illegal-move engine (4 of 4
+        faults caught). The same edit fixed a latent bug: PowerShell names
+        are case-insensitive, so `$enginePath` overwrote `$EnginePath` and
+        the manifest check had never run.
+      - **The engine:** `basilisk-c2-corpusA-40ae560`, PGO pext from clean
+        `40ae560`, bench 4,777,412, `8D4925EC…`. It plays as the C.1 head
+        does (BAS-M23).
+      - **The book:** `corpusA_book_1m.epd`, `fcb02130…`. It holds 1,000,000
+        distinct pool starts at exactly 700k/100k/100k/50k/50k by start
+        phase, with 734,834 earlier corpus starts excluded, seed `20261122`.
+        It was sampled in one more read-only pass over the pool (§2 of the
+        packet), under the design the maintainer accepted. BAS-O10 read NOT
+        SUPPORTED, so there are no off-line starts.
+      - **The games:** 1,000,000, in ten slices of 100,000 with disjoint
+        book slices, seeds `20261122+k`, 8,000 nodes, Hash 16, 31
+        concurrent, no adjudication. They took 5 h 34 min, about 2,990 games
+        a minute. Every slice is `normal=100000`, 0 faults, and its
+        manifest holds the slice's `opening_sequence_sha256` (C-76).
+        Results: 37.81% 1-0, 30.72% 0-1, 31.47% drawn. Every decisive game
+        ends in checkmate (68.53% of games). The draws are 21.72%
+        threefold, 8.43% insufficient material, 0.94% fifty-move and 0.38%
+        stalemate.
+      - **C-76:** a 4,000-game pilot from the book's first 4,000 starts
+        replays move for move in slice 0, whose order and seed differ: all
+        4,000 games are identical (`replay_check.py`, which catches a
+        one-move change).
+      - **C-62:** on 20,000 slice-0 games, 2.54% of the 8,137 clean
+        tablebase wins reached were not won. BAS-E46 measured 19.77% at the
+        same 8,000 nodes on 1.9.3, and 13.65% at 25,000. The worst families
+        are KRP-KRP at 10.7% and KRPP-KR at 8.7%. So C.2.4's relabel prize
+        is about an eighth of what BAS-E46 sized.
+      - **C-56:** the tree read is registered in C.2.8 (`2193afb`).
+      - **Rows** (`basilisk-texel-rows-v1`, extractor at `2193afb`): cap 2
+        a phase a game, quiet filter, `--skip-end 6`, equal weights, 5%
+        validation and 5% test by start. Train is 3,770,000 rows,
+        754,000 a phase (`32CD3D63…`), from 896,341 games. Validation is
+        209,444 rows (`851B6FF8…`) from 49,737 games, and test 209,444
+        (`F2A07F4D…`) from 49,899. No game was rejected, and 4,023 gave no
+        candidate.
+        The deep endgame binds: validation's 41,943 eligible deep rows set
+        the size. The tuner's model reproduces the engine on validation
+        (`--verify` PASS). The test split is unclaimed.
+    - [x] **C.2.4** `[R2]` Matched label arms
       Matched label arms (archived 8.4–8.5): corpus B row-identical to A
       except eligible tablebase rows relabelled by Syzygy WDL, with cursed
       results as draws and missing tables as unknown.
@@ -865,7 +1362,30 @@ has lost games in both engines (BAS-X02).
         (C-61); relabelling cannot repair the larger rows of failed games
         (C-63); whole-game tablebase adjudication is a different change
         (C-64); blended targets lost (C-67).
-    - [ ] **C.2.5** `[R2]` Initialization control
+      Done 2026-11-23 (`analysis/c24_label_arms_2026-11-23.md`, BAS-O11):
+      - **The label contract** `basilisk-texel-labels-syzygy-v1` and
+        `tools/texel/relabel.py` (`fbeceaf`), with `test_relabel.py` in
+        CI. A row of six men or fewer with no castling right takes
+        Syzygy's verdict under its own rule-50 clock, in Stockfish's
+        root_probe form: a win when `dtz + clock <= 100`, a loss when
+        `-dtz + clock <= 100`, otherwise a draw. So cursed results are
+        draws. Missing tables are unknown, and nothing propagates into
+        larger rows.
+      - **Corpus B** (`tools/texel/data/corpusB/rows`, train
+        `B456BCE4…`) is corpus A row for row except 10,584 train labels
+        (0.28%), and `check` proves it. The changes are symmetric: 5,525
+        draws become decisive and 5,008 decisive labels become draws. The
+        clock draws 380 rows Syzygy alone would call decided. Basilisk's
+        own probe agrees on all 1,204 changed validation and test rows.
+        Labels stay WDL; no blended targets (C-67).
+      - **Whole-game adjudication: no arm now** (BAS-O11). It would change
+        2.58% of rows, 62,259 of them above six men (C-63), with errors in
+        both directions. A post-hoc relabel would isolate it, so the
+        verdict is about power, not confound. Retry triggers are recorded.
+      - **For C.2.8, the maintainer's decision:** the packet recommends
+        fitting A and B, and running the label-contract SPRT only if the
+        fits differ beyond noise.
+    - [x] **C.2.5** `[R2]` Initialization control
       Initialization control (archived 8.6): fit from the accepted and from
       neutral starts under identical K, data and schedule; register the
       production rule before the test split opens.
@@ -887,20 +1407,45 @@ has lost games in both engines (BAS-X02).
       IDs are its items):
       - Rarog's control: a neutral start fitted 2.38% worse (-13.2 clustered
         SE; C-65), consistent with the 2026-10-23 decision.
-    - [ ] **C.2.7** `[R2]` Endgame instruments and gate integrity
+      C.0 inputs (2026-11-18): the donor stays `sf_16` (BAS-O09), so the
+      seed stands. By outcome a donor value converts at 0.613 Basilisk
+      centipawns a Stockfish unit, against B.0's 0.557 by magnitude; the
+      fixed-K screen (C-23) decides between them.
+      Done 2026-11-23 (`analysis/c25_initialization_2026-11-23.md`,
+      BAS-O12 with its Correction 1). The maintainer left the decision to
+      the agent, asking for the reasoning to be checked.
+      - **Built:** the seed builder `tools/texel/seed_sf16.py` (`c423754`),
+        which transplants `sf_16`'s table shapes and keeps their levels,
+        and the tuner's `--min-delta` (`1f16f4c`).
+      - **Measured:** four fits on corpus A at frozen K: the header start,
+        Stockfish 16's at 0.557 and 0.613, and 0.613 flipped by rank.
+        - Every table converges from every start except the mg king,
+          which the data does not identify; the eg queen and eg pawn
+          converge slowly.
+        - No single slope converts a Stockfish 16 table: the converged
+          tables' slopes run from −1.21 to +3.0.
+        - The header start's 2.1e-5 lead is on the tuner's model. On the
+          fitted vectors' realized losses it is 1e-7, below what one
+          linear stage resolves (about 2e-5).
+        - Every arm re-levels the tables by up to 179 cp, which is for
+          C.2.8's fit report.
+      - **Production rule** (registered before the test split opens):
+        - C.2.8 starts from `seed_sf16.py --scale 0.35`, BAS-O12's frozen
+          rule, from one start.
+        - Arms are compared by realized loss.
+        - A ported threshold is converted by the leaf that ports it,
+          at 0.557 or 0.613.
+        - Retry trigger: a header-start arm, if C.2.8's king-table read
+          flags the mg king or its gate fails while the loss improves.
+      - **Withdrawn:** the first recommendation, 0.557 with both starts
+        fitted. It misread the pooled slope, which is mostly the king
+        tables', and the flipped start, which is not a negated shape.
+    - [x] **C.2.7** Endgame instruments and gate integrity
       It was C.7.1 until 2026-11-11. Instruments and gate integrity
-      (archived 6.6.a–e and 6.6.h).
-      - Audit the tools against the snapshot's endgame instruments
-        (`tools/diag/endgame_*.py`), and classify
-        every delta as portable, adapter-specific, covered or inapplicable
-        before changing any instrument.
-      - Add versioned report schemas, cohort digests and serial-identical
-        sharding.
-      - Add known-bad guard tests.
-      - Measure deployed nodes per move and derive Basilisk's own budget
-        bracket.
-      - Add FEN-hash holdouts, McNemar and spent-cohort rules.
-      - Re-run only the baselines this invalidates.
+      (archived 6.6.a–e and 6.6.h). Split into four sub-steps on 2026-11-23
+      (maintainer, on the audit's §5); the held-out tooling (FEN-hash
+      halves, the write-once registration, the spent-cohort rule) moved to
+      C.7.3, its first consumer.
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
       - The floors use one cold search at one budget (C-25); bracket 60k, 200k
@@ -915,13 +1460,141 @@ has lost games in both engines (BAS-X02).
         `endgame_draws.epd` and the recogniser positions (Rarog EVAL-2,
         D.5.17; `analysis/rarog_sweep_2026-11-04.md`): Basilisk has had
         one colour asymmetry already, the pawnless tie.
-    - [ ] **C.2.8** `[V]` Matched fits and the label-contract gate
-      It was C.2.6 until 2026-11-11.
+        - [x] **C.2.7.1** `[R2]` Audit against the Rarog snapshot
+          Classify every delta between `tools/diag/endgame_*.py` and the
+          snapshot's endgame instruments as portable, adapter-specific,
+          covered or inapplicable before changing any instrument.
+          Done 2026-11-23
+          (`analysis/c27_endgame_instruments_audit_2026-11-23.md`):
+          - No instrument changed. Of 24 deltas, 16 are portable or
+            covered, 6 need Basilisk adapters, and 2 are prioritisers for
+            C.7.2.
+          - **Found:**
+            - the truth report changed its termination rule without a new
+              schema, and the veto and compare tools still default to the
+              pre-fix baseline;
+            - a thin family's zero variance reads −∞ sigma and blocks;
+            - the cohort files are not pinned byte-exact.
+          - No gate since 6.0.e used these tools, so no recorded result
+            changes.
+        - [x] **C.2.7.2** `[I2]` Truth contract v2 and guard tests
+          The audit's §4 handoff:
+          - a versioned truth schema with its layers and per-family
+            digests;
+          - no default baseline;
+          - McNemar with a thin-sample refusal;
+          - byte-exact cohort files;
+          - a known-bad test for every guard;
+          - the colour-mirror sweep over the endgame EPDs.
+          Done 2026-11-23 (tools and tests only; bench unchanged):
+          - **The contract:** `tools/diag/endgame_contract.py`.
+            - `endgame_truth.py` writes `basilisk-endgame-truth-v2`, with
+              layers, per-family digests and each game's moves.
+            - Every consumer loads through the contract. It accepts v2,
+              and v1 only when post-fix: the 6.0.b report is refused,
+              while the refixed arms and BAS-D22 are accepted.
+            - Digests are recomputed from the records, so a subset of
+              families compares by digest.
+          - **The guards:**
+            - `endgame_compare.py` tests conversion by McNemar, and a
+              thin or zero-variance family is INDETERMINATE instead of
+              ±∞;
+            - neither compare nor vetoes has a default baseline;
+            - `material_lost` is no longer an outcome;
+            - the cohort files are `-text`.
+          - **Tests:**
+            - `test_endgame_contract.py`: 22 tests, each guard on a
+              known-bad and a good input. A fake UCI engine that keeps
+              state across `ucinewgame` is caught sharded against
+              serial; one that resets reproduces. It runs in CI's texel
+              job beside `test_endgame_vetoes.py`.
+            - In `test_endgames`, the colour-mirror check covers 90
+              positions: the suite, the 60 drawn games, and the pawnless
+              and wrong-bishop recogniser positions. It passes, and with
+              the sign flip removed 78 of the 90 fail. `test_eval`
+              shares its helper (`tests/colour_mirror.h`).
+          - **Checked on the real engine** (`tools/results/c272/`,
+            BAS-D22's binary `31BC229A…`, KQ-K and KRP-KR at 60,000
+            nodes):
+            - serial and four workers are identical move for move;
+            - the v2 runner reproduces BAS-D22's 64 records exactly.
+          - **For C.2.7.3:** against the 6.0.b-era head, BAS-D22's head
+            (458/480 against 361/480) trips 9 single-budget clean-win
+            vetoes, 5 of them in KNN-KP. That is the case the frozen
+            two-of-three-budgets rule exists for.
+        - [x] **C.2.7.3** `[V]` Deployed nodes and the budget bracket
+          Port `nodes_per_move.py` and `endgame_budget_bracket.py`. Read
+          nodes per search at the gate's time control on an idle host, and
+          set three budgets straddling the median. The veto rule is frozen
+          in the audit's §4: a position veto needs two of three budgets.
+          Done 2026-11-23 (BAS-D23):
+          - **Built** (`901e519`, 16 tests in `test_nodes_bracket.py`):
+            - `nodes_per_move.py` plays the gate's conditions: UHO starts,
+              two engines a game, 15 games at once, the real clock;
+            - `endgame_budget_bracket.py` has `run`, which refuses
+              differing cohorts or a misnamed budget, and `veto`, the
+              two-of-three rule.
+            - Both were dry-run (`tools/results/c273/dry/`).
+          - **The rule, frozen in BAS-D23:** M is the median over moves
+            with at most 6 men (the overall median if there are under 300
+            such moves), and the budgets are M/3, M and 3M.
+          - **Run 1 discarded:** the host was not fully idle, which cost
+            it 12% of its nodes, so BAS-D23's stop rule withdrew it.
+          - **Run 2, kept** (the maintainer, on an idle host): the head's
+            binary `basilisk-c273-head-pext-pgo.exe` (bench 4,777,412).
+            - 150 games at 3+0.03, 15 at once, no forfeits;
+            - the median is 121,819 nodes a search, and 63,876 over
+              2,129 moves with 3 to 6 men.
+          - **The bracket: 21,000, 64,000 and 190,000 nodes.** Every
+            earlier truth read ran at 60,000, so C.2.7.4 runs all three on
+            the head.
+        - [x] **C.2.7.4** `[V]` The C head's endgame baselines
+          - The head over the whole cohort at 21,000, 64,000 and 190,000
+            nodes under v2 (`endgame_budget_bracket.py run`). BAS-D22's
+            60k report is at no bracket budget, so it is not reproduced.
+          - Re-read B.9.3's enumeration on the C head (C-133, C-142).
+          - Re-run nothing else.
+          Prepared 2026-11-23 (`tools/results/c274/`):
+          - **Binaries:**
+            - truth: the head's `basilisk-c273-head-pext-pgo.exe`
+              (`EDDBA36E…`, bench 4,777,412);
+            - enumeration: `endgame_verdicts.exe` built at `f69a54a`
+              (`1E1F5266…`). It passes its golden fixture test and
+              reproduces B.9.3's KPvK and KBNvK counts.
+          - **Dry runs:** a sliver of the bracket at the three budgets, and
+            the bracket veto of the head against itself (PASS).
+          - **The runner:** `run_c274.py` holds B.9.3's class lists,
+            checked equal to its records. It runs the bracket at 30 workers,
+            then the enumeration (about 40 minutes, the whole CPU), and
+            writes each step's exit status to `status.json`.
+          - **Run** by the maintainer (`run_c274.py`, about 43 minutes).
+          Done 2026-11-23 (`analysis/c27_endgame_instruments_audit_2026-11-23.md`
+          §6):
+          - **Baselines** (`tools/results/c274/head/`, v2): the head
+            converts 443, 448 and 463 of 480 at 21k, 64k and 190k. The
+            bracket veto of the head against itself passes.
+          - **Single budgets are noisy.** At 60k the head reproduces
+            BAS-D22's 770 records exactly, so the evaluator split changed
+            nothing here. Yet 60k to 64k flips 22 positions (KNN-KP 10 to
+            4).
+          - **B.9.3 re-read** (C-133, C-142):
+            - the exhaustive classes change only where B.9.5 repaired:
+              same-coloured bishops are dead (F6's 765,152 overclaims now
+              0), and the pawnless scale of 0 no longer fires with pawns;
+            - nothing new is wrong;
+            - KBB-KB's scale 4 crosses 0.5% only because its denominator
+              shrank (V6, C.7.5);
+            - V3 to V6 remain at their recorded rates.
+    - [x] **C.2.8** Matched fits and the label-contract gate
+      It was C.2.6 until 2026-11-11. Split into four sub-steps on
+      2026-11-23 (maintainer), so the fit and the gate are registered by
+      research before anything runs.
       Matched whole-surface fits of A and B on the current surface, then the
       registered label-contract gate (archived 8.7–8.8); fit loss explains,
       the SPRT decides.
-      The piece-square tables re-fit here, from B.10's flipped values: they
-      have never been fitted in their correct orientation, and the old
+      The piece-square tables re-fit here, from C.2.5's Stockfish 16 seed
+      (below). B.10's flipped values have never been fitted in their correct
+      orientation, and the old
       `1e-6` anchor moved them about 0.1 cp. The registration sets their
       anchor loose enough to let them move. The fit reports each table's
       movement (B.10's directional screen), and the gate tests the refitted
@@ -936,17 +1609,497 @@ has lost games in both engines (BAS-X02).
         the anchor (C-66); B.10's PeSTO-distance test will fail on a correct
         refit, so the two-arm fixed-K direction test replaces it (C-22, C-23);
         one causal axis per corpus gate (C-57); the magnitude contract (C-97).
-- [ ] **C.3** `[I2]` King safety and phase cluster
+      C.0 inputs (2026-11-18, its packet §5.2 and §7.5): this refit is a
+      strength candidate, prior +15 to +40. A bounded screening fit
+      improved held-out Brier by 2.58% and moved every endgame passer
+      term down together, the compensation the mirrored pawn table left;
+      the directional screen reads that group and E6's signs before the
+      bake.
+      Registered by C.2.3 (2026-11-22, C-56): Rarog's natural-termination
+      corpus multiplied its checkmates 57 times, inflated the king table,
+      grew the tree 12.3% and broke the KBNK floor. Corpus A also ends its
+      games naturally, so before the bake the fit report reads three things
+      against the seed:
+      - the king-safety and king-PST terms' movement;
+      - `bench 13` nodes, where growth over 5% is a finding the gate must
+        explain;
+      - the deterministic endgame floors (KBNK, KQK, KRK, KBBK), which must
+        all still pass.
+      Corpus A's checkmate share is in its C.2.3 record.
+      Registered by C.2.7 (2026-11-23, its audit's §6): the endgame veto
+      is `endgame_budget_bracket.py veto` against
+      `tools/results/c274/head` at 21,000, 64,000 and 190,000 nodes. A
+      position vetoes at two of the three budgets, and an engine anomaly
+      at any one. The candidate is measured with `endgame_budget_bracket.py
+      run` at the same budgets.
+      Registered by C.2.5 (2026-11-23, its packet §4):
+      - The tables start from `tools/texel/seed_sf16.py --scale 0.35`,
+        from one start. BAS-O12 bounds the start's effect below 2e-5.
+      - Arms are compared by realized loss (`--loss --init`), never by one
+        stage's model loss.
+      - The fit report explains the tables' re-levelling, up to 179 cp.
+      In progress 2026-11-23 (BAS-O12, Correction 2): the re-levelling is
+      explained, and it raises a registration question.
+      - **Explained:**
+        - It is not a mobility trade, and the mg pawn is not negative:
+          removing one from a middlegame costs 111 to 120 cp fitted, 145
+          at the header.
+        - In endgames every piece is worth 12% to 35% more, the
+          expected response of one frozen K to endgames whose own K is
+          2.33 against 2.01.
+      - **The question:** the fitted vectors raise the lazy-checkpoint
+        share about 27% (C-97; `LAZY_MARGIN` never refit, C-98).
+      - **Also open:** `fit.py` cannot pass `--min-delta`. Its default
+        schedule (400 epochs at a rate of 1.0) is unvalidated, and
+        BAS-O12 needed about 3,000 epochs at 0.3.
+        - [x] **C.2.8.1** `[R2]` Register the fit and the gates
+          The registration must settle, before any fit runs:
+          - **The magnitude contract** (C-97, C-98): how the fit holds or
+            prices the endgame re-valuation and the lazy share's rise.
+            The starting position:
+            - one frozen K, as the protocol has it;
+            - `LAZY_MARGIN` unchanged in the candidate, so one causal
+              axis;
+            - the lazy share and the per-phase piece values read as the
+              contract's reads;
+            - retries registered: a per-phase-K fit and a lazy-margin
+              refit.
+          - **The schedule:** `fit.py`'s stage budgets, validated for
+            Basilisk with `--min-delta` (8.7.b).
+          - **The anchors** for the tables, loose enough to move them.
+          - **The gates:** one causal axis each (C-57).
+            - The refit against the head.
+            - Corpus A against B, conditional on the fits differing
+              beyond noise (C.2.4's packet §6).
+          - **Before any bake:** the reads registered above (C-56's king
+            tree, `bench 13`, the floors, the endgame bracket veto).
+          - **Each gate:** its prediction, bracket, cap and stop rule.
+          Done 2026-11-23 (`analysis/c281_fit_registration_2026-11-23.md`;
+          BAS-O13, BAS-E59, BAS-E60):
+          - **Magnitude:** one frozen K, `LAZY_MARGIN` unchanged. The
+            contract is read (lazy share, score change by band, piece
+            values by phase) and not enforced. Retries, in order: a
+            per-phase-K fit, then a lazy-margin refit.
+          - **Schedule:**
+            - the linear stages run at BAS-O12's validated rate 0.3,
+              patience 50, `--min-delta 1e-6`, 20,000 epochs at most;
+            - the polish runs at a quarter of the rate;
+            - king safety keeps its defaults.
+            - Anchors: L2 0, the surface's own only.
+          - **K:** fitted once on A's validation at the seed, and frozen
+            for both arms.
+          - **Gates:**
+            - BAS-E59, the A fit against the head: `[0,3]`, 4,000
+              pairs, with the bracket veto;
+            - BAS-E60, B against A, runs only if B's fit beats A's on B's
+              labels by at least 2e-5, with a game-bootstrap interval
+              excluding zero.
+        - [x] **C.2.8.2** `[I1]` The fit driver to the registered schedule
+          The registration's §5, in `tools/texel/fit.py`:
+          - `--init FILE`, a seed vector rooted at the header;
+          - `--K` to freeze a K;
+          - `--min-delta` for the linear and polish stages;
+          - per-stage settings;
+          - the lazy-checkpoint count in its loss records.
+          Also `tools/texel/piece_values.py`, the marginal-value read, with
+          tests. The tuner's travel guard stays.
+          Done 2026-11-23 (`9640b24`, `3d66c84`; tools only, bench
+          unchanged):
+          - `fit.py` gains `--init`, `--K` and `--min-delta`. It records
+            each stage's settings and the lazy share in every loss.
+          - `piece_values.py` reproduces BAS-O12's piece-value read
+            exactly. Its 16 tests (`test_piece_values.py`) also cover
+            the driver's seed check, stage commands and loss parsing; it
+            runs in CI's texel job.
+          - **Dry runs** (`tools/results/c282/`):
+            - The first stopped at the tuner's travel guard on a
+              five-epoch schedule, as designed.
+            - The second found a bug: the seed was written without its
+              `# root` line, so the bake refused the fitted vector as
+              stale. Fixed, with a test.
+            - The third ran seed, K, king safety, bake, rebuild and verify
+              end to end, and restored the header.
+          - **For C.2.8.3's bake:** on fitted weights `test_eval` fails
+            the four PST orientation tests, as HANDBOOK step 6 foresees,
+            and the pawnless mate-drive test. Their fixtures move in
+            their own commits (C-70).
+        - [x] **C.2.8.3** `[V]` Fits of A and B and the fit report
+          The maintainer's runs. The report reads every registered item
+          before any bake.
+          - The fits run one after the other, never together: both build
+            in `build/fit` and bake into `src/eval_params.h`.
+          - B takes A's K from A's `run.json`.
+          - **Run 1 returned, 2026-11-23**
+            (`analysis/c283_fit_report_2026-11-23.md`, BAS-O13): not
+            baked.
+            - A's loss is 0.09648, 2.67% below the header's. The floors
+              pass. BAS-E60's condition fails.
+            - But `fit.py`'s surface froze 242 slots on support counted
+              in a 30,000-row sample. Only 4 are rare at full scale. 204
+              are PST entries, stranded at the seed while their tables
+              re-levelled by up to 215 cp.
+            - The registration's Amendment 1 (`R2`) chooses the support
+              rule before a re-run. The report recommends counting it on
+              the whole train split, with a guard against frozen entries
+              in a free-level table.
+          - **Amendment 1 recorded, 2026-11-23** (the registration's §6;
+            BAS-O13, BAS-E60; reads in `tools/results/c283/amend1/`).
+            The maintainer accepted it in full the same day:
+            - Support is counted on every row the linear stages read,
+              at 200 rows. By count, two slots stay frozen
+              (`MobQMg[0]` and `MobQEg[0]`, 10 rows each), and no PST
+              entry has under 1,457 rows.
+            - A fit stops when a support-frozen slot sits in an
+              unanchored table that still has a free member.
+            - The rank sample grows to 300,000 rows. At 30,000 it fails
+              under the new freeze.
+            - Both fits are re-run. BAS-E60's condition is re-read on
+              run 2, with a label-specific part added: on run 1 the
+              labels' own share was 1.3e-6 of a 2.0e-5 difference.
+            - BAS-O13's predictions stand. `bench 13` and the condition
+              are restated after run 1.
+            - Findings for C.3 and C.6 are in their entries (the
+              registration's §6.7).
+            - Next: the tool change to C.2.8.2's driver (§6.5) with its
+              dry run on corpus A, then run 2.
+          - **The tool change, 2026-11-23** (`9570c36`; §6.5, tools only,
+            bench unchanged):
+            - The tuner's `--count-support` streams each slot's support
+              on `--dump-coeffs`'s rows; `--dump-coeffs` is byte-identical.
+            - `surface.py rank` freezes on that count over the linear
+              stages' rows. It reads the rank on a 300,000-row sample. It
+              fails on a free slot absent from the sample and on a frozen
+              slot in a free-level table.
+            - `fit.py` records the freeze in `run.json`.
+            - Tests fail on each known-bad input, including the old tuner.
+            - **Dry run** (`tools/results/c283/amend1/dry/`):
+              - Corpus A: all 1,159 counts equal `support_full.json`'s on
+                3,547,892 rows. Only `MobQMg[0]` and `MobQEg[0]` freeze,
+                1,023 slots stay free, and the rank is 1,013 of 1,013.
+              - Cut to 30,000 support rows, it reproduces run 1's 242
+                slots and counts. The guard then fails on 155 of them
+                (153 non-king PST entries and both `ConnectedRank`) and
+                writes no manifest.
+              - Corpus B's manifest is A's, byte for byte (`E37D5983…`).
+            - Next: run 2, the maintainer's two fits.
+          - **Run 2 returned, 2026-11-23**
+            (`analysis/c283_run2_report_2026-11-23.md`): every control
+            and every Amendment 1 prediction holds, and A's loss is
+            0.09612. But A2's baked build converts KR-K 23 of 24 at
+            60,000 nodes, so nothing is baked.
+          - **Amendment 2 recorded, 2026-11-23** (the registration's §7):
+            - A bare king against a queen or rook scores its tier plus
+              the winner's ordinary evaluation. So tables fitted on
+              other rows are that ending's only mating gradient.
+            - The two top tiers take the donor's bare-king form instead:
+              frozen material, an edge push and a king pull, with no
+              fitted slot.
+            - Qualified on the conversion grid (KQ-K and KR-K, 40,000
+              to 120,000 nodes, on the repaired head and with A2 baked),
+              with no game gate of its own. A2 is not re-fitted.
+            - Then the pre-bake reads again, the bake, and C.2.8.4 with
+              the repair in both arms.
+          - **Amendment 2 done, 2026-11-23:**
+            - The repair is `cd4e453`, with its span nit fixed in
+              `6be9af7`. The fingerprint is now 4,392,040.
+            - BAS-D24: the grid passes, 24/24 for KQ-K and KR-K at every
+              budget on both builds, and the ply lists are identical.
+            - Two fixtures moved, as the review decided (C-70):
+              - the blockade test is scale-free (`2d3622b`);
+              - the PeSTO orientation test is retired (`b912051`), with
+                orientation now checked at the import in `seed_sf16.py`
+                (`7796153`).
+            - Over the repair, A2's pre-bake reads all pass: the four
+              floors at 60,000 nodes, `test_eval`, `test_endgames`,
+              `test_search` and `--verify`. Bench 3,359,329.
+            - The review found the fit sound. Three fitted-constant
+              findings go to their owners:
+              - `Trapped*` on its 0 clamp: C.6, C-48;
+              - the three threat terms collapsed to 57: C.3;
+              - `QueenInfiltrationEg` at 186: C.6, and first in line if
+                the refit is retried.
+            - Baked as `cbc3676`, then reverted as `7f92ec9` while
+              C.2.8.4's veto is ruled on (below), and restored on its
+              acceptance (`92a4c1a`).
+        - [x] **C.2.8.4** `[V]` The registered gates
+          Clean-PGO arms under identical conditions, and the maintainer's
+          runs. Fit loss explains; only the SPRT decides.
+          - **Run 2026-11-23** (launcher `tools/run_c284_gates.py`;
+            BAS-E59):
+            - The arms: the refit `cbc3676` against the repaired head
+              `b912051`.
+            - **BAS-E59 accepts H1** at 1,110 games: **+85.2 ± 14.9 Elo**,
+              zero faults.
+            - **The bracket veto blocks:** 8 new clean-win discards
+              against the repaired head, in KBPP-KB, KNN-KP, KP-KP and
+              KRP-KR. Conversion is 434/445/458 of 480 against
+              443/448/460.
+          - **The review ruled** (the registration's §8) that the veto
+            binds. The SPRT is not weighed against it, and the refit is
+            not accepted on this evidence.
+            - §8's B2 read: B2 has 7 vetoes and repeats 3 of A2's 8. A2
+              vetoes B2 3 times, and B2 vetoes A2 6 times: "between",
+              with no verdict.
+            - So acceptance is the maintainer's ruling: keep a +85 Elo
+              refit against the veto, or repair the endgames first.
+          - **BAS-E61**, the refit against the head before the top-tier
+            repair (`901e519`): H1 at 1,164 games, **+74.6 ± 13.3 Elo**.
+            The gain holds against either head.
+          - **Accepted 2026-11-24 (maintainer):** the refit is kept over
+            the bracket veto. The endgame deficit is repaired in its own
+            steps as planned (C.7 holds the three families). Done the
+            same day:
+            - the bake restored (`92a4c1a`) and the tracked surface
+              manifest rebuilt for it (`7c1801c`);
+            - the fingerprint moved to 3,359,329 (`38487c5`);
+            - the PeSTO disclosure retired after the similarity screen
+              (`68dc18a`, `analysis/c28_pst_provenance_2026-11-24.md`):
+              no table match against any donor, and 4 of 736 entries
+              equal to PeSTO's;
+            - two fixtures on fitted weights moved (C-70, `5381de1`): the
+              WAC floor to 168, and the verdict golden, where KR-KR's
+              scale verdict is now wrong 350 times against 397.
+          - **WAC reads lower on the refit** at every fixed depth, in about
+            the same time: 181/191/212/217 at depths 6 to 9 against the
+            head's 186/206/216/226. WAC decides nothing; reported to the
+            maintainer, not routed.
+          - **Open, not scheduled:** the review recommends giving the
+            bracket veto a calibrated tolerance before C.3's gate, since
+            two equal fits veto each other 3 and 6 times. The maintainer
+            decides whether and where.
+    - [x] **C.2.9** `[I1]` Family screen and matched-ablation tools
+      Added 2026-11-18 (maintainer, after C.0). Two instruments the
+      family order and every cluster read; neither changes a served
+      score.
+      - **The family screen**, committed: C.0's prototype
+        (`tools/results/c0-screen/c0_reanalysis.py` and its dataset
+        builder) as a tool with tests. It reads both ways: a donor
+        family's rows added to Basilisk's score, and a Basilisk family's
+        added to the donor's, by phase band, for both donor evaluations.
+        Override and specialised-endgame rows are separated, K is fitted
+        per evaluator, and intervals are a bootstrap over games. A
+        known-bad input fails it.
+      - **The matched evaluation ablation**: one mask that switches the
+        same family off in Basilisk's evaluation and in the oracle's own,
+        compiled away in a shipped build (PROCESS, *Matched ablation*).
+        The meter with a family off on both sides, taken from the meter
+        with nothing off, is the Elo of the deficit that family explains,
+        at the layer that decides. Every bit is proved live at fixed
+        depth before any game, and the release `bench 13` stays
+        4,777,412.
+      - Families for the mask: space, mobility, threats, king danger with
+        shelter and storm, pawn structure, passers, the piece terms.
+        C.1's modules are its switch points on Basilisk's side.
+      - **The screen, done 2026-11-23** (`2a284cc`):
+        - `tools/diag/family_screen.py` (`collect`, `screen`) with
+          `test_family_screen.py`, run in CI with the tuner.
+        - The tuner gains `--dump-row-lines` for the join.
+        - It refuses a misaligned join, a donor table that does not sum,
+          and labels that are not results.
+        - A 3,000-row smoke on corpus A reads both ways for both donors.
+      - **The matched ablation mask, done 2026-11-24:**
+        - Basilisk's side is the Ablate flavour, rebuilt from `4d2742f`'s
+          build plumbing (`de68d5a`): `EvalAblationMask`, bits in
+          `src/eval.h`'s order: 0 space, 1 mobility, 2 threats, 3 king
+          danger with shelter and storm, 4 pawn structure, 5 passers,
+          6 the piece terms.
+          - A bit removes its family wherever it enters the score, the
+            lazy checkpoint included. The pawn cache's key carries the
+            mask, so no entry answers for another mask; `test_eval`'s
+            ablation section fails without it (checked).
+          - Never masked: material, the tables, the imbalance, the
+            bishop pair (Stockfish's is in its imbalance), the tempo and
+            the endgame knowledge.
+          - CI builds the flavour and runs `test_uci_protocol` and
+            `test_eval` on it.
+        - The oracle's side is `tools/oracle/oracle-eval-ablate.patch`
+          (`780198e`), applied by `build_oracle.ps1 -ExtraPatch`.
+          - The same option sets both evaluations' masks. Stockfish's bit
+            drops its family's score and keeps every computation, so the
+            attack maps and hash tables stay stock.
+          - Basilisk's evaluator is compiled as its Ablate flavour, and
+            the option aborts if Basilisk's side refuses the mask.
+        - **Proved:**
+          - Mask 0 is stock: bench 3,359,329 on the Ablate flavour. The
+            oracle benches 1,017,388 with Basilisk's evaluation and
+            1,030,221 with Stockfish's, the same as the unpatched oracle
+            on the same `src/`.
+          - Every bit is live on all three evaluations
+            (`ablation_liveness.py --mask eval`, depth 9, 8 positions):
+            it changes nodes on all 8 positions. Basilisk standalone:
+            ×0.84 to ×1.56. The oracle with Basilisk's evaluation: ×1.02
+            to ×1.33. With Stockfish's: ×0.77 to ×1.25.
+          - Evidence: `tools/results/c29-mask/`.
+        - **The meter's binary:**
+          `tools/test_engines/oracle-c29-e56f1e1-evalablate.exe`
+          (`CAA8B70B…`, `src/` of `e56f1e1`). Its arms are `Use Basilisk
+          HCE` true and false at one `EvalAblationMask`.
+          - A family's meter is E(0) − E(mask): the arms at mask 0, less
+            the arms with that family's bit set on both.
+        - Not exercised: `build_test.ps1 -Flavor Ablate`, whose PGO build
+          C.2.10 does not need; the meter runs in the oracle.
+    - [ ] **C.2.10** `[R3]` Family order from games and screens
+      Added 2026-11-18 (maintainer, after C.0): the decision point before
+      the first family. On the refitted head it registers, prepares and
+      reads:
+      - the matched evaluation ablation by family, about 3,000 games a
+        family at `3+0.03`, maintainer-run;
+      - the family screen both ways;
+      - the frontier pair's baseline: the head against Stockfish 16 HCE,
+        3,000 games.
+      Then it orders the families by the Elo each explains, with the
+      screen as the tiebreak for what games cannot measure (under about
+      10 Elo), and renumbers C.3 to C.6 if the order changes. A family
+      that explains nothing in games and adds nothing in the screen
+      closes `NO_CHANGE` without a port (C-110).
+      C.0's prior, scored here: mobility and space first, king safety
+      second (its packet §7.3). The constraints stay: the phase, the
+      endgame king danger and tempo change together, and the endgame
+      cluster follows pawns and pieces.
+      A second prior, from outside (2026-11-21, Rarog's RAR-O10,
+      `analysis/rarog_import_2026-11-21.md` §2.4; a reference loss, not
+      Elo):
+      - Scored alone against Stockfish 19's expected score on 10,000
+        game positions, Basilisk's evaluation on 2026-11-14 read skill
+        0.1646, against Stockfish 11's classical evaluation 0.2054 and
+        Rarog's head 0.1769.
+      - Its moves at 100 ms lose clearly more than Rarog's only with 45
+        or more points of non-pawn material.
+      - That agrees with C.0's phase 18 to 24.
+      **Registered 2026-11-24**
+      (`analysis/c210_family_order_2026-11-24.md`; BAS-O14, BAS-M24,
+      BAS-E62). No game is played and no screen is read.
+      - The meter: E(mask) on the C.2.9 oracle, M(mask) = E(0) − E(mask).
+        Eleven reads of 3,000 games on one seed: masks 0, 7, 8, 48, 64,
+        127, 2, 1, 4, 16 and 32.
+      - Three reads are added to the seven families: the cluster masks 7
+        (C.3) and 48 (C.5), and 127 for the families' joint share.
+        Clusters are compared by their own reads, never by a sum.
+      - The rule, frozen: the present order stands unless a later
+        cluster's E is lower than an earlier one's by more than the
+        difference's 95% interval, about 15 Elo. The screen breaks a
+        tie only when its intervals separate.
+      - If the seven families together explain under 40 Elo, the order
+        returns to the maintainer before C.3 opens.
+      - Known confounds: mobility's meter carries piece-value level, and
+        Basilisk's arm gains speed under a mask. Both raise a meter.
+      - Predicted: E(0) +160, the frontier pair −140, C.3's meter +55
+        and the largest (0.7), mobility's above space's (0.75).
+      - Owed: the launcher `tools/run_c210_reads.py` and the head's
+        build (implementation), then the games (maintainer), about nine
+        hours, and the screen.
+      **The screen, read 2026-11-24** (BAS-E62; the packet's §8.1):
+      - On the refitted head the donor's space adds 3.4 and its
+        mobility 2.1 at phase 18–24, both including zero. BAS-E58
+        read 47.0 and 29.6 on the 1.11.0 head.
+      - King safety is the largest donor gain: 16.2 at phase 18–24,
+        29.4 at 10–17, 12.1 over all rows, clear of space and mobility.
+      - So the tiebreak points at C.4, and C-110's static half holds
+        for space, mobility and pawn structure. The games decide.
+      - Three of four screen predictions missed. A control with the
+        header before the refit is owed.
+      - Prepared 2026-11-24: `tools/run_c210_reads.py`,
+        `tools/diag/c210_table.py` and the head's build. The games
+        are the maintainer's.
+      **The screen's control, 2026-11-24** (BAS-E62's CONTROL; the
+      packet's §8.2 and §9):
+      - The read above is of corpus A only. On C.0's gate-game rows the
+        donor's space adds 40.4 [32.7, 49.1] to the head's score at
+        phase 18–24 (50.8 before the refit), and mobility 13.4 (29.6).
+      - On corpus A's rows space read 5.7 before the refit too. The
+        refit did not remove it; the sample never held it.
+      - Amendment 1, before any game: the screen breaks a tie only when
+        both samples agree, and C-110's static half needs both. On C.3
+        against C.4 they disagree, so a tie in games keeps C.3 first.
+- [ ] **C.3** Mobility, space and threats cluster
+  The first family (maintainer, 2026-11-18, on C.0's evidence; C.2.10
+  confirms the order from games). The donor's space, which Basilisk does
+  not have in any working form; the mobility area with x-rays and the pin
+  line; and of the threat terms (weak enemies, hanging pieces, restricted
+  squares, pawn-push threats, and BAS-E07's absent `KnightOnQueen` and
+  `SliderOnQueen`) those their own screen supports. Shared attack maps
+  from C.1; refit; gate.
+  It was C.4, "Threats and mobility", until 2026-11-18. Space had no owner
+  (C-119); C.0 placed it here.
+  Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
+  are its items):
+  - SliderOnQueen is missing; screen KnightOnQueen before building it (nil in
+    Rarog); ungated forms were worse than none (C-114); mobility priors
+    (C-115); the dead `hang_pen` loop (C-37; A.16 removed it).
+  - Code audit 2026-10-27 (§6.3): the safe-pawn threat is a flat 58/25
+    whatever the target and counts pawns that are themselves unsafe
+    (`eval.cpp:1403-1426`), overlapping hanging, restricted and
+    weak-queen on the same target.
+  C.0 inputs (2026-11-18, its packet §7.2 and §8.2): C.0 places space
+  here (C-119, E8). At phase 18–24, where 68 to 69% of the same-search
+  deficit is realised, the donor's space adds 47.0 and its mobility 29.6
+  to Basilisk's whole score; the threat rows add 4.4 or less, so a
+  threat term is built only if its own screen excludes zero.
+  C.2.8 inputs (2026-11-23, the fit registration's Amendment 1, its §6.2
+  and §6.7):
+  - Queen mobility 1 is what a queen on its home square counts before its
+    own pawns move: the mobility area leaves out the king and the low
+    pawns (`src/eval_attacks.h`). Corpus A starts at book exits, so it
+    holds 10 rows at count 0 and 224 to 278 at count 1, mostly trapped
+    queens.
+  - A free fit puts both entries on the tuner's −200 clamp (BAS-O12,
+    every arm). That is about 230 cp for the first pawn move from the
+    starting position (inference, not measured).
+  - C.2.8's fit holds count 0 at the seed, and the tuner's monotone chain
+    then stops count 1 at it. C.3.1 settles the two entries: a prior, a
+    merged low-count entry, or rows that reach them.
+  C.2.10 inputs (2026-11-24, BAS-E62's control):
+  - On C.0's gate-game rows (UHO, `3+0.03`) the donor's space adds 40.4
+    [32.7, 49.1] to the refitted head's score at phase 18–24, and its
+    mobility 13.4 [9.7, 17.4]. Before the refit they read 50.8 and 29.6.
+  - On corpus A's validation rows the same reads are 3.4 and 2.1, and
+    5.7 and 7.1 on the header before the refit. Corpus A is self-play at
+    8,000 nodes from a phase-balanced start pool.
+  - So a space term fitted on corpus A alone may be fitted to nothing.
+    C.3.1 decides which rows the cluster's refit reads before any value
+    is fitted, and separates the two candidate causes: the starts and
+    the search depth.
+    - [ ] **C.3.1** `[R3]` Cluster research and handoff
+      Stages 1 to 3 of the cluster shape, from C.0's contract (its packet
+      §8.2) and C.2.10's order. It answers C.0's three competing readings
+      first: whether space still reads once the tables are refitted in
+      their right orientation, whether the gain is the unbalanced book's,
+      and whether mobility's gain is the area's values or the x-rays. It
+      ends in a frozen handoff, or a `NO_CHANGE`, for each term.
+    - [ ] **C.3.2** `[I2]` Implementation behind the switch
+      Stage 4: the handoff's terms behind one umbrella switch, the off
+      arm at the accepted fingerprint at every commit, the donor fixture,
+      the trace slots, and the new shared inputs in C.1's producer.
+    - [ ] **C.3.3** `[R2]` Independent review
+      A separate session rebuilds both arms, reproduces the fingerprints
+      and the donor fixture, and checks the code against the handoff
+      clause by clause. Its acceptance is recorded before the refit.
+    - [ ] **C.3.4** `[V]` Whole-surface refit
+      Stage 5: the directional screen, the anchored fit, the
+      fitted-constant analysis, the bake and the PGO builds; the lazy
+      margin block (C-98); the gate prepared and dry-run.
+    - [ ] **C.3.5** `[V]` Gate, frontier pair and close
+      Stages 6 to 8: the maintainer-run SPRT with its `10+0.1` and NPS
+      reads (C-99), an equal-node companion if an equal-time gate fails
+      (C-95), then the frontier pair, the flip and the ledger rows. Under
+      +10 here, the static screen is not a ranking instrument and
+      C.2.10's order is read again (C.0's packet §7.3).
+- [ ] **C.4** `[I2]` King safety, phase and tempo cluster
   King safety cluster in the donor's shape: attacker units and weights, safe
   and unsafe checks by piece, weak ring squares, flank attack and defence,
   shelter and storm with the castling alternative, the queenless reduction and
   the nonlinear danger map; refit; gate.
-  Opens as sub-steps (research, implement, refit, gate) when C.0's handoff
-  reaches it; the same holds for C.4, C.5 and C.6.
+  Opens as sub-steps (research, implementation, review, refit, gate), as
+  C.3 has, when C.3 closes; the same holds for C.5 and C.6.
+  It was C.3 until 2026-11-18, when the mobility and space cluster moved
+  ahead of it.
   The phase and tempo join it (from C.7, 2026-11-05): E2's phase and E5's
   tempo change together with E1's eg king danger, never one at a time, and
   before the other families, so that each later refit reads the final
-  phase.
+  phase. Since 2026-11-18 the mobility and space cluster precedes it:
+  the donor's space is gated by material, not by the phase, and the one
+  refit the phase then costs that cluster is run anyway (C.0's packet
+  §7.3).
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Definitions: king blockers of either colour (C-13, `eval.cpp:1278-1280`);
@@ -990,20 +2143,11 @@ has lost games in both engines (BAS-X02).
     occupancy (`eval.cpp`, `all_pieces()`). C-115's x-ray nil was
     mobility's alone. Rarog's C.3 fixture came from a donor patched to
     plain maps, so a donor fixture here is taken from the unpatched donor.
-- [ ] **C.4** `[I2]` Threats and mobility cluster
-  The mobility area, weak enemies, hanging pieces, restricted squares,
-  pawn-push threats and queen threats (including BAS-E07's absent
-  `KnightOnQueen` and `SliderOnQueen`); shared attack maps from C.1; refit;
-  gate.
-  Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
-  are its items):
-  - SliderOnQueen is missing; screen KnightOnQueen before building it (nil in
-    Rarog); ungated forms were worse than none (C-114); mobility priors
-    (C-115); the dead `hang_pen` loop (C-37; A.16 removed it).
-  - Code audit 2026-10-27 (§6.3): the safe-pawn threat is a flat 58/25
-    whatever the target and counts pawns that are themselves unsafe
-    (`eval.cpp:1403-1426`), overlapping hanging, restricted and
-    weak-queen on the same target.
+  C.0 inputs (2026-11-18, its packet §7.2, §7.3 and §8.2): the donor's
+  king row adds 15.2 at phase 10–17 and 11.1 at 18–24; the endgame
+  bands' static gap is not one family's; tempo exists only in
+  `9587eeeb`'s evaluation; Basilisk's rule-50 curve stays. The mobility
+  and space cluster goes ahead of this one (maintainer, 2026-11-18).
 - [ ] **C.5** `[I2]` Pawns and passers cluster
   Passer king proximity, blocker ownership, path safety, unstoppable and
   rook-behind conditions; structure conditionality (doubled, isolated,
@@ -1046,8 +2190,8 @@ has lost games in both engines (BAS-X02).
     imbalance slots (C-20); queen infiltration and the trapped bishop (C-48);
     no trapped rook (C-46); no WeakQueen (C-116); screen first (C-118).
   Code audit inputs (2026-10-27 second pass, §6.3):
-  - E2's phase and E5's tempo are C.3's (2026-11-05), changed with its
-    eg king danger.
+  - E2's phase and E5's tempo are the king-safety cluster's (C.4; C.3
+    from 2026-11-05 to 2026-11-18), changed with its eg king danger.
   - Bishop terms: the bishop outpost is absent although comments at
     `eval.cpp:1783` and `eval_params.h:222` say it exists; bishop x-ray
     on pawns is absent; bishop pawns is a linear count without the
@@ -1058,7 +2202,17 @@ has lost games in both engines (BAS-X02).
     Basilisk-only terms with no donor prior: pawn majority, pawn
     islands, closed file, seventh rank, connected rooks, the trapped
     bishop.
-  It was C.7 until 2026-11-05, when the phase moved to C.3.
+  C.2.8 inputs (2026-11-23, the fit registration's Amendment 1, its §6.1
+  and §6.7; inference until C.2.8.3's run 2 reads it):
+  - A PST's level against the imbalance's piece-times-pawn products is
+    weakly identified, and the split moves with the fit's surface. With
+    every entry free the eg rook table rose 180 cp (BAS-O12). With 242
+    slots held it rose 52 and the products carried the rest (C.2.8.3's
+    run 1). The endgame piece values stayed within 8% of each other.
+  - So an imbalance term's fitted value is read with the table levels of
+    the same fit, never alone (C-118's screen).
+  It was C.7 until 2026-11-05, when the phase moved to the king-safety
+  cluster (C.3 then, C.4 since 2026-11-18).
 - [ ] **C.7** Endgame handling and winnability
   The goal is measured conversion and correct draw recognition where games
   actually go, not coverage of a function list.
@@ -1068,6 +2222,20 @@ has lost games in both engines (BAS-X02).
   within this constraint, and the order is discussed again when reached.
   Its instruments leaf, C.7.1, moved to C.2.7 on 2026-11-11, so the
   cluster starts at C.7.2.
+  From C.2.8.4 (2026-11-23, the registration's §8):
+  - Both whole-surface refits, A2 and B2, convert 2 to 9 fewer of the
+    truth cohort's 480 than the head at 21,000 and 64,000 nodes, closing
+    by 190,000. The losses fall in the same three families: KBPP-KB,
+    KNN-KP and KRP-KR.
+  - The bracket veto's two-of-three rule fires 3 to 6 times between two
+    fits of equal quality, so its floor between different evaluations is
+    several positions, not the 0 to 1 two heads give.
+  Since 2026-11-18 (maintainer, after C.0): the endings hold 16% of the
+  same-search deficit and the full board 68 to 69%. When C.6 closes, its
+  frontier pair and screen are read against that. If the full board still
+  leads the residual, C.8.1's investigation is taken before this cluster,
+  on the maintainer's decision. The truth repairs routed here (V3, V4,
+  V6) are defects and keep their place in the phase either way.
     - [ ] **C.7.2** `[R3]` Occurrence, classification and ranking
       Occurrence, classification and ranking (archived 6.7.a–d).
       - Board and tree occurrence with per-root concentration.
@@ -1092,6 +2260,13 @@ has lost games in both engines (BAS-X02).
         `search_history_core.cpp:158-174`) whose keys won and drawn
         positions share, so a dead draw can stand at ±X.
     - [ ] **C.7.3** `[I2]` Generic winnability and scaling
+      Held-out tooling first (moved from C.2.7, 2026-11-23; audit D24):
+      - halves assigned by FEN hash;
+      - a write-once registration naming the deciding half and a runner-up;
+      - McNemar on discordant positions;
+      - plateaus reported as plateaus;
+      - a cohort that chose a winner is spent for selection and stays
+        valid as a veto.
       Generic winnability and scaling in the donor's form: pawn-count scaling,
       opposite-bishop scaling, rule-50 inside the scale and a complexity term;
       floored so a misfire discounts rather than throws a win.
@@ -1199,15 +2374,39 @@ has lost games in both engines (BAS-X02).
       - KRPPKRP has truth: the 7-man tables are installed, so this leaf's
         wording is stale (C-24); gates without tablebases expose static
         small-endgame scores (C-147).
-- [ ] **C.8** `[V]` Refit cycles
-  Refit cycles (archived 8.9): regenerate data with the accepted head, refit
-  the whole surface with a new untouched test split, and gate each cycle;
-  repeat while a cycle accepts; stop at the first that does not.
-  Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
-  are its items):
-  - Refit cycles diminish (+11.0, then +6.7 in Rarog), so size from earlier
-    cycles' games (C-123); priors (C-68); scores re-dumped after each refit
-    (C-69).
+- [ ] **C.8** Residual and refit cycles
+  Reworked 2026-11-18 (maintainer, after C.0): the phase ends on its
+  meters, so the residual is investigated before the closing fits.
+    - [ ] **C.8.1** `[R3]` Residual investigation
+      After the family and endgame clusters. It re-reads the same-search
+      meter on a fresh oracle build, the matched ablation by family, the
+      family screen both ways and the frontier pair, and reads C.2.2's
+      H-distribution result beside them. Its questions:
+      - how much of 217.3 is left, and in which family and phase;
+      - whether what is left is evaluation at all: speed (C.12), the
+        search's margins on the new evaluation (C.10), or positions a
+        search visits and a game does not (the corpus);
+      - which donor forms were screened out and are worth a game-level
+        read now, threats first: they have no static case and were never
+        measured in play;
+      - what information of Basilisk's own a concept residual screen
+        (TE-1) can still name.
+      It ends by opening further clusters as leaves of this step, ahead
+      of the refit cycles, each with its handoff, or by closing the
+      family work. Stop rule: two consecutive units under +5 at their
+      gates, or a frontier pair whose interval includes zero. A unit
+      expected under 5 Elo goes to Phase H.
+    - [ ] **C.8.2** `[V]` Refit cycles
+      It was C.8 until 2026-11-18.
+      Refit cycles (archived 8.9): regenerate data with the accepted
+      head, refit the whole surface with a new untouched test split, and
+      gate each cycle; repeat while a cycle accepts; stop at the first
+      that does not.
+      Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
+      IDs are its items):
+      - Refit cycles diminish (+11.0, then +6.7 in Rarog), so size from
+        earlier cycles' games (C-123); priors (C-68); scores re-dumped
+        after each refit (C-69).
 - [ ] **C.9** `[V]` Nonlinear HCE SPSA or a written skip
   Nonlinear HCE SPSA (archived 8.10): only live, frequent terms Texel cannot
   price, such as the king-danger map, from a zero-game activation and
@@ -1275,14 +2474,27 @@ has lost games in both engines (BAS-X02).
     hybrid at the C head, plus conversion, the truth cohort, NPS and a 1T
     pool gauntlet.
   - Revalidate the score scale, mate bounds and every endgame floor.
+  - Re-read the HCE frontier field (BAS-M18) with the C head: the aim's
+    meter, in the field and head to head (2026-11-18).
   - Its 1T pool gauntlet, clock- and node-annotated, is D.1's loss-analysis
     source: C.12 is bit-exact, so those games are the play of D.1's entry
     head (2026-11-05).
   - Ablate low-information mechanisms.
   - Freeze the classical evaluation.
+  - Its games are C.13.1's fitting data: the frozen head's own score at
+    each move, the material and the result (2026-11-21).
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Conversion compared within one pool only (C-146).
+  Rarog import input (2026-11-21, `analysis/rarog_import_2026-11-21.md`
+  §2.4):
+  - A zero-game reading of the C head's evaluation beside the deficit,
+    by RAR-O10's recipe: the evaluation alone scored against Stockfish
+    19's expected score at 1,000,000 nodes on 10,000 positions from
+    Basilisk's own games, with Stockfish 11's classical evaluation and
+    the C.0 head as anchors, by material class. It locates where the
+    programme moved the evaluation and accepts nothing. Its prior is
+    Rarog's read of the 2026-11-14 head (C.2.10).
 - [ ] **C.12** `[I2]` Evaluation throughput, bit-exact
   Evaluation throughput, bit-exact (archived 8.12).
   - Profile terms, phases and cache paths first.
@@ -1291,6 +2503,13 @@ has lost games in both engines (BAS-X02).
   - The lazy-eval thresholds are C.10's, audited before the freeze
     (2026-11-05); this leaf keeps every score identical.
   - Gate with interleaved pooled NPS and a natural-termination SPRT.
+  - C.1's accepted cost is recovered here (2026-11-20). The C.1 restructure
+    read −0.71% [−0.94%, −0.48%] against the pre-C.1 base `496248d`, so
+    the pools `tools/test_engines/c1-base.pool.json` and `c1-head` stay as
+    its reference (`analysis/c0_evaluation_programme_2026-11-18.md` §10.10).
+    The cost's mechanism is not known. It tracked the PGO build's
+    `Evaluator::evaluate_full` instruction count: +95 over the base at
+    −0.71%, +272 at −1.61%, +533 at −2.73%. Watch that count.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - Played and full scores dumped (C-89); cache purity (C-105); a runtime lazy
@@ -1299,13 +2518,72 @@ has lost games in both engines (BAS-X02).
     cache, so the twelve-popcount census and the imbalance are rebuilt on
     every call (the pawn cache is pure); a cache that keeps every score
     identical belongs here. E8's lazy cut is C.10's.
-- [ ] **C.13** `[M]` Interim release after the evaluation programme
+- [ ] **C.13** Interim release after the evaluation programme
   Maintainer decision 2026-10-24: the evaluation programme's head is released
-  as 1.12.0 once C.12 closes, as Rarog cut 2.6.0 from its C head. Licensed as
-  B.11.4 is: an accepted SPRT over the 1.11.0 release at `3+0.03` 1T, `10+0.1`
-  and 4T direction checks whose 95% intervals exclude a loss, the 4T check
-  sibling-free. Cut through A.8.6's tag-driven
-  flow, after B.11.3's scans are repeated on the candidate (PLAN §5).
+  as 1.12.0 once C.12 closes, as Rarog cut 2.6.0 from its C head. Since
+  2026-11-21 (maintainer) the release first prints its score on a fitted
+  scale (C.13.1), so 1.12.0 is the first release whose +1.00 means an even
+  chance.
+    - [ ] **C.13.1** `[I1]` Reported score and WDL in Stockfish's form
+      Added 2026-11-21 (maintainer; `analysis/rarog_import_2026-11-21.md`
+      §2.1, after Rarog's D.7.12). Output only: no search or clock
+      decision reads the printed score, and `bench 13` is unchanged. Its
+      constants are fitted on the frozen head (C.11), and C.12 is
+      bit-exact, so they are the release's.
+      - **The form is Stockfish's, whole** (`src/uci.cpp`,
+        `win_rate_params`, `win_rate_model`, `to_cp` and `wdl` at
+        `sf_19`).
+        - The material is `m` = pawns + 3 × knights + 3 × bishops +
+          5 × rooks + 9 × queens, clamped to [17, 78] and divided by 58.
+        - `a(m)` and `b(m)` are cubics in that value.
+        - An ordinary score prints as `round(100 · v / a(m))` at the
+          root's material, held below the tablebase band.
+        - The win rate is `1 / (1 + exp((a − v) / b))` in permille, the
+          loss the same at `−v`, the draw the rest.
+        - `UCI_ShowWDL`, a check option off by default, adds
+          `wdl W D L` after the score and its bound on every `info` line.
+        - Mates and tablebase results print as they do today
+          (`format_info_line`, `src/search_root.cpp`).
+      - **The constants are Basilisk's own,** fitted on its own games as
+        Stockfish fits its own on fishtest's games.
+        - The data is the frozen head's games from C.11's reads: its own
+          score at each move it searched, the material, and the result
+          from its side. The leaf records the games, the control and the
+          positions kept.
+        - Mate scores and scores in the clamped bands are left out, and
+          each material count from 17 to 78 needs a stated minimum of
+          positions.
+        - `a` and `b` are fitted per material count by maximum likelihood,
+          then each by a weighted cubic.
+      - **The tool** is new Basilisk Python, `tools/wdl_fit.py`, with
+        tests. Its tests recover known constants from synthetic games and
+        check the reader's side and filters. It reports the calibration in
+        bands of the printed score, observed against predicted W / D / L,
+        and its check mode fails unless the source holds the fitted
+        constants. Rarog's tool of the same name is the method reference
+        (`78d4681`); no Rarog value crosses.
+      - **Tests:**
+        - +100 prints at an even chance, and the map is monotone at every
+          material.
+        - The rates are defined at every material a board can hold, sum to
+          1,000 and are mirrored.
+        - The field appears only when the option is on, and the option
+          reaches the engine.
+        - A search's nodes, move, internal score and line count are equal
+          with the rates shown or not.
+      - **Known limit** (Rarog's read): the model has no term for a proven
+        draw, so draws next to zero run above its prediction. That is
+        recorded in the calibration, not repaired.
+      - The changelog says that scores now mean an even chance at +1.00
+        and that `UCI_ShowWDL` shows the rates.
+      - The constants are checked again at E.3, and refitted per network
+        at F.6.
+    - [ ] **C.13.2** `[M]` The 1.12.0 cut
+      Licensed as B.11.4 is: an accepted SPRT over the 1.11.0 release at
+      `3+0.03` 1T, `10+0.1` and 4T direction checks whose 95% intervals
+      exclude a loss, the 4T check sibling-free. Cut through A.8.6's
+      tag-driven flow, after B.11.3's scans are repeated on the candidate
+      (PLAN §5).
 
 ### Active workflow register
 
@@ -1315,16 +2593,12 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.0 | RESEARCH | R3 | Next: opens Phase C |
-| C.1 | RESEARCH | I1 | Not started |
-| C.2.1 | RESEARCH | I1 | Not started |
-| C.2.2 | RESEARCH | R2 | Not started |
-| C.2.3 | RESEARCH | V | Not started |
-| C.2.4 | RESEARCH | R2 | Not started |
-| C.2.5 | RESEARCH | R2 | Not started |
-| C.2.7 | RESEARCH | R2 | Not started |
-| C.2.8 | RESEARCH | V | Not started |
-| C.3 | RESEARCH | I2 | Not started |
+| C.2.10 | RESEARCH | R3 | Registered and prepared 2026-11-24; the screen is read and its two samples disagree (Amendment 1); the games are owed |
+| C.3.1 | RESEARCH | R3 | Not started; C.0's contract is its packet §8.2 |
+| C.3.2 | RESEARCH | I2 | Not started |
+| C.3.3 | RESEARCH | R2 | Not started |
+| C.3.4 | RESEARCH | V | Not started |
+| C.3.5 | RESEARCH | V | Not started |
 | C.4 | RESEARCH | I2 | Not started |
 | C.5 | RESEARCH | I2 | Not started |
 | C.6 | RESEARCH | I2 | Not started |
@@ -1334,13 +2608,15 @@ leaf's tag. Later phases carry only a class until they open.
 | C.7.5 | RESEARCH | I2 | Not started |
 | C.7.6 | RESEARCH | R2 | Not started |
 | C.7.7 | RESEARCH | V | Not started |
-| C.8 | RESEARCH | V | Not started |
+| C.8.1 | RESEARCH | R3 | Not started |
+| C.8.2 | RESEARCH | V | Not started |
 | C.9 | RESEARCH | V | Not started |
 | C.10.1 | RESEARCH | R2 | Not started |
 | C.10.2 | RESEARCH | V | Not started |
 | C.11 | RESEARCH | V | Not started |
 | C.12 | RESEARCH | I2 | Not started |
-| C.13 | RESEARCH | M | Not started |
+| C.13.1 | RESEARCH | I1 | Not started |
+| C.13.2 | RESEARCH | M | Not started |
 
 ## Phase D — Clock, threads, tablebases
 
@@ -1486,6 +2762,27 @@ leaf's tag. Later phases carry only a class until they open.
     at the control it acts at and against an external engine (TT-3),
     not in self-play. A change to the effort measure re-reads
     `B5AspBase` and `B5AspGrowth` (above).
+  Rarog import inputs (2026-11-21, `analysis/rarog_import_2026-11-21.md`
+  §2.2; Rarog's D.7.9.1, RAR-R34):
+  - **The whole form is the prior.** Rarog's hybrid clock was replaced by
+    one donor's time manager whole (Reckless's budget, horizon and five
+    factors; its guards kept with their tests). It read **+30.0 ± 8.8 Elo**
+    at `3+0.03` and **+18.6 ± 8.2** at `10+0.1`, predicted +4 and +3.
+    The hybrid's early under-spend (0.60 of the base in the first twenty
+    moves against 0.75) cost far more than a null horizon read suggested.
+  - **The pieces a partial port misses** are the ones Rarog's hybrid
+    lacked: Stockfish's per-control scale, its cut when behind on the
+    clock, and `increaseDepth`. The audit above ticks them beside the
+    factors.
+  - **A zero-game census before the arms:** the share of time spent past
+    the optimum and the share of moves at three times the optimum or more,
+    on the entry head's games. Rarog's hybrid read 30% and 6.1%, past D.1's
+    3% trigger for `increaseDepth`.
+  - **Guards against shape:** every piece of the clock is classed as a
+    guard, kept with its tests, or shape, replaced by the donor's, before
+    the port. The guards are the reserve under `Move Overhead`, the
+    proved-mate stop, the first-iteration guard, the tablebase box, the
+    single-move rule and the `go` semantics.
 - [ ] **D.2** `[R2]` Lazy SMP quality
   Self-relative scaling before any design: each engine against itself at
   4T against 1T, and against twice its time at 1T, so that four threads
@@ -1519,6 +2816,30 @@ leaf's tag. Later phases carry only a class until they open.
   (the key or the prefetch only where the probe is likely to miss the
   cache) is a question for the table's redesign, read by PROCESS *NPS*'s
   rule for a memory item; a new layout moves the cost and the payoff both.
+  Rarog import inputs (2026-11-21, `analysis/rarog_import_2026-11-21.md`
+  §2.3; priors only):
+  - **Shared correction** (Rarog's D.13 card, Reckless's form): the pawn
+    and non-pawn correction tables shared per NUMA node.
+    - A read is a relaxed 16-bit load and an update a relaxed load and
+      store, so a racing update may be lost, never torn.
+    - One thread plays the same, bench exact, for a pointer load a node.
+    - The four-thread acceptance is costed at 13 to 18 hours for an SPRT
+      `[0,5]`, or 1 hour 45 minutes for a no-harm read.
+    - Stockfish shares correction, pawn and continuation histories per
+      NUMA node (`SharedHistories`).
+  - **Soft-stop voting, at zero games first** (Rarog's D.14): a `diag`
+    counter at 4T, on 300 positions at `3000+30`, counts the searches in
+    which a thread that voted to stop would have withdrawn its vote before
+    the pool stopped. Under 2% of searches, withdrawal is `NO_CHANGE`.
+  - **The prefetch's place** (Rarog's D.7.8.12, pooled PGO NPS):
+    - prefetching the child's cluster before the make, from the key the
+      move will produce, read +1.09%;
+    - moving it up to where the move is picked, before the pruning
+      rules, read a further +1.12%;
+    - prefetching the correction and pawn entries as well read nothing
+      once the table's line was hidden.
+
+    A candidate for the cheaper form asked above, read by the same rule.
   Engine audit inputs (2026-11-12,
   `analysis/b64_engine_audit_2026-11-12.md` §6): the table's rules
   where they differ from the donor's and no record says why, read at
@@ -1673,6 +2994,10 @@ leaf's tag. Later phases carry only a class until they open.
     Stockfish 19's time-manager constants as D.1 leaves them); short
     user-facing text (D-71); E.2's 4T pool read beside the head-to-head
     (D-43).
+  The reported score (2026-11-21): `tools/wdl_fit.py`'s check is run on
+  the candidate against C.13.1's constants. Phase D moves neither the
+  evaluation nor its scale, so a failed check is investigated before any
+  refit.
 
 ## Phase F — NNUE (own data only)
 
@@ -1882,9 +3207,11 @@ speed (F.5, F.6). F.2.1, F.2.2, F.3 and F.4 are retired numbers
     inherited from another net tuned on this one (TD-8).
   - Network gains shrink at longer controls and hide behind shared cores:
     one net read +0.8 at 75 concurrent games and +23.4 at 38 (TD-7).
-  - The printed score's scale is fitted here, per network (G.2's until
-    2026-11-11; TA-2; Rarog's F.6), so that the first NNUE release
-    prints +1.00 as an even chance to win.
+  - The printed score's scale is refitted here, per network, with
+    C.13.1's tool and Stockfish's form (G.2's until 2026-11-11; TA-2;
+    Rarog's F.6). Since 2026-11-21 the first fit is C.13.1's, on the
+    classical head, so 1.12.0 already prints +1.00 as an even chance to
+    win; each network gets its own constants.
 - [ ] **F.7** `[R3]` Architecture ladder, one axis at a time
   Architecture ladder: output buckets, king buckets with mirroring, then
   relation and threat inputs, one axis at a time with multiple seeds; each net
@@ -1990,8 +3317,8 @@ speed (F.5, F.6). F.2.1, F.2.2, F.3 and F.4 are retired numbers
     full window, paused in quiet positions; the more direct of two clear
     wins played; the analysis search compiled as a second copy so games pay
     nothing.
-  - The printed scale calibrated so +1.00 is a 50% chance to win is F.6's
-    since 2026-11-11, fitted per network; tablebase wins printed as
+  - The printed scale calibrated so +1.00 is a 50% chance to win is
+    C.13.1's since 2026-11-21, refitted per network in F.6; tablebase wins printed as
     `cp 20000` minus the distance stay here (TA-2). Strength levels by
     search limits and line choice, calibrated in games (TA-3).
 - [ ] **G.3** `[R3]` Frontier
@@ -2036,6 +3363,17 @@ already repairing or a form it must choose anyway, and says so.
   this leaf's, on the network. Its switch leaves in B.8.2 and is rebuilt
   here from `55e3010` (`search_kernel_core.cpp:1108`;
   `analysis/b82_switch_inventory_2026-11-14.md` §3).
+  Rarog import input (2026-11-21, `analysis/rarog_import_2026-11-21.md`
+  §2.5):
+  - **Quiet checks after the skip.** Once late-move pruning or futility
+    fires, the picker skips every quiet move left, direct checks among
+    them (Stockfish's `skip_quiet_moves`, Reckless's alike).
+    - On WAC positions and their continuations, Rarog's kernel with the
+      skip then played a move allowing a mate in one in 1 of 123
+      positions where a move avoids one, at every depth to 7. Without the
+      skip it did not.
+    - First a zero-game count of the same on Basilisk; then, if it fires,
+      the skip that keeps direct checks, as one item.
   Triumviratus review inputs (2026-11-03,
   `analysis/triumviratus_review_2026-11-03.md`; IDs are its items):
   - Causal reduction: quiet siblings that touch none of a sibling's
@@ -2090,7 +3428,7 @@ already repairing or a form it must choose anyway, and says so.
       the time there.
     - Cheapest test of the cause, before any game: the same pricing
       split by whether the capturing side's king is under attack.
-    - The figure belongs to this evaluation: re-read after C.3 rebuilds
+    - The figure belongs to this evaluation: re-read after C.4 rebuilds
       king safety, and again on the network.
   B.6.4 inputs (2026-11-12, `analysis/b64_engine_audit_2026-11-12.md`
   §5; each is the donor's behaviour, copied faithfully, with its

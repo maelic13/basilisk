@@ -61,7 +61,8 @@ goes back to the implementer for a fix: it goes to research.
 > linked analysis and the relevant source; measured evidence outranks
 > roadmap assumptions. Read the donor (modern Stockfish at the pinned
 > revision for search, TT, histories, time and threads; classical Stockfish
-> `9587eeeb` for the evaluation and as the oracle) for mechanism, population
+> for the evaluation, `sf_16`'s first and `9587eeeb`'s second, and
+> `9587eeeb` as the oracle) for mechanism, population
 > and interaction, never for transcription; read the Rarog snapshots in
 > `docs/reference/` as a worked example of the same method, never the
 > live Rarog repository and never as a donor. State the precise question, the leading
@@ -252,9 +253,10 @@ Donors (maintainer decision 2026-09-28; PLAN rule 1 points here):
   `edb0d9db` (2026-09-05), for search, TT, histories, move ordering, time
   management, threads and the later NNUE runtime. A later revision enters
   only through a new dated pin recorded in the search programme packet.
-- **Classical Stockfish `9587eeeb`** for the evaluation families, as the
-  deficit oracle (`oracle/hybrid`), and as a seed column for eval-coupled
-  margins.
+- **Classical Stockfish** for the evaluation families: `sf_16`'s classical
+  evaluation is the donor and `9587eeeb`'s the second seed column (C.0,
+  BAS-O09). `9587eeeb` stays the deficit oracle (`oracle/hybrid`) and a
+  seed column for eval-coupled margins.
 - **Triumviratus** (maintainer decision 2026-11-03), for mechanisms only:
   measured priors on its Stockfish-19-shaped search, board and
   infrastructure, time management, NNUE architecture and training, and its
@@ -657,10 +659,12 @@ One shared bit mask on Basilisk and on the oracle build, so the same number
 ablates the same mechanism on each side (A.5.4 fixes the order), compiled
 away in a shipped build.
 
-Basilisk's side, the Ablate flavour, was removed when the search froze at
-B.11.1's close (2026-11-18); the oracle keeps its mask. A new decomposition
-rebuilds Basilisk's side from `4d2742f`
-(`analysis/b82_switch_inventory_2026-11-14.md` §7.5).
+Basilisk's search mask, the old Ablate flavour, was removed when the search
+froze at B.11.1's close (2026-11-18); the oracle keeps its mask. A new
+search decomposition rebuilds Basilisk's side from `4d2742f`
+(`analysis/b82_switch_inventory_2026-11-14.md` §7.5). Since C.2.9 the Ablate
+flavour carries the evaluation-family mask, `EvalAblationMask`, and the oracle
+takes it through `tools/oracle/oracle-eval-ablate.patch`.
 
 1. The harness refuses an option an engine does not expose. A run that sets a
    missing option plays the whole match at the default and measures nothing.
@@ -676,30 +680,33 @@ rebuilds Basilisk's side from `4d2742f`
 6. Net out NPS before comparing engines; it cancels in G(0) − G(mask) but not
    in any absolute statement.
 
+An evaluation mask by family follows the same rules (C.2.9): one bit
+switches the same family off in Basilisk's evaluation and in the oracle's
+own, and E(0) − E(mask) is the Elo of the evaluation deficit that family
+explains.
+
 ## Texel procedure
 
-C.2.1 writes the Basilisk Texel handbook; until then the tools are
-`basilisk-texel` (`TEXEL=ON`), `tools/texel/extract_parallel.py` and
-`tools/texel/bake.py`. The policy:
+The operation, its resources, contracts, traps and numbers are in
+[`tools/texel/HANDBOOK.md`](../tools/texel/HANDBOOK.md). A fit runs through
+`tools/texel/fit.py`. The policy:
 
-1. Mechanically verify the label domain and source before fitting:
-   self-play WDL means exactly `0`, `0.5`, `1` from White's perspective; a
+1. The labels are game results, exactly `0`, `0.5`, `1` from White's side, of
+   games that ended by the rules. The row contract checks it mechanically; a
    filename or a prose summary is not proof.
-2. Keep stable by-game train/validation/test splits; claim the test split once
-   after model selection.
-3. Enumerate every evaluation coordinate with its status — free, fixed or
-   excluded (nonlinear, capped or bucket-selecting terms a linear model would
-   misprice) — and its reason. The inventory sums exactly to the parameter
-   registry.
-4. Trace every linear term exactly and verify full-evaluation reconstruction.
-5. Smoke the complete vector → bake → source → rebuild chain with absurd
-   values in every instrument class; unchanged behaviour after a broad fit is
-   a failed wire.
-6. **Sequential joint bake.** `--tune all` and `--tune-kingsafety` each write
-   a full parameter dump with the other group at baseline, so baking one after
-   the other reverts the first. The order is: bake the linear fit, rebuild
-   `basilisk-texel` against it, re-fit king safety on the baked evaluation,
-   then bake king safety.
+2. Train, validation and test are split by the start's hash, and the test
+   split is claimed once, after model selection.
+3. Every evaluation coordinate is classed free, fixed or excluded, with its
+   reason, in the surface manifest, which sums exactly to the registry. The
+   free surface has full rank under its anchors on the corpus fitted.
+4. The fit models the played score: the tuner's model must reproduce the
+   engine on every row (`--verify`), and its played hash must equal a release
+   build's served hash.
+5. K is fitted once on validation and frozen. Each stage starts from the last
+   one's complete vector (`--init`); nothing is baked between stages. The whole
+   final vector is baked, never one block of it.
+6. A stage stopped by its schedule, not by convergence, is not a fit: the
+   tuner exits 3 and nothing is baked.
 7. Fit loss is a screen and a falsifier, never acceptance. Bake the fit into
    clean PGO and gate it.
 8. Keep search parameters fixed during an evaluation fit; re-measure their

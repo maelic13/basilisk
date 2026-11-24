@@ -1,0 +1,13 @@
+# Patches against other repositories' sources. They are never tracked: each
+# lives under tools/results/foreign-patches/<path> on the machine that builds
+# with it, and tools/board_compare/build.py and tools/donor/build_donor.py
+# refuse one whose SHA-256 differs from its line here.
+# Format: <SHA-256>  <path under tools/results/foreign-patches/>
+C7B411547C1D493582713550E0E2075D276E35D5961B3AB602FDF18A4234BA92  board_compare/reckless/reckless-board-adapter.patch
+F4B73849601EAA9AF60DE9E4D4B5DB2FF6ABD2051CB279C1DE2B62A7478CC29C  board_compare/stockfish19/stockfish19-board-adapter.patch
+FD018A44E7DD1B3D4DE984E3484777669F952C36719071A5AF01AF464535F829  board_compare/stockfish-classical/stockfish-classical-board-adapter.patch
+22CE26D2C34AA701EA4E2E8E306ED30C94AC106D515CEB732B9F6FE7819FD001  board_compare/rarog/board_xv2.diff
+7E65D7B20FF42DF149045A3B9506EB35C7BD19047388A9830FEAA1B6677B5B20  donor/sf16-eval9587.patch
+75ADC4C0884CAADEBB19A4C3FD20E9E71DA9B2B202F775D9616908CBCC3BE029  donor/sf16-stock.patch
+FBF58480E622BC606811658B73C154D317DC3F46303EC675C9506C8324FB0C5C  donor/sf9587-eval16.patch
+5830FC968A3038369E6ADDE2550EFE8258A594797DB1D91CF6036FD6A5EADEE7  donor/sf9587-stock.patch

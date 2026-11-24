@@ -264,7 +264,7 @@ jobs:
       - name: Configure and build (Release, TUNE off)
         run: |
           cmake --preset ${{ matrix.preset }} ${{ matrix.isa }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler || 'clang' }} \
-            -DTUNE=OFF -DDIAGNOSTIC=OFF -DTEXEL=OFF
+            -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF
           cmake --build --preset ${{ matrix.preset }} --target all
 
       - name: CTest
@@ -321,11 +321,11 @@ jobs:
       - name: Configure and build (Release, TUNE on)
         run: |
           cmake --preset ${{ matrix.preset }} ${{ matrix.isa }} -DPORTABLE_BUILD=ON -DCOMP=${{ matrix.compiler || 'clang' }} \
-            -DTUNE=ON -DDIAGNOSTIC=OFF -DTEXEL=OFF
+            -DTUNE=ON -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=OFF
           cmake --build --preset ${{ matrix.preset }} --target basilisk test_uci_protocol
           ctest --test-dir build/${{ matrix.preset }} -R test_uci_protocol --output-on-failure --no-tests=error
 
-  # ---- Build flavors (Linux x86_64 PEXT): diagnostic, TEXEL ---------------
+  # ---- Build flavors (Linux x86_64 PEXT): diagnostic, ablation, TEXEL -----
   # Kept out of the test matrix, as Rarog keeps its feature builds, so a flavor
   # failure fails this job and never hides the bench agreement.
   flavors:
@@ -348,14 +348,21 @@ jobs:
       - name: Build and test diagnostic-only flavor
         run: |
           cmake --preset release -B build/diag-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DCOMP=clang \
-            -DTUNE=OFF -DDIAGNOSTIC=ON -DTEXEL=OFF
+            -DTUNE=OFF -DDIAGNOSTIC=ON -DABLATION=OFF -DTEXEL=OFF
           cmake --build build/diag-pext --target basilisk test_uci_protocol
           ctest --test-dir build/diag-pext -R test_uci_protocol --output-on-failure --no-tests=error
+
+      - name: Build and test ablation flavor
+        run: |
+          cmake --preset release -B build/ablate-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DCOMP=clang \
+            -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=ON -DTEXEL=OFF
+          cmake --build build/ablate-pext --target basilisk test_uci_protocol test_eval
+          ctest --test-dir build/ablate-pext -R "^(test_uci_protocol|test_eval)$" --output-on-failure --no-tests=error
 
       - name: Build and verify TEXEL flavor
         run: |
           cmake --preset release -B build/texel-pext -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DCOMP=clang \
-            -DTUNE=OFF -DDIAGNOSTIC=OFF -DTEXEL=ON
+            -DTUNE=OFF -DDIAGNOSTIC=OFF -DABLATION=OFF -DTEXEL=ON
           cmake --build build/texel-pext --target basilisk-texel
           ./build/texel-pext/basilisk-texel --verify tools/texel/test_positions.csv
 
@@ -399,6 +406,65 @@ jobs:
 
       - name: ISA contract tests
         run: python3 tools/diag/test_verify_isa.py
+
+  # ---- Texel toolchain -------------------------------------------------------
+  # The fit's tools against the traced tuner they drive:
+  #   - the row contract and the test-split claim;
+  #   - the surface manifest against the tuner's registry;
+  #   - bake's refusals;
+  #   - the convergence and travel rules on data whose optimum is known.
+  texel:
+    name: texel tools
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Select Clang 22
+        # Preinstalled on the image; see the test job.
+        run: |
+          sudo ln -sf /usr/bin/clang-22   /usr/local/bin/clang
+          sudo ln -sf /usr/bin/clang++-22 /usr/local/bin/clang++
+          clang++ --version
+
+      # The image's Python is externally managed, so the tests' packages go in a
+      # virtual environment; python-chess is pinned, since the row contract's
+      # rules endings read its draw predicates.
+      - name: Python packages
+        run: |
+          python3 -m venv "$RUNNER_TEMP/texel-venv"
+          "$RUNNER_TEMP/texel-venv/bin/pip" install -q chess==1.11.2 numpy
+
+      - name: Build the traced tuner
+        run: |
+          cmake --preset release -B build/texel -DCOMP=clang -DPORTABLE_BUILD=ON -DTEXEL=ON
+          cmake --build build/texel --target basilisk-texel
+
+      - name: Texel tests
+        env:
+          BASILISK_TEXEL: ${{ github.workspace }}/build/texel/basilisk-texel
+        run: |
+          python="$RUNNER_TEMP/texel-venv/bin/python"
+          for t in test_extract test_surface test_bake test_sample_fens test_fit test_relabel test_piece_values; do
+            echo "== $t"
+            "$python" "tools/texel/$t.py" || exit 1
+          done
+
+      # The endgame truth contract and its consumers' guards, and the family
+      # screen's joins, each on a known-bad input. The runner tests need
+      # Syzygy and skip here.
+      - name: Endgame instrument tests
+        env:
+          BASILISK_TEXEL: ${{ github.workspace }}/build/texel/basilisk-texel
+        run: |
+          python="$RUNNER_TEMP/texel-venv/bin/python"
+          for t in test_endgame_vetoes test_endgame_contract test_family_screen test_c210_table; do
+            echo "== $t"
+            "$python" "tools/diag/$t.py" || exit 1
+          done
 
   sanitize:
     name: sanitize (linux ASan+UBSan)
@@ -535,7 +601,7 @@ jobs:
   # dependency as passing, so a required job must never be skipped.
   complete:
     name: CI complete
-    needs: [test, flavors, docs, sanitize, tsan, gcc-pgo, bench-agreement]
+    needs: [test, flavors, docs, texel, sanitize, tsan, gcc-pgo, bench-agreement]
     if: ${{ always() }}
     runs-on: ubuntu-26.04
     timeout-minutes: 10

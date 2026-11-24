@@ -137,9 +137,10 @@ line names where it lives.
   must record the policy and never mix with natural-termination evidence.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
-- **Bench signature** of the accepted head: `bench 13` = **4,777,412**
-  nodes (since B.9.5's gate, which kept the repairs; V2's is the one that
-  moves the bench). HISTORY's Phase B record lists every earlier count.
+- **Bench signature** of the accepted head: `bench 13` = **3,359,329**
+  nodes (since C.2.8's whole-surface refit, `cbc3676`; 4,392,040 after the
+  top-tier repair `cd4e453`, and 4,777,412 from B.9.5's gate to then).
+  HISTORY's Phase B record lists every earlier count.
   GUIDE's *Now* table declares it; `check_roadmap.py` holds this
   line to it. Exact bench identity is a provenance fingerprint, **not** proof
   of behavioural identity: evaluation activation, terminal logic and time

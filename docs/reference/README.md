@@ -10,16 +10,26 @@ from, never to Basilisk. Never edit a snapshot: the manifest beside it fails
 on any change (`python tools/diag/check_roadmap.py` checks it), and
 `.gitattributes` stores it byte-exact.
 
+**No other engine's code is tracked** (maintainer decision 2026-11-23,
+`analysis/licence_audit_2026-11-23.md`). A snapshot keeps documents only:
+source files, build scripts, workflows and patches of another engine stay
+on the machine that reads them, under `tools/results/reference/<snapshot>/`
+at the same relative path, and never reach the remote. Each snapshot's
+`<snapshot>.local-sha256` lists those files with their SHA-256, so a path
+cited by an older document still resolves and verifies locally:
+`cd tools/results/reference/<snapshot> && sha256sum -c ../../../../docs/reference/<snapshot>.local-sha256`.
+The Rarog bundles and the Triumviratus bundle below hold the same files.
+
 ## Rarog (`rarog/`)
 
 | Item | Value |
 |---|---|
 | Source | Rarog `dev`, commit `015bccaeae8d79eef169510795f76dc0b7c1587c` (2026-09-28), a sibling Rust engine by the same maintainer, GPL-3.0 (`rarog/LICENSE`) |
 | Why | Basilisk's roadmap (2026-09-28) follows Rarog's method and order. The ported tools, the worked examples and the evidence imported as BAS-X30–BAS-X34 all come from here |
-| Included | Every tracked file under `AGENTS.md`, `CHANGELOG.md`, `EXPERIMENTS.md`, `GUIDE.md`, `HISTORY.md`, `PLAN.md`, `PROCESS.md`, `README.md`, `LICENSE`, `analysis/`, `docs/archive/`, `tools/` and `tests/`: 274 files, each byte-identical to its git blob at the commit |
-| Added | `refs/oracle-hybrid-ablate.patch` and `refs/oracle-hybrid-diag.patch`: `git format-patch` of the Rarog tags `oracle/hybrid-ablate` (1 commit) and `oracle/hybrid-diag` (3 commits) on top of `oracle/hybrid`. They are the Stockfish-side ablation mask and counters of the classical-Stockfish oracle, which existed only as refs |
+| Included | Every tracked file under `AGENTS.md`, `CHANGELOG.md`, `EXPERIMENTS.md`, `GUIDE.md`, `HISTORY.md`, `PLAN.md`, `PROCESS.md`, `README.md`, `LICENSE`, `analysis/`, `docs/archive/`, `tools/` and `tests/`: 274 files, each byte-identical to its git blob at the commit. Since 2026-11-23, `analysis/board_benchmark_recipe_2026-09-05.md`, which embeds a patch of Reckless's source, is kept locally only (`rarog.local-sha256`) |
+| Added | `refs/oracle-hybrid-ablate.patch` and `refs/oracle-hybrid-diag.patch`: `git format-patch` of the Rarog tags `oracle/hybrid-ablate` (1 commit) and `oracle/hybrid-diag` (3 commits) on top of `oracle/hybrid`. They are the Stockfish-side ablation mask and counters of the classical-Stockfish oracle, which existed only as refs. Since 2026-11-23 they are patches of Stockfish's source kept locally only (`rarog.local-sha256`) |
 | Excluded | `src/`, `vendor/`, `xtask/`, `benches/`, `logo/`, `.github/`, `.cargo/`, Cargo and toolchain files, `CLAUDE.md`, `docs/uci_specification.txt`. Rarog's Rust engine is not a donor: its decisions are recorded in the analysis packets, and its source survives in the bundles below |
-| Manifest | `rarog.sha256`. Verify with `cd docs/reference/rarog && sha256sum -c ../rarog.sha256` |
+| Manifest | `rarog.sha256` for the tracked files. Verify with `cd docs/reference/rarog && sha256sum -c ../rarog.sha256`; `rarog.local-sha256` for the local ones |
 
 **Resolving a Rarog reference.** A `RAR-*` identifier resolves in
 `rarog/EXPERIMENTS.md`, or, for rows moved out of the table, in
@@ -132,9 +142,9 @@ The third donor (maintainer decision 2026-11-03), read for mechanisms only;
 |---|---|
 | Source | `Tors3/Triumviratus` `main`, commit `0c18907e067518d3bb4dc42969eecec671d222d0` (2026-11-03), by Francesco Torsello, GPL-3.0 (`triumviratus/COPYING`); `Tors3/Triumviratus-Networks` `main`, commit `5f3dc60c09dcd7a82449f13f8fbf9a400de04367` (2026-10-28) |
 | Why | A Stockfish-19-shaped search rebuilt on its own network, first on CCRL 40/15 on 2026-10-30, with every change measured and recorded: priors for Basilisk's search, board, time management, NNUE and measurement |
-| Included, `triumviratus/` | Every tracked file at the commit except images, the zipped game record, `source/fathom/` and `source/incbin/` (third-party), and the repository's own `.gitignore` and `.gitattributes` files, which would act on Basilisk's tree: README, `docs/`, `source/`, `build/`, `.github/`. Under `removed/`, documents Triumviratus deleted, each from the parent of the deleting commit: `removed/e876fa3/` (the 8.1 development log, its block documents and the clean-room inference specification, deleted by `5b36328`) and `removed/dfa5a6b/` (FUTURE_DIRECTIONS, the experimental-grafts record and the 4.2–7.0 network record, deleted by `9efeed2`). 139 files, each byte-identical to its git blob |
-| Included, `triumviratus-networks/` | Every Markdown file (recipes 01–07, the Consilium Plebis run log, data list and design documents) and the trainer patches, with `COPYING`: 33 files. The networks themselves are not copied |
-| Manifest | `triumviratus.sha256` and `triumviratus-networks.sha256`, verified by `check_roadmap.py` |
+| Included, `triumviratus/` | Every tracked file at the commit except images, the zipped game record, `source/fathom/` and `source/incbin/` (third-party), and the repository's own `.gitignore` and `.gitattributes` files, which would act on Basilisk's tree: README, `docs/`, `source/`, `build/`, `.github/`. Under `removed/`, documents Triumviratus deleted, each from the parent of the deleting commit: `removed/e876fa3/` (the 8.1 development log, its block documents and the clean-room inference specification, deleted by `5b36328`) and `removed/dfa5a6b/` (FUTURE_DIRECTIONS, the experimental-grafts record and the 4.2–7.0 network record, deleted by `9efeed2`). 139 files, each byte-identical to its git blob. Since 2026-11-23 the 115 files of `source/`, `build/` and `.github/` are kept locally only (`triumviratus.local-sha256`); 24 stay tracked |
+| Included, `triumviratus-networks/` | Every Markdown file (recipes 01–07, the Consilium Plebis run log, data list and design documents) and the trainer patches, with `COPYING`: 33 files. The networks themselves are not copied. Since 2026-11-23 the three trainer patches are kept locally only (`triumviratus-networks.local-sha256`) |
+| Manifest | `triumviratus.sha256` and `triumviratus-networks.sha256` for the tracked files, verified by `check_roadmap.py`; `*.local-sha256` for the local ones |
 | Resolving | The review's short references (D8 §n, D81 §n, NOV, NET, FD §n, R07, S1–S5) are listed in its §1; a path resolves under `triumviratus/` or `triumviratus-networks/`. A Triumviratus commit cited in a Basilisk document resolves in the bundle below |
 
 **Bundle (untracked backup).** `tools/results/triumviratus-reference/triumviratus-0c18907-all-refs.bundle`,

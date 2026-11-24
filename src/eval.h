@@ -106,11 +106,6 @@ private:
     int imbalance_generation_ = 0;
 
     int evaluate_full(const Board& b, bool& verdict, bool query);
-
-    void eval_pawns(const Board& b,
-                    int& mg, int& eg,
-                    Bitboard passed[NCOLORS],
-                    Bitboard attacks[NCOLORS]);
 };
 
 // Draw-scale factor for opposite-coloured-bishop positions. Eases
@@ -233,6 +228,31 @@ int krppkrp_scale_unfloored(const Board& b, Color strong);
 extern EvalParams g_eval_params;
 
 void init_eval_tables(const EvalParams& p = g_eval_params);
+
+// The matched evaluation ablation (PROCESS, *Matched ablation*): bit i of the
+// mask removes family i wherever it enters the score, the lazy checkpoint
+// included. The oracle's patch numbers Stockfish's families the same way, so
+// one number ablates the same family in both evaluations. Material, the
+// tables, the imbalance, the bishop pair (Stockfish's is in its imbalance),
+// the tempo and the endgame knowledge are never masked.
+enum EvalAblationBit : int {
+    EVAL_ABLATE_SPACE    = 0,
+    EVAL_ABLATE_MOBILITY = 1,
+    EVAL_ABLATE_THREATS  = 2,
+    EVAL_ABLATE_KING     = 3,  // the danger index, shelter and storm
+    EVAL_ABLATE_PAWNS    = 4,  // pawn structure, passers excluded
+    EVAL_ABLATE_PASSERS  = 5,
+    EVAL_ABLATE_PIECES   = 6,  // the piece terms, bishop pair excluded
+    EVAL_ABLATION_BITS   = 7,
+};
+
+#ifdef BASILISK_ABLATION
+// Only an ablation build can mask a family; elsewhere the mask is the constant
+// 0 and every test of it compiles away. Set it between searches, never during
+// one: a search reads it from every thread.
+void set_eval_ablation_mask(uint32_t mask);
+uint32_t eval_ablation_mask();
+#endif
 
 #ifdef BASILISK_TUNE
 // Load BASILISK_EVAL_FILE env-var path (if set) into g_eval_params and rebuild tables.

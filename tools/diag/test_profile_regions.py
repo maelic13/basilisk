@@ -92,6 +92,14 @@ class MapTests(unittest.TestCase):
         missing = sorted(p.name for p in files if p.name not in mapped)
         self.assertEqual(missing, [], "add these files to tools/diag/profile_regions.json")
 
+    def test_the_evaluator_files_are_eval(self):
+        # The evaluator is one translation unit spread over eval.cpp and its
+        # family headers; a sample inlined from any of them is evaluation time.
+        by_file = profile_regions.load_map()["by_file"]
+        names = sorted(p.name for p in (REPO / "src").iterdir() if p.name.startswith("eval"))
+        self.assertIn("eval_king.h", names)
+        self.assertEqual({name: by_file.get(name) for name in names}, {name: "eval" for name in names})
+
     def test_a_file_maps_to_one_region(self):
         regions = profile_regions.load_map()["regions"]
         names = [name for _, files in regions for name in files]

@@ -5,8 +5,10 @@ A tracked Markdown file (outside the verbatim snapshots in docs/reference/)
 cites a commit as a backticked hexadecimal hash of 7 to 40 characters. Each
 must resolve to a commit a ref reaches here: on `master`, under a pull request
 (GitHub keeps `refs/pull/<n>/head` after a squash merge) or on a kept tag. A
-hash that names something else -- another repository's commit, or a content
-hash -- is declared once in tools/diag/citation_exceptions.tsv with its kind
+hash that names something else -- another repository's commit, a content
+hash, or a Basilisk commit on a tag kept only on the maintainer's machine
+because it holds another engine's code -- is declared once in
+tools/diag/citation_exceptions.tsv with its kind
 and reason, and the check fails on an undeclared unresolved hash or on a
 declaration nothing cites any more.
 
@@ -29,7 +31,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 EXCEPTIONS = ROOT / "tools" / "diag" / "citation_exceptions.tsv"
 CITATION = re.compile(r"`([0-9a-f]{7,40})`")
-KINDS = {"external", "content", "lost"}
+# Kinds that may resolve here: an external commit can sit in a fetched
+# checkout, and a local tag resolves on the maintainer's machine but in no
+# fresh clone.
+MAY_RESOLVE = {"external", "local"}
+KINDS = MAY_RESOLVE | {"content", "lost"}
 
 
 def cited_hashes(root: Path) -> dict[str, set[str]]:
@@ -99,7 +105,7 @@ def main() -> int:
     for token in sorted(exceptions.keys() - cites.keys()):
         failures.append(f"declared exception `{token}` is no longer cited; remove it")
     for token in sorted(exceptions.keys() & cites.keys() - missing):
-        if exceptions[token][0] != "external":
+        if exceptions[token][0] not in MAY_RESOLVE:
             failures.append(f"declared `{token}` as {exceptions[token][0]} but it resolves here")
     if failures:
         print("\n".join(f"check_citations: {line}" for line in failures), file=sys.stderr)

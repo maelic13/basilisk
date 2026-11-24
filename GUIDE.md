@@ -11,7 +11,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Item | Value |
 |---|---|
 | Released baseline | **1.11.0** on `master`, tagged `v1.11.0` (2026-11-18), `bench 13` 4,777,412 |
-| Bench fingerprint | **4,777,412** (`bench 13`, since B.9.5's gate kept the repairs; HISTORY's 1.11.0 record lists the earlier counts) |
+| Bench fingerprint | **3,359,329** (`bench 13`, since C.2.8's whole-surface refit `cbc3676`; 4,392,040 after the top-tier repair `cd4e453`; 4,777,412 before it; HISTORY's 1.11.0 record lists the earlier counts) |
 | Active experiment | None |
 | Long job | None |
 | Next release | **1.12.0** after C (C.13), then 1.13.0 after E; **2.0.0** is the first NNUE release |
@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.0** `[R3]` Evaluation programme investigation — Claude Fable
+**Next step:** **C.2.10** `[R3]` Family order from games and screens — Claude Fable
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -58,18 +58,39 @@ the six-stage gating shape), are in
 
 ### Phase C — Evaluation programme (search frozen)
 
-- [ ] **C.0** `[R3]` Evaluation programme investigation
-- [ ] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
+- [x] **C.0** `[R3]` Evaluation programme investigation
+- [x] **C.1** `[I1]` Evaluation restructure, behaviour-neutral
 - [ ] **C.2** Fit pipeline, corpus, labels and gate instruments
-    - [ ] **C.2.1** `[I1]` Fit-tooling contract and Texel handbook
-    - [ ] **C.2.2** `[R2]` Corpus design
-    - [ ] **C.2.3** `[V]` Generate and publish corpus A
-    - [ ] **C.2.4** `[R2]` Matched label arms
-    - [ ] **C.2.5** `[R2]` Initialization control
-    - [ ] **C.2.7** `[R2]` Endgame instruments and gate integrity
-    - [ ] **C.2.8** `[V]` Matched fits and the label-contract gate
-- [ ] **C.3** `[I2]` King safety and phase cluster
-- [ ] **C.4** `[I2]` Threats and mobility cluster
+    - [x] **C.2.1** Fit-tooling contract and Texel handbook
+        - [x] **C.2.1.1** `[I1]` Rows, labels and splits
+        - [x] **C.2.1.2** `[I2]` Tuner correctness
+        - [x] **C.2.1.3** `[R2]` Coordinate manifest and initial vectors
+        - [x] **C.2.1.4** `[I1]` Fit driver and provenance
+        - [x] **C.2.1.5** `[I1]` Texel tooling hygiene and CI
+        - [x] **C.2.1.6** `[R2]` Texel handbook and the standing contract
+    - [x] **C.2.2** `[R2]` Corpus design
+    - [x] **C.2.3** `[V]` Generate and publish corpus A
+    - [x] **C.2.4** `[R2]` Matched label arms
+    - [x] **C.2.5** `[R2]` Initialization control
+    - [x] **C.2.7** Endgame instruments and gate integrity
+        - [x] **C.2.7.1** `[R2]` Audit against the Rarog snapshot
+        - [x] **C.2.7.2** `[I2]` Truth contract v2 and guard tests
+        - [x] **C.2.7.3** `[V]` Deployed nodes and the budget bracket
+        - [x] **C.2.7.4** `[V]` The C head's endgame baselines
+    - [x] **C.2.8** Matched fits and the label-contract gate
+        - [x] **C.2.8.1** `[R2]` Register the fit and the gates
+        - [x] **C.2.8.2** `[I1]` The fit driver to the registered schedule
+        - [x] **C.2.8.3** `[V]` Fits of A and B and the fit report
+        - [x] **C.2.8.4** `[V]` The registered gates
+    - [x] **C.2.9** `[I1]` Family screen and matched-ablation tools
+    - [ ] **C.2.10** `[R3]` Family order from games and screens
+- [ ] **C.3** Mobility, space and threats cluster
+    - [ ] **C.3.1** `[R3]` Cluster research and handoff
+    - [ ] **C.3.2** `[I2]` Implementation behind the switch
+    - [ ] **C.3.3** `[R2]` Independent review
+    - [ ] **C.3.4** `[V]` Whole-surface refit
+    - [ ] **C.3.5** `[V]` Gate, frontier pair and close
+- [ ] **C.4** `[I2]` King safety, phase and tempo cluster
 - [ ] **C.5** `[I2]` Pawns and passers cluster
 - [ ] **C.6** `[I2]` Material, imbalance and pieces cluster
 - [ ] **C.7** Endgame handling and winnability
@@ -79,14 +100,18 @@ the six-stage gating shape), are in
     - [ ] **C.7.5** `[I2]` Group B families by measured kind
     - [ ] **C.7.6** `[R2]` Lower-yield remainder
     - [ ] **C.7.7** `[V]` Endgame gate and closure
-- [ ] **C.8** `[V]` Refit cycles
+- [ ] **C.8** Residual and refit cycles
+    - [ ] **C.8.1** `[R3]` Residual investigation
+    - [ ] **C.8.2** `[V]` Refit cycles
 - [ ] **C.9** `[V]` Nonlinear HCE SPSA or a written skip
 - [ ] **C.10** Joint re-fit on the new evaluation
     - [ ] **C.10.1** `[R2]` Joint-fit investigation and registration
     - [ ] **C.10.2** `[V]` The joint fit, PGO and gate
 - [ ] **C.11** `[V]` Freeze the classical evaluation
 - [ ] **C.12** `[I2]` Evaluation throughput, bit-exact
-- [ ] **C.13** `[M]` Interim release after the evaluation programme
+- [ ] **C.13** Interim release after the evaluation programme
+    - [ ] **C.13.1** `[I1]` Reported score and WDL in Stockfish's form
+    - [ ] **C.13.2** `[M]` The 1.12.0 cut
 
 ### Phase D — Clock, threads, tablebases
 

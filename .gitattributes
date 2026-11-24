@@ -5,6 +5,7 @@
 docs/reference/** -text -whitespace linguist-vendored
 # The oracle bridge patch is applied byte-exact.
 tools/oracle/*.patch -text
-# The other engines' board-harness adapters are applied byte-exact.
-tools/board_compare/*/*.diff -text
-tools/board_compare/*/*.patch -text
+# Frozen measurement cohorts are hashed byte for byte by the tools that read
+# them (each manifest records its EPD's SHA-256), so they never take CRLF.
+tools/diag/*_cohort_v*.epd -text
+tools/diag/*_cohort_v*.manifest.json -text

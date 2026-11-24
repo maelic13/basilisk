@@ -14,6 +14,20 @@ and next step).
 
 ## [Unreleased]
 
+### Changed
+
+- The evaluation's weights were refitted all together on a new set
+  of positions from Basilisk's own games, starting from Stockfish 16's
+  piece-square shapes. It measured **+85.2 ± 14.9 Elo** at `3+0.03`
+  (1,110 games, a sequential test stopped when it was sure). A few won
+  endgames with bishops, knights or rooks and pawns are converted slightly
+  less often at low node counts; later endgame work addresses them. The
+  `bench` fingerprint is now **3,359,329**.
+- Mating a lone king with a queen or a rook now follows a fixed technique:
+  drive the defending king to the edge and bring the attacking king closer.
+  Before, the score in these endings came from the general evaluation, so
+  retuning that evaluation could leave an easy rook mate unfinished.
+
 ---
 
 ## [1.11.0] - 2026-11-18

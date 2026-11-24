@@ -150,6 +150,81 @@ def format_2d_block(base, rows, cols, row_values, comments):
     return "\n".join(lines)
 
 
+VECTOR_SCHEMA = "basilisk-texel-vector-v1"
+
+
+def header_vector(header_text, params):
+    """The header's default vector, (name, index, value) in slot order."""
+    out = []
+    for name, member, length in params:
+        mm = re.match(r"^([A-Za-z_]\w*)\[(\d+)\]$", member)
+        if mm:
+            _, rows, _, cur = find_2d_span(header_text, mm.group(1))
+            if cur is None:
+                sys.exit(f"Could not find 2-D initializer for '{mm.group(1)}'.")
+            values = cur[int(mm.group(2))]
+        else:
+            _, values = current_initializer(header_text, member)
+            if values is None:
+                sys.exit(f"Could not find initializer for member '{member}'.")
+            if length == 1:
+                values = values[:1]
+        if len(values) != length:
+            sys.exit(f"{name}: the header holds {len(values)} values, expected {length}.")
+        out += [(name, i, v) for i, v in enumerate(values)]
+    return out
+
+
+def vector_hash(vector):
+    """FNV-1a 64 over `name index value` lines, as the tuner's vector_hash()."""
+    h = 0xcbf29ce484222325
+    for name, index, value in vector:
+        for byte in f"{name} {index} {value}\n".encode("utf-8"):
+            h = ((h ^ byte) * 0x100000001b3) & 0xFFFFFFFFFFFFFFFF
+    return f"{h:016x}"
+
+
+def check_dump(dump_text, params, header_text):
+    """The provenance checks: the dump is a tuner vector, says every slot of
+    the header's registry and nothing else, and was fitted from this header
+    (its chain's root is the header's default vector). Returns the errors."""
+    lines = dump_text.splitlines()
+    errors = []
+    if not lines or lines[0].strip() != f"# {VECTOR_SCHEMA}":
+        return [f"not a {VECTOR_SCHEMA} vector (no schema line)"]
+    root = next((l.split()[2] for l in lines if l.startswith("# root ")), None)
+    if root is None:
+        errors.append("no `# root` line")
+    expected = {name: length for name, _, length in params}
+    seen = {}
+    for line in lines:
+        if not line.strip() or line.startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) != 3:
+            errors.append(f"not `name index value`: {line!r}")
+            continue
+        name, index = parts[0], int(parts[1])
+        if name not in expected:
+            errors.append(f"unknown name {name}")
+            continue
+        if not 0 <= index < expected[name]:
+            errors.append(f"{name}[{index}] is outside its {expected[name]} slots")
+        if (name, index) in seen:
+            errors.append(f"{name}[{index}] given twice")
+        seen[(name, index)] = True
+    missing = [f"{name}[{i}]" for name, length in expected.items() for i in range(length)
+               if (name, i) not in seen]
+    if missing:
+        errors.append(f"{len(missing)} slots missing, e.g. {', '.join(missing[:5])}")
+    if root is not None and not errors:
+        current = vector_hash(header_vector(header_text, params))
+        if root != current:
+            errors.append(f"the vector's root {root} is not this header's defaults {current}: "
+                          "it was fitted from another seed (a stale dump)")
+    return errors
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dump")
@@ -162,7 +237,12 @@ def main():
     header_path = Path(args.header)
     header_text = header_path.read_text(encoding="utf-8")
     params = parse_param_list(header_text)
-    dump = parse_dump(Path(args.dump).read_text(encoding="utf-8"))
+    dump_text = Path(args.dump).read_text(encoding="utf-8")
+    errors = check_dump(dump_text, params, header_text)
+    if errors:
+        print("\n".join(f"  {e}" for e in errors), file=sys.stderr)
+        sys.exit(f"Refusing to bake {args.dump}.")
+    dump = parse_dump(dump_text)
 
     changed = []          # (member, old, new) for scalar/1-D
     skipped_unchanged = 0

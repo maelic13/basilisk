@@ -132,6 +132,8 @@ function(_basilisk_dist_suffix out_var pgo)
         string(APPEND _suffix "-tune")
     elseif(DIAGNOSTIC)
         string(APPEND _suffix "-diag")
+    elseif(ABLATION)
+        string(APPEND _suffix "-ablate")
     endif()
     if(PROFILE_SYMBOLS)
         string(APPEND _suffix "-profile")
@@ -468,6 +470,12 @@ target_compile_definitions(endgame_verdicts PRIVATE
     BASILISK_TEST_SYZYGY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/syzygy"
 )
 
+# A digest of every served score over a position file (an instrument: the
+# proof that an evaluation restructure moved no score). Its traced twin is
+# eval_hash_trace in the TEXEL build.
+add_executable(eval_hash tests/eval_hash.cpp)
+target_link_libraries(eval_hash PRIVATE basilisk_engine)
+
 # Bishops on one colour against a bare king are a dead draw
 add_executable(test_same_colour_bishops tests/test_same_colour_bishops.cpp)
 target_link_libraries(test_same_colour_bishops PRIVATE basilisk_engine)
@@ -650,6 +658,7 @@ if(NATIVE AND PORTABLE_BUILD)
 endif()
 option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets BASILISK_TUNE)" OFF)
 option(DIAGNOSTIC "Expose diagnostics without the tunable parameter surface (sets BASILISK_DIAGNOSTIC)" OFF)
+option(ABLATION "Expose the matched evaluation-ablation instrument (sets BASILISK_ABLATION)" OFF)
 # Cluster umbrellas (PROCESS, Cluster delivery shape): a Boolean option that
 # compiles one search cluster in. It defaults OFF until the cluster passes its
 # gate, then ON; OFF then reproduces the previous fingerprint and stays
@@ -721,6 +730,18 @@ if(TEXEL)
         target_compile_options(basilisk-texel PRIVATE
             -mavx2 -msse4.1 -mpopcnt -mbmi -mbmi2 -mlzcnt)
     endif()
+    # The evaluation digest over the traced evaluator, the trace slots included.
+    add_executable(eval_hash_trace
+        tests/eval_hash.cpp
+        src/eval.cpp
+    )
+    target_link_libraries(eval_hash_trace PRIVATE basilisk_board)
+    target_compile_definitions(eval_hash_trace PRIVATE TEXEL_TRACE BASILISK_TUNE)
+    if(USE_PEXT)
+        target_compile_definitions(eval_hash_trace PRIVATE USE_PEXT)
+        target_compile_options(eval_hash_trace PRIVATE
+            -mavx2 -msse4.1 -mpopcnt -mbmi -mbmi2 -mlzcnt)
+    endif()
     message(STATUS "TEXEL build: basilisk-texel enabled (TEXEL_TRACE + BASILISK_TUNE defined)")
 endif()
 
@@ -738,7 +759,7 @@ set(_ALL_TARGETS
     basilisk_board basilisk_engine basilisk_launcher basilisk_version
     basilisk board_performance_test board_micro_bench board_replay
     test_board test_board_v2 test_move test_tt test_fatal_report test_eval test_search test_engine_ponder test_engine_threading test_allocation_guard test_uci_protocol test_cpu_features
-    test_endgames test_tb_root_rank test_native_thread endgame_verdicts test_same_colour_bishops test_wac test_invariants test_magics test_threats
+    test_endgames test_tb_root_rank test_native_thread endgame_verdicts eval_hash test_same_colour_bishops test_wac test_invariants test_magics test_threats
     test_history_core test_move_picker_core test_stack_unwind test_b3_proof test_b4_qsearch test_b5_root
     basilisk_engine_child_log test_search_path test_kernel_pins
 )
@@ -768,6 +789,13 @@ if(DIAGNOSTIC)
     message(STATUS "DIAGNOSTIC build: diagnostic UCI options exposed (BASILISK_DIAGNOSTIC defined)")
 endif()
 
+if(ABLATION)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_ABLATION)
+    endforeach()
+    message(STATUS "ABLATION build: matched EvalAblationMask UCI option exposed (BASILISK_ABLATION defined)")
+endif()
+
 if(LITERAL_SCREEN)
     if(NOT TUNE)
         message(FATAL_ERROR "LITERAL_SCREEN needs TUNE: the literals are advertised beside the search options")
@@ -778,8 +806,18 @@ if(LITERAL_SCREEN)
     message(STATUS "LITERAL_SCREEN build: the kernel's literals are UCI options (BASILISK_LITERAL_SCREEN defined)")
 endif()
 
-if(TUNE AND DIAGNOSTIC)
-    message(FATAL_ERROR "TUNE and DIAGNOSTIC are distinct build flavors; select at most one")
+if(TUNE)
+    if(DIAGNOSTIC)
+        message(FATAL_ERROR "TUNE, DIAGNOSTIC and ABLATION are distinct build flavors; select at most one")
+    endif()
+    if(ABLATION)
+        message(FATAL_ERROR "TUNE, DIAGNOSTIC and ABLATION are distinct build flavors; select at most one")
+    endif()
+endif()
+if(DIAGNOSTIC)
+    if(ABLATION)
+        message(FATAL_ERROR "TUNE, DIAGNOSTIC and ABLATION are distinct build flavors; select at most one")
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -951,7 +989,7 @@ if(_lto_ok)
     # basilisk-texel links basilisk_board, whose objects are LTO bitcode
     # here, so it must link with LTO as well.
     if(TEXEL)
-        set_property(TARGET basilisk-texel PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+        set_property(TARGET basilisk-texel eval_hash_trace PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
     endif()
 else()
     message(STATUS "LTO not supported: ${_lto_msg}")
@@ -1171,6 +1209,7 @@ add_custom_target(pgo
         -DPGO_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
         -DPGO_TUNE=${TUNE}
         -DPGO_DIAGNOSTIC=${DIAGNOSTIC}
+        -DPGO_ABLATION=${ABLATION}
         -DPGO_PROFILE_SYMBOLS=${PROFILE_SYMBOLS}
         -DPGO_FULL_LTO=${FULL_LTO}
         -DPGO_IR_PGO=${IR_PGO}
@@ -1281,7 +1320,7 @@ if(BASILISK_UNIVERSAL_TIER OR BASILISK_UNIVERSAL)
         message(FATAL_ERROR "The universal binary's builds need PORTABLE_BUILD=ON: "
                             "-march=native and a tier chosen at run time contradict each other")
     endif()
-    foreach(_flavor TUNE DIAGNOSTIC TEXEL)
+    foreach(_flavor TUNE DIAGNOSTIC ABLATION TEXEL)
         if(${_flavor})
             message(FATAL_ERROR "The universal binary is a Release build; "
                                 "the ${_flavor} flavor stays single-tier")

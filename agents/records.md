@@ -61,4 +61,5 @@ touches tags.
   agreement. The tags kept so far are listed with their reason and retirement
   condition in HISTORY *Preserved commits*; a new one, if agreed, is an
   annotated tag named `<purpose>/<name>`. Pushing a tag and deleting a remote
-  tag are the maintainer's commands.
+  tag are the maintainer's commands. A tag that holds another engine's code
+  is kept only locally, and its cited commits are declared `local`.

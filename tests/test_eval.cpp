@@ -15,6 +15,7 @@
 #include "bitboard.h"
 #include "wac.h"
 #include "zobrist.h"
+#include "colour_mirror.h"
 #include "test_harness.h"
 
 #include <cmath>
@@ -36,60 +37,6 @@ static int eval_fen(const char* fen) {
     return ev.evaluate(b);
 }
 
-// Build a FEN for the "mirror" of a position: all colors swapped, ranks flipped,
-// and side-to-move flipped.  The structural evaluation should be identical to
-// the original (both sides see the same position from their own king's view).
-static std::string mirror_fen(const char* fen) {
-    Board orig;
-    orig.set_fen(fen);
-
-    // Build piece-placement string: iterate mirrored ranks top→bottom
-    std::string placement;
-    for (int r = 7; r >= 0; r--) {
-        // Source rank in the original board (rank r of mirror = rank (7-r) of original)
-        int orig_rank = 7 - r;
-        int empty = 0;
-        for (int f = 0; f < 8; f++) {
-            Square sq = make_square(File(f), Rank(orig_rank));
-            Piece  p  = orig.piece_on(sq);
-            if (p == NO_PIECE) { empty++; continue; }
-            if (empty) { placement += static_cast<char>('0' + empty); empty = 0; }
-            // Swap color: white piece becomes black and vice-versa
-            Color     mc = ~color_of(p);
-            PieceType pt = type_of(p);
-            static const char piece_chars[] = ".pnbrqk";
-            char ch = piece_chars[pt];
-            if (mc == WHITE) ch = static_cast<char>(ch - 'a' + 'A');
-            placement += ch;
-        }
-        if (empty) placement += static_cast<char>('0' + empty);
-        if (r > 0)  placement += '/';
-    }
-
-    // Flip side to move
-    char stm = (orig.turn() == WHITE) ? 'b' : 'w';
-
-    // Mirror castling rights: WK↔BK, WQ↔BQ
-    std::string castling;
-    if (orig.castling() & BK_CASTLE) castling += 'K';
-    if (orig.castling() & BQ_CASTLE) castling += 'Q';
-    if (orig.castling() & WK_CASTLE) castling += 'k';
-    if (orig.castling() & WQ_CASTLE) castling += 'q';
-    if (castling.empty()) castling = "-";
-
-    // Mirror EP square (flip rank)
-    std::string ep = "-";
-    if (orig.ep_square() != SQ_NONE) {
-        Square mep = flip_rank(orig.ep_square());
-        static const char files[] = "abcdefgh";
-        static const char ranks[] = "12345678";
-        ep  = std::string() + files[file_of(mep)] + ranks[rank_of(mep)];
-    }
-
-    return placement + " " + stm + " " + castling + " " + ep
-         + " " + std::to_string(orig.rule50_count())
-         + " " + std::to_string(orig.fullmove());
-}
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -254,6 +201,60 @@ static void test_bare_king_material_is_monotone() {
     begin_section("bare king: the clock damps the rook tier's score, not its base");
     EXPECT(r99 < r);
     EXPECT(r - r99 < (r - BARE_KING_ROOK_TIER) / 2 + 1);
+    end_section();
+}
+
+static void test_top_tiers_read_no_fitted_weight() {
+    // KQ-K and KR-K score their tier plus frozen material and the donor's
+    // KXK drive (the C.2.8 registration's Amendment 2). Before, they added
+    // the winner's ordinary score, so every refit reshaped the only gradient
+    // these mates were converted with.
+    static const char* const FENS[] = {
+        "4K3/8/8/8/8/5k2/8/1R6 w - - 0 1",   // C.2.8 run 2's unconverted KR-K
+        "8/8/3k4/8/8/2K5/8/Q7 w - - 0 1",
+        "8/2P5/3k4/8/8/2K5/8/R7 w - - 0 1",
+    };
+    int before[3];
+    for (int i = 0; i < 3; i++)
+        before[i] = eval_fen(FENS[i]);
+    const EvalParams saved = g_eval_params;
+    for (int sq = 0; sq < 64; sq++) {
+        for (int pt = 0; pt < 6; pt++) {
+            g_eval_params.pst_eg[pt][sq] += 37 * (sq % 5) - 50;
+            g_eval_params.pst_mg[pt][sq] -= 23 * (sq % 3);
+        }
+    }
+    for (int i = 0; i < 15; i++) {
+        g_eval_params.mob_r_eg[i] += 40 - 9 * i;
+        g_eval_params.mob_r_mg[i] += 5 * i;
+    }
+    init_eval_tables();
+    int after[3];
+    for (int i = 0; i < 3; i++)
+        after[i] = eval_fen(FENS[i]);
+    g_eval_params = saved;
+    init_eval_tables();
+    begin_section("bare king: a top-tier score reads no fitted weight");
+    for (int i = 0; i < 3; i++)
+        EXPECT_EQ(before[i], after[i]);
+    end_section();
+
+    begin_section("bare king: a top-tier score stays inside its tier");
+    const int r = eval_fen(FENS[0]), q = eval_fen(FENS[1]), rp = eval_fen(FENS[2]);
+    EXPECT(r > BARE_KING_ROOK_TIER && r < BARE_KING_QUEEN_TIER);
+    EXPECT(rp > BARE_KING_ROOK_TIER && rp < BARE_KING_QUEEN_TIER);
+    EXPECT(q > BARE_KING_QUEEN_TIER);
+    end_section();
+
+    // The drive spans less than a pawn, so material orders the tier: a pawn
+    // more wins whatever the kings, and the edge and the closer king win at
+    // equal material.
+    begin_section("bare king: the drive orders equal material, a pawn outranks it");
+    const int centre_far = eval_fen("7K/8/8/8/3k4/8/8/R7 w - - 0 1");
+    const int edge_near  = eval_fen("7R/8/8/8/8/8/2K5/k7 w - - 0 1");
+    const int centre_far_pawn = eval_fen("7K/8/8/8/3k4/8/7P/R7 w - - 0 1");
+    EXPECT(edge_near > centre_far);
+    EXPECT(centre_far_pawn > edge_near);
     end_section();
 }
 
@@ -697,140 +698,17 @@ static void test_rook_ending_scaling() {
     // front of both, so the extra pawn is heavily discounted.
     begin_section("blockaded KRPP-KRP keeps far less than a clean extra pawn");
     int blocked = eval_fen("7r/8/5k2/4p3/4PP2/8/8/R5K1 w - - 0 1");
-    // Calibrated to discriminate, not decorate: 19 with the rule, 53 without.
-    EXPECT(blocked < 35);
+    // The control moves only the defending king, two files, out of the zone
+    // the rule keys on, as the Philidor test above moves only the rook. The
+    // bound is a ratio, so a refit's larger scores do not break it (C-70).
+    // Calibrated to discriminate: with the rule 22 of 63 (35%) on the header
+    // and 53 of 146 (36%) on C.2.8's fit; without it 59 of 63 and 143 of 146.
+    int unblocked = eval_fen("7r/8/3k4/4p3/4PP2/8/8/R5K1 w - - 0 1");
+    EXPECT(blocked * 2 < unblocked);
     EXPECT(blocked != 0);
     end_section();
 }
 
-// ---------------------------------------------------------------------------
-// PST orientation
-//
-// EvalParams stores every piece-square table with index 0 = a1 (White's
-// view). PeSTO publishes its tables rank 8 first, so each needs a rank flip
-// on import; seven of them once missed it and paid a White knight on f3 the
-// f6 value. Fits have moved the values since, so the check is relative:
-// each table must sit closer to the a1-first PeSTO table than to its rank
-// mirror, by summed absolute difference.
-//
-// Fixture: PeSTO's tables exactly as published (Ronald Friederich, Chess
-// Programming Wiki, CC BY-SA 3.0), rank 8 first, mg then eg, pawn..king.
-// ---------------------------------------------------------------------------
-
-static constexpr int PESTO_PUBLISHED[2][6][64] = {
-    {
-        // PAWN
-        {    0,    0,    0,    0,    0,    0,    0,    0,
-            98,  134,   61,   95,   68,  126,   34,  -11,
-            -6,    7,   26,   31,   65,   56,   25,  -20,
-           -14,   13,    6,   21,   23,   12,   17,  -23,
-           -27,   -2,   -5,   12,   17,    6,   10,  -25,
-           -26,   -4,   -4,  -10,    3,    3,   33,  -12,
-           -35,   -1,  -20,  -23,  -15,   24,   38,  -22,
-             0,    0,    0,    0,    0,    0,    0,    0 },
-        // KNIGHT
-        { -167,  -89,  -34,  -49,   61,  -97,  -15, -107,
-           -73,  -41,   72,   36,   23,   62,    7,  -17,
-           -47,   60,   37,   65,   84,  129,   73,   44,
-            -9,   17,   19,   53,   37,   69,   18,   22,
-           -13,    4,   16,   13,   28,   19,   21,   -8,
-           -23,   -9,   12,   10,   19,   17,   25,  -16,
-           -29,  -53,  -12,   -3,   -1,   18,  -14,  -19,
-          -105,  -21,  -58,  -33,  -17,  -28,  -19,  -23 },
-        // BISHOP
-        {  -29,    4,  -82,  -37,  -25,  -42,    7,   -8,
-           -26,   16,  -18,  -13,   30,   59,   18,  -47,
-           -16,   37,   43,   40,   35,   50,   37,   -2,
-            -4,    5,   19,   50,   37,   37,    7,   -2,
-            -6,   13,   13,   26,   34,   12,   10,    4,
-             0,   15,   15,   15,   14,   27,   18,   10,
-             4,   15,   16,    0,    7,   21,   33,    1,
-           -33,   -3,  -14,  -21,  -13,  -12,  -39,  -21 },
-        // ROOK
-        {   32,   42,   32,   51,   63,    9,   31,   43,
-            27,   32,   58,   62,   80,   67,   26,   44,
-            -5,   19,   26,   36,   17,   45,   61,   16,
-           -24,  -11,    7,   26,   24,   35,   -8,  -20,
-           -36,  -26,  -12,   -1,    9,   -7,    6,  -23,
-           -45,  -25,  -16,  -17,    3,    0,   -5,  -33,
-           -44,  -16,  -20,   -9,   -1,   11,   -6,  -71,
-           -19,  -13,    1,   17,   16,    7,  -37,  -26 },
-        // QUEEN
-        {  -28,    0,   29,   12,   59,   44,   43,   45,
-           -24,  -39,   -5,    1,  -16,   57,   28,   54,
-           -13,  -17,    7,    8,   29,   56,   47,   57,
-           -27,  -27,  -16,  -16,   -1,   17,   -2,    1,
-            -9,  -26,   -9,  -10,   -2,   -4,    3,   -3,
-           -14,    2,  -11,   -2,   -5,    2,   14,    5,
-           -35,   -8,   11,    2,    8,   15,   -3,    1,
-            -1,  -18,   -9,   10,  -15,  -25,  -31,  -50 },
-        // KING
-        {  -65,   23,   16,  -15,  -56,  -34,    2,   13,
-            29,   -1,  -20,   -7,   -8,   -4,  -38,  -29,
-            -9,   24,    2,  -16,  -20,    6,   22,  -22,
-           -17,  -20,  -12,  -27,  -30,  -25,  -14,  -36,
-           -49,   -1,  -27,  -39,  -46,  -44,  -33,  -51,
-           -14,  -14,  -22,  -46,  -44,  -30,  -15,  -27,
-             1,    7,   -8,  -64,  -43,  -16,    9,    8,
-           -15,   36,   12,  -54,    8,  -28,   24,   14 },
-    },
-    {
-        // PAWN
-        {    0,    0,    0,    0,    0,    0,    0,    0,
-           178,  173,  158,  134,  147,  132,  165,  187,
-            94,  100,   85,   67,   56,   53,   82,   84,
-            32,   24,   13,    5,   -2,    4,   17,   17,
-            13,    9,   -3,   -7,   -7,   -8,    3,   -1,
-             4,    7,   -6,    1,    0,   -5,   -1,   -8,
-            13,    8,    8,   10,   13,    0,    2,   -7,
-             0,    0,    0,    0,    0,    0,    0,    0 },
-        // KNIGHT
-        {  -58,  -38,  -13,  -28,  -31,  -27,  -63,  -99,
-           -25,   -8,  -25,   -2,   -9,  -25,  -24,  -52,
-           -24,  -20,   10,    9,   -1,   -9,  -19,  -41,
-           -17,    3,   22,   22,   22,   11,    8,  -18,
-           -18,   -6,   16,   25,   16,   17,    4,  -18,
-           -23,   -3,   -1,   15,   10,   -3,  -20,  -22,
-           -42,  -20,  -10,   -5,   -2,  -20,  -23,  -44,
-           -29,  -51,  -23,  -15,  -22,  -18,  -50,  -64 },
-        // BISHOP
-        {  -14,  -21,  -11,   -8,   -7,   -9,  -17,  -24,
-            -8,   -4,    7,  -12,   -3,  -13,   -4,  -14,
-             2,   -8,    0,   -1,   -2,    6,    0,    4,
-            -3,    9,   12,    9,   14,   10,    3,    2,
-            -6,    3,   13,   19,    7,   10,   -3,   -9,
-           -12,   -3,    8,   10,   13,    3,   -7,  -15,
-           -14,  -18,   -7,   -1,    4,   -9,  -15,  -27,
-           -23,   -9,  -23,   -5,   -9,  -16,   -5,  -17 },
-        // ROOK
-        {   13,   10,   18,   15,   12,   12,    8,    5,
-            11,   13,   13,   11,   -3,    3,    8,    3,
-             7,    7,    7,    5,    4,   -3,   -5,   -3,
-             4,    3,   13,    1,    2,    1,   -1,    2,
-             3,    5,    8,    4,   -5,   -6,   -8,  -11,
-            -4,    0,   -5,   -1,   -7,  -12,   -8,  -16,
-            -6,   -6,    0,    2,   -9,   -9,  -11,   -3,
-            -9,    2,    3,   -1,   -5,  -13,    4,  -20 },
-        // QUEEN
-        {   -9,   22,   22,   27,   27,   19,   10,   20,
-           -17,   20,   32,   41,   58,   25,   30,    0,
-           -20,    6,    9,   49,   47,   35,   19,    9,
-             3,   22,   24,   45,   57,   40,   57,   36,
-           -18,   28,   19,   47,   31,   34,   39,   23,
-           -16,  -27,   15,    6,    9,   17,   10,    5,
-           -22,  -23,  -30,  -16,  -16,  -23,  -36,  -32,
-           -33,  -28,  -22,  -43,   -5,  -32,  -20,  -41 },
-        // KING
-        {  -74,  -35,  -18,  -18,  -11,   15,    4,  -17,
-           -12,   17,   14,   17,   17,   38,   23,   11,
-            10,   17,   23,   15,   20,   45,   44,   13,
-            -8,   22,   24,   27,   26,   33,   26,    3,
-           -18,   -4,   21,   24,   27,   23,    9,  -11,
-           -19,   -3,   11,   21,   23,   16,    7,   -9,
-           -27,  -11,    4,   13,   14,    4,   -5,  -17,
-           -53,  -34,  -21,  -11,  -28,  -14,  -24,  -43 },
-    },
-};
 
 // The imbalance table answers by the piece counts, and a parameter change must
 // not leave it answering on the old coefficients.
@@ -870,28 +748,338 @@ static void test_imbalance_cache() {
     end_section();
 }
 
-static void test_pst_orientation() {
-    static const char* const kNames[2][6] = {
-        { "mg pawn", "mg knight", "mg bishop", "mg rook", "mg queen", "mg king" },
-        { "eg pawn", "eg knight", "eg bishop", "eg rook", "eg queen", "eg king" },
-    };
-    const EvalParams p{};
-    for (int phase = 0; phase < 2; phase++) {
-        for (int piece = 0; piece < 6; piece++) {
-            const int* table = phase == 0 ? p.pst_mg[piece] : p.pst_eg[piece];
-            const int* published = PESTO_PUBLISHED[phase][piece];
-            int to_a1_first = 0;  // distance to the correctly flipped table
-            int to_mirror = 0;    // distance to the table left rank 8 first
-            for (int sq = 0; sq < 64; sq++) {
-                to_a1_first += std::abs(table[sq] - published[sq ^ 56]);
-                to_mirror += std::abs(table[sq] - published[sq]);
-            }
-            begin_section((std::string(kNames[phase][piece]) + ": a1-first orientation").c_str());
-            EXPECT(to_a1_first < to_mirror);
-            end_section();
+
+// ---------------------------------------------------------------------------
+// Cache purity and the lazy checkpoint
+// ---------------------------------------------------------------------------
+
+struct Squares {
+    Piece p[SQUARE_NB]{};
+    Piece& operator[](int sq) { return p[sq]; }
+    const Piece& operator[](int sq) const { return p[sq]; }
+};
+
+static Squares squares_of(const Board& b) {
+    Squares s{};
+    for (int sq = 0; sq < SQUARE_NB; ++sq)
+        s[sq] = b.piece_on(Square(sq));
+    return s;
+}
+
+// A FEN without castling or en passant, so that every variant below is a
+// position of its own placement only.
+static std::string fen_of(const Squares& s, Color stm) {
+    static const char piece_chars[] = ".pnbrqk";
+    std::string placement;
+    for (int r = 7; r >= 0; --r) {
+        int empty = 0;
+        for (int f = 0; f < 8; ++f) {
+            const Piece p = s[make_square(File(f), Rank(r))];
+            if (p == NO_PIECE) { ++empty; continue; }
+            if (empty) { placement += static_cast<char>('0' + empty); empty = 0; }
+            char ch = piece_chars[type_of(p)];
+            if (color_of(p) == WHITE) ch = static_cast<char>(ch - 'a' + 'A');
+            placement += ch;
+        }
+        if (empty) placement += static_cast<char>('0' + empty);
+        if (r > 0) placement += '/';
+    }
+    return placement + (stm == WHITE ? " w" : " b") + " - - 0 1";
+}
+
+// The bench and WAC positions, each also after four and eight seeded random
+// plies, without castling or en passant.
+static std::vector<std::string> purity_sample() {
+    std::vector<std::string> sources;
+    for (std::string_view fen : bench_fens())
+        sources.emplace_back(fen);
+    for (const WacPosition& w : wac_positions())
+        sources.push_back(w.fen);
+    std::mt19937_64 rng(0xCAC4E5EEDull);
+    std::vector<std::string> out;
+    for (const std::string& start : sources) {
+        Board b;
+        b.set_fen(start);
+        for (int ply = 0; ply <= 8; ++ply) {
+            if (ply % 4 == 0)
+                out.push_back(fen_of(squares_of(b), b.turn()));
+            MoveList legal;
+            b.gen_legal(legal);
+            if (legal.size() == 0)
+                break;
+            b.make_move(legal[static_cast<int>(rng() % static_cast<uint64_t>(legal.size()))]);
         }
     }
+    return out;
 }
+
+// Evaluates `first` and then `second` on one warm evaluator; true when the
+// second reads as it does on an evaluator whose caches are empty.
+static bool warm_reads_fresh(Evaluator& warm, Evaluator& fresh,
+                             const std::string& first, const std::string& second) {
+    Board a, b;
+    a.set_fen(first);
+    b.set_fen(second);
+    warm.evaluate(a);
+    const int w = warm.evaluate(b);
+    fresh.clear_pawn_table();
+    return w == fresh.evaluate(b);
+}
+
+static void test_cache_purity() {
+    const std::vector<std::string> sample = purity_sample();
+    auto warm = std::make_unique<Evaluator>();
+    auto fresh = std::make_unique<Evaluator>();
+
+    // The pawn cache is a function of the pawns alone: the same pawns with the
+    // pieces removed, or with the kings moved, must read the entry the full
+    // position left, and the full position the entry they left.
+    int pawn_pairs = 0, pawn_stale = 0;
+    std::string pawn_first;
+    for (const std::string& fen : sample) {
+        Board b;
+        b.set_fen(fen);
+        const Squares full = squares_of(b);
+        Squares bare{};
+        Squares moved = full;
+        for (int sq = 0; sq < SQUARE_NB; ++sq)
+            if (type_of(full[sq]) == PAWN || type_of(full[sq]) == KING)
+                bare[sq] = full[sq];
+        // Each king to the first empty square from its own corner.
+        for (Color c : {WHITE, BLACK}) {
+            const Square k = b.king_square(c);
+            for (int i = 0; i < SQUARE_NB; ++i) {
+                const int sq = c == WHITE ? i : SQUARE_NB - 1 - i;
+                if (moved[sq] == NO_PIECE) {
+                    moved[sq] = moved[k];
+                    moved[k] = NO_PIECE;
+                    break;
+                }
+            }
+        }
+        for (const Squares* v : {&bare, &moved}) {
+            const std::string variant = fen_of(*v, b.turn());
+            for (int order = 0; order < 2; ++order) {
+                const bool ok = order == 0 ? warm_reads_fresh(*warm, *fresh, fen, variant)
+                                           : warm_reads_fresh(*warm, *fresh, variant, fen);
+                ++pawn_pairs;
+                if (!ok && pawn_stale++ == 0)
+                    pawn_first = fen + " / " + variant;
+            }
+        }
+    }
+    begin_section("pawn cache: a function of the pawns alone");
+    if (pawn_stale)
+        std::printf("    %d of %d pairs stale; first: %s\n", pawn_stale, pawn_pairs, pawn_first.c_str());
+    EXPECT_EQ(pawn_stale, 0);
+    EXPECT(pawn_pairs > 2000);
+    end_section();
+
+    // The imbalance cache is a function of the ten piece counts alone: the
+    // file mirror keeps the counts and moves every piece (and every bishop to
+    // the other colour); one piece fewer changes a count and must miss.
+    int imb_pairs = 0, imb_stale = 0;
+    std::string imb_first;
+    for (const std::string& fen : sample) {
+        Board b;
+        b.set_fen(fen);
+        const Squares full = squares_of(b);
+        Squares mirrored{};
+        Squares fewer = full;
+        for (int sq = 0; sq < SQUARE_NB; ++sq)
+            mirrored[sq ^ 7] = full[sq];
+        for (int sq = 0; sq < SQUARE_NB; ++sq)
+            if (full[sq] != NO_PIECE && type_of(full[sq]) != KING) {
+                fewer[sq] = NO_PIECE;
+                break;
+            }
+        for (const Squares* v : {&mirrored, &fewer}) {
+            const std::string variant = fen_of(*v, b.turn());
+            for (int order = 0; order < 2; ++order) {
+                const bool ok = order == 0 ? warm_reads_fresh(*warm, *fresh, fen, variant)
+                                           : warm_reads_fresh(*warm, *fresh, variant, fen);
+                ++imb_pairs;
+                if (!ok && imb_stale++ == 0)
+                    imb_first = fen + " / " + variant;
+            }
+        }
+    }
+    begin_section("imbalance cache: a function of the ten piece counts alone");
+    if (imb_stale)
+        std::printf("    %d of %d pairs stale; first: %s\n", imb_stale, imb_pairs, imb_first.c_str());
+    EXPECT_EQ(imb_stale, 0);
+    EXPECT(imb_pairs > 2000);
+    end_section();
+}
+
+// The groups whose terms sit before the lazy checkpoint: what a lazy-served
+// score is made of. Every other group sits after it.
+static bool before_lazy_checkpoint(const std::string& group) {
+    static const char* const cheap[] = {
+        // Material and the piece-square tables.
+        "MgVal", "EgVal",
+        "PstMgPawn", "PstMgKnight", "PstMgBishop", "PstMgRook", "PstMgQueen", "PstMgKing",
+        "PstEgPawn", "PstEgKnight", "PstEgBishop", "PstEgRook", "PstEgQueen", "PstEgKing",
+        // The imbalance.
+        "ImbLinear", "ImbOur", "ImbTheir",
+        // The pawn cache, and the passer terms that read occupancy alone.
+        "PassedMg", "PassedEg", "DoubledMg", "DoubledEg", "IsolatedMg", "IsolatedEg",
+        "ConnectedMg", "ConnectedEg", "BackwardMg", "BackwardEg",
+        "ConnectedRankMg", "ConnectedRankEg", "WeakUnopposedMg", "WeakUnopposedEg",
+        "BlockedPawnMg", "BlockedPawnEg", "PawnMajorityMg", "PawnMajorityEg",
+        "PawnIslandsMg", "PawnIslandsEg", "PassFreeMg", "PassFreeEg", "PassSafeEg",
+        // The bishop pair, the rook and knight bonuses.
+        "BpMg", "BpEg", "RookOpenMg", "RookOpenEg", "RookSemiMg", "RookSemiEg",
+        "Rook7thMg", "Rook7thEg", "KnightOutpostMg", "KnightOutpostEg",
+    };
+    for (const char* name : cheap)
+        if (group == name)
+            return true;
+    return false;
+}
+
+static void test_lazy_checkpoint() {
+    // Positions the lazy path certainly serves: one side keeps its army and
+    // the other only its king and pawns, at least 1,500 centipawns of pieces
+    // apart and never more than two pawns behind, so the cheap block's taper
+    // clears the 700 margin whatever the positional terms say.
+    std::vector<Board> positions;
+    for (const std::string& fen : purity_sample()) {
+        Board b;
+        b.set_fen(fen);
+        const Squares full = squares_of(b);
+        for (Color strong : {WHITE, BLACK}) {
+            const Color weak = ~strong;
+            auto pieces = [&](Color c) {
+                return popcount(b.piece_bb(c, KNIGHT)) * 320 + popcount(b.piece_bb(c, BISHOP)) * 330
+                     + popcount(b.piece_bb(c, ROOK)) * 500 + popcount(b.piece_bb(c, QUEEN)) * 950;
+            };
+            if (pieces(strong) < 1500
+                || popcount(b.piece_bb(strong, PAWN)) + 2 < popcount(b.piece_bb(weak, PAWN)))
+                continue;
+            Squares crushed = full;
+            for (int sq = 0; sq < SQUARE_NB; ++sq)
+                if (full[sq] != NO_PIECE && color_of(full[sq]) == weak
+                    && type_of(full[sq]) != PAWN && type_of(full[sq]) != KING)
+                    crushed[sq] = NO_PIECE;
+            Board v;
+            v.set_fen(fen_of(crushed, b.turn()));
+            positions.push_back(v);
+        }
+    }
+
+    auto ev = std::make_unique<Evaluator>();
+    std::vector<int> base;
+    for (const Board& b : positions)
+        base.push_back(ev->evaluate(b));
+
+    struct Group { std::string name; std::span<int> values; };
+    std::vector<Group> groups;
+#define X(name, member, len) groups.push_back({#name, eval_param_span(g_eval_params.member, (len))});
+    EVAL_PARAM_LIST(X)
+#undef X
+
+    // Each group is perturbed by an amount that differs by slot, so no group
+    // cancels against itself (both kings on their own squares, say).
+    int cheap_groups = 0, full_groups = 0;
+    std::string leaked, missing;
+    for (const Group& g : groups) {
+        const std::vector<int> saved(g.values.begin(), g.values.end());
+        for (size_t i = 0; i < g.values.size(); ++i)
+            g.values[i] += 40 + 3 * static_cast<int>(i);
+        init_eval_tables();
+        ev->clear_pawn_table();
+        int changed = 0;
+        for (size_t i = 0; i < positions.size(); ++i)
+            changed += ev->evaluate(positions[i]) != base[i];
+        std::copy(saved.begin(), saved.end(), g.values.begin());
+        init_eval_tables();
+        ev->clear_pawn_table();
+
+        if (before_lazy_checkpoint(g.name)) {
+            ++cheap_groups;
+            if (changed == 0)
+                missing += " " + g.name;
+        } else {
+            ++full_groups;
+            if (changed != 0)
+                leaked += " " + g.name + "(" + std::to_string(changed) + ")";
+        }
+    }
+
+    begin_section("lazy checkpoint: every cheap term moves a lazy-served score");
+    if (!missing.empty())
+        std::printf("    cheap groups that moved nothing:%s\n", missing.c_str());
+    EXPECT(missing.empty());
+    EXPECT_EQ(cheap_groups, 50);
+    EXPECT(positions.size() > 300);
+    end_section();
+
+    begin_section("lazy checkpoint: no term after it moves a lazy-served score");
+    if (!leaked.empty())
+        std::printf("    groups after the checkpoint that moved one:%s\n", leaked.c_str());
+    EXPECT(leaked.empty());
+    EXPECT(full_groups > 60);
+    end_section();
+}
+
+#ifdef BASILISK_ABLATION
+// The matched evaluation ablation: every family's bit moves some score, and a
+// warm evaluator serves the stock score again at mask 0. The pawn cache holds
+// scores the mask shaped, so a key without the mask would serve a stale one.
+static void test_eval_ablation_mask() {
+    static const char* const kFens[] = {
+        // An isolated queen's pawn middlegame: space, mobility, threats, king
+        // safety, structure and the piece terms.
+        "r1bq1rk1/pp3ppp/2n1pn2/2bp4/2B5/2N1PN2/PP3PPP/R1BQ1RK1 w - - 0 9",
+        // White's b-pawn is passed, in a rook ending.
+        "6k1/5pp1/4p2p/1P6/5P2/4K1P1/7P/2r2R2 w - - 0 30",
+        // Opposite wings, kings castled, queens on.
+        "2kr3r/ppp2ppp/2n1bq2/3pp3/4P3/2PP1N2/PP1QBPPP/R4RK1 b - - 0 12",
+    };
+    constexpr int N = int(sizeof(kFens) / sizeof(kFens[0]));
+    auto warm_owner = std::make_unique<Evaluator>();  // its pawn table is too big for the stack
+    Evaluator& warm = *warm_owner;
+    int stock[N];
+    for (int i = 0; i < N; ++i) {
+        Board b;
+        b.set_fen(kFens[i]);
+        stock[i] = warm.evaluate(b);
+    }
+
+    begin_section("every family's bit moves a score");
+    for (int bit = 0; bit < EVAL_ABLATION_BITS; ++bit) {
+        set_eval_ablation_mask(1u << bit);
+        bool moved = false;
+        for (int i = 0; i < N; ++i) {
+            Board b;
+            b.set_fen(kFens[i]);
+            moved = moved || warm.evaluate(b) != stock[i];
+        }
+        if (!moved)
+            std::printf("    bit %d moved no score\n", bit);
+        EXPECT(moved);
+    }
+    end_section();
+
+    set_eval_ablation_mask(0);
+    begin_section("mask 0 serves the stock score, warm or fresh");
+    for (int i = 0; i < N; ++i) {
+        Board b;
+        b.set_fen(kFens[i]);
+        EXPECT_EQ(warm.evaluate(b), stock[i]);
+        EXPECT_EQ(eval_fen(kFens[i]), stock[i]);
+    }
+    end_section();
+
+    begin_section("the mask keeps its seven family bits");
+    set_eval_ablation_mask(0xFFFFFFFFu);
+    EXPECT_EQ(eval_ablation_mask(), (1u << EVAL_ABLATION_BITS) - 1);
+    set_eval_ablation_mask(0);
+    EXPECT_EQ(eval_ablation_mask(), 0u);
+    end_section();
+}
+#endif
 
 int main() {
     init_bitboards();
@@ -910,6 +1098,7 @@ int main() {
     test_pawnless_scaler_tie();
     test_symmetry_sweep();
     test_bare_king_material_is_monotone();
+    test_top_tiers_read_no_fitted_weight();
 
     std::printf("\nMaterial advantage\n");
     test_material_advantage();
@@ -939,14 +1128,23 @@ int main() {
     test_tempo_bonus();
 
     std::printf("\nPST orientation\n");
-    test_pst_orientation();
 
     std::printf("\nImbalance table\n");
     test_imbalance_cache();
 
+    std::printf("\nCache purity\n");
+    test_cache_purity();
+
+    std::printf("\nLazy checkpoint\n");
+    test_lazy_checkpoint();
+
 #ifdef BASILISK_TUNE
     std::printf("\nEndgame occurrence classifier\n");
     test_endgame_occurrence_classifier();
+#endif
+#ifdef BASILISK_ABLATION
+    std::printf("\nMatched evaluation ablation\n");
+    test_eval_ablation_mask();
 #endif
 
     return harness_summary();
