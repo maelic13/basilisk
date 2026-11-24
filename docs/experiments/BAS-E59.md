@@ -64,8 +64,10 @@
   - against `c274/head`: 7.
   - Conversion of 480 at 21k/64k/190k: the refit 434/445/458 against
     the repaired head's 443/448/460.
-- **The registration's §8 read:** B2 baked over the repaired head
-  (`5af6d65` on a scratch branch, `57A93DCD…`, bench 3,582,344).
+- **The registration's §8 read:** B2 baked over the repaired head: fit
+  B's run-2 vector (`tools/results/c283/B2/04-polish.txt`) baked into
+  `src/eval_params.h` over `6be9af7` on a scratch branch, since deleted;
+  binary `57A93DCD…`, bench 3,582,344.
   - It draws 7 vetoes against the repaired head and repeats 3 of A2's 8.
   - A2 against B2: 3 vetoes. B2 against A2: 6.
   - B2's conversion is 436/443/457.
