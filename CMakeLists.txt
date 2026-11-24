@@ -132,6 +132,8 @@ function(_basilisk_dist_suffix out_var pgo)
         string(APPEND _suffix "-tune")
     elseif(DIAGNOSTIC)
         string(APPEND _suffix "-diag")
+    elseif(ABLATION)
+        string(APPEND _suffix "-ablate")
     endif()
     if(PROFILE_SYMBOLS)
         string(APPEND _suffix "-profile")
@@ -656,6 +658,7 @@ if(NATIVE AND PORTABLE_BUILD)
 endif()
 option(TUNE "Expose search constants as UCI spin options for SPSA tuning (sets BASILISK_TUNE)" OFF)
 option(DIAGNOSTIC "Expose diagnostics without the tunable parameter surface (sets BASILISK_DIAGNOSTIC)" OFF)
+option(ABLATION "Expose the matched evaluation-ablation instrument (sets BASILISK_ABLATION)" OFF)
 # Cluster umbrellas (PROCESS, Cluster delivery shape): a Boolean option that
 # compiles one search cluster in. It defaults OFF until the cluster passes its
 # gate, then ON; OFF then reproduces the previous fingerprint and stays
@@ -786,6 +789,13 @@ if(DIAGNOSTIC)
     message(STATUS "DIAGNOSTIC build: diagnostic UCI options exposed (BASILISK_DIAGNOSTIC defined)")
 endif()
 
+if(ABLATION)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_ABLATION)
+    endforeach()
+    message(STATUS "ABLATION build: matched EvalAblationMask UCI option exposed (BASILISK_ABLATION defined)")
+endif()
+
 if(LITERAL_SCREEN)
     if(NOT TUNE)
         message(FATAL_ERROR "LITERAL_SCREEN needs TUNE: the literals are advertised beside the search options")
@@ -796,8 +806,18 @@ if(LITERAL_SCREEN)
     message(STATUS "LITERAL_SCREEN build: the kernel's literals are UCI options (BASILISK_LITERAL_SCREEN defined)")
 endif()
 
-if(TUNE AND DIAGNOSTIC)
-    message(FATAL_ERROR "TUNE and DIAGNOSTIC are distinct build flavors; select at most one")
+if(TUNE)
+    if(DIAGNOSTIC)
+        message(FATAL_ERROR "TUNE, DIAGNOSTIC and ABLATION are distinct build flavors; select at most one")
+    endif()
+    if(ABLATION)
+        message(FATAL_ERROR "TUNE, DIAGNOSTIC and ABLATION are distinct build flavors; select at most one")
+    endif()
+endif()
+if(DIAGNOSTIC)
+    if(ABLATION)
+        message(FATAL_ERROR "TUNE, DIAGNOSTIC and ABLATION are distinct build flavors; select at most one")
+    endif()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -1189,6 +1209,7 @@ add_custom_target(pgo
         -DPGO_COMPILER_ID=${CMAKE_CXX_COMPILER_ID}
         -DPGO_TUNE=${TUNE}
         -DPGO_DIAGNOSTIC=${DIAGNOSTIC}
+        -DPGO_ABLATION=${ABLATION}
         -DPGO_PROFILE_SYMBOLS=${PROFILE_SYMBOLS}
         -DPGO_FULL_LTO=${FULL_LTO}
         -DPGO_IR_PGO=${IR_PGO}
@@ -1299,7 +1320,7 @@ if(BASILISK_UNIVERSAL_TIER OR BASILISK_UNIVERSAL)
         message(FATAL_ERROR "The universal binary's builds need PORTABLE_BUILD=ON: "
                             "-march=native and a tier chosen at run time contradict each other")
     endif()
-    foreach(_flavor TUNE DIAGNOSTIC TEXEL)
+    foreach(_flavor TUNE DIAGNOSTIC ABLATION TEXEL)
         if(${_flavor})
             message(FATAL_ERROR "The universal binary is a Release build; "
                                 "the ${_flavor} flavor stays single-tier")

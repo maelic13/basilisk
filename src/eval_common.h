@@ -17,6 +17,22 @@
 #include <mutex>
 #include <utility>
 
+// ---- The matched evaluation ablation ---------------------------------------
+#ifdef BASILISK_ABLATION
+extern uint32_t g_eval_ablation_mask;
+static inline bool eval_ablated(EvalAblationBit bit) {
+    return (g_eval_ablation_mask >> bit) & 1u;
+}
+// The pawn cache stores scores the mask shaped, so its key carries the mask:
+// an entry stored under one mask never answers for another.
+static inline Key eval_ablation_key() {
+    return Key(g_eval_ablation_mask) * 0x9E3779B97F4A7C15ULL;
+}
+#else
+static constexpr bool eval_ablated(EvalAblationBit) { return false; }
+static constexpr Key eval_ablation_key() { return 0; }
+#endif
+
 // ---- Texel trace thread-local storage and macros --------------------------
 #ifdef TEXEL_TRACE
 thread_local EvalTrace g_trace{};

@@ -34,10 +34,11 @@ static inline void mobility_term(const EvalParams& p, int mob, int sign, EvalSco
 static EvalScore mobility_space(const Board& b, const EvalScore& mobility,
                                 const Bitboard (&pawn_atk)[NCOLORS]) {
     const EvalParams& p = g_eval_params;
-    int mg = mobility.mg, eg = mobility.eg;
+    const bool no_mobility = eval_ablated(EVAL_ABLATE_MOBILITY);
+    int mg = no_mobility ? 0 : mobility.mg, eg = no_mobility ? 0 : mobility.eg;
 
     // ---- Space evaluation (center control in middlegame) -------------------
-    {
+    if (!eval_ablated(EVAL_ABLATE_SPACE)) {
         const Bitboard center_files =
             BB_FILES[FILE_C] | BB_FILES[FILE_D] | BB_FILES[FILE_E] | BB_FILES[FILE_F];
         const Bitboard white_space_ranks =

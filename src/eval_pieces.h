@@ -22,6 +22,8 @@ static EvalScore pieces_cheap(const Board& b) {
             eg += sign * p.bp_eg; TR_EG(BpEg, 0, sign);
         }
     }
+    if (eval_ablated(EVAL_ABLATE_PIECES))
+        return {mg, eg};
 
     // ---- Rook bonuses ----
     for (int c = 0; c < NCOLORS; c++) {

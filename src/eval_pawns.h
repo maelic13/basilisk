@@ -19,7 +19,7 @@ static void pawn_probe(const Board& b,
     Bitboard (&attacks)[NCOLORS] = out.attacks;
 #ifndef TEXEL_TRACE
     // Cache lookup: skip recomputation if pawn structure matches.
-    Key pkey = b.pawn_key_value();
+    Key pkey = b.pawn_key_value() ^ eval_ablation_key();
     PawnEntry& pe = pawn_table[pkey & (PAWN_TABLE_SIZE - 1)];
 
     DIAG_COUNT(++pawn_probes);
@@ -32,6 +32,10 @@ static void pawn_probe(const Board& b,
 
     const EvalParams& p = g_eval_params;
     int mg = 0, eg = 0;
+    // Structure and the passers' rank bonus share this cache entry, so each is
+    // masked where it is computed; the passer and attack sets are always kept.
+    const bool no_structure = eval_ablated(EVAL_ABLATE_PAWNS);
+    const bool no_passers   = eval_ablated(EVAL_ABLATE_PASSERS);
 
     for (int c = 0; c < NCOLORS; c++) {
         Color us   = Color(c);
@@ -61,9 +65,13 @@ static void pawn_probe(const Board& b,
             if (!(BB_PASSED_PAWN_MASK[us][sq] & their_pawns)) {
                 passed[c] |= sq_bb(Square(sq));
                 int rel_r = (us == WHITE) ? r : 7 - r;
-                mg += sign * p.passed_mg[rel_r]; TR_MG(PassedMg, rel_r, sign);
-                eg += sign * p.passed_eg[rel_r]; TR_EG(PassedEg, rel_r, sign);
+                if (!no_passers) {
+                    mg += sign * p.passed_mg[rel_r]; TR_MG(PassedMg, rel_r, sign);
+                    eg += sign * p.passed_eg[rel_r]; TR_EG(PassedEg, rel_r, sign);
+                }
             }
+            if (no_structure)
+                continue;
 
             Bitboard file_bb = BB_FILES[f];
             Bitboard adj_bb  = BB_ADJACENT_FILES[f];
@@ -129,6 +137,9 @@ static void pawn_probe(const Board& b,
             }
         }
 
+        if (no_structure)
+            continue;
+
         // Pawn majorities (queenside files a-d, kingside e-h) - breakthrough potential.
         {
             const Bitboard qs = BB_FILES[FILE_A] | BB_FILES[FILE_B] | BB_FILES[FILE_C] | BB_FILES[FILE_D];
@@ -178,6 +189,8 @@ static EvalScore pawns_cheap(const Board& b, const PawnEntry& pawns) {
     const EvalParams& p = g_eval_params;
     const auto& passed = pawns.passed;
     int mg = pawns.mg, eg = pawns.eg;
+    if (eval_ablated(EVAL_ABLATE_PASSERS))
+        return {mg, eg};
 
     // ---- Dynamic passed-pawn terms (non-pawn occupancy; outside pawn hash) --
     for (int c = 0; c < NCOLORS; c++) {

@@ -16,6 +16,9 @@
 #include "bench.h"
 #include "wac.h"
 #include "syzygy.h"
+#ifdef BASILISK_ABLATION
+#include "eval.h"
+#endif
 
 namespace {
 
@@ -230,6 +233,10 @@ void Engine::wait_until_bestmove_allowed(const SearchLimits& limits,
 void Engine::start_search(uint64_t command_epoch,
                           std::chrono::steady_clock::time_point recv_time) {
     configure_syzygy();
+#ifdef BASILISK_ABLATION
+    // No search runs here, so no thread reads the mask while it changes.
+    set_eval_ablation_mask(uint32_t(parameters_.eval_ablation_mask));
+#endif
 
     SearchLimits limits = build_limits();
     limits.go_recv_time = recv_time;

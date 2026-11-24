@@ -1023,6 +1023,64 @@ static void test_lazy_checkpoint() {
     end_section();
 }
 
+#ifdef BASILISK_ABLATION
+// The matched evaluation ablation: every family's bit moves some score, and a
+// warm evaluator serves the stock score again at mask 0. The pawn cache holds
+// scores the mask shaped, so a key without the mask would serve a stale one.
+static void test_eval_ablation_mask() {
+    static const char* const kFens[] = {
+        // An isolated queen's pawn middlegame: space, mobility, threats, king
+        // safety, structure and the piece terms.
+        "r1bq1rk1/pp3ppp/2n1pn2/2bp4/2B5/2N1PN2/PP3PPP/R1BQ1RK1 w - - 0 9",
+        // White's b-pawn is passed, in a rook ending.
+        "6k1/5pp1/4p2p/1P6/5P2/4K1P1/7P/2r2R2 w - - 0 30",
+        // Opposite wings, kings castled, queens on.
+        "2kr3r/ppp2ppp/2n1bq2/3pp3/4P3/2PP1N2/PP1QBPPP/R4RK1 b - - 0 12",
+    };
+    constexpr int N = int(sizeof(kFens) / sizeof(kFens[0]));
+    auto warm_owner = std::make_unique<Evaluator>();  // its pawn table is too big for the stack
+    Evaluator& warm = *warm_owner;
+    int stock[N];
+    for (int i = 0; i < N; ++i) {
+        Board b;
+        b.set_fen(kFens[i]);
+        stock[i] = warm.evaluate(b);
+    }
+
+    begin_section("every family's bit moves a score");
+    for (int bit = 0; bit < EVAL_ABLATION_BITS; ++bit) {
+        set_eval_ablation_mask(1u << bit);
+        bool moved = false;
+        for (int i = 0; i < N; ++i) {
+            Board b;
+            b.set_fen(kFens[i]);
+            moved = moved || warm.evaluate(b) != stock[i];
+        }
+        if (!moved)
+            std::printf("    bit %d moved no score\n", bit);
+        EXPECT(moved);
+    }
+    end_section();
+
+    set_eval_ablation_mask(0);
+    begin_section("mask 0 serves the stock score, warm or fresh");
+    for (int i = 0; i < N; ++i) {
+        Board b;
+        b.set_fen(kFens[i]);
+        EXPECT_EQ(warm.evaluate(b), stock[i]);
+        EXPECT_EQ(eval_fen(kFens[i]), stock[i]);
+    }
+    end_section();
+
+    begin_section("the mask keeps its seven family bits");
+    set_eval_ablation_mask(0xFFFFFFFFu);
+    EXPECT_EQ(eval_ablation_mask(), (1u << EVAL_ABLATION_BITS) - 1);
+    set_eval_ablation_mask(0);
+    EXPECT_EQ(eval_ablation_mask(), 0u);
+    end_section();
+}
+#endif
+
 int main() {
     init_bitboards();
     init_attacks();
@@ -1083,6 +1141,10 @@ int main() {
 #ifdef BASILISK_TUNE
     std::printf("\nEndgame occurrence classifier\n");
     test_endgame_occurrence_classifier();
+#endif
+#ifdef BASILISK_ABLATION
+    std::printf("\nMatched evaluation ablation\n");
+    test_eval_ablation_mask();
 #endif
 
     return harness_summary();

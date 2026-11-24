@@ -52,6 +52,16 @@ int reconstruct(const EvalTrace& tr, const EvalParams& w) {
 // Call init_eval_tables(g_eval_params) again after changing these.
 EvalParams g_eval_params;
 
+#ifdef BASILISK_ABLATION
+uint32_t g_eval_ablation_mask = 0;
+
+void set_eval_ablation_mask(uint32_t mask) {
+    g_eval_ablation_mask = mask & ((1u << EVAL_ABLATION_BITS) - 1);
+}
+
+uint32_t eval_ablation_mask() { return g_eval_ablation_mask; }
+#endif
+
 // Lazy-eval margin (Step 3.11): if the cheap (material/PST/imbalance/pawns/minor)
 // tapered score exceeds this, the expensive positional block is skipped. Tuned
 // under a lazy-on-vs-off SPRT; conservative start.
@@ -191,10 +201,14 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
     // ---- The full block -------------------------------------------------------
     AttackInfo ai;
     fill_attack_info(b, pawns, ai);
-    sum += threats(b, ai);
-    sum += king(b, ai);
-    sum += pawns_full(b, ai);
-    sum += pieces_full(b, ai, phase);
+    if (!eval_ablated(EVAL_ABLATE_THREATS))
+        sum += threats(b, ai);
+    if (!eval_ablated(EVAL_ABLATE_KING))
+        sum += king(b, ai);
+    if (!eval_ablated(EVAL_ABLATE_PASSERS))
+        sum += pawns_full(b, ai);
+    if (!eval_ablated(EVAL_ABLATE_PIECES))
+        sum += pieces_full(b, ai, phase);
     sum += mobility_space(b, ai.mobility, ai.pawn_atk);
 
     // ---- Endgame mate drive: read 2 -------------------------------------------
