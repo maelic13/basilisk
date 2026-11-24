@@ -1966,6 +1966,28 @@ has lost games in both engines (BAS-X02).
       - Its moves at 100 ms lose clearly more than Rarog's only with 45
         or more points of non-pawn material.
       - That agrees with C.0's phase 18 to 24.
+      **Registered 2026-11-24**
+      (`analysis/c210_family_order_2026-11-24.md`; BAS-O14, BAS-M24,
+      BAS-E62). No game is played and no screen is read.
+      - The meter: E(mask) on the C.2.9 oracle, M(mask) = E(0) − E(mask).
+        Eleven reads of 3,000 games on one seed: masks 0, 7, 8, 48, 64,
+        127, 2, 1, 4, 16 and 32.
+      - Three reads are added to the seven families: the cluster masks 7
+        (C.3) and 48 (C.5), and 127 for the families' joint share.
+        Clusters are compared by their own reads, never by a sum.
+      - The rule, frozen: the present order stands unless a later
+        cluster's E is lower than an earlier one's by more than the
+        difference's 95% interval, about 15 Elo. The screen breaks a
+        tie only when its intervals separate.
+      - If the seven families together explain under 40 Elo, the order
+        returns to the maintainer before C.3 opens.
+      - Known confounds: mobility's meter carries piece-value level, and
+        Basilisk's arm gains speed under a mask. Both raise a meter.
+      - Predicted: E(0) +160, the frontier pair −140, C.3's meter +55
+        and the largest (0.7), mobility's above space's (0.75).
+      - Owed: the launcher `tools/run_c210_reads.py` and the head's
+        build (implementation), then the games (maintainer), about nine
+        hours, and the screen.
 - [ ] **C.3** Mobility, space and threats cluster
   The first family (maintainer, 2026-11-18, on C.0's evidence; C.2.10
   confirms the order from games). The donor's space, which Basilisk does
@@ -2537,7 +2559,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.10 | RESEARCH | R3 | Not started |
+| C.2.10 | RESEARCH | R3 | Registered 2026-11-24 (BAS-O14, BAS-M24, BAS-E62); the launcher, the games and the screen are owed |
 | C.3.1 | RESEARCH | R3 | Not started; C.0's contract is its packet §8.2 |
 | C.3.2 | RESEARCH | I2 | Not started |
 | C.3.3 | RESEARCH | R2 | Not started |

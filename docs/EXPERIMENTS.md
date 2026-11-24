@@ -144,6 +144,7 @@ X is good/bad”. If conditions or artifacts are unknown, say so.
 | [BAS-M21](experiments/BAS-M21.md) | The HCE frontier field on the MacBook Air M4: BAS-M18's field rebuilt natively, a 12-engine round robin. | OBSERVATION, stopped at 7,896 of 13,200 games: head 3340, 10th of 12, 203 below Stockfish 16 HCE; BAS-M18's gaps reproduce to within 16; no faults |
 | [BAS-M22](experiments/BAS-M22.md) | The HCE frontier field on Windows arm64 (Snapdragon X Plus): a 9-engine round robin, seven engines native arm64 and Komodo 14.1 and Dragon 3.3 as x64 under emulation. | OBSERVATION, stopped at 9,495 of 14,400 games: head 3338, 8th of 9 and last of the native engines, 197 below Stockfish 16 HCE; native engines reproduce BAS-M21's gaps to within 20; emulated Dragon 3.3 reads 37–52 low; no faults |
 | [BAS-M23](experiments/BAS-M23.md) | The HCE frontier field at `3+0.03` with Rarog's compact-kernel head, the C.1 head and Basilisk 1.11.0: a 12-engine round robin, 52,800 games. | OBSERVATION, read from the GUI's standings: the C.1 head and 1.11.0 level at 3415; Rarog's head 3509, 94 above; Stockfish 16 HCE 190 above; no forfeits |
+| [BAS-M24](experiments/BAS-M24.md) | C.2.10 frontier pair baseline: the refitted head against Stockfish 16 HCE, a fixed match of 3,000 games at `3+0.03`. | REGISTERED 2026-11-24: no game played |
 | [BAS-D24](experiments/BAS-D24.md) | C.2.8.3, Amendment 2: the KQ-K and KR-K conversion grid on the top-tier repair, 40k to 120k nodes, head and A2 baked over it. | COMPLETE: 24/24 for both families at every budget on both builds; identical ply lists; bench 4,392,040 |
 | [BAS-D23](experiments/BAS-D23.md) | C.2.7.3: deployed nodes per search at the gate's conditions (3+0.03, 15 games at once), and the three endgame veto budgets they set. | COMPLETE (run 2; run 1 discarded, busy host): median 121,819 nodes a search, 63,876 with 3–6 men; bracket 21,000, 64,000, 190,000; no forfeits |
 
@@ -182,6 +183,7 @@ fifty-move, 2 stalemate. **Zero forfeits.** Instrument: branch `hybrid`
 - [BAS-O11](experiments/BAS-O11.md) — C.2.4's tablebase label audit of corpus A: the local Syzygy relabel (corpus B) and whole-game adjudication. — COMPLETE: B changes 0.28% of rows, symmetrically; whole-game would change 2.58%; no whole-game arm now (power), retry trigger recorded
 - [BAS-O12](experiments/BAS-O12.md) — C.2.5's initialization control: four PST starts fitted at frozen K on corpus A, and the scale that converts a Stockfish 16 table. — COMPLETE (Correction 1): the start's effect is below one linear stage's resolution (2.1e-5 on the model, 1e-7 realized); no single slope converts a table, so C.2.8 seeds at 0.35 by the frozen rule; only the king tables are unidentified; the tables re-level by up to 179 cp
 - [BAS-O13](experiments/BAS-O13.md) — C.2.8's matched whole-surface fits of corpora A and B from Stockfish 16's tables at one frozen K. — RUN 2: A 0.09612 (−3.04% on the header), every amended prediction hit; the KR-K floor failed until the top-tier repair (BAS-D24); run 1 not baked
+- [BAS-O14](experiments/BAS-O14.md) — C.2.10 matched evaluation ablation by family and cluster on the refitted head, eleven reads of 3,000 games. — REGISTERED 2026-11-24: no game played
 - [BAS-D22](experiments/BAS-D22.md) — B.11.1 fixed-node meters: depth at 300k nodes, branching, endgame truth cohort. — observation: 3.3-ply gap (was 12.2), 458/480 converted
 
 **Internal consistency.** Measured directly, full Stockfish beat Basilisk 1.9.3
@@ -412,6 +414,7 @@ future work needs to re-open either cluster is now counted rather than guessed.
 - [BAS-E59](experiments/BAS-E59.md) — C.2.8.4: the whole-surface refit on corpus A against the head, SPRT `[0,3]`. — ACCEPTED (maintainer, over the bracket veto): +85.2 ± 14.9 Elo at 1,110 games; the veto's 8 endgame discards go to C.7
 - [BAS-E60](experiments/BAS-E60.md) — C.2.8.4: the Syzygy label contract, B's fit against A's, a conditional SPRT `[0,3]`. — CLOSED, CONDITION FAILED on run 2 (label-specific advantage +1.7e-6 against 2e-5); no games
 - [BAS-E61](experiments/BAS-E61.md) — C.2.8.4 companion: the refit against the head before the top-tier repair, SPRT `[0,3]`. — COMPLETE: H1 at 1,164 games, +74.6 ± 13.3 Elo against the old head (BAS-E59 read +85.2 against the repaired one)
+- [BAS-E62](experiments/BAS-E62.md) — C.2.10 family screen both ways on the refitted head, both donors. — REGISTERED 2026-11-24: not read
 
 - [BAS-X11](experiments/BAS-X11.md) — current standing, 12,000-game Colosseum round robin — see entry
 
