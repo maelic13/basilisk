@@ -94,3 +94,10 @@
   - The review recommends accepting and recalibrating the veto before
     C.3's gate. The decision is the maintainer's, because it changes a
     rule frozen before the data.
+- **The maintainer's ruling, 2026-11-24: ACCEPTED over the veto.** The
+  refit is kept. The endgame deficit is repaired in its own steps as
+  planned (C.7 holds KBPP-KB, KNN-KP and KRP-KR). BAS-E61 (+74.6 ± 13.3
+  against the head before the repair) was read with it.
+  - The bake is restored (`92a4c1a`); `bench 13` is 3,359,329.
+  - Whether and where the veto gets a calibrated tolerance is still the
+    maintainer's decision (PLAN C.2.8.4).

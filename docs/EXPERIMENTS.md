@@ -409,7 +409,7 @@ future work needs to re-open either cluster is now counted rather than guessed.
 - [BAS-E57](experiments/BAS-E57.md) — 15.0.b harness reserve sweep: `Move Overhead` 40 against 10 on the same binary - RUN 2026-09-10, RE… — REJECTED
 
 - [BAS-E58](experiments/BAS-E58.md) — C.0 static screens: the head's evaluation against the two donor candidates on its own games — COMPLETE: 0.68% behind `9587eeeb` on regular rows, equal in the middlegame; a bounded refit closes 56% of the static gap
-- [BAS-E59](experiments/BAS-E59.md) — C.2.8.4: the whole-surface refit on corpus A against the head, SPRT `[0,3]`. — H1 RUN, NOT ACCEPTED: +85.2 ± 14.9 Elo at 1,110 games, but the bracket veto blocks (8 endgame discards); the maintainer rules
+- [BAS-E59](experiments/BAS-E59.md) — C.2.8.4: the whole-surface refit on corpus A against the head, SPRT `[0,3]`. — ACCEPTED (maintainer, over the bracket veto): +85.2 ± 14.9 Elo at 1,110 games; the veto's 8 endgame discards go to C.7
 - [BAS-E60](experiments/BAS-E60.md) — C.2.8.4: the Syzygy label contract, B's fit against A's, a conditional SPRT `[0,3]`. — CLOSED, CONDITION FAILED on run 2 (label-specific advantage +1.7e-6 against 2e-5); no games
 - [BAS-E61](experiments/BAS-E61.md) — C.2.8.4 companion: the refit against the head before the top-tier repair, SPRT `[0,3]`. — COMPLETE: H1 at 1,164 games, +74.6 ± 13.3 Elo against the old head (BAS-E59 read +85.2 against the repaired one)
 

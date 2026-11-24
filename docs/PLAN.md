@@ -1585,7 +1585,7 @@ has lost games in both engines (BAS-X02).
             - KBB-KB's scale 4 crosses 0.5% only because its denominator
               shrank (V6, C.7.5);
             - V3 to V6 remain at their recorded rates.
-    - [ ] **C.2.8** Matched fits and the label-contract gate
+    - [x] **C.2.8** Matched fits and the label-contract gate
       It was C.2.6 until 2026-11-11. Split into four sub-steps on
       2026-11-23 (maintainer), so the fit and the gate are registered by
       research before anything runs.
@@ -1723,7 +1723,7 @@ has lost games in both engines (BAS-X02).
             the four PST orientation tests, as HANDBOOK step 6 foresees,
             and the pawnless mate-drive test. Their fixtures move in
             their own commits (C-70).
-        - [ ] **C.2.8.3** `[V]` Fits of A and B and the fit report
+        - [x] **C.2.8.3** `[V]` Fits of A and B and the fit report
           The maintainer's runs. The report reads every registered item
           before any bake.
           - The fits run one after the other, never together: both build
@@ -1819,8 +1819,9 @@ has lost games in both engines (BAS-X02).
               - `QueenInfiltrationEg` at 186: C.6, and first in line if
                 the refit is retried.
             - Baked as `cbc3676`, then reverted as `7f92ec9` while
-              C.2.8.4's veto is ruled on (below).
-        - [ ] **C.2.8.4** `[V]` The registered gates
+              C.2.8.4's veto is ruled on (below), and restored on its
+              acceptance (`92a4c1a`).
+        - [x] **C.2.8.4** `[V]` The registered gates
           Clean-PGO arms under identical conditions, and the maintainer's
           runs. Fit loss explains; only the SPRT decides.
           - **Run 2026-11-23** (launcher `tools/run_c284_gates.py`;
@@ -1841,6 +1842,31 @@ has lost games in both engines (BAS-X02).
               with no verdict.
             - So acceptance is the maintainer's ruling: keep a +85 Elo
               refit against the veto, or repair the endgames first.
+          - **BAS-E61**, the refit against the head before the top-tier
+            repair (`901e519`): H1 at 1,164 games, **+74.6 ± 13.3 Elo**.
+            The gain holds against either head.
+          - **Accepted 2026-11-24 (maintainer):** the refit is kept over
+            the bracket veto. The endgame deficit is repaired in its own
+            steps as planned (C.7 holds the three families). Done the
+            same day:
+            - the bake restored (`92a4c1a`) and the tracked surface
+              manifest rebuilt for it (`7c1801c`);
+            - the fingerprint moved to 3,359,329 (`38487c5`);
+            - the PeSTO disclosure retired after the similarity screen
+              (`68dc18a`, `analysis/c28_pst_provenance_2026-11-24.md`):
+              no table match against any donor, and 4 of 736 entries
+              equal to PeSTO's;
+            - two fixtures on fitted weights moved (C-70, `5381de1`): the
+              WAC floor to 168, and the verdict golden, where KR-KR's
+              scale verdict is now wrong 350 times against 397.
+          - **WAC reads lower on the refit** at every fixed depth, in about
+            the same time: 181/191/212/217 at depths 6 to 9 against the
+            head's 186/206/216/226. WAC decides nothing; reported to the
+            maintainer, not routed.
+          - **Open, not scheduled:** the review recommends giving the
+            bracket veto a calibrated tolerance before C.3's gate, since
+            two equal fits veto each other 3 and 6 times. The maintainer
+            decides whether and where.
     - [ ] **C.2.9** `[I1]` Family screen and matched-ablation tools
       Added 2026-11-18 (maintainer, after C.0). Two instruments the
       family order and every cluster read; neither changes a served
@@ -1876,7 +1902,7 @@ has lost games in both engines (BAS-X02).
         - the same family bits patched into `9587eeeb`'s evaluation
           through `build_oracle.ps1 -ExtraPatch`;
         - each bit proved live at fixed depth on both sides.
-        The release bench to hold is now 4,392,040.
+        The release bench to hold is now 3,359,329.
     - [ ] **C.2.10** `[R3]` Family order from games and screens
       Added 2026-11-18 (maintainer, after C.0): the decision point before
       the first family. On the refitted head it registers, prepares and
@@ -2476,8 +2502,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.8.3 | LOCAL_QUALIFIED | V | Run 2 and Amendment 2's repair done; A2 baked as cbc3676 and reverted (7f92ec9) pending C.2.8.4's ruling |
-| C.2.8.4 | GAME_GATE | V | BAS-E59 H1 (+85.2 ± 14.9) but the bracket veto blocks (8 discards); the maintainer rules on acceptance (registration §8) |
 | C.2.9 | IMPLEMENTED | I1 | The family screen is in (2a284cc); the matched ablation mask is not started |
 | C.2.10 | RESEARCH | R3 | Not started |
 | C.3.1 | RESEARCH | R3 | Not started; C.0's contract is its packet §8.2 |
