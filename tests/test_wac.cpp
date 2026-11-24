@@ -52,7 +52,11 @@ static const int TEST_DEPTH = 6;
 // depth 6 searches further. Its unfitted tree solved 199 (bench 3,920,652), and
 // the floor is that count less 13; the fitted tree with one negative-reduction
 // extension a line solves 189 (bench 3,783,135).
-static const int FLOOR = 186;
+// C.2.8's whole-surface refit is a new evaluation on the same search: it solves
+// 181 at depth 6 (bench 3,359,329) where the head before it solved 186, and
+// fewer at depths 7 to 9 too (191/212/217 against 206/216/226), for +85 Elo in
+// games. The floor is that count less 13.
+static const int FLOOR = 168;
 static const int STALE_HEADROOM = 20;
 
 static void test_request_parser() {
