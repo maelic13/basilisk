@@ -461,7 +461,7 @@ jobs:
           BASILISK_TEXEL: ${{ github.workspace }}/build/texel/basilisk-texel
         run: |
           python="$RUNNER_TEMP/texel-venv/bin/python"
-          for t in test_endgame_vetoes test_endgame_contract test_family_screen; do
+          for t in test_endgame_vetoes test_endgame_contract test_family_screen test_c210_table; do
             echo "== $t"
             "$python" "tools/diag/$t.py" || exit 1
           done
