@@ -60,9 +60,10 @@ try {
     Invoke-Checked 'checkout of src/' { git -C $work checkout $srcCommit -- src }
     Invoke-Checked 'bridge patch' { git -C $work apply --ignore-whitespace $patch }
     Invoke-Checked 'src/ identity check' { git -C $work diff --quiet $srcCommit -- src }
-    # Stockfish-side instrument patches (B.0): the local
-    # oracle-hybrid-ablate.patch adds the matched AblationMask option. They
-    # never touch src/, so the identity check binds again after each one.
+    # Instrument patches: the local oracle-hybrid-ablate.patch adds the search
+    # AblationMask (B.0), and tools/oracle/oracle-eval-ablate.patch the
+    # evaluation-family EvalAblationMask (C.2.9). They never touch src/, so
+    # the identity check binds again after each one.
     $extraPatchRecords = @()
     foreach ($extra in $ExtraPatch) {
         $extraPath = (Resolve-Path -LiteralPath $extra).Path

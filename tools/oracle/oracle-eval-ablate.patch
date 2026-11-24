@@ -1,0 +1,204 @@
+diff --git a/hybrid/basilisk_bridge.cpp b/hybrid/basilisk_bridge.cpp
+index 32e6e51..a8dab18 100644
+--- a/hybrid/basilisk_bridge.cpp
++++ b/hybrid/basilisk_bridge.cpp
+@@ -69,6 +69,15 @@ thread_local Evaluator tls_reference_evaluator;
+ 
+ } // namespace
+ 
++bool set_eval_ablation_mask(std::uint32_t mask) {
++#ifdef BASILISK_ABLATION
++    ::set_eval_ablation_mask(mask);
++    return ::eval_ablation_mask() == mask;
++#else
++    return mask == 0;
++#endif
++}
++
+ bool initialize(std::string& error) {
+     static std::once_flag once;
+     static bool           ok = false;
+diff --git a/hybrid/basilisk_bridge.h b/hybrid/basilisk_bridge.h
+index a95d750..d7e13fe 100644
+--- a/hybrid/basilisk_bridge.h
++++ b/hybrid/basilisk_bridge.h
+@@ -66,6 +66,11 @@ std::int32_t evaluate(const std::uint64_t* pieces,
+ // does not parse.
+ std::int32_t evaluate_fen(const std::string& fen);
+ 
++// Sets Basilisk's matched evaluation-ablation mask (src/eval.h's
++// EvalAblationBit order). Returns false when the evaluator was not compiled
++// as its Ablate flavour, which cannot mask anything. Call between searches.
++bool set_eval_ablation_mask(std::uint32_t mask);
++
+ } // namespace BasiliskBridge
+ 
+ #endif // BASILISK_BRIDGE_H_INCLUDED
+diff --git a/hybrid/build.ps1 b/hybrid/build.ps1
+index 5a49662..532dff6 100644
+--- a/hybrid/build.ps1
++++ b/hybrid/build.ps1
+@@ -86,7 +86,10 @@ $commonFlags   = @("-O3", "-DNDEBUG", "-DIS_64BIT", "-DUSE_POPCNT", "-DUSE_PEXT"
+ # The rename is a preprocessor definition applied only to the Basilisk group,
+ # so declaration, definition and every reference move together, and no file
+ # under src/ is modified.
+-$basiliskFlags = @("-std=c++23", "-I$repoRoot\src",
++# The matched evaluation ablation: Basilisk's evaluator is compiled as its
++# Ablate flavour, whose mask is 0 (the released evaluation) until the
++# EvalAblationMask option sets it.
++$basiliskFlags = @("-std=c++23", "-I$repoRoot\src", "-DBASILISK_ABLATION",
+                    "-DPawnAttacks=basilisk_PawnAttacks") + $commonFlags
+ $sfFlags       = @("-std=c++17", "-I$sfSrc", "-DNO_PRETTY_PRINT") + $commonFlags
+ 
+diff --git a/hybrid/stockfish/src/evaluate.cpp b/hybrid/stockfish/src/evaluate.cpp
+index 96e7483..8ea9cae 100644
+--- a/hybrid/stockfish/src/evaluate.cpp
++++ b/hybrid/stockfish/src/evaluate.cpp
+@@ -842,7 +842,11 @@ namespace {
+ 
+     // Probe the pawn hash table
+     pe = Pawns::probe(pos);
+-    score += pe->pawn_score(WHITE) - pe->pawn_score(BLACK);
++    // The matched evaluation ablation drops a family's score and keeps every
++    // computation, so the attack maps and the hash tables stay stock.
++    auto ablated = [](int bit) { return (Eval::ablationMask >> bit) & 1; };
++    if (!ablated(4))
++        score += pe->pawn_score(WHITE) - pe->pawn_score(BLACK);
+ 
+     // Early exit if score is high
+     auto lazy_skip = [&](Value lazyThreshold) {
+@@ -858,22 +862,37 @@ namespace {
+ 
+     // Pieces evaluated first (also populates attackedBy, attackedBy2).
+     // Note that the order of evaluation of the terms is left unspecified.
+-    score +=  pieces<WHITE, KNIGHT>() - pieces<BLACK, KNIGHT>()
+-            + pieces<WHITE, BISHOP>() - pieces<BLACK, BISHOP>()
+-            + pieces<WHITE, ROOK  >() - pieces<BLACK, ROOK  >()
+-            + pieces<WHITE, QUEEN >() - pieces<BLACK, QUEEN >();
++    {
++    const Score pieceTerms =  pieces<WHITE, KNIGHT>() - pieces<BLACK, KNIGHT>()
++                            + pieces<WHITE, BISHOP>() - pieces<BLACK, BISHOP>()
++                            + pieces<WHITE, ROOK  >() - pieces<BLACK, ROOK  >()
++                            + pieces<WHITE, QUEEN >() - pieces<BLACK, QUEEN >();
++    if (!ablated(6))
++        score += pieceTerms;
+ 
+-    score += mobility[WHITE] - mobility[BLACK];
++    if (!ablated(1))
++        score += mobility[WHITE] - mobility[BLACK];
+ 
+     // More complex interactions that require fully populated attack bitboards
+-    score +=  king<   WHITE>() - king<   BLACK>()
+-            + passed< WHITE>() - passed< BLACK>();
++    const Score kingTerms   = king<   WHITE>() - king<   BLACK>();
++    const Score passedTerms = passed< WHITE>() - passed< BLACK>();
++    if (!ablated(3))
++        score += kingTerms;
++    if (!ablated(5))
++        score += passedTerms;
++    }
+ 
+     if (lazy_skip(LazyThreshold2))
+         goto make_v;
+ 
+-    score +=  threats<WHITE>() - threats<BLACK>()
+-            + space<  WHITE>() - space<  BLACK>();
++    {
++    const Score threatTerms = threats<WHITE>() - threats<BLACK>();
++    const Score spaceTerms  = space<  WHITE>() - space<  BLACK>();
++    if (!ablated(2))
++        score += threatTerms;
++    if (!ablated(0))
++        score += spaceTerms;
++    }
+ 
+ make_v:
+     // Derive single value from mg and eg parts of score
+@@ -906,6 +925,8 @@ make_v:
+ /// evaluate() is the evaluator for the outer world. It returns a static
+ /// evaluation of the position from the point of view of the side to move.
+ 
++int Eval::ablationMask = 0;
++
+ Value Eval::evaluate(const Position& pos) {
+   return HybridEval::enabled() ? HybridEval::evaluate(pos)
+                                : Evaluation<NO_TRACE>(pos).value();
+diff --git a/hybrid/stockfish/src/evaluate.h b/hybrid/stockfish/src/evaluate.h
+index 7c8a2a6..d9c8889 100644
+--- a/hybrid/stockfish/src/evaluate.h
++++ b/hybrid/stockfish/src/evaluate.h
+@@ -29,6 +29,13 @@ class Position;
+ 
+ namespace Eval {
+ 
++// The matched evaluation ablation: bit i removes family i from the score, in
++// Basilisk's src/eval.h EvalAblationBit order: 0 space, 1 mobility, 2 threats,
++// 3 king (danger, shelter, storm), 4 pawn structure, 5 passers, 6 the piece
++// terms. Material, the tables, the imbalance, the specialised endgames and
++// scaling are never masked. 0 is stock.
++extern int ablationMask;
++
+ std::string trace(const Position& pos);
+ 
+ Value evaluate(const Position& pos);
+diff --git a/hybrid/stockfish/src/hybrid_eval.cpp b/hybrid/stockfish/src/hybrid_eval.cpp
+index 9315bdc..d55c76e 100644
+--- a/hybrid/stockfish/src/hybrid_eval.cpp
++++ b/hybrid/stockfish/src/hybrid_eval.cpp
+@@ -18,6 +18,7 @@
+ #include <cstdlib>
+ #include <limits>
+ 
++#include "evaluate.h"
+ #include "position.h"
+ 
+ #include "../../basilisk_bridge.h"
+@@ -41,6 +42,13 @@ void set_enabled(bool value) {
+   useBasiliskHce = value;
+ }
+ 
++void set_ablation_mask(int mask) {
++  Eval::ablationMask = mask;
++  // A mask Basilisk's side silently ignored would measure nothing.
++  if (!BasiliskBridge::set_eval_ablation_mask(static_cast<std::uint32_t>(mask)))
++      std::abort();
++}
++
+ Value evaluate(const Position& pos) {
+   std::uint64_t pieces[12];
+   for (Color color : {WHITE, BLACK})
+diff --git a/hybrid/stockfish/src/hybrid_eval.h b/hybrid/stockfish/src/hybrid_eval.h
+index c7a3e17..fddffb0 100644
+--- a/hybrid/stockfish/src/hybrid_eval.h
++++ b/hybrid/stockfish/src/hybrid_eval.h
+@@ -19,6 +19,8 @@ namespace HybridEval {
+ bool initialize(std::string& error);
+ bool enabled();
+ void set_enabled(bool value);
++// Both evaluations' matched family mask; aborts if Basilisk's cannot take it.
++void set_ablation_mask(int mask);
+ Value evaluate(const Position& pos);
+ 
+ } // namespace HybridEval
+diff --git a/hybrid/stockfish/src/ucioption.cpp b/hybrid/stockfish/src/ucioption.cpp
+index ee15301..5898003 100644
+--- a/hybrid/stockfish/src/ucioption.cpp
++++ b/hybrid/stockfish/src/ucioption.cpp
+@@ -44,6 +44,7 @@ void on_logger(const Option& o) { start_logger(o); }
+ void on_threads(const Option& o) { Threads.set(size_t(o)); }
+ void on_tb_path(const Option& o) { Tablebases::init(o); }
+ void on_hybrid_eval(const Option& o) { HybridEval::set_enabled(double(o) != 0); }
++void on_eval_ablation(const Option& o) { HybridEval::set_ablation_mask(int(o)); }
+ 
+ 
+ /// Our case insensitive less() function as required by UCI protocol
+@@ -80,6 +81,9 @@ void init(OptionsMap& o) {
+   o["UCI_Elo"]               << Option(1350, 1350, 2850);
+   o["UCI_ShowWDL"]           << Option(false);
+   o["Use Basilisk HCE"]      << Option(true, on_hybrid_eval);
++  // The matched evaluation ablation, one bit per family in both evaluations
++  // (evaluate.h); 0 is stock. Set it before the first search.
++  o["EvalAblationMask"]      << Option(0, 0, 127, on_eval_ablation);
+   o["SyzygyPath"]            << Option("<empty>", on_tb_path);
+   o["SyzygyProbeDepth"]      << Option(1, 1, 100);
+   o["Syzygy50MoveRule"]      << Option(true);

@@ -212,6 +212,11 @@ that revision's. Bit order, A.5.4's:
 | The Ablate flavour of `build_test.ps1` and CI's ablation job | `tools/build_test.ps1:13`, `:52`, `:112`, `:129`, `:143`; `.github/workflows/ci.yml:355` | with the flavour |
 
 `tools/diag/ablation_liveness.py` stays: it proves a mask's bits live on any
-engine that exposes one, today the oracle's ablate build. `bench 13` stays
+engine that exposes one, today the oracle's ablate build.
+
+C.2.9 (2026-11-24) rebuilt the flavour for the evaluation: the same `ABLATION`
+option, suffix, exclusions, PGO pass-through, `build_test.ps1` flavour and CI
+job, now exposing `EvalAblationMask` (one bit per evaluation family,
+`src/eval.h`). The search's `ABLATED(bit)` uses stay deleted. `bench 13` stays
 4,777,412 on Release, Tune and Diag after the removal, and no build exposes
 `AblationMask`.
