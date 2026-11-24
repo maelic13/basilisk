@@ -659,10 +659,12 @@ One shared bit mask on Basilisk and on the oracle build, so the same number
 ablates the same mechanism on each side (A.5.4 fixes the order), compiled
 away in a shipped build.
 
-Basilisk's side, the Ablate flavour, was removed when the search froze at
-B.11.1's close (2026-11-18); the oracle keeps its mask. A new decomposition
-rebuilds Basilisk's side from `4d2742f`
-(`analysis/b82_switch_inventory_2026-11-14.md` §7.5).
+Basilisk's search mask, the old Ablate flavour, was removed when the search
+froze at B.11.1's close (2026-11-18); the oracle keeps its mask. A new
+search decomposition rebuilds Basilisk's side from `4d2742f`
+(`analysis/b82_switch_inventory_2026-11-14.md` §7.5). Since C.2.9 the Ablate
+flavour carries the evaluation-family mask, `EvalAblationMask`, and the oracle
+takes it through `tools/oracle/oracle-eval-ablate.patch`.
 
 1. The harness refuses an option an engine does not expose. A run that sets a
    missing option plays the whole match at the default and measures nothing.

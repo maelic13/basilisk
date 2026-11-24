@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.2.9** `[I1]` Family screen and matched-ablation tools — Claude Sonnet
+**Next step:** **C.2.10** `[R3]` Family order from games and screens — Claude Fable
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -82,7 +82,7 @@ the six-stage gating shape), are in
         - [x] **C.2.8.2** `[I1]` The fit driver to the registered schedule
         - [x] **C.2.8.3** `[V]` Fits of A and B and the fit report
         - [x] **C.2.8.4** `[V]` The registered gates
-    - [ ] **C.2.9** `[I1]` Family screen and matched-ablation tools
+    - [x] **C.2.9** `[I1]` Family screen and matched-ablation tools
     - [ ] **C.2.10** `[R3]` Family order from games and screens
 - [ ] **C.3** Mobility, space and threats cluster
     - [ ] **C.3.1** `[R3]` Cluster research and handoff

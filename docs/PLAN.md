@@ -1867,7 +1867,7 @@ has lost games in both engines (BAS-X02).
             bracket veto a calibrated tolerance before C.3's gate, since
             two equal fits veto each other 3 and 6 times. The maintainer
             decides whether and where.
-    - [ ] **C.2.9** `[I1]` Family screen and matched-ablation tools
+    - [x] **C.2.9** `[I1]` Family screen and matched-ablation tools
       Added 2026-11-18 (maintainer, after C.0). Two instruments the
       family order and every cluster read; neither changes a served
       score.
@@ -1897,12 +1897,47 @@ has lost games in both engines (BAS-X02).
         - It refuses a misaligned join, a donor table that does not sum,
           and labels that are not results.
         - A 3,000-row smoke on corpus A reads both ways for both donors.
-      - **The matched ablation mask is not started.** It needs:
-        - Basilisk's Ablate flavour rebuilt in `src/`;
-        - the same family bits patched into `9587eeeb`'s evaluation
-          through `build_oracle.ps1 -ExtraPatch`;
-        - each bit proved live at fixed depth on both sides.
-        The release bench to hold is now 3,359,329.
+      - **The matched ablation mask, done 2026-11-24:**
+        - Basilisk's side is the Ablate flavour, rebuilt from `4d2742f`'s
+          build plumbing (`de68d5a`): `EvalAblationMask`, bits in
+          `src/eval.h`'s order: 0 space, 1 mobility, 2 threats, 3 king
+          danger with shelter and storm, 4 pawn structure, 5 passers,
+          6 the piece terms.
+          - A bit removes its family wherever it enters the score, the
+            lazy checkpoint included. The pawn cache's key carries the
+            mask, so no entry answers for another mask; `test_eval`'s
+            ablation section fails without it (checked).
+          - Never masked: material, the tables, the imbalance, the
+            bishop pair (Stockfish's is in its imbalance), the tempo and
+            the endgame knowledge.
+          - CI builds the flavour and runs `test_uci_protocol` and
+            `test_eval` on it.
+        - The oracle's side is `tools/oracle/oracle-eval-ablate.patch`
+          (`780198e`), applied by `build_oracle.ps1 -ExtraPatch`.
+          - The same option sets both evaluations' masks. Stockfish's bit
+            drops its family's score and keeps every computation, so the
+            attack maps and hash tables stay stock.
+          - Basilisk's evaluator is compiled as its Ablate flavour, and
+            the option aborts if Basilisk's side refuses the mask.
+        - **Proved:**
+          - Mask 0 is stock: bench 3,359,329 on the Ablate flavour. The
+            oracle benches 1,017,388 with Basilisk's evaluation and
+            1,030,221 with Stockfish's, the same as the unpatched oracle
+            on the same `src/`.
+          - Every bit is live on all three evaluations
+            (`ablation_liveness.py --mask eval`, depth 9, 8 positions):
+            it changes nodes on all 8 positions. Basilisk standalone:
+            ×0.84 to ×1.56. The oracle with Basilisk's evaluation: ×1.02
+            to ×1.33. With Stockfish's: ×0.77 to ×1.25.
+          - Evidence: `tools/results/c29-mask/`.
+        - **The meter's binary:**
+          `tools/test_engines/oracle-c29-e56f1e1-evalablate.exe`
+          (`CAA8B70B…`, `src/` of `e56f1e1`). Its arms are `Use Basilisk
+          HCE` true and false at one `EvalAblationMask`.
+          - A family's meter is E(0) − E(mask): the arms at mask 0, less
+            the arms with that family's bit set on both.
+        - Not exercised: `build_test.ps1 -Flavor Ablate`, whose PGO build
+          C.2.10 does not need; the meter runs in the oracle.
     - [ ] **C.2.10** `[R3]` Family order from games and screens
       Added 2026-11-18 (maintainer, after C.0): the decision point before
       the first family. On the refitted head it registers, prepares and
@@ -2502,7 +2537,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.9 | IMPLEMENTED | I1 | The family screen is in (2a284cc); the matched ablation mask is not started |
 | C.2.10 | RESEARCH | R3 | Not started |
 | C.3.1 | RESEARCH | R3 | Not started; C.0's contract is its packet §8.2 |
 | C.3.2 | RESEARCH | I2 | Not started |
