@@ -1988,6 +1988,19 @@ has lost games in both engines (BAS-X02).
       - Owed: the launcher `tools/run_c210_reads.py` and the head's
         build (implementation), then the games (maintainer), about nine
         hours, and the screen.
+      **The screen, read 2026-11-24** (BAS-E62; the packet's §8.1):
+      - On the refitted head the donor's space adds 3.4 and its
+        mobility 2.1 at phase 18–24, both including zero. BAS-E58
+        read 47.0 and 29.6 on the 1.11.0 head.
+      - King safety is the largest donor gain: 16.2 at phase 18–24,
+        29.4 at 10–17, 12.1 over all rows, clear of space and mobility.
+      - So the tiebreak points at C.4, and C-110's static half holds
+        for space, mobility and pawn structure. The games decide.
+      - Three of four screen predictions missed. A control with the
+        header before the refit is owed.
+      - Prepared 2026-11-24: `tools/run_c210_reads.py`,
+        `tools/diag/c210_table.py` and the head's build. The games
+        are the maintainer's.
 - [ ] **C.3** Mobility, space and threats cluster
   The first family (maintainer, 2026-11-18, on C.0's evidence; C.2.10
   confirms the order from games). The donor's space, which Basilisk does
@@ -2559,7 +2572,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.10 | RESEARCH | R3 | Registered 2026-11-24 (BAS-O14, BAS-M24, BAS-E62); the launcher, the games and the screen are owed |
+| C.2.10 | RESEARCH | R3 | Registered and prepared 2026-11-24; the screen is read (king safety leads, space and mobility include zero); the games are owed |
 | C.3.1 | RESEARCH | R3 | Not started; C.0's contract is its packet §8.2 |
 | C.3.2 | RESEARCH | I2 | Not started |
 | C.3.3 | RESEARCH | R2 | Not started |

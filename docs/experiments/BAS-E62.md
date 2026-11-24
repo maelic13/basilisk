@@ -35,3 +35,61 @@ Basilisk into the donor:
 A static gain is not Elo. The games of BAS-O14 decide the order.
 
 #### RESULT — append after exposure
+
+- **Read 2026-11-24** (`tools/results/c210-screen/report.json`; the
+  head's tuner `C4FC9F38…`, collect seed 20261124, 300 bootstrap
+  repetitions). 56,311 regular rows; 3,436 override rows and 3,614
+  specialised-endgame rows are set aside.
+- **Donor into Basilisk,** `sf_16` (`9587eeeb` agrees within 2
+  everywhere), gain in 1e-4 nats with its 95% interval:
+
+  | Family | All rows | Phase 0–9 | Phase 10–17 | Phase 18–24 |
+  |---|---|---|---|---|
+  | King safety | **12.1** [8.7, 15.5] | 2.9 [0.9, 4.7] | **29.4** [17.5, 38.8] | **16.2** [8.5, 24.1] |
+  | Passed | 5.4 [3.4, 7.6] | **14.0** [8.1, 19.9] | 0.8 [−1.0, 2.8] | 2.4 [−0.6, 5.9] |
+  | Winnable | 2.2 [1.1, 3.4] | **10.0** [6.9, 13.2] | 2.5 [−0.6, 5.5] | 1.4 [−0.5, 3.3] |
+  | Threats | 1.0 [−0.1, 2.2] | 0.1 [−0.3, 0.6] | 2.0 [−1.0, 4.4] | 4.7 [0.5, 8.3] |
+  | Space | 0.5 [−0.3, 1.2] | — | 0.0 [−0.3, 0.4] | 3.4 [−0.4, 7.8] |
+  | Mobility | 0.8 [−0.1, 1.7] | 0.5 [−0.3, 1.5] | 3.0 [−0.0, 6.5] | 2.1 [−0.8, 5.3] |
+  | Material | 2.3 [0.5, 4.1] | 0.3 [−0.4, 1.1] | 3.3 [−0.8, 6.9] | 1.5 [−1.2, 4.2] |
+  | Bishops | 1.4 [0.1, 2.6] | 0.8 [−0.5, 2.0] | 2.8 [−0.9, 5.8] | 2.0 [−0.5, 4.7] |
+
+  Pawns, knights, rooks, queens and the imbalance include zero in every
+  band.
+- **Basilisk into the donor,** `sf_16`, over all rows: material 20.0
+  [14.9, 24.4], passed 19.9 [16.4, 23.8], tempo 14.3 [10.5, 18.1], the
+  tables 5.0, king 4.5, pawns 3.8, threats 1.5, all excluding zero.
+  Against `9587eeeb`, which has a tempo, Basilisk's tempo adds 2.2.
+- **What it says:**
+  - **The static case for space and mobility is gone on the refitted
+    head.** At phase 18–24 the donor's space adds 3.4 and its mobility
+    2.1, both including zero, against BAS-E58's 47.0 and 29.6.
+  - **King safety is the largest donor gain in every band but the
+    endgame,** and at phase 18–24 its interval is clear of space's and
+    mobility's. It touches threats': clear by 0.2 against `sf_16`,
+    overlapping by 0.3 against `9587eeeb`.
+  - In the endgame band the passers and the winnable term lead, as in
+    C.0.
+  - Basilisk's passers, material and tables carry what the donor's
+    whole score lacks: the union's case, again.
+- **Not yet shown: that the refit is the cause.** BAS-E58 was a
+  prototype on another sample. The control is this tool on this sample
+  with the header before the refit; it is run before the comparison
+  with BAS-E58 is relied on.
+- Disposition: COMPLETE, a static read. It is the tiebreak and one half
+  of C-110's test (the packet's §4); BAS-O14's games decide the order.
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- Space the largest gain at phase 18–24 (0.6): **miss.** King safety
+  leads at 16.2; space is 3.4.
+- Space's gain at least 25 (0.6): **miss,** 3.4 with zero inside.
+- The passers' gain over all rows includes zero (0.7): **miss,** 5.4
+  [3.4, 7.6].
+- A Basilisk family's gain into the donor excludes zero (0.8): hit.
+- What the model had wrong: it carried C.0's family residuals across the
+  refit. A whole-surface fit moves the tables and the mobility values,
+  and a screen of one family against the whole score sees what they now
+  hold. C.0 named this as its first competing reading.
+- Conditional lesson: a static ranking is of one header. It is read
+  again after every refit before it orders anything.

@@ -235,3 +235,24 @@ single reads must show it.
 ## 8. Results
 
 Appended after exposure.
+
+### 8.1 The screen (BAS-E62), read 2026-11-24
+
+The table is in BAS-E62. Against this packet:
+- **The tiebreak now points at king safety.** At phase 18–24 its gain,
+  16.2 [8.5, 24.1], is clear of space's 3.4 [−0.4, 7.8] and mobility's
+  2.1 [−0.8, 5.3]. It touches threats' 4.7 [0.5, 8.3], and overlaps it by
+  0.3 against `9587eeeb`. Over all rows it is clear of
+  the passers' 5.4 [3.4, 7.6]. By rule 3, a tie in games between C.4 and
+  an earlier cluster puts C.4 first.
+- **C-110's static half** (rule 5) holds for space, mobility, pawn
+  structure, knights, rooks and queens: the donor's gain includes zero
+  in every band. Each closes `NO_CHANGE` if its game meter also includes
+  zero. It does not hold for king safety, threats, the passers or the
+  bishops.
+- **Three of the four screen predictions missed** (§5). They rested on
+  C.0's residuals surviving the refit, and so do this packet's game
+  predictions for M(7), M(2) and M(1). Those stay frozen and are scored
+  as written. Read today they would be lower.
+- One control is owed before the fall from 47.0 is called the refit's:
+  the same tool and sample with the header before the refit.
