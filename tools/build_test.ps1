@@ -10,6 +10,7 @@
       Release  production UCI surface, for strength and release-equivalent arms
       Tune     tunable search/eval options, for SPSA and parameter probes
       Diag     diagnostics only, without the tunable parameter surface
+      Ablate  matched evaluation-family removal mask, without other instruments
       Profile  the Release surface plus line tables with inline records, for
                tools/profile.ps1; code generation is unchanged
 
@@ -48,7 +49,7 @@
 #>
 param(
     [Parameter(Mandatory)][string]$Suffix,
-    [Parameter(Mandatory)][ValidateSet('Release', 'Tune', 'Diag', 'Profile')][string]$Flavor,
+    [Parameter(Mandatory)][ValidateSet('Release', 'Tune', 'Diag', 'Ablate', 'Profile')][string]$Flavor,
     [string]$ArmOption = '',
     [ValidateSet('', 'On', 'Off')][string]$Arm = '',
     [ValidateRange(1, 128)][int]$BenchDepth = 13,
@@ -108,20 +109,26 @@ function Assert-UciSurface {
     $hasDiag = $Output -match '(?m)^option name Diag '
     # A tune build exposes the search coordinates.
     $hasTune = $Output -match '(?m)^option name CoreRfpPerPly '
+    $hasAblate = $Output -match '(?m)^option name EvalAblationMask '
     switch ($ExpectedFlavor) {
         { $_ -in 'Release', 'Profile' } {
-            if ($hasDiag -or $hasTune) {
-                throw "$ExpectedFlavor flavor exposes diagnostic or tuning options."
+            if ($hasDiag -or $hasTune -or $hasAblate) {
+                throw "$ExpectedFlavor flavor exposes diagnostic, tuning or ablation options."
             }
         }
         'Tune' {
-            if (-not ($hasDiag -and $hasTune)) {
+            if (-not ($hasDiag -and $hasTune) -or $hasAblate) {
                 throw 'Tune flavor does not expose its complete UCI surface.'
             }
         }
         'Diag' {
-            if (-not $hasDiag -or $hasTune) {
+            if (-not $hasDiag -or $hasTune -or $hasAblate) {
                 throw 'Diag flavor must expose diagnostics but not tuning options.'
+            }
+        }
+        'Ablate' {
+            if ($hasDiag -or $hasTune -or -not $hasAblate) {
+                throw 'Ablate flavor must expose only the ablation instrument.'
             }
         }
     }
@@ -133,6 +140,7 @@ $TestEnginesDir = [IO.Path]::GetFullPath($TestEnginesDir)
 $flavorLower = $Flavor.ToLowerInvariant()
 $tune = if ($Flavor -eq 'Tune') { 'ON' } else { 'OFF' }
 $diagnostic = if ($Flavor -eq 'Diag') { 'ON' } else { 'OFF' }
+$ablation = if ($Flavor -eq 'Ablate') { 'ON' } else { 'OFF' }
 $profileSymbols = if ($Flavor -eq 'Profile') { 'ON' } else { 'OFF' }
 $armState = if ($Arm) { $Arm.ToUpperInvariant() } else { 'OFF' }
 $armLabel = if ($ArmOption) { "$ArmOption=$armState" } else { 'none' }
@@ -158,7 +166,7 @@ try {
         $configureArgs = @(
             '--fresh', '--preset', 'release', '-B', "build/$buildDir",
             "-DCOMP=$comp", '-DPORTABLE_BUILD=ON', '-DUSE_PEXT=ON', '-DTEXEL=OFF',
-            "-DTUNE=$tune", "-DDIAGNOSTIC=$diagnostic", "-DPROFILE_SYMBOLS=$profileSymbols",
+            "-DTUNE=$tune", "-DDIAGNOSTIC=$diagnostic", "-DABLATION=$ablation", "-DPROFILE_SYMBOLS=$profileSymbols",
             "-DBASILISK_PGO_ARM_OPTION=$ArmOption", "-DBASILISK_PGO_ARM_STATE=$armState"
         )
         if ($ArmOption) { $configureArgs += "-D$ArmOption=$armState" }
@@ -201,11 +209,11 @@ try {
             "cmake --preset release -B build/$buildDir -DCOMP=$comp -DNATIVE=ON; cmake --build build/$buildDir --target pgo")
     } else {
         $nameFlavor = if ($Flavor -eq 'Release') { "pext$gccSuffix-pgo" } else { "pext-$flavorLower$gccSuffix-pgo" }
-        $command = "cmake --preset release -B build/$buildDir -DCOMP=$comp -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DTUNE=$tune -DDIAGNOSTIC=$diagnostic -DPROFILE_SYMBOLS=$profileSymbols" +
+        $command = "cmake --preset release -B build/$buildDir -DCOMP=$comp -DUSE_PEXT=ON -DPORTABLE_BUILD=ON -DTUNE=$tune -DDIAGNOSTIC=$diagnostic -DABLATION=$ablation -DPROFILE_SYMBOLS=$profileSymbols" +
             $(if ($ArmOption) { " -D$ArmOption=$armState" } else { '' }) +
             "; cmake --build build/$buildDir --target pgo"
         $outputs += , @("build/$buildDir$pgoDirSuffix/basilisk$exeSuffix", $nameFlavor, 'pext',
-            "release (COMP=$comp, USE_PEXT=ON, PORTABLE_BUILD=ON, TUNE=$tune, DIAGNOSTIC=$diagnostic, PROFILE_SYMBOLS=$profileSymbols, PGO=USE)",
+            "release (COMP=$comp, USE_PEXT=ON, PORTABLE_BUILD=ON, TUNE=$tune, DIAGNOSTIC=$diagnostic, ABLATION=$ablation, PROFILE_SYMBOLS=$profileSymbols, PGO=USE)",
             $command)
     }
 
