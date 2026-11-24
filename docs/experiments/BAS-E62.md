@@ -93,3 +93,60 @@ A static gain is not Elo. The games of BAS-O14 decide the order.
   hold. C.0 named this as its first competing reading.
 - Conditional lesson: a static ranking is of one header. It is read
   again after every refit before it orders anything.
+
+#### CONTROL — 2026-11-24, after the read (not registered)
+
+Asked: is the fall from BAS-E58's 47.0 the refit's doing? Evidence and
+scripts: `tools/results/c210-screen-control/`.
+
+- **The registered control: the header before the refit, same rows.**
+  The tuner is built from the pre-refit header; `sample.csv` and both
+  donors' arrays are identical to the read's.
+  - Expected before it ran: space at least 25 and mobility at least 15
+    at phase 18–24, 0.7 each. **Both missed:** space 5.7 [0.9, 11.2],
+    mobility 7.1 [1.8, 13.2].
+  - So the refit is not the cause. On these rows space never read.
+- **Not the form** (`offset_check.py`). BAS-E58's final form also fitted
+  Basilisk's coefficient. With a fixed offset instead, space reads 0.7
+  on these rows.
+- **Not the code** (`c0_sample_by_ply.py`). The same script gives this
+  tool's figures on corpus A, and on C.0's rows it gives 50.8, 29.6 and
+  11.8, BAS-E58's `sf_16` figures exactly.
+- **Not White's start** (`intercept_check.py`). With an intercept in
+  base and model, space still adds 46.0 on C.0's rows.
+- **Not the first moves.** By ply on C.0's rows, space adds 53.1 at
+  9–20, 61.4 at 21–40 and 31.4 at 41–60.
+- **It is the sample.** C.0's rows are UHO gate games at `3+0.03`.
+  Corpus A is self-play at 8,000 nodes from a phase-balanced start pool.
+- **C.0's rows with the head's evaluation** (`c0_sample_head.py`;
+  241,887 regular rows, 25,949 games; the old header's scores reproduce
+  C.0's on all 244,883 regular rows). Donor `sf_16` into Basilisk, the
+  header before the refit → the head, with the head's 95% interval:
+
+  | Family | All rows | Phase 0–9 | Phase 10–17 | Phase 18–24 |
+  |---|---|---|---|---|
+  | Space | 9.6 → 12.1 [9.8, 14.6] | — | 0.5 → 0.7 | 50.8 → **40.4** [32.7, 49.1] |
+  | Mobility | 3.5 → 4.5 [3.3, 5.9] | 0.5 → 0.6 | 3.9 → 4.5 | 29.6 → **13.4** [9.7, 17.4] |
+  | King safety | 5.2 → 7.7 [6.2, 9.3] | 0.8 → 1.1 | 15.9 → **19.4** [14.2, 24.6] | 11.8 → 10.8 [7.3, 14.9] |
+  | Winnable | 2.7 → 9.9 [8.5, 11.5] | 14.8 → **20.3** [17.7, 23.2] | 0.0 → 0.7 | 3.1 → 1.1 |
+  | Pawns | 6.8 → 3.0 [1.9, 4.1] | 11.8 → 4.5 | 7.8 → 5.4 | 10.0 → 2.3 [0.8, 4.1] |
+  | Passed | 0.2 → 2.3 [1.5, 3.2] | 1.5 → 5.8 | 1.6 → 0.4 | 1.3 → 0.7 |
+  | Threats | 1.4 → 0.1 | 0.2 → 0.1 | 1.8 → 0.9 | 4.1 → 0.1 |
+  | Imbalance | 2.6 → 4.5 [2.9, 5.8] | 0.8 → 2.6 | 6.7 → 9.9 [5.7, 14.2] | 3.3 → 5.4 |
+
+  The head's own loss on these rows is 48.0e-4 below the old header's.
+- **Corrections to the RESULT above:**
+  - "The static case for space and mobility is gone" holds on corpus A
+    only. On gate games the donor's space still adds 40.4 at phase
+    18–24 after the refit, and it leads there, clear of mobility and of
+    king safety.
+  - The calibration's cause was wrong. The model did not fail by
+    carrying C.0's residuals across the refit; the registered rows were
+    not C.0's kind of rows. The three misses stand as scored.
+- **Findings:**
+  - A static ranking belongs to its sample as well as to its header.
+    The two samples rank the first family differently.
+  - Corpus A carries almost none of what the donor's space predicts in
+    gate games. Whether the starts or the search depth make the
+    difference is not separated. A space term fitted on corpus A alone
+    may be fitted to nothing; that is C.3.1's first question.

@@ -256,3 +256,42 @@ The table is in BAS-E62. Against this packet:
   as written. Read today they would be lower.
 - One control is owed before the fall from 47.0 is called the refit's:
   the same tool and sample with the header before the refit.
+
+### 8.2 The screen's control, 2026-11-24
+
+BAS-E62's CONTROL block has the reads. In short:
+- On corpus A's rows space never read: 5.7 at phase 18–24 on the header
+  before the refit. The refit did not remove it.
+- On C.0's gate-game rows it reads 50.8 before the refit and 40.4
+  [32.7, 49.1] with the head. Mobility goes 29.6 to 13.4 [9.7, 17.4],
+  and king safety 11.8 to 10.8 [7.3, 14.9].
+- The form, the code, an intercept and the ply were each ruled out. The
+  difference is the sample: UHO gate games at `3+0.03` against self-play
+  at 8,000 nodes from a start pool.
+- §8.1's "read today they would be lower" is withdrawn. On the rows the
+  games are played from, C.0's static case stands after the refit.
+
+## 9. Amendment 1 — 2026-11-24, after the screen and before any game
+
+The registered screen sample was the fit's rows. The tiebreak is about
+games, and the two samples disagree on the first family. So the screen
+may decide less than registered, never more.
+
+- **Rule 3, amended.** A tie in games is broken only when both samples
+  agree: corpus A's validation rows (BAS-E62's read) and C.0's gate-game
+  rows with the head's evaluation (BAS-E62's control). Otherwise the
+  present order stands.
+- **Rule 5, amended.** C-110's static half needs the donor's gain to
+  include zero in every band on both samples.
+- Nothing else changes: the games, their order, the predictions and
+  rules 1, 2, 4, 6, 7 and 8.
+
+Where the samples stand, for the rule's use:
+- **C.3 against C.4: they disagree.** Corpus A puts king safety ahead at
+  phase 18–24; the gate games put space ahead. A tie in games keeps C.3
+  first.
+- **C.4 against C.5: they agree.** King safety is clear of the pawns and
+  of the passers over all rows on both. A tie keeps C.4 ahead.
+- **C-110's static half** now holds only for the queens' and the
+  rooks' terms. Space, mobility and pawn structure exclude zero on the
+  gate games.

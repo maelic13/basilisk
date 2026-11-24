@@ -2001,6 +2001,16 @@ has lost games in both engines (BAS-X02).
       - Prepared 2026-11-24: `tools/run_c210_reads.py`,
         `tools/diag/c210_table.py` and the head's build. The games
         are the maintainer's.
+      **The screen's control, 2026-11-24** (BAS-E62's CONTROL; the
+      packet's §8.2 and §9):
+      - The read above is of corpus A only. On C.0's gate-game rows the
+        donor's space adds 40.4 [32.7, 49.1] to the head's score at
+        phase 18–24 (50.8 before the refit), and mobility 13.4 (29.6).
+      - On corpus A's rows space read 5.7 before the refit too. The
+        refit did not remove it; the sample never held it.
+      - Amendment 1, before any game: the screen breaks a tie only when
+        both samples agree, and C-110's static half needs both. On C.3
+        against C.4 they disagree, so a tie in games keeps C.3 first.
 - [ ] **C.3** Mobility, space and threats cluster
   The first family (maintainer, 2026-11-18, on C.0's evidence; C.2.10
   confirms the order from games). The donor's space, which Basilisk does
@@ -2038,6 +2048,17 @@ has lost games in both engines (BAS-X02).
   - C.2.8's fit holds count 0 at the seed, and the tuner's monotone chain
     then stops count 1 at it. C.3.1 settles the two entries: a prior, a
     merged low-count entry, or rows that reach them.
+  C.2.10 inputs (2026-11-24, BAS-E62's control):
+  - On C.0's gate-game rows (UHO, `3+0.03`) the donor's space adds 40.4
+    [32.7, 49.1] to the refitted head's score at phase 18–24, and its
+    mobility 13.4 [9.7, 17.4]. Before the refit they read 50.8 and 29.6.
+  - On corpus A's validation rows the same reads are 3.4 and 2.1, and
+    5.7 and 7.1 on the header before the refit. Corpus A is self-play at
+    8,000 nodes from a phase-balanced start pool.
+  - So a space term fitted on corpus A alone may be fitted to nothing.
+    C.3.1 decides which rows the cluster's refit reads before any value
+    is fitted, and separates the two candidate causes: the starts and
+    the search depth.
     - [ ] **C.3.1** `[R3]` Cluster research and handoff
       Stages 1 to 3 of the cluster shape, from C.0's contract (its packet
       §8.2) and C.2.10's order. It answers C.0's three competing readings
@@ -2572,7 +2593,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.10 | RESEARCH | R3 | Registered and prepared 2026-11-24; the screen is read (king safety leads, space and mobility include zero); the games are owed |
+| C.2.10 | RESEARCH | R3 | Registered and prepared 2026-11-24; the screen is read and its two samples disagree (Amendment 1); the games are owed |
 | C.3.1 | RESEARCH | R3 | Not started; C.0's contract is its packet §8.2 |
 | C.3.2 | RESEARCH | I2 | Not started |
 | C.3.3 | RESEARCH | R2 | Not started |

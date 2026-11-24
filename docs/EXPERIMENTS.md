@@ -414,7 +414,7 @@ future work needs to re-open either cluster is now counted rather than guessed.
 - [BAS-E59](experiments/BAS-E59.md) — C.2.8.4: the whole-surface refit on corpus A against the head, SPRT `[0,3]`. — ACCEPTED (maintainer, over the bracket veto): +85.2 ± 14.9 Elo at 1,110 games; the veto's 8 endgame discards go to C.7
 - [BAS-E60](experiments/BAS-E60.md) — C.2.8.4: the Syzygy label contract, B's fit against A's, a conditional SPRT `[0,3]`. — CLOSED, CONDITION FAILED on run 2 (label-specific advantage +1.7e-6 against 2e-5); no games
 - [BAS-E61](experiments/BAS-E61.md) — C.2.8.4 companion: the refit against the head before the top-tier repair, SPRT `[0,3]`. — COMPLETE: H1 at 1,164 games, +74.6 ± 13.3 Elo against the old head (BAS-E59 read +85.2 against the repaired one)
-- [BAS-E62](experiments/BAS-E62.md) — C.2.10 family screen both ways on the refitted head, both donors. — COMPLETE: king safety is the largest donor gain (16.2 at phase 18–24, 29.4 at 10–17); space 3.4 and mobility 2.1 include zero, against BAS-E58's 47.0 and 29.6; three of four predictions missed
+- [BAS-E62](experiments/BAS-E62.md) — C.2.10 family screen both ways on the refitted head, both donors. — COMPLETE: on corpus A king safety leads (16.2 at phase 18–24) and space reads 3.4; the control shows that is the sample, not the refit: on C.0's gate games space still adds 40.4 with the head (50.8 before); three of four predictions missed
 
 - [BAS-X11](experiments/BAS-X11.md) — current standing, 12,000-game Colosseum round robin — see entry
 
