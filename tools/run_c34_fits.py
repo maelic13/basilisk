@@ -2,8 +2,10 @@
 """Frozen launcher for C.3.4's matched static fits on corpus A: one-k and k-phase.
 
 The contract is analysis/c31_rebuild_2026-11-25.md (§11 and Amendment 7) and
-the registration docs/experiments/BAS-O17.md. Both arms run tools/texel/fit.py
-with --rebuild and --relevel-material from a clean tree on corpus A:
+the registration docs/experiments/BAS-O17.md (Run 2, Amendment 1: widened knob
+bounds; Run 1 artifacts preserved in c34-fit-onek and c34-fit-kphase). Both arms
+run tools/texel/fit.py with --rebuild and --relevel-material from a clean tree
+on corpus A:
 
   one-k    one frozen constant K fitted on validation at the seed
   k-phase  K linear in phase, fitted once on validation at the seed and frozen
@@ -53,8 +55,8 @@ COMMON_ARGS = [
 ]
 
 ARMS = {
-    "one-k": {"k_mode": "single", "out": RESULTS / "c34-fit-onek"},
-    "k-phase": {"k_mode": "phase", "out": RESULTS / "c34-fit-kphase"},
+    "one-k": {"k_mode": "single", "out": RESULTS / "c34-fit-onek-r2"},
+    "k-phase": {"k_mode": "phase", "out": RESULTS / "c34-fit-kphase-r2"},
 }
 ORDER = ["one-k", "k-phase"]
 

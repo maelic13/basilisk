@@ -157,10 +157,10 @@ def manifest_for(rows: list[Row]) -> Path:
 RB_KING_DANGER_KNOBS = {
     "KdWeakRing": (0, 400), "KdUnsafeChecks": (0, 300), "KdBlockers": (0, 200),
     "KdKingAttacks": (0, 150), "KdFlankAttack": (0, 8), "KdNoQueen": (0, 1800),
-    "KdKnightDefender": (0, 200), "KdShelter": (0, 16), "KdFlankDefence": (0, 10),
+    "KdKnightDefender": (0, 500), "KdShelter": (0, 16), "KdFlankDefence": (0, 40),
     "KdOffset": (-200, 200),
 }
-RB_IMBALANCE_REACH = 600  # each coefficient moves at most this far from its seed
+RB_IMBALANCE_REACH = 1500  # each coefficient moves at most this far from its seed
 
 
 def rb_connected_cell(sub: int) -> tuple[int, int, int, int]:

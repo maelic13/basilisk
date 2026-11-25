@@ -782,42 +782,42 @@ index	group	sub	seed	class	stage	anchor	lo	hi	step	reason
 779	PstEgKing	61	73	free	linear	mean:PstEgKing				a traced linear term; each side's king reads the table once with opposite signs, so the table's level is invisible and its mean is held
 780	PstEgKing	62	59	free	linear	mean:PstEgKing				a traced linear term; each side's king reads the table once with opposite signs, so the table's level is invisible and its mean is held
 781	PstEgKing	63	11	free	linear	mean:PstEgKing				a traced linear term; each side's king reads the table once with opposite signs, so the table's level is invisible and its mean is held
-782	ImbOurs	0	1438	free	kingsafety		838	2038	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-783	ImbOurs	1	40	free	kingsafety		-560	640	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-784	ImbOurs	2	38	free	kingsafety		-562	638	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-785	ImbOurs	3	32	free	kingsafety		-568	632	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-786	ImbOurs	4	255	free	kingsafety		-345	855	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-787	ImbOurs	5	-62	free	kingsafety		-662	538	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-788	ImbOurs	6	0	free	kingsafety		-600	600	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-789	ImbOurs	7	104	free	kingsafety		-496	704	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-790	ImbOurs	8	4	free	kingsafety		-596	604	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-791	ImbOurs	9	0	free	kingsafety		-600	600	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-792	ImbOurs	10	-26	free	kingsafety		-626	574	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-793	ImbOurs	11	-2	free	kingsafety		-602	598	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-794	ImbOurs	12	47	free	kingsafety		-553	647	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-795	ImbOurs	13	105	free	kingsafety		-495	705	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-796	ImbOurs	14	-208	free	kingsafety		-808	392	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-797	ImbOurs	15	-189	free	kingsafety		-789	411	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-798	ImbOurs	16	24	free	kingsafety		-576	624	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-799	ImbOurs	17	117	free	kingsafety		-483	717	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-800	ImbOurs	18	133	free	kingsafety		-467	733	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-801	ImbOurs	19	-134	free	kingsafety		-734	466	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-802	ImbOurs	20	-6	free	kingsafety		-606	594	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-803	ImbTheirs	0	36	free	kingsafety		-564	636	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-804	ImbTheirs	1	9	free	kingsafety		-591	609	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-805	ImbTheirs	2	63	free	kingsafety		-537	663	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-806	ImbTheirs	3	59	free	kingsafety		-541	659	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-807	ImbTheirs	4	65	free	kingsafety		-535	665	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-808	ImbTheirs	5	42	free	kingsafety		-558	642	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-809	ImbTheirs	6	46	free	kingsafety		-554	646	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-810	ImbTheirs	7	39	free	kingsafety		-561	639	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-811	ImbTheirs	8	24	free	kingsafety		-576	624	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-812	ImbTheirs	9	-24	free	kingsafety		-624	576	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-813	ImbTheirs	10	97	free	kingsafety		-503	697	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-814	ImbTheirs	11	100	free	kingsafety		-500	700	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-815	ImbTheirs	12	-42	free	kingsafety		-642	558	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-816	ImbTheirs	13	137	free	kingsafety		-463	737	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
-817	ImbTheirs	14	268	free	kingsafety		-332	868	120	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+782	ImbOurs	0	1438	free	kingsafety		-62	2938	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+783	ImbOurs	1	40	free	kingsafety		-1460	1540	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+784	ImbOurs	2	38	free	kingsafety		-1462	1538	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+785	ImbOurs	3	32	free	kingsafety		-1468	1532	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+786	ImbOurs	4	255	free	kingsafety		-1245	1755	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+787	ImbOurs	5	-62	free	kingsafety		-1562	1438	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+788	ImbOurs	6	0	free	kingsafety		-1500	1500	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+789	ImbOurs	7	104	free	kingsafety		-1396	1604	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+790	ImbOurs	8	4	free	kingsafety		-1496	1504	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+791	ImbOurs	9	0	free	kingsafety		-1500	1500	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+792	ImbOurs	10	-26	free	kingsafety		-1526	1474	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+793	ImbOurs	11	-2	free	kingsafety		-1502	1498	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+794	ImbOurs	12	47	free	kingsafety		-1453	1547	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+795	ImbOurs	13	105	free	kingsafety		-1395	1605	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+796	ImbOurs	14	-208	free	kingsafety		-1708	1292	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+797	ImbOurs	15	-189	free	kingsafety		-1689	1311	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+798	ImbOurs	16	24	free	kingsafety		-1476	1524	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+799	ImbOurs	17	117	free	kingsafety		-1383	1617	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+800	ImbOurs	18	133	free	kingsafety		-1367	1633	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+801	ImbOurs	19	-134	free	kingsafety		-1634	1366	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+802	ImbOurs	20	-6	free	kingsafety		-1506	1494	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+803	ImbTheirs	0	36	free	kingsafety		-1464	1536	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+804	ImbTheirs	1	9	free	kingsafety		-1491	1509	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+805	ImbTheirs	2	63	free	kingsafety		-1437	1563	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+806	ImbTheirs	3	59	free	kingsafety		-1441	1559	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+807	ImbTheirs	4	65	free	kingsafety		-1435	1565	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+808	ImbTheirs	5	42	free	kingsafety		-1458	1542	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+809	ImbTheirs	6	46	free	kingsafety		-1454	1546	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+810	ImbTheirs	7	39	free	kingsafety		-1461	1539	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+811	ImbTheirs	8	24	free	kingsafety		-1476	1524	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+812	ImbTheirs	9	-24	free	kingsafety		-1524	1476	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+813	ImbTheirs	10	97	free	kingsafety		-1403	1597	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+814	ImbTheirs	11	100	free	kingsafety		-1400	1600	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+815	ImbTheirs	12	-42	free	kingsafety		-1542	1458	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+816	ImbTheirs	13	137	free	kingsafety		-1363	1637	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
+817	ImbTheirs	14	268	free	kingsafety		-1232	1768	300	an imbalance knob; the polynomial is truncated to a sixteenth, so no linear trace reaches it
 818	DoubledMg	0	11	free	linear					a traced linear term
 819	DoubledEg	0	56	free	linear					a traced linear term
 820	IsolatedMg	0	5	free	linear					a traced linear term
@@ -1242,9 +1242,9 @@ index	group	sub	seed	class	stage	anchor	lo	hi	step	reason
 1239	KdKingAttacks	0	69	free	kingsafety		0	150	15	a king-danger knob; the index is squared, so no linear trace reaches it
 1240	KdFlankAttack	0	3	free	kingsafety		0	8	1	a king-danger knob; the index is squared, so no linear trace reaches it
 1241	KdNoQueen	0	873	free	kingsafety		0	1800	180	a king-danger knob; the index is squared, so no linear trace reaches it
-1242	KdKnightDefender	0	100	free	kingsafety		0	200	20	a king-danger knob; the index is squared, so no linear trace reaches it
+1242	KdKnightDefender	0	100	free	kingsafety		0	500	50	a king-danger knob; the index is squared, so no linear trace reaches it
 1243	KdShelter	0	6	free	kingsafety		0	16	1	a king-danger knob; the index is squared, so no linear trace reaches it
-1244	KdFlankDefence	0	4	free	kingsafety		0	10	1	a king-danger knob; the index is squared, so no linear trace reaches it
+1244	KdFlankDefence	0	4	free	kingsafety		0	40	4	a king-danger knob; the index is squared, so no linear trace reaches it
 1245	KdOffset	0	37	free	kingsafety		-200	200	40	a king-danger knob; the index is squared, so no linear trace reaches it
 1246	PawnlessFlankMg	0	17	free	linear					a traced linear term
 1247	PawnlessFlankEg	0	95	free	linear					a traced linear term
