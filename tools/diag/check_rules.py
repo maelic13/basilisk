@@ -36,17 +36,15 @@ from pathlib import Path
 CORE = "AGENTS.md"
 MODULE_DIR = "agents"
 
-# What each tool loads at the start of every session, by path or directory
+# The tools these rules are kept for (maintainer, 2026-11-25): Claude, Codex,
+# Antigravity and Gemini CLI. No other tool's files or limits are considered.
+# What each loads at the start of every session, by path or directory
 # under the root. A tool that finds none of its own files falls back to the
 # core, which is why the core alone is a set as well.
 TOOL_FILES = {
     "Claude Code": ("CLAUDE.md", "CLAUDE.local.md", ".claude/CLAUDE.md", ".claude/rules/"),
+    "Codex": ("AGENTS.override.md",),
     "Gemini CLI and Antigravity": ("GEMINI.md", ".agent/rules/", ".agents/rules/"),
-    "Copilot": (".github/copilot-instructions.md", ".github/instructions/"),
-    "Cursor": (".cursorrules", ".cursor/rules/"),
-    "Windsurf": (".windsurfrules", ".windsurf/rules/"),
-    "Junie": (".junie/guidelines.md",),
-    "Cline": (".clinerules", ".clinerules/"),
 }
 # Names a tool loads from the directory an agent works in, wherever it is.
 RULE_FILE_NAMES = {"AGENTS.md", "AGENTS.override.md", "CLAUDE.md", "CLAUDE.local.md", "GEMINI.md"}
