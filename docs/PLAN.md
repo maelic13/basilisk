@@ -2216,10 +2216,30 @@ has lost games in both engines (BAS-X02).
         2.0027 against the accepted 2.0043. The surface has 1,262
         free linear slots and 59 knobs, and `rank` is full.
       - An oracle built from the new arm reads its value exactly.
-    - [ ] **C.3.3** `[R2]` Independent review
+    - [x] **C.3.3** `[R2]` Independent review
       A separate session rebuilds both arms, reproduces the fingerprints
       and the donor fixture, and checks the code against the handoff
       clause by clause. Its acceptance is recorded before the refit.
+      **Closed 2026-11-25** (the rebuild packet's *Review*): accepted,
+      with named follow-ups. No defect in either arm's engine code.
+      - From a clean clone both arms reproduce: `bench 13` 3,359,329
+        and 3,717,775, 59 of 59 suites each, the fixture's hash from
+        the pinned producer, parity and its failure on one changed
+        seed, `--verify` and the hashes on corpus A's validation
+        rows, and the surface check.
+      - The new arm is the packet's §6 as amended, clause by clause,
+        and its families are the reference's. The off arm's changes
+        are behaviour-neutral.
+      - The record's played hash was the one at S = 628. At S = 620
+        it is e87063a94a5a10bc, equal to the served hash.
+      - Follow-ups, none before the seed read:
+        - the structure constants and S are outside the surface
+          manifest, so C.3.5's audit and C.6 take them from the
+          record;
+        - the fixture reaches the clamp on no row;
+        - the Diag counters of the pawn cache, the lazy exits and the
+          clamp report nothing on the new arm, and the knobs' bounds
+          are implementation's: both are C.3.4's to settle.
     - [ ] **C.3.4** `[V]` Seed-value read and fit
       The port at converted seed values against the head, with its speed
       and tree reads: the donor's evaluation in Basilisk's own search.
@@ -2647,7 +2667,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.3.3 | RESEARCH | R2 | Not started |
 | C.3.4 | RESEARCH | V | Not started |
 | C.3.5 | RESEARCH | V | Not started |
 | C.3.6 | RESEARCH | R2 | Not started |
