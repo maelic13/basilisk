@@ -45,6 +45,10 @@ struct ImbalanceEntry {
 static constexpr int IMBALANCE_TABLE_BITS = 10;
 
 #ifdef BASILISK_EVAL_REBUILD
+// The rebuilt evaluation's one conversion from the classical form's units to
+// centipawns, cp = v * S / 1024 truncated: a gauge, fixed once, not fitted.
+inline constexpr int EVAL_REBUILD_CONVERSION_S = 628;
+
 // The rebuilt evaluation's intermediates for one position, in the classical
 // form's units and White's view, as the reference producer prints them
 // (tests/fixtures/eval_reference.tsv): what the parity test compares. Pairs

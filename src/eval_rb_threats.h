@@ -16,6 +16,7 @@ Score threat_terms(const Board& b, const Maps& m) {
     constexpr Color Them = Us == WHITE ? BLACK : WHITE;
     constexpr Bitboard RELATIVE_RANK_3 = Us == WHITE ? rank_bb(2) : rank_bb(5);
     const EvalParams& p = g_eval_params;
+    [[maybe_unused]] constexpr int SG = SIGN<Us>;
     Score score;
 
     const Bitboard non_pawn_enemies = b.occupancy_bb(Them) & ~pieces(b, PAWN);
@@ -29,37 +30,46 @@ Score threat_terms(const Board& b, const Maps& m) {
         for (Bitboard bb = (defended | weak) & (m.attacked_by[Us][KNIGHT] | m.attacked_by[Us][BISHOP]); bb; ) {
             const PieceType pt = type_of(b.piece_on(pop_lsb(bb)));
             score += Score{p.threat_by_minor_mg[pt], p.threat_by_minor_eg[pt]};
+            RB_TR2(ThreatByMinor, pt, SG);
         }
         for (Bitboard bb = weak & m.attacked_by[Us][ROOK]; bb; ) {
             const PieceType pt = type_of(b.piece_on(pop_lsb(bb)));
             score += Score{p.threat_by_rook_mg[pt], p.threat_by_rook_eg[pt]};
+            RB_TR2(ThreatByRook, pt, SG);
         }
-        if (weak & m.attacked_by[Us][KING])
+        if (weak & m.attacked_by[Us][KING]) {
             score += Score{p.threat_by_king_mg, p.threat_by_king_eg};
+            RB_TR2(ThreatByKing, 0, SG);
+        }
 
         const Bitboard hanging = ~m.attacked_by[Them][ALL_PIECES] | (non_pawn_enemies & m.attacked_by2[Us]);
         score += Score{p.hanging_mg, p.hanging_eg} * popcount(weak & hanging);
+        RB_TR2(Hanging, 0, SG * popcount(weak & hanging));
 
         // A weak piece their queen alone protects.
         score += Score{p.weak_queen_protection_mg, p.weak_queen_protection_eg}
                * popcount(weak & m.attacked_by[Them][QUEEN]);
+        RB_TR2(WeakQueenProtection, 0, SG * popcount(weak & m.attacked_by[Them][QUEEN]));
     }
 
     // Squares their pieces could use that we contest.
     const Bitboard restricted = m.attacked_by[Them][ALL_PIECES] & ~strongly_protected
                               & m.attacked_by[Us][ALL_PIECES];
     score += Score{p.restricted_piece_mg, p.restricted_piece_eg} * popcount(restricted);
+    RB_TR2(RestrictedPiece, 0, SG * popcount(restricted));
 
     // Our relatively safe pawns attacking their pieces, now or after a push.
     Bitboard safe = ~m.attacked_by[Them][ALL_PIECES] | m.attacked_by[Us][ALL_PIECES];
     const Bitboard by_safe_pawn = pawn_attacks<Us>(b.piece_bb(Us, PAWN) & safe) & non_pawn_enemies;
     score += Score{p.threat_by_safe_pawn_mg, p.threat_by_safe_pawn_eg} * popcount(by_safe_pawn);
+    RB_TR2(ThreatBySafePawn, 0, SG * popcount(by_safe_pawn));
 
     Bitboard pushes = shift_up<Us>(b.piece_bb(Us, PAWN)) & ~b.all_pieces();
     pushes |= shift_up<Us>(pushes & RELATIVE_RANK_3) & ~b.all_pieces();
     pushes &= ~m.attacked_by[Them][PAWN] & safe;
     score += Score{p.threat_by_pawn_push_mg, p.threat_by_pawn_push_eg}
            * popcount(pawn_attacks<Us>(pushes) & non_pawn_enemies);
+    RB_TR2(ThreatByPawnPush, 0, SG * popcount(pawn_attacks<Us>(pushes) & non_pawn_enemies));
 
     // Next-move threats against their only queen, doubled when it is the
     // only queen on the board.
@@ -70,11 +80,13 @@ Score threat_terms(const Board& b, const Maps& m) {
 
         const Bitboard knights = m.attacked_by[Us][KNIGHT] & KnightAttacks[s];
         score += Score{p.knight_on_queen_mg, p.knight_on_queen_eg} * (popcount(knights & safe) * factor);
+        RB_TR2(KnightOnQueen, 0, SG * popcount(knights & safe) * factor);
 
         const Bitboard sliders = (m.attacked_by[Us][BISHOP] & bishop_attacks(s, b.all_pieces()))
                                | (m.attacked_by[Us][ROOK] & rook_attacks(s, b.all_pieces()));
         score += Score{p.slider_on_queen_mg, p.slider_on_queen_eg}
                * (popcount(sliders & safe & m.attacked_by2[Us]) * factor);
+        RB_TR2(SliderOnQueen, 0, SG * popcount(sliders & safe & m.attacked_by2[Us]) * factor);
     }
     return score;
 }
@@ -88,6 +100,7 @@ template<Color Us>
 Score passer_terms(const Board& b, const PawnEntry& e, const Maps& m) {
     constexpr Color Them = Us == WHITE ? BLACK : WHITE;
     const EvalParams& p = g_eval_params;
+    [[maybe_unused]] constexpr int SG = SIGN<Us>;
     auto king_proximity = [&](Color c, Square s) { return std::min(distance(b.king_square(c), s), 5); };
 
     Bitboard passers = e.passed[Us];
@@ -104,14 +117,20 @@ Score passer_terms(const Board& b, const PawnEntry& e, const Maps& m) {
         const Square s = Square(pop_lsb(passers));
         const int r = relative_rank(Us, s);
         Score bonus{p.passed_rank_mg[r], p.passed_rank_eg[r]};
+        RB_TR2(PassedRank, r, SG);
 
         if (r > RANK_3) {
             const Square block = Square(int(s) + int(pawn_push(Us)));
-            bonus.eg += p.passed_their_king_eg[passer_distance_index(r, king_proximity(Them, block))]
-                      - p.passed_our_king_eg[passer_distance_index(r, king_proximity(Us, block))];
-            if (r != RANK_7)
-                bonus.eg -= p.passed_our_king_next_eg[passer_distance_index(
-                    r, king_proximity(Us, Square(int(block) + int(pawn_push(Us)))))];
+            const int theirs = passer_distance_index(r, king_proximity(Them, block));
+            const int ours = passer_distance_index(r, king_proximity(Us, block));
+            bonus.eg += p.passed_their_king_eg[theirs] - p.passed_our_king_eg[ours];
+            TR_EG(PassedTheirKingEg, theirs, SG);
+            TR_EG(PassedOurKingEg, ours, -SG);
+            if (r != RANK_7) {
+                const int next = passer_distance_index(r, king_proximity(Us, Square(int(block) + int(pawn_push(Us)))));
+                bonus.eg -= p.passed_our_king_next_eg[next];
+                TR_EG(PassedOurKingNextEg, next, -SG);
+            }
 
             if (!(b.all_pieces() & sq_bb(block))) {
                 const Bitboard to_queen = forward_file(Us, s);
@@ -126,9 +145,11 @@ Score passer_terms(const Board& b, const PawnEntry& e, const Maps& m) {
                 const bool held = (b.occupancy_bb(Us) & behind) || (m.attacked_by[Us][ALL_PIECES] & sq_bb(block));
                 const int i = passer_path_index(r, path * 2 + held);
                 bonus += Score{p.passed_path_mg[i], p.passed_path_eg[i]};
+                RB_TR2(PassedPath, i, SG);
             }
         }
         score += bonus - Score{p.passed_file_mg, p.passed_file_eg} * edge_distance(file_of(s));
+        RB_TR2(PassedFile, 0, -SG * edge_distance(file_of(s)));
     }
     return score;
 }
@@ -152,6 +173,7 @@ Score space_terms(const Board& b, const PawnEntry& e, const Maps& m) {
     const int bonus = popcount(safe) + popcount(behind & safe & ~m.attacked_by[Them][ALL_PIECES]);
     const int weight = popcount(b.occupancy_bb(Us)) - 3 + std::min(e.blocked_count, 9);
     // The weight in 256ths: 16 is the reference's sixteenth, exactly.
+    RB_REST(SPACE, SIGN<Us> * (p.space_weight * bonus * weight * weight / 256), 0);
     return Score{p.space_weight * bonus * weight * weight / 256, 0};
 }
 

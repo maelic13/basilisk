@@ -15,7 +15,29 @@
 // the reference's middlegame piece values, read wherever the form counts
 // non-pawn material (the phase, the lazy thresholds, the space threshold, the
 // general scale heuristics, complexity); the material slots never move them.
+// ---- The Texel trace ------------------------------------------------------------
+// A traced build (TEXEL_TRACE) counts every linear slot's coefficient, White
+// minus Black, as it enters the score: RB_TR2 for a slot pair XMg/XEg read
+// together, TR_MG or TR_EG for a single half. The knobs' terms go to g_rest
+// by source. It evaluates past the lazy exits (rb::FULL).
+#ifdef TEXEL_TRACE
+#define RB_TR2(group, idx, n) do { TR_MG(group##Mg, (idx), (n)); TR_EG(group##Eg, (idx), (n)); } while (0)
+#define RB_REST(source, mg_, eg_) do { g_rest.mg[REST_##source] += (mg_); g_rest.eg[REST_##source] += (eg_); } while (0)
+#else
+#define RB_TR2(group, idx, n) (void)0
+#define RB_REST(source, mg_, eg_) (void)0
+#endif
+
 namespace rb {
+
+#ifdef TEXEL_TRACE
+inline constexpr bool TRACED = true;
+#else
+inline constexpr bool TRACED = false;
+#endif
+
+// The sign a colour's coefficients enter the trace with.
+template<Color Us> inline constexpr int SIGN = Us == WHITE ? 1 : -1;
 
 inline constexpr int NPM_KNIGHT = 781;
 inline constexpr int NPM_BISHOP = 825;

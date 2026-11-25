@@ -67,32 +67,47 @@ Score pawn_structure(const Board& b, PawnEntry& e) {
         if (passed)
             e.passed[Us] |= sq_bb(s);
 
+        [[maybe_unused]] constexpr int SG = SIGN<Us>;
         if (support | phalanx) {
             const int i = connected_index(r, phalanx != 0, opposed != 0, popcount(support));
             score += Score{p.connected_mg[i], p.connected_eg[i]};
+            RB_TR2(Connected, i, SG);
         } else if (!neighbours) {
-            if (opposed && (ours & forward_file(Them, s)) && !(theirs & adjacent_files(s)))
+            if (opposed && (ours & forward_file(Them, s)) && !(theirs & adjacent_files(s))) {
                 score -= Score{p.doubled_mg, p.doubled_eg};
-            else {
+                RB_TR2(Doubled, 0, -SG);
+            } else {
                 score -= Score{p.isolated_mg, p.isolated_eg};
-                if (!opposed)
+                RB_TR2(Isolated, 0, -SG);
+                if (!opposed) {
                     score -= Score{p.weak_unopposed_mg, p.weak_unopposed_eg};
+                    RB_TR2(WeakUnopposed, 0, -SG);
+                }
             }
         } else if (backward) {
             score -= Score{p.backward_mg, p.backward_eg};
-            if (!opposed)
+            RB_TR2(Backward, 0, -SG);
+            if (!opposed) {
                 score -= Score{p.weak_unopposed_mg, p.weak_unopposed_eg};
+                RB_TR2(WeakUnopposed, 0, -SG);
+            }
         }
 
         if (!support) {
-            if (doubled)
+            if (doubled) {
                 score -= Score{p.doubled_mg, p.doubled_eg};
-            if (more_than_one(lever))
+                RB_TR2(Doubled, 0, -SG);
+            }
+            if (more_than_one(lever)) {
                 score -= Score{p.weak_lever_mg, p.weak_lever_eg};
+                RB_TR2(WeakLever, 0, -SG);
+            }
         }
 
-        if (blocked && r > RANK_4)
+        if (blocked && r > RANK_4) {
             score += Score{p.blocked_pawn_mg[r - RANK_5], p.blocked_pawn_eg[r - RANK_5]};
+            RB_TR2(BlockedPawn, r - RANK_5, SG);
+        }
     }
     return score;
 }
@@ -102,7 +117,7 @@ Score pawn_structure(const Board& b, PawnEntry& e) {
 inline PawnEntry& pawn_probe(const Board& b, PawnEntry (&table)[PAWN_TABLE_SIZE]) {
     const Key key = b.pawn_key_value() ^ eval_ablation_key() ^ 0x5D1C4F0A7E3B9286ULL;
     PawnEntry& e = table[key & (PAWN_TABLE_SIZE - 1)];
-    if (e.key == key)
+    if (e.key == key && !TRACED)
         return e;
     e.key = key;
     e.blocked_count = 0;
@@ -114,8 +129,9 @@ inline PawnEntry& pawn_probe(const Board& b, PawnEntry (&table)[PAWN_TABLE_SIZE]
     return e;
 }
 
-// The shelter of our pawns and the storm of theirs for a king on ksq.
-template<Color Us>
+// The shelter of our pawns and the storm of theirs for a king on ksq. Trace
+// writes its coefficients, for the square the king's term chose.
+template<Color Us, bool Trace = false>
 Score shelter(const Board& b, const PawnEntry& e, Square ksq) {
     constexpr Color Them = Us == WHITE ? BLACK : WHITE;
     const EvalParams& p = g_eval_params;
@@ -137,6 +153,13 @@ Score shelter(const Board& b, const PawnEntry& e, Square ksq) {
             bonus -= Score{p.blocked_storm_mg[their_rank], p.blocked_storm_eg[their_rank]};
         else
             bonus.mg -= p.unblocked_storm[d * 7 + their_rank];
+        if constexpr (Trace) {
+            TR_MG(ShelterStrength, d * 7 + our_rank, SIGN<Us>);
+            if (our_rank && our_rank == their_rank - 1)
+                RB_TR2(BlockedStorm, their_rank, -SIGN<Us>);
+            else
+                TR_MG(UnblockedStorm, d * 7 + their_rank, -SIGN<Us>);
+        }
     }
     return bonus;
 }
@@ -149,21 +172,28 @@ template<Color Us>
 Score king_pawns(const Board& b, PawnEntry& e) {
     const Square ksq = b.king_square(Us);
     const int rights = b.castling() & (Us == WHITE ? (WK_CASTLE | WQ_CASTLE) : (BK_CASTLE | BQ_CASTLE));
-    if (e.king_square[Us] == ksq && e.castling[Us] == rights)
+    if (e.king_square[Us] == ksq && e.castling[Us] == rights && !TRACED)
         return Score{e.king_safety[Us][0], e.king_safety[Us][1]};
 
     const EvalParams& p = g_eval_params;
     Score best = shelter<Us>(b, e, ksq);
+    [[maybe_unused]] Square chosen = ksq;
     if (rights & (Us == WHITE ? WK_CASTLE : BK_CASTLE)) {
         const Score s = shelter<Us>(b, e, relative_square(Us, G1));
-        if (s.mg > best.mg)
+        if (s.mg > best.mg) {
             best = s;
+            chosen = relative_square(Us, G1);
+        }
     }
     if (rights & (Us == WHITE ? WQ_CASTLE : BQ_CASTLE)) {
         const Score s = shelter<Us>(b, e, relative_square(Us, C1));
-        if (s.mg > best.mg)
+        if (s.mg > best.mg) {
             best = s;
+            chosen = relative_square(Us, C1);
+        }
     }
+    if constexpr (TRACED)
+        shelter<Us, true>(b, e, chosen);
 
     Bitboard pawns = b.piece_bb(Us, PAWN);
     int min_distance = 6;
@@ -173,6 +203,7 @@ Score king_pawns(const Board& b, PawnEntry& e) {
         while (pawns)
             min_distance = std::min(min_distance, distance(ksq, Square(pop_lsb(pawns))));
     best.eg -= p.king_pawn_distance_eg * min_distance;
+    TR_EG(KingPawnDistanceEg, 0, -SIGN<Us> * min_distance);
 
     e.king_square[Us] = ksq;
     e.castling[Us] = rights;

@@ -82,15 +82,20 @@ Score king_terms(const Board& b, PawnEntry& e, const Maps& m) {
             - p.kd_flank_defence * flank_defence
             + p.kd_offset;
 
-    if (danger > KING_DANGER_THRESHOLD)
+    if (danger > KING_DANGER_THRESHOLD) {
         score -= Score{danger * danger / 4096, danger / 16};
+        RB_REST(KING_DANGER, -SIGN<Us> * (danger * danger / 4096), -SIGN<Us> * (danger / 16));
+    }
 
     // A king on a flank without pawns.
-    if (!(pieces(b, PAWN) & flank))
+    if (!(pieces(b, PAWN) & flank)) {
         score -= Score{p.pawnless_flank_mg, p.pawnless_flank_eg};
+        RB_TR2(PawnlessFlank, 0, -SIGN<Us>);
+    }
 
     // Pressure on the flank, which may move toward the king.
     score -= Score{p.flank_attacks_mg, p.flank_attacks_eg} * flank_attack;
+    RB_TR2(FlankAttacks, 0, -SIGN<Us> * flank_attack);
     return score;
 }
 

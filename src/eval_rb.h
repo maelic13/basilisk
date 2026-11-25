@@ -13,7 +13,7 @@ namespace rb {
 
 // The one conversion from the form's units to centipawns: cp = v * S / 1024,
 // truncated toward zero. A gauge, fixed once (§7); not a fitted value.
-inline constexpr int CONVERSION_S = 628;
+inline constexpr int CONVERSION_S = EVAL_REBUILD_CONVERSION_S;
 
 inline int to_centipawns(int v) { return v * CONVERSION_S / 1024; }
 
@@ -28,11 +28,12 @@ inline bool lazy_skip(Score s, int threshold, int npm) {
 }
 
 // winnable()'s complexity: how much of the halves the attacking side keeps.
-// Its constants are structure constants (Â§8).
+// Its constants are structure constants (§8).
 struct Winnable {
     Score adjusted;
     Score complexity;   // the change to each half
     Color strong;
+    int raw;            // the complexity itself, which no slot moves
 };
 
 inline Winnable winnable(const Board& b, const PawnEntry& e, Score score) {
@@ -56,7 +57,7 @@ inline Winnable winnable(const Board& b, const PawnEntry& e, Score score) {
     const int u = sign(score.mg) * std::clamp(complexity + 50, -std::abs(score.mg), 0);
     const int v = sign(score.eg) * std::max(complexity, -std::abs(score.eg));
     const Score adjusted{score.mg + u, score.eg + v};
-    return {adjusted, {u, v}, adjusted.eg > 0 ? WHITE : BLACK};
+    return {adjusted, {u, v}, adjusted.eg > 0 ? WHITE : BLACK, complexity};
 }
 
 // The general scale-factor heuristics for the strong side.
@@ -150,11 +151,27 @@ int Evaluation<Rec>::value(bool& verdict) {
     }
 
     // ---- First lazy exit ---------------------------------------------------------
-    // A Rec build evaluates past both exits, so the record holds every family,
-    // and serves what a release build serves.
+    // A Rec or traced build evaluates past both exits, so its record holds
+    // every family, and serves what a release build serves. A traced build
+    // keeps the trace as it stood at the exit taken.
+    constexpr bool Full = Rec || TRACED;
+#ifdef TEXEL_TRACE
+    g_trace.phase = piece_count_phase(b);
+    auto snapshot = [&] {
+        g_lazy_trace = g_trace;
+        for (int s = 0; s < REST_SOURCE_NB; s++) {
+            g_rest.lazy_mg[s] = g_rest.mg[s];
+            g_rest.lazy_eg[s] = g_rest.eg[s];
+        }
+    };
+#endif
     const int npm = non_pawn_material(b);
     int lazy = lazy_skip(score, LAZY_THRESHOLD_1, npm) ? 1 : 0;
-    if (Rec || !lazy) {
+#ifdef TEXEL_TRACE
+    if (lazy)
+        snapshot();
+#endif
+    if (Full || !lazy) {
         // ---- Pieces and mobility: the attack maps ----------------------------
         Maps m;
         m.blockers_for_king[WHITE] = slider_blockers(b, b.occupancy_bb(BLACK), b.king_square(WHITE));
@@ -179,12 +196,16 @@ int Evaluation<Rec>::value(bool& verdict) {
         const Score passed = passer_terms<WHITE>(b, pe, m) - passer_terms<BLACK>(b, pe, m);
         if (!lazy) {
             score += passed;
-            if (lazy_skip(score, LAZY_THRESHOLD_2, npm))
+            if (lazy_skip(score, LAZY_THRESHOLD_2, npm)) {
                 lazy = 2;
+#ifdef TEXEL_TRACE
+                snapshot();
+#endif
+            }
         }
 
         // ---- Threats and space ---------------------------------------------------
-        if (Rec || !lazy) {
+        if (Full || !lazy) {
             const Score threats = threat_terms<WHITE>(b, m) - threat_terms<BLACK>(b, m);
             const Score space = space_terms<WHITE>(b, pe, m) - space_terms<BLACK>(b, pe, m);
             if (!lazy)
@@ -242,13 +263,28 @@ int Evaluation<Rec>::value(bool& verdict) {
     // An override is the layer's own value, and a draw verdict is a 0: no
     // tempo, no clamp.
     const int stm = b.turn() == WHITE ? white : -white;
-    if (kind == LAYER_OVERRIDE || verdict)
-        return stm;
-    const int served = stm + p.tempo * CONVERSION_S / 1024;
-    if (std::abs(served) >= KNOWN_WIN) {
-        DIAG_COUNT(++clamps_);
-        return served > 0 ? KNOWN_WIN - 1 : -(KNOWN_WIN - 1);
+    int served = stm;
+    if (kind != LAYER_OVERRIDE && !verdict) {
+        served = stm + p.tempo * CONVERSION_S / 1024;
+        if (std::abs(served) >= KNOWN_WIN) {
+            DIAG_COUNT(++clamps_);
+            served = served > 0 ? KNOWN_WIN - 1 : -(KNOWN_WIN - 1);
+        }
     }
+#ifdef TEXEL_TRACE
+    g_rest.lazy = lazy;
+    g_rest.sum_mg = score.mg;
+    g_rest.sum_eg = score.eg;
+    g_rest.complexity = w.raw;
+    g_rest.ph = ph;
+    g_rest.general_sf = general_sf;
+    g_rest.t = t;
+    g_rest.drive = drive;
+    g_rest.white = white;
+    g_rest.step = g_endgame_step;
+    g_rest.step.verdict = verdict;
+    g_rest.served = served;
+#endif
     return served;
 }
 

@@ -247,7 +247,7 @@ bool material_is(const MaterialCounts& actual, const MaterialCounts& pattern) {
     return true;
 }
 
-void record_endgame_occurrence(const Board& b, EndgameOccurrenceCounters& out) {
+[[maybe_unused]] void record_endgame_occurrence(const Board& b, EndgameOccurrenceCounters& out) {
     // The largest named family has five non-king pieces. Avoid five popcounts
     // per side on every ordinary middlegame evaluation.
     if (popcount(b.all_pieces()) > 7)
@@ -933,7 +933,9 @@ static int mate_drive_eg(const Board& b, int score_approx, int phase) {
                               + std::max(3 - rank_of(lksq), rank_of(lksq) - 4);
                 int king_dist = KING_DIST[wksq][lksq];
                 eg += sign * (5 * lk_center + (14 - king_dist) * 4);
+#ifndef BASILISK_EVAL_REBUILD  // the rebuilt evaluation records the drive in its own step
                 TR_REST_EG(MATE_DRIVE, sign * (5 * lk_center + (14 - king_dist) * 4));
+#endif
                 // Frozen: not traced; captured in rest by the tuner.
                 // Bare-king positions do not reach this -- they are
                 // overridden by kxk_score in apply_endgame. What is left here

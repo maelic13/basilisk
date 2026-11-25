@@ -69,6 +69,7 @@ inline int imbalance(const Board& b, ImbalanceEntry (&table)[1 << IMBALANCE_TABL
         entry.value = (imbalance_polynomial(counts[WHITE], counts[BLACK], p)
                      - imbalance_polynomial(counts[BLACK], counts[WHITE], p)) / 16;
     }
+    RB_REST(IMBALANCE, entry.value, entry.value);
     return entry.value;
 }
 
@@ -80,6 +81,16 @@ inline Score material(const Board& b) {
         const PieceSquareValue& v = PIECE_SQUARE[b.piece_on(Square(sq))][sq];
         s.mg += v.mg;
         s.eg += v.eg;
+#ifdef TEXEL_TRACE
+        const Piece pc = b.piece_on(Square(sq));
+        const int sign = color_of(pc) == WHITE ? 1 : -1;
+        const int pt = type_of(pc);
+        const int pst_sq = color_of(pc) == WHITE ? sq : (sq ^ 56);
+        TR_MG(MgVal, pt, sign);
+        TR_EG(EgVal, pt, sign);
+        TR_PST_MG(pt, pst_sq, sign);
+        TR_PST_EG(pt, pst_sq, sign);
+#endif
     }
     return s;
 }

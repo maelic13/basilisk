@@ -567,11 +567,22 @@ int reconstruct(const EvalTrace& tr, const EvalParams& w);
 // that made them; the sum the final taper read; that taper; and the score
 // apply_endgame returned from it. All in White's view. evaluate() writes it;
 // the caller zeroes it with g_trace.
+#ifdef BASILISK_EVAL_REBUILD
+// The rebuilt evaluation's untraced additions: the terms its knobs enter
+// through truncating or squaring arithmetic.
+enum EvalRestSource : int {
+    REST_IMBALANCE,    // (White's polynomial - Black's) / 16, both halves
+    REST_KING_DANGER,  // the danger index's square over 4096 and sixteenth
+    REST_SPACE,        // the space count times the weight squared, over 256
+    REST_SOURCE_NB
+};
+#else
 enum EvalRestSource : int {
     REST_PASSER_RANK,  // the rank half of the passer king-proximity product
     REST_MATE_DRIVE,   // the bare-material mate drive
     REST_SOURCE_NB
 };
+#endif
 // What apply_endgame did to the tapered score it was given: left it, scaled it
 // by num / den (C++ integer division), or replaced it outright with a known
 // result. `verdict` is its draw verdict.
@@ -581,6 +592,30 @@ struct EvalEndgameStep {
     int num, den;
     bool verdict;
 };
+#ifdef BASILISK_EVAL_REBUILD
+// The rebuilt evaluation's record of how it served its value, in the
+// classical form's units until `t`, then centipawns; White's view except
+// `served`. The traced build evaluates past both lazy exits: `mg`/`eg` and
+// g_trace hold every family, and `lazy_mg`/`lazy_eg` and g_lazy_trace what
+// they held at the exit a release build takes (`lazy` 1 or 2), the families
+// that build serves from.
+struct EvalRestTrace {
+    int mg[REST_SOURCE_NB];
+    int eg[REST_SOURCE_NB];
+    int lazy_mg[REST_SOURCE_NB];
+    int lazy_eg[REST_SOURCE_NB];
+    int lazy;
+    int sum_mg, sum_eg;    // the sum served from, before winnable
+    int complexity;        // winnable's complexity, which no slot moves
+    int ph;                // the phase, 0 to 128
+    int general_sf;        // the general heuristics' factor
+    int t;                 // the converted taper at a factor of 64
+    int drive;             // the mate drive's tapered addition to t
+    int white;             // after the endgame layer
+    EvalEndgameStep step;  // the layer on t + drive
+    int served;            // side to move, before the rule-50 damping
+};
+#else
 struct EvalRestTrace {
     int mg[REST_SOURCE_NB];
     int eg[REST_SOURCE_NB];
@@ -597,6 +632,7 @@ struct EvalRestTrace {
     int lazy_endgame;
     EvalEndgameStep lazy_step;
 };
+#endif
 extern thread_local EvalRestTrace g_rest;
 extern thread_local EvalTrace g_lazy_trace;
 // apply_endgame's last step, set by every call.
