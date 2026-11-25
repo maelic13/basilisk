@@ -22,7 +22,8 @@ checks read:
      returns before it computes the imbalance (Amendment 3).
   4. The rows: every 21st of C.0's gate-game positions that is not in check
      (the 12,119 of BAS-O15's checks), then the hand-built rows of
-     tests/fixtures/eval_reference_extra.txt, each followed by its
+     tests/fixtures/eval_reference_extra.txt and the generated ones of
+     tests/fixtures/eval_reference_generated.txt, each followed by its
      colour-flipped mirror. Every halfmove clock is set to 0, so neither
      evaluation's rule-50 damping acts.
 
@@ -55,6 +56,8 @@ except ImportError:  # pragma: no cover
 REPO = c31.REPO
 FIXTURES = REPO / "tests" / "fixtures"
 EXTRA = FIXTURES / "eval_reference_extra.txt"
+# Rows tools/diag/c32_coverage_rows.py generates for slots game rows rarely reach.
+GENERATED = FIXTURES / "eval_reference_generated.txt"
 TSV = FIXTURES / "eval_reference.tsv"
 MANIFEST = FIXTURES / "eval_reference.json"
 PATCHES = [REPO / "tools" / "oracle" / name for name in
@@ -92,20 +95,23 @@ def rows_wanted(sample: int) -> tuple[list[tuple[str, str]], dict]:
     """(fen, source) in the fixture's order: the game sample, then each hand-built row and its mirror."""
     fens, census = c31.sample_positions(sample)
     rows = [(clock_zero(chess.Board(fen)), "game") for fen in fens]
-    extra = 0
-    for number, line in enumerate(EXTRA.read_text(encoding="utf-8").splitlines(), 1):
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        fen, _, note = line.partition(" ; ")
-        board = checked(fen.strip(), f"{EXTRA.name}:{number}")
-        tag = note.strip().replace("\t", " ") or f"line {number}"
-        rows.append((clock_zero(board), f"extra: {tag}"))
-        mirror = board.mirror()
-        checked(mirror.fen(), f"{EXTRA.name}:{number} mirrored")
-        rows.append((clock_zero(mirror), f"extra mirrored: {tag}"))
-        extra += 1
-    census.update({"extra": extra, "rows": len(rows)})
+    for path, kind in ((EXTRA, "extra"), (GENERATED, "generated")):
+        added = 0
+        lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+        for number, line in enumerate(lines, 1):
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            fen, _, note = line.partition(" ; ")
+            board = checked(fen.strip(), f"{path.name}:{number}")
+            tag = note.strip().replace("\t", " ") or f"line {number}"
+            rows.append((clock_zero(board), f"{kind}: {tag}"))
+            mirror = board.mirror()
+            checked(mirror.fen(), f"{path.name}:{number} mirrored")
+            rows.append((clock_zero(mirror), f"{kind} mirrored: {tag}"))
+            added += 1
+        census[kind] = added
+    census["rows"] = len(rows)
     return rows, census
 
 

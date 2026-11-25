@@ -14,16 +14,17 @@
   "evalraw_donor": {
     "exe": "donor-sf9587-stock.exe",
     "sha256": "2F2FE66BCDE3A205EE586E6F802554B3C5E496EC9A5C647C8206129823E635E3",
-    "rows_equal": 12193
+    "rows_equal": 13053
   },
   "positions": {
     "source": "tools/results/c0-screen/positions.csv",
     "sha256": "1308BD0ED1A737DD818C27AC4975DB223BC9DA6B41E59A683A0445F485455494",
-    "rows": 12193,
+    "rows": 13053,
     "stride": 21,
     "sampled": 12119,
     "in_check_skipped": 0,
-    "extra": 37
+    "extra": 37,
+    "generated": 430
   },
   "bench_check": [
     {
@@ -56,16 +57,16 @@
     }
   ],
   "counts": {
-    "specialised": 534,
-    "lazy1": 429,
-    "lazy2": 577,
+    "specialised": 552,
+    "lazy1": 435,
+    "lazy2": 721,
     "scaling_function": 58,
-    "entry_not_normal": 263,
-    "registered": 227
+    "entry_not_normal": 287,
+    "registered": 253
   },
   "fixture": {
     "file": "eval_reference.tsv",
-    "rows": 12193,
-    "sha256": "BF8CFB7C0C612622401F65C541F11C792B37AA98B1B66C19CAFE69D66B9D2CEB"
+    "rows": 13053,
+    "sha256": "1632DD6776D93FBDB22939C806FCEBC3A8E25D0EE8D6127AE4AB6EAFB8A82E21"
   }
 }
