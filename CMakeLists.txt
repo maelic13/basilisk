@@ -348,7 +348,7 @@ target_include_directories(test_fatal_report PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 # Evaluator tests
 # ---------------------------------------------------------------------------
 if(EVAL_REBUILD)
-    add_executable(test_eval tests/test_eval_rebuild.cpp)
+    add_executable(test_eval tests/test_eval_rebuild.cpp src/bench.cpp src/wac.cpp)
     target_compile_definitions(test_eval PRIVATE
         BASILISK_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
 else()

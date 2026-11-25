@@ -9,9 +9,12 @@
 // once the part of the evaluation that computes it is built.
 
 #include "attacks.h"
+#include "bench.h"
 #include "bitboard.h"
 #include "board.h"
 #include "eval.h"
+#include "move.h"
+#include "wac.h"
 #include "zobrist.h"
 #include "colour_mirror.h"
 #include "test_harness.h"
@@ -20,6 +23,8 @@
 #include <fstream>
 #include <functional>
 #include <memory>
+#include <random>
+#include <span>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -328,6 +333,315 @@ void test_verdict_is_zero(Evaluator& ev) {
     end_section();
 }
 
+// ---- Carried from the accepted evaluation's suite -------------------------------
+// The caches' purity, the lazy exits' semantics and the matched ablation are
+// rules, not values: they hold on the rebuilt arm unchanged.
+
+struct Squares {
+    Piece p[SQUARE_NB]{};
+    Piece& operator[](int sq) { return p[sq]; }
+    const Piece& operator[](int sq) const { return p[sq]; }
+};
+
+Squares squares_of(const Board& b) {
+    Squares s{};
+    for (int sq = 0; sq < SQUARE_NB; ++sq)
+        s[sq] = b.piece_on(Square(sq));
+    return s;
+}
+
+// A FEN without castling or en passant, so that every variant below is a
+// position of its own placement only.
+std::string fen_of(const Squares& s, Color stm) {
+    static const char piece_chars[] = ".pnbrqk";
+    std::string placement;
+    for (int r = 7; r >= 0; --r) {
+        int empty = 0;
+        for (int f = 0; f < 8; ++f) {
+            const Piece p = s[make_square(File(f), Rank(r))];
+            if (p == NO_PIECE) { ++empty; continue; }
+            if (empty) { placement += static_cast<char>('0' + empty); empty = 0; }
+            char ch = piece_chars[type_of(p)];
+            if (color_of(p) == WHITE) ch = static_cast<char>(ch - 'a' + 'A');
+            placement += ch;
+        }
+        if (empty) placement += static_cast<char>('0' + empty);
+        if (r > 0) placement += '/';
+    }
+    return placement + (stm == WHITE ? " w" : " b") + " - - 0 1";
+}
+
+// The bench and WAC positions, each also after four and eight seeded random
+// plies, without castling or en passant.
+std::vector<std::string> purity_sample() {
+    std::vector<std::string> sources;
+    for (std::string_view fen : bench_fens())
+        sources.emplace_back(fen);
+    for (const WacPosition& w : wac_positions())
+        sources.push_back(w.fen);
+    std::mt19937_64 rng(0xCAC4E5EEDull);
+    std::vector<std::string> out;
+    for (const std::string& start : sources) {
+        Board b;
+        b.set_fen(start);
+        for (int ply = 0; ply <= 8; ++ply) {
+            if (ply % 4 == 0)
+                out.push_back(fen_of(squares_of(b), b.turn()));
+            MoveList legal;
+            b.gen_legal(legal);
+            if (legal.size() == 0)
+                break;
+            b.make_move(legal[static_cast<int>(rng() % static_cast<uint64_t>(legal.size()))]);
+        }
+    }
+    return out;
+}
+
+// Evaluates `first` and then `second` on one warm evaluator; true when the
+// second reads as it does on an evaluator whose caches are empty.
+bool warm_reads_fresh(Evaluator& warm, Evaluator& fresh, const std::string& first, const std::string& second) {
+    Board a, b;
+    a.set_fen(first);
+    b.set_fen(second);
+    warm.evaluate(a);
+    const int w = warm.evaluate(b);
+    fresh.clear_pawn_table();
+    return w == fresh.evaluate(b);
+}
+
+void test_cache_purity() {
+    const std::vector<std::string> sample = purity_sample();
+    auto warm = std::make_unique<Evaluator>();
+    auto fresh = std::make_unique<Evaluator>();
+
+    // The pawn cache is a function of the pawns alone, and its shelter of the
+    // king square and castling rights: the same pawns with the pieces removed,
+    // or with the kings moved, must read the entry the full position left,
+    // and the full position the entry they left.
+    int pawn_pairs = 0, pawn_stale = 0;
+    std::string pawn_first;
+    for (const std::string& fen : sample) {
+        Board b;
+        b.set_fen(fen);
+        const Squares full = squares_of(b);
+        Squares bare{};
+        Squares moved = full;
+        for (int sq = 0; sq < SQUARE_NB; ++sq)
+            if (type_of(full[sq]) == PAWN || type_of(full[sq]) == KING)
+                bare[sq] = full[sq];
+        for (Color c : {WHITE, BLACK}) {
+            const Square k = b.king_square(c);
+            for (int i = 0; i < SQUARE_NB; ++i) {
+                const int sq = c == WHITE ? i : SQUARE_NB - 1 - i;
+                if (moved[sq] == NO_PIECE) {
+                    moved[sq] = moved[k];
+                    moved[k] = NO_PIECE;
+                    break;
+                }
+            }
+        }
+        for (const Squares* v : {&bare, &moved}) {
+            const std::string variant = fen_of(*v, b.turn());
+            Board check;
+            if (!check.try_set_fen(variant, true) || check.is_in_check())
+                continue;
+            for (int order = 0; order < 2; ++order) {
+                const bool ok = order == 0 ? warm_reads_fresh(*warm, *fresh, fen, variant)
+                                           : warm_reads_fresh(*warm, *fresh, variant, fen);
+                ++pawn_pairs;
+                if (!ok && pawn_stale++ == 0)
+                    pawn_first = fen + " / " + variant;
+            }
+        }
+    }
+    begin_section("pawn cache: a function of the pawns alone");
+    if (pawn_stale)
+        std::printf("    %d of %d pairs stale; first: %s\n", pawn_stale, pawn_pairs, pawn_first.c_str());
+    EXPECT_EQ(pawn_stale, 0);
+    EXPECT(pawn_pairs > 2000);
+    end_section();
+
+    // The imbalance cache is a function of the ten piece counts alone: the
+    // file mirror keeps the counts and moves every piece; one piece fewer
+    // changes a count and must miss.
+    int imb_pairs = 0, imb_stale = 0;
+    std::string imb_first;
+    for (const std::string& fen : sample) {
+        Board b;
+        b.set_fen(fen);
+        const Squares full = squares_of(b);
+        Squares mirrored{};
+        Squares fewer = full;
+        for (int sq = 0; sq < SQUARE_NB; ++sq)
+            mirrored[sq ^ 7] = full[sq];
+        for (int sq = 0; sq < SQUARE_NB; ++sq)
+            if (full[sq] != NO_PIECE && type_of(full[sq]) != KING) {
+                fewer[sq] = NO_PIECE;
+                break;
+            }
+        for (const Squares* v : {&mirrored, &fewer}) {
+            const std::string variant = fen_of(*v, b.turn());
+            for (int order = 0; order < 2; ++order) {
+                const bool ok = order == 0 ? warm_reads_fresh(*warm, *fresh, fen, variant)
+                                           : warm_reads_fresh(*warm, *fresh, variant, fen);
+                ++imb_pairs;
+                if (!ok && imb_stale++ == 0)
+                    imb_first = fen + " / " + variant;
+            }
+        }
+    }
+    begin_section("imbalance cache: a function of the ten piece counts alone");
+    if (imb_stale)
+        std::printf("    %d of %d pairs stale; first: %s\n", imb_stale, imb_pairs, imb_first.c_str());
+    EXPECT_EQ(imb_stale, 0);
+    EXPECT(imb_pairs > 2000);
+    end_section();
+}
+
+// The registry's groups by the stage that reads them: 0 before the first
+// lazy exit (material, the tables, the imbalance, the pawn structure) and
+// the tempo, which every path serves; 1 between the exits (pieces, mobility,
+// king safety, passers); 2 after the second (threats and space).
+int stage_of(const std::string& g) {
+    static const char* const before_first[] = {
+        "MgVal", "EgVal", "PstMgPawn", "PstMgKnight", "PstMgBishop", "PstMgRook", "PstMgQueen",
+        "PstMgKing", "PstEgPawn", "PstEgKnight", "PstEgBishop", "PstEgRook", "PstEgQueen", "PstEgKing",
+        "ImbOurs", "ImbTheirs", "DoubledMg", "DoubledEg", "IsolatedMg", "IsolatedEg", "BackwardMg",
+        "BackwardEg", "WeakLeverMg", "WeakLeverEg", "WeakUnopposedMg", "WeakUnopposedEg",
+        "BlockedPawnMg", "BlockedPawnEg", "ConnectedMg", "ConnectedEg", "Tempo"};
+    static const char* const after_second[] = {
+        "ThreatByMinorMg", "ThreatByMinorEg", "ThreatByRookMg", "ThreatByRookEg", "ThreatByKingMg",
+        "ThreatByKingEg", "HangingMg", "HangingEg", "WeakQueenProtectionMg", "WeakQueenProtectionEg",
+        "RestrictedPieceMg", "RestrictedPieceEg", "ThreatBySafePawnMg", "ThreatBySafePawnEg",
+        "ThreatByPawnPushMg", "ThreatByPawnPushEg", "KnightOnQueenMg", "KnightOnQueenEg",
+        "SliderOnQueenMg", "SliderOnQueenEg", "SpaceWeight"};
+    for (const char* name : before_first)
+        if (g == name)
+            return 0;
+    for (const char* name : after_second)
+        if (g == name)
+            return 2;
+    return 1;
+}
+
+// The lazy exits: on the fixture's rows the rebuilt arm serves from its first
+// or its second exit, no group after the exit moves the served score, and
+// the groups before it do.
+void test_lazy_exits(const std::vector<Row>& rows) {
+    auto ev = std::make_unique<Evaluator>();
+    std::vector<Board> at_exit[3];
+    for (const Row& row : rows) {
+        const Board b = board_of(row.fen);
+        EvalRebuildRecord rec;
+        ev->rebuild_record(b, rec);
+        if (rec.lazy && !rec.layer)  // the layer may override what any group gave
+            at_exit[rec.lazy].push_back(b);
+    }
+    std::vector<int> base[3];
+    for (int e = 1; e <= 2; ++e)
+        for (const Board& b : at_exit[e])
+            base[e].push_back(ev->evaluate_undamped(b));
+
+    struct Group { std::string name; std::span<int> values; };
+    std::vector<Group> groups;
+#define X(name, member, len) groups.push_back({#name, eval_param_span(g_eval_params.member, (len))});
+    EVAL_PARAM_LIST(X)
+#undef X
+
+    std::string leaked, missing;
+    int served[3] = {}, moved[3] = {};
+    for (const Group& g : groups) {
+        const std::vector<int> saved(g.values.begin(), g.values.end());
+        for (size_t i = 0; i < g.values.size(); ++i)
+            g.values[i] += 40 + 3 * static_cast<int>(i);
+        init_eval_tables();
+        ev->clear_pawn_table();
+        int changed[3] = {};
+        for (int e = 1; e <= 2; ++e)
+            for (size_t i = 0; i < at_exit[e].size(); ++i)
+                changed[e] += ev->evaluate_undamped(at_exit[e][i]) != base[e][i];
+        std::copy(saved.begin(), saved.end(), g.values.begin());
+        init_eval_tables();
+        ev->clear_pawn_table();
+
+        const int stage = stage_of(g.name);
+        for (int e = 1; e <= 2; ++e) {
+            if (stage >= e) {
+                if (changed[e])
+                    leaked += " " + g.name + "@" + std::to_string(e) + "(" + std::to_string(changed[e]) + ")";
+            } else {
+                ++served[e];
+                moved[e] += changed[e] != 0;
+                if (!changed[e])
+                    missing += " " + g.name + "@" + std::to_string(e);
+            }
+        }
+    }
+
+    begin_section("lazy exits: no group after an exit moves its served score");
+    if (!leaked.empty())
+        std::printf("    groups after an exit that moved one:%s\n", leaked.c_str());
+    EXPECT(leaked.empty());
+    EXPECT(at_exit[1].size() > 300);
+    EXPECT(at_exit[2].size() > 300);
+    end_section();
+
+    begin_section("lazy exits: the groups before an exit move its score");
+    std::printf("    exit 1: %d of %d groups moved %zu scores; exit 2: %d of %d moved %zu\n", moved[1],
+                served[1], at_exit[1].size(), moved[2], served[2], at_exit[2].size());
+    if (!missing.empty())
+        std::printf("    groups that moved none:%s\n", missing.c_str());
+    EXPECT(moved[1] * 10 >= served[1] * 9);
+    EXPECT(moved[2] * 10 >= served[2] * 9);
+    end_section();
+}
+
+#ifdef BASILISK_ABLATION
+// The matched evaluation ablation: every family's bit moves some score, and a
+// warm evaluator serves the stock score again at mask 0. The pawn cache holds
+// scores the mask shaped, so a key without the mask would serve a stale one.
+void test_eval_ablation_mask() {
+    static const char* const kFens[] = {
+        "r1bq1rk1/pp3ppp/2n1pn2/2bp4/2B5/2N1PN2/PP3PPP/R1BQ1RK1 w - - 0 9",
+        "6k1/5pp1/4p2p/1P6/5P2/4K1P1/7P/2r2R2 w - - 0 30",
+        "2kr3r/ppp2ppp/2n1bq2/3pp3/4P3/2PP1N2/PP1QBPPP/R4RK1 b - - 0 12",
+    };
+    constexpr int N = int(sizeof(kFens) / sizeof(kFens[0]));
+    auto warm = std::make_unique<Evaluator>();
+    int stock[N];
+    for (int i = 0; i < N; ++i)
+        stock[i] = warm->evaluate(board_of(kFens[i]));
+
+    begin_section("every family's bit moves a score");
+    for (int bit = 0; bit < EVAL_ABLATION_BITS; ++bit) {
+        set_eval_ablation_mask(1u << bit);
+        bool moved = false;
+        for (int i = 0; i < N; ++i)
+            moved = moved || warm->evaluate(board_of(kFens[i])) != stock[i];
+        if (!moved)
+            std::printf("    bit %d moved no score\n", bit);
+        EXPECT(moved);
+    }
+    end_section();
+
+    set_eval_ablation_mask(0);
+    begin_section("mask 0 serves the stock score, warm or fresh");
+    for (int i = 0; i < N; ++i) {
+        EXPECT_EQ(warm->evaluate(board_of(kFens[i])), stock[i]);
+        auto fresh = std::make_unique<Evaluator>();
+        EXPECT_EQ(fresh->evaluate(board_of(kFens[i])), stock[i]);
+    }
+    end_section();
+
+    begin_section("the mask keeps its seven family bits");
+    set_eval_ablation_mask(0xFFFFFFFFu);
+    EXPECT_EQ(eval_ablation_mask(), (1u << EVAL_ABLATION_BITS) - 1);
+    set_eval_ablation_mask(0);
+    EXPECT_EQ(eval_ablation_mask(), 0u);
+    end_section();
+}
+#endif
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -355,6 +669,13 @@ int main(int argc, char** argv) {
     test_parity(rows, *ev);
     test_colour_symmetry(rows, *ev);
     test_verdict_is_zero(*ev);
+
+    std::printf("\nCarried from the accepted evaluation's suite\n");
+    test_cache_purity();
+    test_lazy_exits(rows);
+#ifdef BASILISK_ABLATION
+    test_eval_ablation_mask();
+#endif
 
     return harness_summary();
 }
