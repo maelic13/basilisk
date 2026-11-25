@@ -2165,11 +2165,24 @@ has lost games in both engines (BAS-X02).
       - the fit's method and the gate's registration.
       It proposes the PLAN edits that retire C.4 to C.6 and resize C.7,
       for the maintainer's sign-off. It ends in a frozen handoff.
+      The transplant's first read, 2026-11-25: the gain is −1.6 ± 12.4
+      over 3,000 games (BAS-O15, `t40-b`). The frozen rule names the
+      whole rebuild at a gain of 40 or less, and the two remaining
+      reads cannot change that.
+      Handoff frozen 2026-11-25: `analysis/c31_rebuild_2026-11-25.md`.
+      The leaf closes when BAS-O15's last two reads are recorded and
+      the packet's §13 (the reference, the retirements, C.7.3 and
+      C.9) is signed.
     - [ ] **C.3.2** `[I2]` The port behind the switch, at parity
       Stage 4: the whole evaluation behind one switch, in Basilisk's own
       structure, equal to the reference on the fixture before any value
       changes. The off arm stays at the accepted fingerprint at every
       commit.
+      Handoff (2026-11-25): `analysis/c31_rebuild_2026-11-25.md` §5
+      to §10. The reference is `9587eeeb`'s evaluation; Basilisk
+      keeps its endgame layer and rule-50 curve; parity is exact
+      integers against a new oracle reference command; the work
+      lands in eight tickets, the tuner's model of the new arm last.
     - [ ] **C.3.3** `[R2]` Independent review
       A separate session rebuilds both arms, reproduces the fingerprints
       and the donor fixture, and checks the code against the handoff
@@ -2180,6 +2193,11 @@ has lost games in both engines (BAS-X02).
       Then the fit by C.3.1's method, the fitted-constant analysis, the
       bake and the PGO builds; the lazy margin block (C-98); the gate
       prepared and dry-run.
+      Registered 2026-11-25 (the packet's §11): the seed read is
+      BAS-M25, +85 predicted, and below +30 the leaf returns to
+      research before any fit. The fit has two arms, one K and K by
+      phase, each read against the seed arm; they are registered
+      here before any fitted game.
     - [ ] **C.3.5** `[V]` Gate, frontier pair and close
       Stages 6 to 8: the maintainer-run SPRT with its `10+0.1` and NPS
       reads (C-99), an equal-node companion if an equal-time gate fails
@@ -2776,8 +2794,8 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.3.1 | RESEARCH | R3 | The transplant instrument is built and pinned after Amendment 1, its six checks pass and the three reads are prepared (`tools/run_c31_reads.py`); the reads are the maintainer's, then the packet |
-| C.3.2 | RESEARCH | I2 | Not started |
+| C.3.1 | RESEARCH | R3 | The transplant's first read names the whole rebuild (gain −1.6 ± 12.4, BAS-O15); the handoff is frozen (`analysis/c31_rebuild_2026-11-25.md`); open until the last two reads are recorded and the packet's §13 is signed |
+| C.3.2 | READY_FOR_IMPLEMENTATION | I2 | Handoff: `analysis/c31_rebuild_2026-11-25.md` §5 to §10 (2026-11-25); starting it accepts the packet's reference, `9587eeeb`'s evaluation |
 | C.3.3 | RESEARCH | R2 | Not started |
 | C.3.4 | RESEARCH | V | Not started |
 | C.3.5 | RESEARCH | V | Not started |
