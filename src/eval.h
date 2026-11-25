@@ -7,12 +7,29 @@
 #include "constants.h"
 #include "eval_params.h"
 
+#ifdef BASILISK_EVAL_REBUILD
+// The rebuilt evaluation's pawn entry: each side's pawn-structure score and
+// what the later families read from the structure, and each king's pawn
+// shelter, valid while the king square and castling rights stay those stored.
+struct PawnEntry {
+    Key      key;
+    int      score[NCOLORS][2];
+    Bitboard passed[NCOLORS];
+    Bitboard attacks[NCOLORS];
+    Bitboard attacks_span[NCOLORS];   // every square our pawns may still attack
+    int      blocked_count;
+    Square   king_square[NCOLORS];
+    int      castling[NCOLORS];
+    int      king_safety[NCOLORS][2];
+};
+#else
 struct PawnEntry {
     Key      key;
     int      mg, eg;
     Bitboard passed[NCOLORS];
     Bitboard attacks[NCOLORS];
 };
+#endif
 
 static constexpr int PAWN_TABLE_SIZE = 16384;
 

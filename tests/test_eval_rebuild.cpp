@@ -16,6 +16,7 @@
 #include "colour_mirror.h"
 #include "test_harness.h"
 
+#include <cstring>
 #include <fstream>
 #include <functional>
 #include <memory>
@@ -119,6 +120,8 @@ const std::vector<Field>& compared() {
         {"imbalance_mg", [](const EvalRebuildRecord& r) { return r.imbalance[0]; }, true, WHOLE},
         {"imbalance_eg", [](const EvalRebuildRecord& r) { return r.imbalance[1]; }, true, WHOLE},
         {"ph",           [](const EvalRebuildRecord& r) { return r.ph; }, false, EVERY},
+        {"pawns_mg",     [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_PAWNS][0]; }, true, EVERY},
+        {"pawns_eg",     [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_PAWNS][1]; }, true, EVERY},
     };
     return fields;
 }
@@ -172,9 +175,60 @@ void test_colour_symmetry(const std::vector<Row>& rows, Evaluator& ev) {
     end_section();
 }
 
+// Coverage (`test_eval --coverage`): for every registry entry, the rows on
+// which moving it by `delta` changes the rebuilt evaluation's record or its
+// value. A slot or knob reached on fewer than 20 rows needs more fixture
+// rows, or its reason for being unreached. Prints the entries under 20.
+int coverage(const std::vector<Row>& rows, Evaluator& ev) {
+    std::vector<const Row*> used;
+    for (const Row& row : rows)
+        if (!row.value.at("specialised"))
+            used.push_back(&row);
+    std::vector<Board> boards;
+    for (const Row* row : used)
+        boards.push_back(board_of(row->fen));
+
+    auto snapshot = [&](std::vector<EvalRebuildRecord>& recs, std::vector<int>& values) {
+        init_eval_tables(g_eval_params);
+        ev.clear_pawn_table();
+        recs.resize(boards.size());
+        values.resize(boards.size());
+        for (size_t i = 0; i < boards.size(); i++)
+            values[i] = ev.rebuild_record(boards[i], recs[i]);
+    };
+    std::vector<EvalRebuildRecord> base, moved;
+    std::vector<int> base_values, moved_values;
+    snapshot(base, base_values);
+
+    constexpr int delta = 16;
+    int entries = 0, under = 0;
+#define X(name, member, len) \
+    { const auto slot = eval_param_span(g_eval_params.member, (len)); \
+      for (size_t i = 0; i < slot.size(); i++) { \
+          slot[i] += delta; \
+          snapshot(moved, moved_values); \
+          slot[i] -= delta; \
+          int reached = 0; \
+          for (size_t r = 0; r < boards.size(); r++) \
+              reached += moved_values[r] != base_values[r] \
+                      || std::memcmp(&moved[r], &base[r], sizeof(EvalRebuildRecord)) != 0; \
+          entries++; \
+          if (reached < 20) { \
+              under++; \
+              std::printf("  %-22s %3zu  %d rows\n", #name, i, reached); \
+          } \
+      } }
+    EVAL_PARAM_LIST(X)
+#undef X
+    init_eval_tables(g_eval_params);
+    ev.clear_pawn_table();
+    std::printf("%d entries, %d reached on fewer than 20 of %zu rows\n", entries, under, boards.size());
+    return 0;
+}
+
 } // namespace
 
-int main() {
+int main(int argc, char** argv) {
     init_bitboards();
     init_attacks();
     Zobrist::init();
@@ -185,6 +239,8 @@ int main() {
 
     const std::vector<Row> rows = load_fixture();
     auto ev = std::make_unique<Evaluator>();
+    if (argc > 1 && std::string(argv[1]) == "--coverage")
+        return coverage(rows, *ev);
     std::printf("\nThe reference fixture: %zu rows\n", rows.size());
     test_parity(rows, *ev);
     test_colour_symmetry(rows, *ev);

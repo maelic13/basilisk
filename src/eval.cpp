@@ -129,14 +129,14 @@ bool Evaluator::draw_verdict(const Board& b) {
 #ifdef BASILISK_EVAL_REBUILD
 int Evaluator::evaluate_full(const Board& b, bool& verdict, [[maybe_unused]] bool query) {
     DIAG_COUNT(++eval_calls);
-    return rb::Evaluation<false>(b, imbalance_table_, imbalance_generation_,
+    return rb::Evaluation<false>(b, pawn_table_, imbalance_table_, imbalance_generation_,
                                  g_eval_tables_generation, nullptr).value(verdict);
 }
 
 int Evaluator::rebuild_record(const Board& b, EvalRebuildRecord& out) {
     out = EvalRebuildRecord{};
     bool verdict = false;
-    return rb::Evaluation<true>(b, imbalance_table_, imbalance_generation_,
+    return rb::Evaluation<true>(b, pawn_table_, imbalance_table_, imbalance_generation_,
                                 g_eval_tables_generation, &out).value(verdict);
 }
 #else

@@ -154,6 +154,59 @@ struct EvalParams {
           46,   39,   24,  -24,
           97,  100,  -42,  137,  268 };
 
+    // ---- Pawn structure (ticket 2) ------------------------------------------
+    // Penalties are subtracted where they apply.
+    int doubled_mg = 11;
+    int doubled_eg = 56;
+    int isolated_mg = 5;
+    int isolated_eg = 15;
+    int backward_mg = 9;
+    int backward_eg = 24;
+    int weak_lever_mg = 0;
+    int weak_lever_eg = 56;
+    int weak_unopposed_mg = 13;
+    int weak_unopposed_eg = 27;
+    // A blocked pawn on its fifth or sixth rank.
+    int blocked_pawn_mg[2] = { -11, -3 };
+    int blocked_pawn_eg[2] = { -4, 4 };
+    // A connected pawn by rank, phalanx, opposition and supporters
+    // (rb::connected_index). Seeded with the reference's products: the
+    // middlegame value Connected[r] * (2 + phalanx - opposed) + 21 * support,
+    // the endgame value that times (r - 2) / 4, truncated.
+    int connected_mg[72] = {
+          14,   35,   56,    7,   28,   49,   21,   42,   63,   14,   35,   56,
+          16,   37,   58,    8,   29,   50,   24,   45,   66,   16,   37,   58,
+          24,   45,   66,   12,   33,   54,   36,   57,   78,   24,   45,   66,
+          58,   79,  100,   29,   50,   71,   87,  108,  129,   58,   79,  100,
+          96,  117,  138,   48,   69,   90,  144,  165,  186,   96,  117,  138,
+         172,  193,  214,   86,  107,  128,  258,  279,  300,  172,  193,  214 };
+    int connected_eg[72] = {
+          -3,   -8,  -14,   -1,   -7,  -12,   -5,  -10,  -15,   -3,   -8,  -14,
+           0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+           6,   11,   16,    3,    8,   13,    9,   14,   19,    6,   11,   16,
+          29,   39,   50,   14,   25,   35,   43,   54,   64,   29,   39,   50,
+          72,   87,  103,   36,   51,   67,  108,  123,  139,   72,   87,  103,
+         172,  193,  214,   86,  107,  128,  258,  279,  300,  172,  193,  214 };
+
+    // ---- The king's pawn shelter and storm (ticket 2; the king family) ------
+    // [distance from the edge * 7 + relative rank]; rank 0 is a file without
+    // a pawn, or with it behind the king.
+    int shelter_strength[28] = {
+         -6,  81,  93,  58,  39,  18,   25,
+        -43,  61,  35, -49, -29, -11,  -63,
+        -10,  75,  23,  -2,  32,   3,  -45,
+        -39, -13, -29, -52, -48, -67, -166 };
+    int unblocked_storm[28] = {
+         85, -289, -166, 97, 50,  45,  50,
+         46,  -25,  122, 45, 37, -10,  20,
+         -6,   51,  168, 34, -2, -22, -14,
+        -15,  -11,  101,  4, 11, -15, -29 };
+    // A storming pawn blocked by one of ours, by its relative rank.
+    int blocked_storm_mg[7] = { 0, 0, 76, -10, -7, -4, -1 };
+    int blocked_storm_eg[7] = { 0, 0, 78, 15, 10, 6, 2 };
+    // Per step from the king to its nearest pawn.
+    int king_pawn_distance_eg = 16;
+
     // ---- Tempo, in units; converted with the value --------------------------
     int tempo = 28;
 };
@@ -175,4 +228,23 @@ struct EvalParams {
     X(PstEgKing,            pst_eg[5],            64)               \
     X(ImbOurs,              imb_ours,             21)               \
     X(ImbTheirs,            imb_theirs,           15)               \
+    X(DoubledMg,            doubled_mg,            1)               \
+    X(DoubledEg,            doubled_eg,            1)               \
+    X(IsolatedMg,           isolated_mg,           1)               \
+    X(IsolatedEg,           isolated_eg,           1)               \
+    X(BackwardMg,           backward_mg,           1)               \
+    X(BackwardEg,           backward_eg,           1)               \
+    X(WeakLeverMg,          weak_lever_mg,         1)               \
+    X(WeakLeverEg,          weak_lever_eg,         1)               \
+    X(WeakUnopposedMg,      weak_unopposed_mg,     1)               \
+    X(WeakUnopposedEg,      weak_unopposed_eg,     1)               \
+    X(BlockedPawnMg,        blocked_pawn_mg,       2)               \
+    X(BlockedPawnEg,        blocked_pawn_eg,       2)               \
+    X(ConnectedMg,          connected_mg,         72)               \
+    X(ConnectedEg,          connected_eg,         72)               \
+    X(ShelterStrength,      shelter_strength,     28)               \
+    X(UnblockedStorm,       unblocked_storm,      28)               \
+    X(BlockedStormMg,       blocked_storm_mg,      7)               \
+    X(BlockedStormEg,       blocked_storm_eg,      7)               \
+    X(KingPawnDistanceEg,   king_pawn_distance_eg, 1)               \
     X(Tempo,                tempo,                 1)

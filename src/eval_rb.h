@@ -7,6 +7,7 @@
 // alone when BASILISK_EVAL_REBUILD is defined. Include it nowhere else.
 
 #include "eval_rb_material.h"
+#include "eval_rb_pawns.h"
 
 namespace rb {
 
@@ -28,16 +29,19 @@ inline int taper(Score s, int ph, int sf) {
 template<bool Rec>
 class Evaluation {
 public:
-    Evaluation(const Board& board, ImbalanceEntry (&imbalance_table)[1 << IMBALANCE_TABLE_BITS],
+    Evaluation(const Board& board, PawnEntry (&pawn_table)[PAWN_TABLE_SIZE],
+               ImbalanceEntry (&imbalance_table)[1 << IMBALANCE_TABLE_BITS],
                int& imbalance_generation, int tables_generation, EvalRebuildRecord* record)
-        : b(board), imbalance_table_(imbalance_table), imbalance_generation_(imbalance_generation),
-          tables_generation_(tables_generation), rec(record) {}
+        : b(board), pawn_table_(pawn_table), imbalance_table_(imbalance_table),
+          imbalance_generation_(imbalance_generation), tables_generation_(tables_generation),
+          rec(record) {}
 
     // The value from the side to move's view, in centipawns.
     int value(bool& verdict);
 
 private:
     const Board& b;
+    PawnEntry (&pawn_table_)[PAWN_TABLE_SIZE];
     ImbalanceEntry (&imbalance_table_)[1 << IMBALANCE_TABLE_BITS];
     int& imbalance_generation_;
     int tables_generation_;
@@ -55,11 +59,18 @@ int Evaluation<Rec>::value(bool& verdict) {
     Score score = psq + Score{imb, imb};
     const int ph = game_phase(b);
 
+    // ---- Pawns -----------------------------------------------------------------
+    PawnEntry& pe = pawn_probe(b, pawn_table_);
+    const Score pawns{pe.score[WHITE][0] - pe.score[BLACK][0], pe.score[WHITE][1] - pe.score[BLACK][1]};
+    score += pawns;
+
     if constexpr (Rec) {
         rec->psq[0] = psq.mg;
         rec->psq[1] = psq.eg;
         rec->imbalance[0] = rec->imbalance[1] = imb;
         rec->ph = ph;
+        rec->family[EVAL_ABLATE_PAWNS][0] = pawns.mg;
+        rec->family[EVAL_ABLATE_PAWNS][1] = pawns.eg;
     }
 
     const int v = taper(score, ph, 64);
