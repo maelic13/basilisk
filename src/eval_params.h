@@ -16,6 +16,9 @@
 //   - For scalar members (length == 1): p.member is int; access as (&p.member)[0].
 //   - For PST sub-rows (e.g. pst_mg[0]): p.pst_mg[0] decays to int* of length 64.
 
+#ifdef BASILISK_EVAL_REBUILD
+#include "eval_rb_params.h"
+#else
 struct EvalParams {
 
     // ---- Material values [PieceType 0..6] -----------------------------------
@@ -339,6 +342,7 @@ struct EvalParams {
     // ---- Tempo bonus -------------------------------------------------------
     int tempo = 27;
 };
+#endif // BASILISK_EVAL_REBUILD
 
 // ---- Helpers for iterating EVAL_PARAM_LIST generically --------------------
 // Returns int* to the first element of a parameter field, whether it is a
@@ -373,6 +377,7 @@ inline std::span<const int> eval_param_cspan(const T& v, size_t len) {
 //   Arrays (length > 1): p.member[i] for i in [0, length).
 //   Scalars (length == 1): (&p.member)[0] gives the single int.
 //   PST sub-rows (e.g. pst_mg[0]): int[64] decaying to int*, p.pst_mg[0][i].
+#ifndef BASILISK_EVAL_REBUILD
 #define EVAL_PARAM_LIST(X)                                          \
     X(MgVal,                mg_val,                7)               \
     X(EgVal,                eg_val,                7)               \
@@ -506,6 +511,7 @@ inline std::span<const int> eval_param_cspan(const T& v, size_t len) {
     X(TrappedMg,            trapped_mg,            1)               \
     X(TrappedEg,            trapped_eg,            1)               \
     X(Tempo,                tempo,                 1)
+#endif // !BASILISK_EVAL_REBUILD
 
 // ---- Texel trace infrastructure (TEXEL_TRACE builds only) -----------------
 // These definitions depend on EVAL_PARAM_LIST and therefore live after it.

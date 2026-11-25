@@ -23,6 +23,11 @@
 // its three reads are evaluate_full()'s, at the end of this file.
 #include "eval_common.h"
 #include "eval_endgame.h"
+#ifdef BASILISK_EVAL_REBUILD
+// The rebuilt evaluation (the EVAL_REBUILD switch): the classical form's
+// families, composed with the endgame layer above.
+#include "eval_rb.h"
+#else
 #include "eval_material.h"
 #include "eval_mobility.h"
 #include "eval_attacks.h"
@@ -30,6 +35,7 @@
 #include "eval_pieces.h"
 #include "eval_threats.h"
 #include "eval_king.h"
+#endif
 
 #ifdef TEXEL_TRACE
 // Reconstruction: linear tapered score from trace counts and weights.
@@ -65,9 +71,11 @@ uint32_t eval_ablation_mask() { return g_eval_ablation_mask; }
 // Lazy-eval margin (Step 3.11): if the cheap (material/PST/imbalance/pawns/minor)
 // tapered score exceeds this, the expensive positional block is skipped. Tuned
 // under a lazy-on-vs-off SPRT; conservative start.
+#ifndef BASILISK_EVAL_REBUILD
 static constexpr int LAZY_MARGIN  = 700;  // a traced build records where it would fire
 // Lazy-audit "did not fire" marker (any value the eval can't produce).
 [[maybe_unused]] static constexpr int VALUE_NONE_SENTINEL = INT_MIN;
+#endif
 
 // Counts init_eval_tables() calls: the parameters a cached value was computed on.
 static int g_eval_tables_generation = 0;
@@ -118,6 +126,20 @@ bool Evaluator::draw_verdict(const Board& b) {
 // A verdict query evaluates a node the search has already counted, so it
 // adds nothing to the endgame census or the lazy audit; eval_calls counts it,
 // since it pays for an evaluation.
+#ifdef BASILISK_EVAL_REBUILD
+int Evaluator::evaluate_full(const Board& b, bool& verdict, [[maybe_unused]] bool query) {
+    DIAG_COUNT(++eval_calls);
+    return rb::Evaluation<false>(b, imbalance_table_, imbalance_generation_,
+                                 g_eval_tables_generation, nullptr).value(verdict);
+}
+
+int Evaluator::rebuild_record(const Board& b, EvalRebuildRecord& out) {
+    out = EvalRebuildRecord{};
+    bool verdict = false;
+    return rb::Evaluation<true>(b, imbalance_table_, imbalance_generation_,
+                                g_eval_tables_generation, &out).value(verdict);
+}
+#else
 int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
 #ifdef BASILISK_BOARD_TRACE
     board_trace::EvalScope trace_eval_scope;
@@ -254,6 +276,7 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
 #endif
     return full_served;
 }
+#endif // BASILISK_EVAL_REBUILD
 
 // ---- Tune-only: eval file loader and dumper --------------------------------
 #ifdef BASILISK_TUNE

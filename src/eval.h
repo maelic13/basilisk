@@ -26,6 +26,22 @@ struct ImbalanceEntry {
 
 static constexpr int IMBALANCE_TABLE_BITS = 10;
 
+#ifdef BASILISK_EVAL_REBUILD
+// The rebuilt evaluation's intermediates for one position, in the classical
+// form's units and White's view, as the reference producer prints them
+// (tests/fixtures/eval_reference.tsv): what the parity test compares. Pairs
+// are {middlegame, endgame}; families in the ablation mask's bit order; piece
+// types knights, bishops, rooks, queens.
+struct EvalRebuildRecord {
+    int lazy = 0;
+    int psq[2] = {}, imbalance[2] = {};
+    int family[7][2] = {};
+    int piece_type[4][2] = {};
+    int complexity[2] = {}, adjusted[2] = {};
+    int ph = 0, strong = 0, general_sf = 64, sf = 64, v = 0;
+};
+#endif
+
 // The search treats any score at or above MATE_SCORE - MAX_PLY as a mate and
 // ply-adjusts it on its way into the TT, so a STATIC evaluation must stay
 // strictly below it.
@@ -70,6 +86,11 @@ public:
     // it. Evaluates b again; meant for positions whose evaluation is 0.
     bool draw_verdict(const Board& b);
     void clear_pawn_table();
+#ifdef BASILISK_EVAL_REBUILD
+    // Evaluates b and fills `out` with the rebuilt evaluation's intermediates;
+    // returns the value evaluate_undamped(b) serves.
+    int rebuild_record(const Board& b, EvalRebuildRecord& out);
+#endif
 
     // ---- Lazy dual-eval audit (Tune and Diag builds) ------------------------
     // When diag_lazy is set, a lazy-margin skip ALSO runs the full positional

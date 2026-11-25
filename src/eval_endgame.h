@@ -692,7 +692,7 @@ int krppkrp_scale_unfloored(const Board& b, Color strong) {
 // `draw_verdict` is set when the 0 returned is one of the draw verdicts below
 // (KNNK, the drawn KPK, the wrong-corner KBP-K, a pawnless side that cannot
 // mate): a classification, which the search adds no correction to.
-static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
+[[maybe_unused]] static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
     auto lone_king = [&](Color c) {
         return b.occupancy_bb(c) == sq_bb(b.king_square(c));
     };
@@ -879,7 +879,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
 
 // The mate drive reads the running sum after every family and before the
 // tempo; what it returns is added to the endgame half.
-static EvalScore mate_drive(const Board& b, const EvalScore& sum, int phase) {
+[[maybe_unused]] static EvalScore mate_drive(const Board& b, const EvalScore& sum, int phase) {
     int mg = 0, eg = 0;
     // ---- Endgame mate-drive (frozen) ---------------------------------------
     if (phase <= 6) {

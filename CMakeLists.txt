@@ -190,6 +190,12 @@ endif()
 # replays it. Configure a tree of its own with it ON, never a release: OFF
 # leaves no code behind. board_replay always times the untraced board, so a
 # trace tree builds that board a second time for it.
+# The evaluation rebuild's umbrella (PROCESS, Cluster delivery shape): ON
+# compiles the evaluation rebuilt in the classical form (src/eval_rb*.h, its
+# registry src/eval_rb_params.h) in place of the accepted one. OFF is the
+# accepted evaluation, exact. On the rebuilt arm test_eval is the rebuild's
+# own suite, with its parity test against tests/fixtures/eval_reference.tsv.
+option(EVAL_REBUILD "Compile the rebuilt evaluation in place of the accepted one (sets BASILISK_EVAL_REBUILD)" OFF)
 option(BASILISK_BOARD_TRACE "Record the search's board operations (a measurement build)" OFF)
 set(_board_replay_board basilisk_board)
 if(BASILISK_BOARD_TRACE)
@@ -341,7 +347,13 @@ target_include_directories(test_fatal_report PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 # ---------------------------------------------------------------------------
 # Evaluator tests
 # ---------------------------------------------------------------------------
-add_executable(test_eval tests/test_eval.cpp src/bench.cpp src/wac.cpp)
+if(EVAL_REBUILD)
+    add_executable(test_eval tests/test_eval_rebuild.cpp)
+    target_compile_definitions(test_eval PRIVATE
+        BASILISK_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
+else()
+    add_executable(test_eval tests/test_eval.cpp src/bench.cpp src/wac.cpp)
+endif()
 target_link_libraries(test_eval PRIVATE basilisk_engine)
 
 # ---------------------------------------------------------------------------
@@ -787,6 +799,13 @@ if(DIAGNOSTIC)
         target_compile_definitions(${_tgt} PRIVATE BASILISK_DIAGNOSTIC)
     endforeach()
     message(STATUS "DIAGNOSTIC build: diagnostic UCI options exposed (BASILISK_DIAGNOSTIC defined)")
+endif()
+
+if(EVAL_REBUILD)
+    foreach(_tgt IN LISTS _ALL_TARGETS)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_EVAL_REBUILD)
+    endforeach()
+    message(STATUS "EVAL_REBUILD build: the rebuilt evaluation (BASILISK_EVAL_REBUILD defined)")
 endif()
 
 if(ABLATION)
