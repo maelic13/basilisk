@@ -141,7 +141,11 @@ int Evaluation<Rec>::value(bool& verdict) {
     // ---- Pawns -----------------------------------------------------------------
     PawnEntry& pe = pawn_probe(b, pawn_table_);
     const Score pawns{pe.score[WHITE][0] - pe.score[BLACK][0], pe.score[WHITE][1] - pe.score[BLACK][1]};
-    score += pawns;
+    // The matched ablation (EvalAblationBit): a masked family is computed and
+    // recorded, and enters no sum, the lazy exits' included. Material, the
+    // tables, the imbalance, the tempo and the endgame layer are never masked.
+    if (!eval_ablated(EVAL_ABLATE_PAWNS))
+        score += pawns;
 
     if constexpr (Rec) {
         record_pair(rec->psq, psq);
@@ -184,18 +188,23 @@ int Evaluation<Rec>::value(bool& verdict) {
         const Score queens  = piece_terms<WHITE, QUEEN >(b, pe, m) - piece_terms<BLACK, QUEEN >(b, pe, m);
         const Score piece_sum = knights + bishops + rooks + queens;
         const Score mobility = m.mobility[WHITE] - m.mobility[BLACK];
-        if (!lazy)
-            score += piece_sum + mobility;
+        if (!lazy) {
+            if (!eval_ablated(EVAL_ABLATE_PIECES))
+                score += piece_sum;
+            if (!eval_ablated(EVAL_ABLATE_MOBILITY))
+                score += mobility;
+        }
 
         // ---- King safety ------------------------------------------------------
         const Score king = king_terms<WHITE>(b, pe, m) - king_terms<BLACK>(b, pe, m);
-        if (!lazy)
+        if (!lazy && !eval_ablated(EVAL_ABLATE_KING))
             score += king;
 
         // ---- Passed pawns, then the second lazy exit ---------------------------
         const Score passed = passer_terms<WHITE>(b, pe, m) - passer_terms<BLACK>(b, pe, m);
         if (!lazy) {
-            score += passed;
+            if (!eval_ablated(EVAL_ABLATE_PASSERS))
+                score += passed;
             if (lazy_skip(score, LAZY_THRESHOLD_2, npm)) {
                 lazy = 2;
 #ifdef TEXEL_TRACE
@@ -208,8 +217,12 @@ int Evaluation<Rec>::value(bool& verdict) {
         if (Full || !lazy) {
             const Score threats = threat_terms<WHITE>(b, m) - threat_terms<BLACK>(b, m);
             const Score space = space_terms<WHITE>(b, pe, m) - space_terms<BLACK>(b, pe, m);
-            if (!lazy)
-                score += threats + space;
+            if (!lazy) {
+                if (!eval_ablated(EVAL_ABLATE_THREATS))
+                    score += threats;
+                if (!eval_ablated(EVAL_ABLATE_SPACE))
+                    score += space;
+            }
             if constexpr (Rec) {
                 record_pair(rec->family[EVAL_ABLATE_THREATS], threats);
                 record_pair(rec->family[EVAL_ABLATE_SPACE], space);
