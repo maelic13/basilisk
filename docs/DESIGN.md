@@ -41,7 +41,7 @@ gate, not a failure to deliver. See `agents/research.md`, "Refutation and refusa
 
 - **Hand-crafted.** Frozen at the 1.10.1 evaluation through the search
   programme (Phase B, closed with 1.11.0), unfrozen for structural work and
-  refits in the evaluation programme (Phase C), and frozen again at C.11. NNUE is
+  refits in the evaluation programme (Phase C), and frozen again at C.8. NNUE is
   Phase F and does not license HCE shortcuts now.
 - **Game-result labels only.** No engine-evaluation labels in any corpus.
 - **Categorical knowledge earns its place by measurement, not by taxonomy.**
@@ -51,7 +51,7 @@ gate, not a failure to deliver. See `agents/research.md`, "Refutation and refusa
   an only-move failure class and refuted the blanket claim that an evaluator
   cannot resolve it: Stockfish resolved the paired nodes at the same nominal
   budget. That result does not identify a transferable HCE mechanism or make a
-  recogniser equivalent to a gradient; PLAN C.7.4 owns the question.
+  recogniser equivalent to a gradient; PLAN C.4.4 owns the question.
 - **Draw scaling never asserts a draw it cannot prove.** Heuristic scaling is
   floored (`SCALE_FLOOR`) so a misfire discounts rather than throwing a win.
 

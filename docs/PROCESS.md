@@ -209,7 +209,7 @@ structures hide.
 
 A separable categorical alternative may have a preliminary paired run, which
 never replaces the fitted integrated cluster's SPRT. The programme checkpoints
-(B.11.1, C.11, E.1) own the combined confirmation runs; none may rescue an
+(B.11.1, C.8, E.1) own the combined confirmation runs; none may rescue an
 earlier losing cluster. Two failed coherent clusters in one programme trigger
 a return to evidence (PLAN rule 6), not silent closure.
 
@@ -253,10 +253,11 @@ Donors (maintainer decision 2026-09-28; PLAN rule 1 points here):
   `edb0d9db` (2026-09-05), for search, TT, histories, move ordering, time
   management, threads and the later NNUE runtime. A later revision enters
   only through a new dated pin recorded in the search programme packet.
-- **Classical Stockfish** for the evaluation families: `sf_16`'s classical
-  evaluation is the donor and `9587eeeb`'s the second seed column (C.0,
-  BAS-O09). `9587eeeb` stays the deficit oracle (`oracle/hybrid`) and a
-  seed column for eval-coupled margins.
+- **Classical Stockfish** for the evaluation: `9587eeeb`'s classical
+  evaluation is the reference of the whole rebuild (maintainer decision
+  2026-11-25, PLAN C.3) and the deficit oracle (`oracle/hybrid`).
+  `sf_16`'s was C.0's family donor; the two play level (BAS-O09), and
+  its added terms are candidates for later reads.
 - **Triumviratus** (maintainer decision 2026-11-03), for mechanisms only:
   measured priors on its Stockfish-19-shaped search, board and
   infrastructure, time management, NNUE architecture and training, and its
@@ -289,7 +290,7 @@ Rarog repository.
   code and its measured evidence. If a change cannot be justified without
   pointing at the donor, it is not understood well enough to ship.
 - `README.md`'s acknowledgements name what crossed, by category (B.11.3,
-  2026-11-18), and each release's check keeps them true (C.13, E.3, F.9).
+  2026-11-18), and each release's check keeps them true (C.10, E.3, F.9).
   What crossed unchanged into 1.11.0:
   - Stockfish 19's time-manager formula and its constants;
   - three small search tables:
@@ -710,12 +711,12 @@ The operation, its resources, contracts, traps and numbers are in
 7. Fit loss is a screen and a falsifier, never acceptance. Bake the fit into
    clean PGO and gate it.
 8. Keep search parameters fixed during an evaluation fit; re-measure their
-   populations at C.10 rather than co-tuning.
+   populations at C.7 rather than co-tuning.
 
 ## SPSA go/no-go procedure
 
 SPSA is owed where a cluster's registration names its live coordinates (PLAN
-B.2.3, B.6, C.9, C.10, F.6). An undirected broad tune is forbidden, and
+B.2.3, B.6, C.6, C.7, F.6). An undirected broad tune is forbidden, and
 evaluation and search coordinates never share a run.
 
 1. Name the strength-bearing mechanism and show local evidence that its

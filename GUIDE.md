@@ -14,7 +14,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Bench fingerprint | **3,359,329** (`bench 13`, since C.2.8's whole-surface refit `cbc3676`; 4,392,040 after the top-tier repair `cd4e453`; 4,777,412 before it; HISTORY's 1.11.0 record lists the earlier counts) |
 | Active experiment | None |
 | Long job | None |
-| Next release | **1.12.0** after C (C.13), then 1.13.0 after E; **2.0.0** is the first NNUE release |
+| Next release | **1.12.0** after C (C.10), then 1.13.0 after E; **2.0.0** is the first NNUE release |
 
 ## Model by class
 
@@ -91,28 +91,25 @@ the six-stage gating shape), are in
     - [ ] **C.3.4** `[V]` Seed-value read and fit
     - [ ] **C.3.5** `[V]` Gate, frontier pair and close
     - [ ] **C.3.6** `[R2]` Basilisk's own forms read back in
-- [ ] **C.4** `[I2]` King safety, phase and tempo cluster
-- [ ] **C.5** `[I2]` Material, imbalance and pieces cluster
-- [ ] **C.6** `[I2]` Mobility, space and threats cluster
-- [ ] **C.7** Endgame handling and winnability
-    - [ ] **C.7.2** `[R3]` Occurrence, classification and ranking
-    - [ ] **C.7.3** `[I2]` Generic winnability and scaling
-    - [ ] **C.7.4** `[R3]` Won-rook-ending only-move precision (BAS-E53)
-    - [ ] **C.7.5** `[I2]` Group B families by measured kind
-    - [ ] **C.7.6** `[R2]` Lower-yield remainder
-    - [ ] **C.7.7** `[V]` Endgame gate and closure
-- [ ] **C.8** Residual and refit cycles
-    - [ ] **C.8.1** `[R3]` Residual investigation
-    - [ ] **C.8.2** `[V]` Refit cycles
-- [ ] **C.9** `[V]` Nonlinear HCE SPSA or a written skip
-- [ ] **C.10** Joint re-fit on the new evaluation
-    - [ ] **C.10.1** `[R2]` Joint-fit investigation and registration
-    - [ ] **C.10.2** `[V]` The joint fit, PGO and gate
-- [ ] **C.11** `[V]` Freeze the classical evaluation
-- [ ] **C.12** `[I2]` Evaluation throughput, bit-exact
-- [ ] **C.13** Interim release after the evaluation programme
-    - [ ] **C.13.1** `[I1]` Reported score and WDL in Stockfish's form
-    - [ ] **C.13.2** `[M]` The 1.12.0 cut
+- [ ] **C.4** Endgame handling and winnability
+    - [ ] **C.4.2** `[R3]` Occurrence, classification and ranking
+    - [ ] **C.4.3** `[I2]` Generic winnability and scaling
+    - [ ] **C.4.4** `[R3]` Won-rook-ending only-move precision (BAS-E53)
+    - [ ] **C.4.5** `[I2]` Group B families by measured kind
+    - [ ] **C.4.6** `[R2]` Lower-yield remainder
+    - [ ] **C.4.7** `[V]` Endgame gate and closure
+- [ ] **C.5** Residual and refit cycles
+    - [ ] **C.5.1** `[R3]` Residual investigation
+    - [ ] **C.5.2** `[V]` Refit cycles
+- [ ] **C.6** `[V]` Nonlinear HCE SPSA or a written skip
+- [ ] **C.7** Joint re-fit on the new evaluation
+    - [ ] **C.7.1** `[R2]` Joint-fit investigation and registration
+    - [ ] **C.7.2** `[V]` The joint fit, PGO and gate
+- [ ] **C.8** `[V]` Freeze the classical evaluation
+- [ ] **C.9** `[I2]` Evaluation throughput, bit-exact
+- [ ] **C.10** Interim release after the evaluation programme
+    - [ ] **C.10.1** `[I1]` Reported score and WDL in Stockfish's form
+    - [ ] **C.10.2** `[M]` The 1.12.0 cut
 
 ### Phase D — Clock, threads, tablebases
 

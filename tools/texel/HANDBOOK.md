@@ -30,7 +30,7 @@ between a game's result and a sigmoid of the score the engine serves:
   vetoes apply (PLAN §3).
 
 Texel refits a whole surface at zero games. SPSA spends games on a handful of
-knobs with curvature; C.9 decides whether the evaluation gets one.
+knobs with curvature; C.6 decides whether the evaluation gets one.
 
 ---
 

@@ -868,12 +868,12 @@ and refuse; they never accept a Basilisk change.
 | Prior IDs | Retry condition | PLAN destination |
 |---|---|---|
 | BAS-R02, BAS-R03 | Root-confidence inputs or evaluator score scale materially change. | D.1; re-audit at F.6 |
-| BAS-P04, BAS-P05, BAS-P06 | A new profile demonstrates changed reuse, cache pressure or PGO coverage. | C.12 for the evaluation's caches, D.2 for the TT |
+| BAS-P04, BAS-P05, BAS-P06 | A new profile demonstrates changed reuse, cache pressure or PGO coverage. | C.9 for the evaluation's caches, D.2 for the TT |
 | BAS-C05 (both encodings) | A measured 4T-only strength anomaly traced to TT publication, OR a TT redesign that widens the slot for an independent reason (e.g. the multiply-hi indexing deferred in PLAN section 6), OR a pooled `nps_ab.ps1` run showing a coherent layout inside +/-0.5% of plain-key. Reasoning alone does not reopen it: both prior repairs were correct and both lost Elo. | D.2, which owns the TT publication repair (PLAN §2 *Standing contracts*) |
 | BAS-P07, BAS-X07 | Production ARM64 artifacts show missing prefetch or measured hot-state contention; isolate one valid variant per target-native A/B. | A.4.1, E.3.2, G.2 |
-| BAS-E03, BAS-E04, BAS-E06 | NNUE data/teacher experiment, not another unchanged-surface HCE constant fit; frozen teacher and holdout are available. | C.2.8 and C.8 only on a changed search and surface; F.2–F.3 for teacher data |
-| BAS-E36 Arm B (bishop proximity) | A current instrument run shows bishop shuffling remains the dominant residual failure mode and the candidate clears promotion closure and all mate floors. | C.7.2/C.7.6 only if re-ranked |
-| BAS-E36 Arm C (escape-square count) | The stalemate-adjacency hypothesis is tested directly, shown to reinforce rather than compete with the corner drive, and clears deterministic KBN-K/promotion-closure floors. | C.7.2/C.7.6 only if re-ranked |
+| BAS-E03, BAS-E04, BAS-E06 | NNUE data/teacher experiment, not another unchanged-surface HCE constant fit; frozen teacher and holdout are available. | C.2.8 and C.5 only on a changed search and surface; F.2–F.3 for teacher data |
+| BAS-E36 Arm B (bishop proximity) | A current instrument run shows bishop shuffling remains the dominant residual failure mode and the candidate clears promotion closure and all mate floors. | C.4.2/C.4.6 only if re-ranked |
+| BAS-E36 Arm C (escape-square count) | The stalemate-adjacency hypothesis is tested directly, shown to reinforce rather than compete with the corner drive, and clears deterministic KBN-K/promotion-closure floors. | C.4.2/C.4.6 only if re-ranked |
 
 Anything not meeting its trigger stays closed. A retry is a new experiment with
 a new ID and manifest; it does not overwrite the historical row. Fired and
