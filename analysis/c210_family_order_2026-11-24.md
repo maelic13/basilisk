@@ -295,3 +295,93 @@ Where the samples stand, for the rule's use:
 - **C-110's static half** now holds only for the queens' and the
   rooks' terms. Space, mobility and pawn structure exclude zero on the
   gate games.
+
+## 10. The games — read 2026-11-25
+
+Twelve reads of 3,000 games, each complete, with no fault and no time
+loss. The full table is BAS-O14's; the frontier pair is BAS-M24's.
+
+| Quantity | Predicted | Read (95%) | |
+|---|---:|---|---|
+| E(0) | +160 | +146.2 [+137.5, +155.1] | in band |
+| Frontier pair | −140 | −120.0 [−129.2, −111.0] | in band |
+| M(7), mobility, space, threats | +55 | −52.0 ± 13.5 | missed |
+| M(8), king | +20 | +43.1 ± 13.2 | in band |
+| M(48), pawns and passers | +12 | +94.9 ± 13.4 | missed |
+| M(64), pieces | +5 | −37.7 ± 13.1 | missed |
+| M(2), mobility | +35 | −46.0 ± 13.3 | missed |
+| M(1), space | +12 | −2.1 ± 12.5 | in band |
+| M(4), threats | +8 | −9.9 ± 12.9 | in band |
+| M(16), pawn structure | +8 | −33.2 ± 13.1 | missed |
+| M(32), passers | +5 | +125.4 ± 12.9 | missed |
+| E(127) | +70 | −16.6 [−27.4, −5.8] | missed |
+
+- No falsifier fired. The four ranked predictions all missed (BAS-O14's
+  calibration).
+- §3's confounds, as they read:
+  - **Speed.** Basilisk's arm is within about 4% of its mask-0 speed on
+    every order read. Only `m127` is flagged.
+  - **Level.** The two mobility terms carry the same level (slope on
+    own material 0.019 and 0.021), so it explains no sign.
+  - **Saturation.** Every arm is inside 20% to 80%.
+  - **Not additive.** The singles sum to +39.6 and the clusters to
+    +48.3, against +162.8 together.
+- The passers' single meter is 30.5 above its cluster's, over §5's 21.
+  Pawn structure's −33.2 is the explanation §5 named.
+
+## 11. The rule applied
+
+1. E by cluster: C.5 +51.3, C.4 +103.1, C.6 +184.0, C.3 +198.2.
+2. Each move is by more than its interval:
+   - C.5 ahead of C.4, by 51.8 ± 14.2;
+   - C.4 ahead of C.3, by 95.1 ± 14.2;
+   - C.6 ahead of C.3, by 14.2 against 14.1: a tenth of an Elo.
+
+   C.6 does not pass C.4; its E is 80.9 higher.
+3. No tie reaches the screen.
+4. The constraints hold. The phase, tempo and the endgame king danger
+   stay together in the king cluster, and the endgame cluster still
+   follows pawns and pieces.
+5. C-110 closes the donor's queen terms: the pieces' meter lies below
+   zero and their gain includes zero in every band on both samples. The
+   rook terms sit on the edge ([0.0, 2.0] at phase 10–17 on gate games)
+   and are left to their cluster's screen. No whole family meets both
+   halves.
+6. C.3's singles go to its research: mobility −46.0, space −2.1,
+   threats −9.9.
+7. No order read is saturated or flagged.
+8. E(0) − E(127) is 162.8. The families hold the whole same-search
+   deficit, and the premise stands.
+
+**The order: pawns and passers, king safety, material and pieces,
+mobility, space and threats.** They are renumbered C.3, C.4, C.5 and
+C.6 in that order; HISTORY has the map.
+
+## 12. What the order does not say
+
+- **A meter ranks; it does not size a port** (§3). The singles sum to a
+  quarter of the joint read.
+- **The passers' +125.4 has three readings**, and the games do not
+  separate them:
+  - the donor's form is worth more;
+  - Basilisk's passer value sits partly in its endgame pawn table (152
+    to 270 on the seventh rank), which bit 5 leaves in and which cannot
+    see a blocker or a king;
+  - Basilisk's own passer terms cost it in play.
+- Static evidence, after the fact and not registered
+  (`tools/results/c210-close/`, corpus A's validation rows):
+  - Removing its own passer terms costs the donor 379.9 and Basilisk
+    103.1 (1e-4 nats); for the king, 261.1 and 53.2.
+  - The donor's passer term adds 5.4 to Basilisk's whole score, and
+    14.0 at phase 0–9 (BAS-E62).
+  - So the donor leans on its term far more than Basilisk does on its
+    own, while Basilisk's whole score already holds most of what the
+    donor's term predicts.
+- **The read that separates them** is each evaluation with and without
+  its own passer terms: masks 0 and 32 at one `Use Basilisk HCE`, both
+  values. It opens the first cluster's research.
+- **Third place rests on a tenth of an Elo.** Both clusters read below
+  zero, so it decides little.
+- **The screen's donor gain did not rank the games.** Its leading
+  family on gate games, space, reads −2.1 ± 12.5. C.0's prior is
+  refuted.

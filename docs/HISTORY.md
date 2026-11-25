@@ -316,6 +316,19 @@ New the same day: B.7.5 (search replay and engine screen), B.7.7 (second
 round of board candidates) and B.7.8 (their rebuild). Withdrawn the same
 day: Chess960 (handoff item C7, TB-9, G.2's bullet).
 
+Renumbered in Phase C on 2026-11-25 (C.2.10's order, from games;
+`analysis/c210_family_order_2026-11-24.md` §11): the four family clusters
+run in the order of the Elo each explains. C.3, C.5 and C.6 now name
+different work, and C.4 keeps its number. A reference dated before this,
+C.0's, C.2.8's and C.2.10's records and packets and BAS-E62 included,
+uses the earlier numbering.
+
+| Was | Now | Note |
+|---|---|---|
+| C.5 | C.3 | pawns and passers, first; it opens C.3.1 to C.3.5 |
+| C.6 | C.5 | material, imbalance and pieces |
+| C.3, C.3.1–C.3.5 | C.6 | mobility, space and threats, last; its sub-steps were never started and open again when reached |
+
 ## Completed current-roadmap work (dated records; PLAN owns IDs)
 
 - **2026-09-28 — PLAN A.1 CLOSED: document reset.** The roadmap was rewritten
