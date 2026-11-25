@@ -134,6 +134,8 @@ const std::vector<Field>& compared() {
         {"pieces_eg", [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_PIECES][1]; }, true, STAGE1},
         {"mobility_mg", [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_MOBILITY][0]; }, true, STAGE1},
         {"mobility_eg", [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_MOBILITY][1]; }, true, STAGE1},
+        {"king_mg", [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_KING][0]; }, true, STAGE1},
+        {"king_eg", [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_KING][1]; }, true, STAGE1},
     };
     return fields;
 }

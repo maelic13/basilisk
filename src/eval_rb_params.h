@@ -252,6 +252,25 @@ struct EvalParams {
     int queen_infiltration_mg = -2;
     int queen_infiltration_eg = 14;
 
+    // ---- King danger (ticket 4; knobs: the index is squared) ---------------
+    // A safe check by PieceType * 2 + whether there are several.
+    int safe_check[14] = { 0, 0, 0, 0, 792, 1283, 645, 967, 1084, 1897, 772, 1119, 0, 0 };
+    int kd_weak_ring = 185;        // per weak square in the king ring
+    int kd_unsafe_checks = 148;    // per square an unsafe check could come from
+    int kd_blockers = 98;          // per piece shielding our king from a slider
+    int kd_king_attacks = 69;      // per attack on a square next to our king
+    int kd_flank_attack = 3;       // times the flank attack's square, over 8
+    int kd_no_queen = 873;         // subtracted when they have no queen
+    int kd_knight_defender = 100;  // subtracted when our knight defends next to our king
+    int kd_shelter = 6;            // times the shelter's middlegame value, over 8, subtracted
+    int kd_flank_defence = 4;      // per square we defend in our flank, subtracted
+    int kd_offset = 37;
+    // ---- The king's flank (ticket 4; linear) ----------------------------------
+    int pawnless_flank_mg = 17;
+    int pawnless_flank_eg = 95;
+    int flank_attacks_mg = 8;      // per attack on our flank
+    int flank_attacks_eg = 0;
+
     // ---- Tempo, in units; converted with the value --------------------------
     int tempo = 28;
 };
@@ -331,4 +350,19 @@ struct EvalParams {
     X(WeakQueenEg,          weak_queen_eg,         1)               \
     X(QueenInfiltrationMg,  queen_infiltration_mg, 1)               \
     X(QueenInfiltrationEg,  queen_infiltration_eg, 1)               \
+    X(SafeCheck,            safe_check,           14)               \
+    X(KdWeakRing,           kd_weak_ring,          1)               \
+    X(KdUnsafeChecks,       kd_unsafe_checks,      1)               \
+    X(KdBlockers,           kd_blockers,           1)               \
+    X(KdKingAttacks,        kd_king_attacks,       1)               \
+    X(KdFlankAttack,        kd_flank_attack,       1)               \
+    X(KdNoQueen,            kd_no_queen,           1)               \
+    X(KdKnightDefender,     kd_knight_defender,    1)               \
+    X(KdShelter,            kd_shelter,            1)               \
+    X(KdFlankDefence,       kd_flank_defence,      1)               \
+    X(KdOffset,             kd_offset,             1)               \
+    X(PawnlessFlankMg,      pawnless_flank_mg,     1)               \
+    X(PawnlessFlankEg,      pawnless_flank_eg,     1)               \
+    X(FlankAttacksMg,       flank_attacks_mg,      1)               \
+    X(FlankAttacksEg,       flank_attacks_eg,      1)               \
     X(Tempo,                tempo,                 1)

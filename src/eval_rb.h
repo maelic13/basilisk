@@ -7,7 +7,7 @@
 // alone when BASILISK_EVAL_REBUILD is defined. Include it nowhere else.
 
 #include "eval_rb_material.h"
-#include "eval_rb_pieces.h"
+#include "eval_rb_king.h"
 
 namespace rb {
 
@@ -107,6 +107,11 @@ int Evaluation<Rec>::value(bool& verdict) {
         if (!lazy)
             score += piece_sum + mobility;
 
+        // ---- King safety ------------------------------------------------------
+        const Score king = king_terms<WHITE>(b, pe, m) - king_terms<BLACK>(b, pe, m);
+        if (!lazy)
+            score += king;
+
         if constexpr (Rec) {
             record_pair(rec->piece_type[0], knights);
             record_pair(rec->piece_type[1], bishops);
@@ -114,6 +119,7 @@ int Evaluation<Rec>::value(bool& verdict) {
             record_pair(rec->piece_type[3], queens);
             record_pair(rec->family[EVAL_ABLATE_PIECES], piece_sum);
             record_pair(rec->family[EVAL_ABLATE_MOBILITY], mobility);
+            record_pair(rec->family[EVAL_ABLATE_KING], king);
         }
     }
     if constexpr (Rec)
