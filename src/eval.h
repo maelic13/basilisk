@@ -47,7 +47,10 @@ static constexpr int IMBALANCE_TABLE_BITS = 10;
 #ifdef BASILISK_EVAL_REBUILD
 // The rebuilt evaluation's one conversion from the classical form's units to
 // centipawns, cp = v * S / 1024 truncated: a gauge, fixed once, not fitted.
-inline constexpr int EVAL_REBUILD_CONVERSION_S = 628;
+// S is the integer whose K, fitted at the seed on corpus A's validation rows,
+// is nearest the accepted evaluation's there: 2.0027 at 620 (2.0060 at 619)
+// against 2.0043.
+inline constexpr int EVAL_REBUILD_CONVERSION_S = 620;
 
 // The rebuilt evaluation's intermediates for one position, in the classical
 // form's units and White's view, as the reference producer prints them
