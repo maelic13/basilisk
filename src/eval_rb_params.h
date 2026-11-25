@@ -207,6 +207,51 @@ struct EvalParams {
     // Per step from the king to its nearest pawn.
     int king_pawn_distance_eg = 16;
 
+    // ---- Attack maps, pieces and mobility (ticket 3) -------------------------
+    // King danger's attacker weights by PieceType (knobs; the king family
+    // reads their sum).
+    int king_attack_weight[7] = { 0, 0, 81, 52, 44, 10, 0 };
+    // Mobility by the count of attacked squares in the mobility area.
+    int mob_n_mg[9] = { -62, -53, -12, -4, 3, 13, 22, 28, 33 };
+    int mob_n_eg[9] = { -81, -56, -31, -16, 5, 11, 17, 20, 25 };
+    int mob_b_mg[14] = { -48, -20, 16, 26, 38, 51, 55, 63, 63, 68, 81, 81, 91, 98 };
+    int mob_b_eg[14] = { -59, -23, -3, 13, 24, 42, 54, 57, 65, 73, 78, 86, 88, 97 };
+    int mob_r_mg[15] = { -60, -20, 2, 3, 3, 11, 22, 31, 40, 40, 41, 48, 57, 57, 62 };
+    int mob_r_eg[15] = { -78, -17, 23, 39, 70, 99, 103, 121, 134, 139, 158, 164, 168, 169, 172 };
+    int mob_q_mg[28] = { -30, -12, -8, -9, 20, 23, 23, 35, 38, 53, 64, 65, 65, 66, 67, 67, 72, 72, 77, 79, 93, 108, 108, 108, 110, 114, 114, 116 };
+    int mob_q_eg[28] = { -48, -30, -7, 19, 40, 55, 59, 75, 78, 96, 96, 100, 121, 127, 131, 133, 136, 141, 147, 150, 151, 168, 168, 171, 182, 182, 192, 219 };
+    // The piece terms; penalties are subtracted where they apply.
+    int rook_on_king_ring_mg = 16;
+    int rook_on_king_ring_eg = 0;
+    int bishop_on_king_ring_mg = 24;
+    int bishop_on_king_ring_eg = 0;
+    int outpost_mg[2] = { 56, 30 };  // knight, bishop
+    int outpost_eg[2] = { 36, 23 };
+    int bad_outpost_mg = -7;
+    int bad_outpost_eg = 36;
+    int reachable_outpost_mg = 31;
+    int reachable_outpost_eg = 22;
+    int minor_behind_pawn_mg = 18;
+    int minor_behind_pawn_eg = 3;
+    int king_protector_mg[2] = { 8, 6 };  // knight, bishop; per step from our king
+    int king_protector_eg[2] = { 9, 9 };
+    int bishop_pawns_mg = 3;
+    int bishop_pawns_eg = 7;
+    int bishop_xray_pawns_mg = 4;
+    int bishop_xray_pawns_eg = 5;
+    int long_diagonal_bishop_mg = 45;
+    int long_diagonal_bishop_eg = 0;
+    int rook_on_queen_file_mg = 6;
+    int rook_on_queen_file_eg = 11;
+    int rook_on_file_mg[2] = { 19, 48 };  // semi-open, open
+    int rook_on_file_eg[2] = { 7, 29 };
+    int trapped_rook_mg = 55;
+    int trapped_rook_eg = 13;
+    int weak_queen_mg = 56;
+    int weak_queen_eg = 15;
+    int queen_infiltration_mg = -2;
+    int queen_infiltration_eg = 14;
+
     // ---- Tempo, in units; converted with the value --------------------------
     int tempo = 28;
 };
@@ -247,4 +292,43 @@ struct EvalParams {
     X(BlockedStormMg,       blocked_storm_mg,      7)               \
     X(BlockedStormEg,       blocked_storm_eg,      7)               \
     X(KingPawnDistanceEg,   king_pawn_distance_eg, 1)               \
+    X(KingAttackWeight,     king_attack_weight,    7)               \
+    X(MobNMg,               mob_n_mg,              9)               \
+    X(MobNEg,               mob_n_eg,              9)               \
+    X(MobBMg,               mob_b_mg,             14)               \
+    X(MobBEg,               mob_b_eg,             14)               \
+    X(MobRMg,               mob_r_mg,             15)               \
+    X(MobREg,               mob_r_eg,             15)               \
+    X(MobQMg,               mob_q_mg,             28)               \
+    X(MobQEg,               mob_q_eg,             28)               \
+    X(RookOnKingRingMg,     rook_on_king_ring_mg,  1)               \
+    X(RookOnKingRingEg,     rook_on_king_ring_eg,  1)               \
+    X(BishopOnKingRingMg,   bishop_on_king_ring_mg, 1)              \
+    X(BishopOnKingRingEg,   bishop_on_king_ring_eg, 1)              \
+    X(OutpostMg,            outpost_mg,            2)               \
+    X(OutpostEg,            outpost_eg,            2)               \
+    X(BadOutpostMg,         bad_outpost_mg,        1)               \
+    X(BadOutpostEg,         bad_outpost_eg,        1)               \
+    X(ReachableOutpostMg,   reachable_outpost_mg,  1)               \
+    X(ReachableOutpostEg,   reachable_outpost_eg,  1)               \
+    X(MinorBehindPawnMg,    minor_behind_pawn_mg,  1)               \
+    X(MinorBehindPawnEg,    minor_behind_pawn_eg,  1)               \
+    X(KingProtectorMg,      king_protector_mg,     2)               \
+    X(KingProtectorEg,      king_protector_eg,     2)               \
+    X(BishopPawnsMg,        bishop_pawns_mg,       1)               \
+    X(BishopPawnsEg,        bishop_pawns_eg,       1)               \
+    X(BishopXrayPawnsMg,    bishop_xray_pawns_mg,  1)               \
+    X(BishopXrayPawnsEg,    bishop_xray_pawns_eg,  1)               \
+    X(LongDiagonalBishopMg, long_diagonal_bishop_mg, 1)             \
+    X(LongDiagonalBishopEg, long_diagonal_bishop_eg, 1)             \
+    X(RookOnQueenFileMg,    rook_on_queen_file_mg, 1)               \
+    X(RookOnQueenFileEg,    rook_on_queen_file_eg, 1)               \
+    X(RookOnFileMg,         rook_on_file_mg,       2)               \
+    X(RookOnFileEg,         rook_on_file_eg,       2)               \
+    X(TrappedRookMg,        trapped_rook_mg,       1)               \
+    X(TrappedRookEg,        trapped_rook_eg,       1)               \
+    X(WeakQueenMg,          weak_queen_mg,         1)               \
+    X(WeakQueenEg,          weak_queen_eg,         1)               \
+    X(QueenInfiltrationMg,  queen_infiltration_mg, 1)               \
+    X(QueenInfiltrationEg,  queen_infiltration_eg, 1)               \
     X(Tempo,                tempo,                 1)

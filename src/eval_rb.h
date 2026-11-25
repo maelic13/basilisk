@@ -7,7 +7,7 @@
 // alone when BASILISK_EVAL_REBUILD is defined. Include it nowhere else.
 
 #include "eval_rb_material.h"
-#include "eval_rb_pawns.h"
+#include "eval_rb_pieces.h"
 
 namespace rb {
 
@@ -16,6 +16,21 @@ namespace rb {
 inline constexpr int CONVERSION_S = 628;
 
 inline int to_centipawns(int v) { return v * CONVERSION_S / 1024; }
+
+// The lazy exits' structure constants: the families after an exit are not
+// evaluated once half the halves' sum exceeds its threshold plus a 64th of
+// the non-pawn material.
+inline constexpr int LAZY_THRESHOLD_1 = 1400;
+inline constexpr int LAZY_THRESHOLD_2 = 1300;
+
+inline bool lazy_skip(Score s, int threshold, int npm) {
+    return std::abs(s.mg + s.eg) / 2 > threshold + npm / 64;
+}
+
+inline void record_pair(int (&out)[2], Score s) {
+    out[0] = s.mg;
+    out[1] = s.eg;
+}
 
 // The taper with an endgame scale factor of 64ths, in the reference's
 // integer arithmetic.
@@ -65,13 +80,44 @@ int Evaluation<Rec>::value(bool& verdict) {
     score += pawns;
 
     if constexpr (Rec) {
-        rec->psq[0] = psq.mg;
-        rec->psq[1] = psq.eg;
+        record_pair(rec->psq, psq);
         rec->imbalance[0] = rec->imbalance[1] = imb;
         rec->ph = ph;
-        rec->family[EVAL_ABLATE_PAWNS][0] = pawns.mg;
-        rec->family[EVAL_ABLATE_PAWNS][1] = pawns.eg;
+        record_pair(rec->family[EVAL_ABLATE_PAWNS], pawns);
     }
+
+    // ---- First lazy exit ---------------------------------------------------------
+    // A Rec build evaluates past both exits, so the record holds every family,
+    // and serves what a release build serves.
+    const int npm = non_pawn_material(b);
+    int lazy = lazy_skip(score, LAZY_THRESHOLD_1, npm) ? 1 : 0;
+    if (Rec || !lazy) {
+        // ---- Pieces and mobility: the attack maps ----------------------------
+        Maps m;
+        m.blockers_for_king[WHITE] = slider_blockers(b, b.occupancy_bb(BLACK), b.king_square(WHITE));
+        m.blockers_for_king[BLACK] = slider_blockers(b, b.occupancy_bb(WHITE), b.king_square(BLACK));
+        init_maps<WHITE>(b, pe, m);
+        init_maps<BLACK>(b, pe, m);
+        const Score knights = piece_terms<WHITE, KNIGHT>(b, pe, m) - piece_terms<BLACK, KNIGHT>(b, pe, m);
+        const Score bishops = piece_terms<WHITE, BISHOP>(b, pe, m) - piece_terms<BLACK, BISHOP>(b, pe, m);
+        const Score rooks   = piece_terms<WHITE, ROOK  >(b, pe, m) - piece_terms<BLACK, ROOK  >(b, pe, m);
+        const Score queens  = piece_terms<WHITE, QUEEN >(b, pe, m) - piece_terms<BLACK, QUEEN >(b, pe, m);
+        const Score piece_sum = knights + bishops + rooks + queens;
+        const Score mobility = m.mobility[WHITE] - m.mobility[BLACK];
+        if (!lazy)
+            score += piece_sum + mobility;
+
+        if constexpr (Rec) {
+            record_pair(rec->piece_type[0], knights);
+            record_pair(rec->piece_type[1], bishops);
+            record_pair(rec->piece_type[2], rooks);
+            record_pair(rec->piece_type[3], queens);
+            record_pair(rec->family[EVAL_ABLATE_PIECES], piece_sum);
+            record_pair(rec->family[EVAL_ABLATE_MOBILITY], mobility);
+        }
+    }
+    if constexpr (Rec)
+        rec->lazy = lazy;
 
     const int v = taper(score, ph, 64);
     const int cp = to_centipawns(v);

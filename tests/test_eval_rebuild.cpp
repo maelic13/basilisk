@@ -122,6 +122,18 @@ const std::vector<Field>& compared() {
         {"ph",           [](const EvalRebuildRecord& r) { return r.ph; }, false, EVERY},
         {"pawns_mg",     [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_PAWNS][0]; }, true, EVERY},
         {"pawns_eg",     [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_PAWNS][1]; }, true, EVERY},
+        {"knights_mg", [](const EvalRebuildRecord& r) { return r.piece_type[0][0]; }, true, STAGE1},
+        {"knights_eg", [](const EvalRebuildRecord& r) { return r.piece_type[0][1]; }, true, STAGE1},
+        {"bishops_mg", [](const EvalRebuildRecord& r) { return r.piece_type[1][0]; }, true, STAGE1},
+        {"bishops_eg", [](const EvalRebuildRecord& r) { return r.piece_type[1][1]; }, true, STAGE1},
+        {"rooks_mg", [](const EvalRebuildRecord& r) { return r.piece_type[2][0]; }, true, STAGE1},
+        {"rooks_eg", [](const EvalRebuildRecord& r) { return r.piece_type[2][1]; }, true, STAGE1},
+        {"queens_mg", [](const EvalRebuildRecord& r) { return r.piece_type[3][0]; }, true, STAGE1},
+        {"queens_eg", [](const EvalRebuildRecord& r) { return r.piece_type[3][1]; }, true, STAGE1},
+        {"pieces_mg", [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_PIECES][0]; }, true, STAGE1},
+        {"pieces_eg", [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_PIECES][1]; }, true, STAGE1},
+        {"mobility_mg", [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_MOBILITY][0]; }, true, STAGE1},
+        {"mobility_eg", [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_MOBILITY][1]; }, true, STAGE1},
     };
     return fields;
 }
