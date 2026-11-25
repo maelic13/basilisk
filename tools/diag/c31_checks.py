@@ -12,7 +12,9 @@
      line gives, for every family in S (40 and 127), the donor's own trace
      row (`eval` of the stock 9587eeeb build) to the trace's printed
      precision, 0.005 of a pawn. The line's mg(t), eg(t), X and T are
-     recomputed here from its fields by section 2's formula.
+     recomputed here from its fields by section 2's formula, and its sf is
+     the donor's applied factor wherever the donor's whole endgame score is
+     not zero (Amendment 1).
   5. Colour symmetry: B, X and T of each position equal those of its
      colour-flipped mirror, at S = 40 and S = 127.
   6. A refused combination is refused: a transplant mask with
@@ -67,7 +69,8 @@ PIECES = ["knights", "bishops", "rooks", "queens"]
 TRACE_ROWS = {"space": ["Space"], "mobility": ["Mobility"], "threats": ["Threats"], "king": ["King safety"],
               "pawns": ["Pawns"], "passed": ["Passed"], "pieces": ["Knights", "Bishops", "Rooks", "Queens"]}
 PIECE_ROW = dict(zip(PIECES, TRACE_ROWS["pieces"]))
-SCALAR_FIELDS = ["mask", "mgscale", "egscale", "B", "mg", "eg", "ph", "sf", "X", "T", "donor", "lazy", "specialised"]
+SCALAR_FIELDS = ["mask", "mgscale", "egscale", "B", "mg", "eg", "ph", "sf", "donorsf", "egzero", "X", "T", "donor",
+                 "lazy", "specialised"]
 
 
 class Failed(Exception):
@@ -272,7 +275,7 @@ def check_terms(fens: list[str], lines: dict[int, list[dict]], traces: list[dict
         families = [f for bit, f in enumerate(FAMILIES) if (mask >> bit) & 1]
         cells, gap, where, aggregate_gap, bad = 0, 0.0, None, 0.0, []
         lazy = {0: 0, 1: 0, 2: 0}
-        specialised = 0
+        specialised = egzero = 0
         for index, (fen, v, trace) in enumerate(zip(fens, rows, traces)):
             lazy[v["lazy"]] += 1
             specialised += v["specialised"]
@@ -293,6 +296,11 @@ def check_terms(fens: list[str], lines: dict[int, list[dict]], traces: list[dict
             if sum(v[p][0] for p in PIECES) != v["pieces"][0] or sum(v[p][1] for p in PIECES) != v["pieces"][1]:
                 bad.append((index, "pieces is not the sum of the piece types"))
             mg, eg, x = expected_x(v, fen)
+            if not v["egzero"] and v["sf"] != v["donorsf"]:
+                bad.append((index, f"sf {v['sf']} is not the donor's {v['donorsf']} with a non-zero endgame score"))
+            if v["egzero"] and trace.get("Total", (0.0, 0.0))[1] != 0.0:
+                bad.append((index, f"a zero endgame score where the trace's total is {trace.get('Total')}"))
+            egzero += v["egzero"]
             if (mg, eg, x, v["B"] + x) != (v["mg"], v["eg"], v["X"], v["T"]):
                 bad.append((index, f"section 2 gives mg {mg} eg {eg} X {x}; the line {v['mg']} {v['eg']} {v['X']} {v['T']}"))
             rows_in_s = [r for f in families for r in TRACE_ROWS[f] if r in trace]
@@ -302,6 +310,7 @@ def check_terms(fens: list[str], lines: dict[int, list[dict]], traces: list[dict
                              "largest_gap_at": {"position": where[0], "fen": fens[where[0]], "row": where[1],
                                                 "phase": where[2]} if where else None,
                              "aggregate_gap_pawns": aggregate_gap, "lazy_exits": lazy, "specialised": specialised,
+                             "donor_endgame_score_zero": egzero,
                              "max_abs_X": max(abs(v["X"]) for v in rows), "max_abs_T": max(abs(v["T"]) for v in rows),
                              "failures": len(bad), "first_failures": bad[:10]}
         if bad:

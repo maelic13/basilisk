@@ -1,5 +1,5 @@
 diff --git a/hybrid/stockfish/src/evaluate.cpp b/hybrid/stockfish/src/evaluate.cpp
-index 8ea9cae..58a544f 100644
+index 8ea9cae..c57fdd9 100644
 --- a/hybrid/stockfish/src/evaluate.cpp
 +++ b/hybrid/stockfish/src/evaluate.cpp
 @@ -20,6 +20,8 @@
@@ -20,8 +20,11 @@ index 8ea9cae..58a544f 100644
      Evaluation& operator=(const Evaluation&) = delete;
      Value value();
  
-@@ -184,6 +186,8 @@ namespace {
+@@ -182,8 +184,11 @@ namespace {
+     template<Color Us> Score passed() const;
+     template<Color Us> Score space() const;
      Value winnable(Score score) const;
++    int scale_factor(Color strongSide) const;
  
      const Position& pos;
 +    Eval::Families* fam;            // the transplant's record, or null
@@ -29,16 +32,69 @@ index 8ea9cae..58a544f 100644
      Material::Entry* me;
      Pawns::Entry* pe;
      Bitboard mobilityArea[COLOR_NB];
-@@ -803,6 +807,8 @@ namespace {
+@@ -777,6 +782,41 @@ namespace {
+ 
+     // Compute the scale factor for the winning side
+     Color strongSide = eg > VALUE_DRAW ? WHITE : BLACK;
++    int sf = scale_factor(strongSide);
++
++    appliedScale = sf;
++    // A zero endgame score names Black as the strong side whichever colour
++    // the position favours, so its factor is not colour symmetric; it scales
++    // nothing here, but the transplant scales its own terms by it. Both
++    // sides' factors are kept for the transplant to choose from.
++    if (fam && eg == VALUE_DRAW)
++    {
++        fam->wholeEgZero = true;
++        fam->scaleFactorWhite = scale_factor(WHITE);
++        fam->scaleFactorBlack = sf;
++    }
++
++    // Interpolate between the middlegame and (scaled by 'sf') endgame score
++    v =  mg * int(me->game_phase())
++       + eg * int(PHASE_MIDGAME - me->game_phase()) * ScaleFactor(sf) / SCALE_FACTOR_NORMAL;
++    v /= PHASE_MIDGAME;
++
++    if (T)
++    {
++        Trace::add(WINNABLE, make_score(u, eg * ScaleFactor(sf) / SCALE_FACTOR_NORMAL - eg_value(score)));
++        Trace::add(TOTAL, make_score(mg, eg * ScaleFactor(sf) / SCALE_FACTOR_NORMAL));
++    }
++
++    return Value(v);
++  }
++
++
++  // Evaluation::scale_factor() is winnable()'s endgame scale factor for a
++  // given strong side: the material entry's, else the general heuristics.
++
++  template<Tracing T>
++  int Evaluation<T>::scale_factor(Color strongSide) const {
++
+     int sf = me->scale_factor(pos, strongSide);
+ 
+     // If scale factor is not already specific, scale down via general heuristics
+@@ -803,18 +843,7 @@ namespace {
              sf = std::min(sf, 36 + 7 * pos.count<PAWN>(strongSide));
      }
  
-+    appliedScale = sf;
-+
-     // Interpolate between the middlegame and (scaled by 'sf') endgame score
-     v =  mg * int(me->game_phase())
-        + eg * int(PHASE_MIDGAME - me->game_phase()) * ScaleFactor(sf) / SCALE_FACTOR_NORMAL;
-@@ -833,7 +839,11 @@ namespace {
+-    // Interpolate between the middlegame and (scaled by 'sf') endgame score
+-    v =  mg * int(me->game_phase())
+-       + eg * int(PHASE_MIDGAME - me->game_phase()) * ScaleFactor(sf) / SCALE_FACTOR_NORMAL;
+-    v /= PHASE_MIDGAME;
+-
+-    if (T)
+-    {
+-        Trace::add(WINNABLE, make_score(u, eg * ScaleFactor(sf) / SCALE_FACTOR_NORMAL - eg_value(score)));
+-        Trace::add(TOTAL, make_score(mg, eg * ScaleFactor(sf) / SCALE_FACTOR_NORMAL));
+-    }
+-
+-    return Value(v);
++    return sf;
+   }
+ 
+ 
+@@ -833,7 +862,11 @@ namespace {
      // If we have a specialized evaluation function for the current material
      // configuration, call it and return.
      if (me->specialized_eval_exists())
@@ -50,7 +106,7 @@ index 8ea9cae..58a544f 100644
  
      // Initialize score by reading the incrementally updated scores included in
      // the position object (material + piece square tables) and the material
-@@ -847,6 +857,8 @@ namespace {
+@@ -847,6 +880,8 @@ namespace {
      auto ablated = [](int bit) { return (Eval::ablationMask >> bit) & 1; };
      if (!ablated(4))
          score += pe->pawn_score(WHITE) - pe->pawn_score(BLACK);
@@ -59,7 +115,7 @@ index 8ea9cae..58a544f 100644
  
      // Early exit if score is high
      auto lazy_skip = [&](Value lazyThreshold) {
-@@ -854,7 +866,11 @@ namespace {
+@@ -854,7 +889,11 @@ namespace {
      };
  
      if (lazy_skip(LazyThreshold1))
@@ -71,7 +127,7 @@ index 8ea9cae..58a544f 100644
  
      // Main evaluation begins here
      initialize<WHITE>();
-@@ -863,10 +879,13 @@ namespace {
+@@ -863,10 +902,13 @@ namespace {
      // Pieces evaluated first (also populates attackedBy, attackedBy2).
      // Note that the order of evaluation of the terms is left unspecified.
      {
@@ -89,7 +145,7 @@ index 8ea9cae..58a544f 100644
      if (!ablated(6))
          score += pieceTerms;
  
-@@ -880,10 +899,25 @@ namespace {
+@@ -880,10 +922,25 @@ namespace {
          score += kingTerms;
      if (!ablated(5))
          score += passedTerms;
@@ -115,7 +171,7 @@ index 8ea9cae..58a544f 100644
  
      {
      const Score threatTerms = threats<WHITE>() - threats<BLACK>();
-@@ -892,11 +926,21 @@ namespace {
+@@ -892,11 +949,21 @@ namespace {
          score += threatTerms;
      if (!ablated(0))
          score += spaceTerms;
@@ -137,7 +193,7 @@ index 8ea9cae..58a544f 100644
  
      // In case of tracing add all remaining individual evaluation terms
      if (T)
-@@ -927,9 +971,122 @@ make_v:
+@@ -927,9 +994,134 @@ make_v:
  
  int Eval::ablationMask = 0;
  
@@ -173,6 +229,16 @@ index 8ea9cae..58a544f 100644
 +  return Evaluation<NO_TRACE>(pos, &out).value();
 +}
 +
++// The factor X scales eg(t) by: the one the donor applied, except where the
++// donor's whole endgame score is zero and its factor scales nothing; there
++// the same rule's factor for the side eg(t) favours, so that T stays colour
++// symmetric (Black's when eg(t) is zero too, where the term vanishes).
++int Eval::transplant_scale_factor(const Families& fam, int egTerms) {
++  if (!fam.wholeEgZero)
++      return fam.scaleFactor;
++  return egTerms > 0 ? fam.scaleFactorWhite : fam.scaleFactorBlack;
++}
++
 +Value Eval::transplant_contribution(const Position& pos, const Families& fam,
 +                                    int mask, int mgScale, int egScale) {
 +  Score t = SCORE_ZERO;
@@ -185,8 +251,9 @@ index 8ea9cae..58a544f 100644
 +  // truncates toward zero, as the donor's own divisions do.
 +  const int64_t ph = fam.phase;
 +  const int64_t mg = int(mg_value(t)), eg = int(eg_value(t));
++  const int64_t sf = transplant_scale_factor(fam, eg);
 +  const int64_t num =  int64_t(mgScale) * mg * ph * SCALE_FACTOR_NORMAL
-+                     + int64_t(egScale) * eg * (PHASE_MIDGAME - ph) * fam.scaleFactor;
++                     + int64_t(egScale) * eg * (PHASE_MIDGAME - ph) * sf;
 +  int64_t x = num / (int64_t(1024) * SCALE_FACTOR_NORMAL * PHASE_MIDGAME);
 +
 +  // The donor's side to move's point of view, then its rule-50 damping.
@@ -230,7 +297,8 @@ index 8ea9cae..58a544f 100644
 +  std::stringstream ss;
 +  ss << "transplant mask " << mask << " mgscale " << mgScale << " egscale " << egScale
 +     << " B " << int(b) << " mg " << int(mg_value(t)) << " eg " << int(eg_value(t))
-+     << " ph " << fam.phase << " sf " << fam.scaleFactor << " X " << int(x)
++     << " ph " << fam.phase << " sf " << transplant_scale_factor(fam, int(eg_value(t)))
++     << " donorsf " << fam.scaleFactor << " egzero " << int(fam.wholeEgZero) << " X " << int(x)
 +     << " T " << int(b + x) << " donor " << int(donor)
 +     << " lazy " << fam.lazyExit << " specialised " << int(fam.specialised);
 +  for (int bit = 0; bit < 7; ++bit)
@@ -263,10 +331,10 @@ index 8ea9cae..58a544f 100644
  
  
 diff --git a/hybrid/stockfish/src/evaluate.h b/hybrid/stockfish/src/evaluate.h
-index d9c8889..6d565ce 100644
+index d9c8889..1764f63 100644
 --- a/hybrid/stockfish/src/evaluate.h
 +++ b/hybrid/stockfish/src/evaluate.h
-@@ -36,6 +36,31 @@ namespace Eval {
+@@ -36,6 +36,40 @@ namespace Eval {
  // scaling are never masked. 0 is stock.
  extern int ablationMask;
  
@@ -279,15 +347,24 @@ index d9c8889..6d565ce 100644
 +  int   phase        = 0;   // the material entry's game phase, 0..PHASE_MIDGAME
 +  int   scaleFactor  = SCALE_FACTOR_NORMAL; // the factor winnable() applied
 +  int   lazyExit     = 0;   // 0, or the lazy threshold (1 or 2) that ended it
++  // Whether winnable()'s whole endgame score was zero, and then the factor
++  // the same rule gives each side.
++  bool  wholeEgZero      = false;
++  int   scaleFactorWhite = SCALE_FACTOR_NORMAL;
++  int   scaleFactorBlack = SCALE_FACTOR_NORMAL;
 +  bool  specialised  = false;
 +};
 +
 +// The donor's evaluation with its families recorded; returns its value.
 +Value evaluate_families(const Position& pos, Families& out);
 +
++// The scale factor X applies to the families' endgame sum egTerms.
++int transplant_scale_factor(const Families& fam, int egTerms);
++
 +// The transplant's donor contribution X(S) from the families in `mask`,
-+// interpolated by the evaluation's own phase and scale factor with the two
-+// scales (in 1/1024), damped by the donor's rule-50 rule, side to move's view.
++// interpolated by the evaluation's own phase and transplant_scale_factor()
++// with the two scales (in 1/1024), damped by the donor's rule-50 rule, from
++// the side to move's point of view.
 +Value transplant_contribution(const Position& pos, const Families& fam,
 +                              int mask, int mgScale, int egScale);
 +
