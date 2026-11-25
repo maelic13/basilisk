@@ -571,7 +571,8 @@ How the phase is built for it:
 - **Whole, since 2026-11-25** (maintainer, after C.2.10). The evaluation
   is rebuilt as one unit in the donor's form (C.3). That replaces the
   family order below, and the union becomes its second step: a Basilisk
-  term returns beside the donor's only on its own read.
+  term returns beside the donor's only on its own read. C.3.1's
+  transplant read first asks whether two families are enough.
 - **By where the deficit is.** Two thirds of it is realised on the full
   board (C.0), so the full-board families go first, and the order is
   decided again from games before the first family opens (C.2.10).
@@ -2054,15 +2055,22 @@ has lost games in both engines (BAS-X02).
   the search, and not family by family. C.4, C.5 and C.6 are built here
   as parts of it; their entries keep their inputs until C.3.1's handoff
   retires them.
+  Amended the same day (maintainer): a transplant read comes first
+  (C.3.1, BAS-O15). If the donor's passers and king safety on
+  Basilisk's own base come within 30 Elo of the donor's whole
+  evaluation, only those two are ported and the other families stay
+  Basilisk's.
   Why:
   - The donor's lead belongs to the whole. All seven families together
     explain +162.8, the single meters sum to +39.6, and five of seven
     read zero or below alone (BAS-O14).
-  - Results cannot steer family ports. With one K over all rows
-    Basilisk's score predicts results better than the donor's, by
-    49.8e-4 nats on corpus A and 23.0e-4 on gate games, and it plays
-    146.2 worse in one search
-    (`tools/results/c210-close/donor_distance.py`, not registered).
+  - The screen did not rank the families as games did: space led it
+    on gate games and reads −2.1 in play (BAS-E62, BAS-O14).
+    Corrected 2026-11-25: an earlier line here said results cannot
+    see the donor's lead. That holds only with one K over all rows.
+    With K linear in the phase `9587eeeb`'s score predicts better
+    than Basilisk's by 44.3e-4 nats on gate games and 43.7e-4 on
+    corpus A (`analysis/c31_transplant_2026-11-25.md` §10).
   - The families are coupled through the tables. Basilisk's endgame
     pawn table pays up to 270 on the seventh rank, so a passer port
     beside it has its credit split again by the fit.
@@ -2081,13 +2089,17 @@ has lost games in both engines (BAS-X02).
     network and the one BAS-O14 measured, or `sf_16`'s. They are level
     in play (BAS-O09). `sf_16`'s lazy cut reads the search's root score,
     it has no tempo, and it damps specialised endings;
-  - the fit: by games from converted seeds, or a static fit, given that
-    results from Basilisk's own games do not see the gap;
-  - what stays Basilisk's: its endgame layer and rule-50 curve, and
-    which of its own terms return beside the donor's, each on its own
-    read. Mobility, pawn structure and the piece terms read above the
-    donor's in BAS-O14;
+  - the fit's method: by games, or a static fit calibrated by phase;
+  - what stays Basilisk's from the start: its endgame layer and
+    rule-50 curve;
   - the disclosure the README and its notices then owe.
+  The maintainer's directions (2026-11-25):
+  - Ideas and forms may come from the donor. Every value and constant
+    that ships is fitted as Basilisk's own. The donor's values appear
+    only in a diagnostic arm.
+  - Basilisk's own forms return where they give strength, each on its
+    own read (C.3.6). Mobility, pawn structure and the piece terms
+    read above the donor's in BAS-O14.
   **Pawns and passers, the first family by C.2.10's order:**
   Passer king proximity, blocker ownership, path safety, unstoppable and
   rook-behind conditions; structure conditionality (doubled, isolated,
@@ -2138,7 +2150,13 @@ has lost games in both engines (BAS-X02).
     takes the donor's form and its tables together, so it does not wait
     on them.
     - [ ] **C.3.1** `[R3]` Rebuild research and handoff
-      The packet for the whole rebuild:
+      It opens with the transplant read (BAS-O15,
+      `analysis/c31_transplant_2026-11-25.md`, registered 2026-11-25):
+      the donor's passers and king safety on Basilisk's own base, in
+      the oracle, against Basilisk's evaluation and against the
+      donor's. The instrument and launcher are implementation's; the
+      three reads are the maintainer's.
+      Then the packet, for the whole rebuild or for the two families:
       - the reference evaluation and its scope: terms, tables,
         imbalance, winnable, scale factors, the lazy cut and tempo;
       - the scale conversion, and the known-win and mate tiers;
@@ -2167,6 +2185,13 @@ has lost games in both engines (BAS-X02).
       reads (C-99), an equal-node companion if an equal-time gate fails
       (C-95), then the frontier pair, the flip and the ledger rows. The
       bracket and the falsifier are C.3.1's registration.
+    - [ ] **C.3.6** `[R2]` Basilisk's own forms read back in
+      Added 2026-11-25 (maintainer). After the gate, each Basilisk
+      form the port displaced is read against the donor's on the
+      accepted port, behind its switch: one registered read each,
+      both arms fitted, since a read on one fit favours the form the
+      fit was made with. A form that gains returns. One that does not
+      stays out with a retry trigger. C.3.1's handoff lists the forms.
 - [ ] **C.4** `[I2]` King safety, phase and tempo cluster
   Folded into C.3 on 2026-11-25 (maintainer): built there as part of the
   whole rebuild. This entry keeps the family's inputs and is retired at
@@ -2751,11 +2776,12 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.3.1 | RESEARCH | R3 | Not started; the whole rebuild's packet and handoff (maintainer, 2026-11-25) |
+| C.3.1 | RESEARCH | R3 | The transplant read is registered (BAS-O15) and its instrument is ready for implementation; then the three reads, then the packet |
 | C.3.2 | RESEARCH | I2 | Not started |
 | C.3.3 | RESEARCH | R2 | Not started |
 | C.3.4 | RESEARCH | V | Not started |
 | C.3.5 | RESEARCH | V | Not started |
+| C.3.6 | RESEARCH | R2 | Not started |
 | C.4 | RESEARCH | I2 | Folded into C.3 on 2026-11-25; retired at C.3.1's handoff |
 | C.5 | RESEARCH | I2 | Folded into C.3 on 2026-11-25; retired at C.3.1's handoff |
 | C.6 | RESEARCH | I2 | Folded into C.3 on 2026-11-25; retired at C.3.1's handoff; C.0's contract is its packet §8.2 |

@@ -90,6 +90,7 @@ the six-stage gating shape), are in
     - [ ] **C.3.3** `[R2]` Independent review
     - [ ] **C.3.4** `[V]` Seed-value read and fit
     - [ ] **C.3.5** `[V]` Gate, frontier pair and close
+    - [ ] **C.3.6** `[R2]` Basilisk's own forms read back in
 - [ ] **C.4** `[I2]` King safety, phase and tempo cluster
 - [ ] **C.5** `[I2]` Material, imbalance and pieces cluster
 - [ ] **C.6** `[I2]` Mobility, space and threats cluster
