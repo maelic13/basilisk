@@ -234,3 +234,78 @@ therefore more open than I said, and it stays C.3.1's question.
 - Basilisk's own forms return where they give strength, each on its own
   read, as explicit steps in PLAN (C.3.6).
 - The pull request waits for C.3.
+
+## Return 1 — §2's scale factor is not colour symmetric (2026-11-25)
+
+**Premise returned.** §2: X uses "`sf` the scale factor it applies"; §4
+check 5: "T of a position equals T of its colour-flipped mirror". Both
+cannot hold. When the donor's whole endgame score after `winnable()` is
+exactly zero, `strongSide = eg > VALUE_DRAW ? WHITE : BLACK` names Black in
+the position and in its mirror alike, so `sf` is computed for different
+real sides. The donor's own value never shows it, since it multiplies that
+`sf` by zero; X multiplies it by eg(t), which is not zero.
+
+**Evidence.** The instrument as §2 states it
+(`tools/oracle/oracle-eval-transplant.patch` after the ablation patch,
+around `e56f1e1`'s `src/`, a development build of SHA-256
+`CC5F167F…C4EF6E`, kept at `tools/results/c31-checks/`), checked by
+`tools/diag/c31_checks.py` on 12,119 positions, every 21st row of C.0's
+gate-game positions (`positions.csv`, SHA-256 `1308BD0E…455494`), none in
+check:
+
+| Check | Result |
+|---|---|
+| 1, old instrument | 293,089 / 289,609 (HCE true, masks 0 / 127); 322,185 / 384,959 (HCE false): the C.2.9 oracle's counts exactly |
+| 2, matched cost | the same four counts |
+| 3, wires | mask 0: 293,089; mask 40: 261,621; 40 with mg scale 1024: 246,746; 40 with eg scale 1024: 285,494; 127: 292,447 |
+| 4, donor's terms | 48,476 cells at S = 40 and 242,380 at S = 127, all within the trace's 0.005; largest gap 0.00495 of a pawn; X and T recomputed from the line's fields agree everywhere |
+| 5, symmetry | **fails**: 99 positions at S = 40, 104 at S = 127 |
+| 6, refusals | both combinations refused at `isready` and at `go`; the valid one, reached through an invalid order, accepted |
+
+In every asymmetric position only `sf`, and so X, differs; B, mg(t),
+eg(t) and `ph` are symmetric everywhere, and every one of them has the
+donor's whole endgame score at 0.00 in its trace. That score is zero in
+956 of the 12,119 positions (7.9%), mostly drawish endgames where
+`winnable()`'s complexity cancels it. The X gap: median 17 and 28 internal
+units at S = 40 and 127 (0.08 and 0.14 of a pawn), 25 and 29 positions at
+50 or more, largest 522 and 608 (2.5 and 3.0 pawns). Breakdown:
+`tools/results/c31-checks/symmetry_breakdown.json`.
+
+**What was built and is kept.** The patch: the four options under §2's
+names and defaults (`EvalTransplantMask` 0 to 127,
+`EvalTransplantMgScale` and `EvalTransplantEgScale` 0 to 4096,
+`EvalMatchedCost`); the donor's families recorded from one full evaluation
+where it computes them; X in one exact 64-bit expression with one division
+truncating toward zero, then the side to move's sign and the donor's
+rule-50 damping, with no evaluation grain and no clamp on T, since §2 lists
+neither and the donor's own value is not clamped (a T in the mate range
+stops the engine; the sample's largest |X| is 4,736 and |T| 9,999); the
+refusal of a transplant with `Use Basilisk HCE=false` or a non-zero
+`EvalAblationMask` at `isready` and at `go`, whatever order the options
+arrive in; and a `transplant` command printing B, mg(t), eg(t), `ph`,
+`sf`, X, T and every family for the current position, with no contempt,
+as the donor's trace has none. In search the donor's full evaluation runs
+with the search's contempt, as stock, which moves only its lazy exits.
+`tools/diag/c31_checks.py` runs the six checks. The launcher and the pinned
+binary wait for the amendment, because the patch may change.
+
+**Options the implementer sees.**
+
+1. Keep §2 and accept the asymmetry: T is not colour symmetric in about
+   0.8% of game positions. Check 5 is amended to exclude positions whose
+   donor endgame score is zero.
+2. Where the donor's whole endgame score is zero, so its `sf` scales
+   nothing, take `sf` for the side eg(t) favours, by the donor's same rule.
+   Elsewhere X is §2's exactly, in 92% of these positions. T is symmetric
+   everywhere. A small refactor lets `winnable()`'s factor be computed for
+   a named side.
+3. Always take `sf` for the side eg(t) favours. Symmetric, but it departs
+   from the factor the donor applies wherever eg(t) and the whole endgame
+   score differ in sign.
+4. Where the donor's whole endgame score is zero, use the normal factor,
+   64. Symmetric and simple, but it unscales the drawish endgames, opposite
+   bishops among them, that the donor would scale.
+
+The implementer's view: option 2, because it changes X only where the
+donor's own factor multiplies nothing and makes check 5 hold as written.
+The choice and any change to §8's predictions belong to Amendment 1.

@@ -2776,7 +2776,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.3.1 | RESEARCH | R3 | The transplant read is registered (BAS-O15) and its instrument is ready for implementation; then the three reads, then the packet |
+| C.3.1 | RESEARCH | R3 | Returned 2026-11-25 (packet Return 1): §2's scale factor breaks §4's colour symmetry in 0.8% of positions; Amendment 1 decides, then the launcher, the three reads and the packet |
 | C.3.2 | RESEARCH | I2 | Not started |
 | C.3.3 | RESEARCH | R2 | Not started |
 | C.3.4 | RESEARCH | V | Not started |
