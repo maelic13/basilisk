@@ -97,7 +97,7 @@ in one go. The core declares it, in *Changing these rules*;
 | Claude Code: `CLAUDE.md` + `AGENTS.md` | 13,678 | 14,215 | 78% | 59% |
 | `agents/implementation.md` | 2,501 | 3,247 | 18% | |
 | `agents/measurement.md` | 7,921 | 7,917 | 43% | |
-| `agents/records.md` | 4,045 | 6,395 | 35% | |
+| `agents/records.md` | 4,045 | 6,392 | 35% | |
 | `agents/research.md` | 7,884 | 8,675 | 48% | |
 
 The core is 537 bytes larger than it was. About 2,700 bytes of task-scoped
