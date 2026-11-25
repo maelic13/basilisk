@@ -14,7 +14,11 @@ and a rulebook grows by one rule per incident. This check fails when:
 - a module does not open with its scope and triggers, word for word as the
   index gives them;
 - a stub imports a module, which would load it on every task;
-- a rule file sits where a tool would load it and this check does not know it.
+- a rule file sits where a tool would load it and this check does not know it;
+- the core has more lines than it declares, where it declares a number.
+
+The index is a table in the core, one row for each module: its path, its
+scope, and its triggers by kind (the task, the paths changed, the actions).
 
 `--triggered` lists the modules whose path triggers the current branch's
 changes fire, for the closing check in AGENTS.md.
@@ -46,21 +50,16 @@ TOOL_FILES = {
 }
 # Names a tool loads from the directory an agent works in, wherever it is.
 RULE_FILE_NAMES = {"AGENTS.md", "AGENTS.override.md", "CLAUDE.md", "CLAUDE.local.md", "GEMINI.md"}
-# Verbatim snapshots of other repositories: reference data, never instructions
-# (agents/research.md, *Donors*). They cannot be renamed without breaking
-# their manifests, so they are exempt and reported.
-EXEMPT_PREFIXES = ("docs/reference/",)
 
 BUDGET = re.compile(r"Budget: \*\*(\d{1,3}(?:,\d{3})*)\*\* bytes")
-INDEX_ENTRY = re.compile(r"^- \*\*`(" + MODULE_DIR + r"/[\w.-]+\.md)`\*\*\s*(?:--|:)?\s*(.*)$")
+LINES = re.compile(r"and \*\*(\d+)\*\* lines for this file")
+INDEX_ROW = re.compile(r"^\|\s*`(" + MODULE_DIR + r"/[\w.-]+\.md)`\s*\|(.*)\|\s*$")
+INDEX_COLUMNS = ("Scope", "Task", "Paths", "Actions")
 FENCE = re.compile(r"^(```|~~~).*?^\1[^\n]*$", re.MULTILINE | re.DOTALL)
 CODE_SPAN = re.compile(r"`[^`\n]*`")
 # Claude Code and Gemini CLI import `@path`; Antigravity inlines `@[label](path)`.
 IMPORT = re.compile(r"(?<![\w@/.])@(?:\[[^\]\n]*\]\(([^)\s]+)\)|([\w~.][\w~./\\-]*))")
 PATHS_CLAUSE = re.compile(r"Paths --(.*?)(?:Actions --|Task --|$)")
-SCOPE_LABEL = "Scope:"
-TRIGGER_LABEL = "Read in full when:"
-TRIGGER_KINDS = ("Task --", "Paths --", "Actions --")
 
 
 class CheckError(Exception):
@@ -140,21 +139,25 @@ def auto_loaded_sets(root: Path, files: list[str]) -> dict[str, list[str]]:
 
 
 def index_entries(core_text: str) -> dict[str, str]:
-    """Each module the core's index names, with its scope and triggers squeezed."""
+    """Each module the core's index names, with the header its module must open with."""
     entries: dict[str, str] = {}
-    current = None
     for line in core_text.split("\n"):
-        match = INDEX_ENTRY.match(line)
-        if match:
-            current = match.group(1)
-            if current in entries:
-                raise CheckError(f"{CORE}: the index names {current} twice")
-            entries[current] = match.group(2)
-        elif current and line.startswith("  ") and line.strip():
-            entries[current] += " " + line.strip()
-        else:
-            current = None
-    return {name: squeeze(text) for name, text in entries.items()}
+        match = INDEX_ROW.match(line)
+        if not match:
+            continue
+        name = match.group(1)
+        if name in entries:
+            raise CheckError(f"{CORE}: the index names {name} twice")
+        cells = [squeeze(cell) for cell in match.group(2).split("|")]
+        if len(cells) != len(INDEX_COLUMNS) or not all(cells):
+            raise CheckError(
+                f"{CORE}: the index row for {name} needs a filled cell for each of "
+                + ", ".join(INDEX_COLUMNS)
+            )
+        scope, task, paths, actions = cells
+        entries[name] = (f"Scope: {scope} Read in full when: Task -- {task} "
+                         f"Paths -- {paths} Actions -- {actions}")
+    return entries
 
 
 def module_header(text: str) -> list[str]:
@@ -206,14 +209,6 @@ def check(root: Path) -> list[str]:
             failures.append(f"{CORE}: the index names {name}, which does not exist")
 
     for name, entry in entries.items():
-        if not entry.startswith(SCOPE_LABEL) or TRIGGER_LABEL not in entry:
-            failures.append(
-                f"{CORE}: the index entry for {name} lacks '{SCOPE_LABEL}' or '{TRIGGER_LABEL}'"
-            )
-            continue
-        missing = [kind for kind in TRIGGER_KINDS if kind not in entry.split(TRIGGER_LABEL, 1)[1]]
-        if missing:
-            failures.append(f"{CORE}: the index entry for {name} lacks {', '.join(missing)}")
         if name not in modules:
             continue
         try:
@@ -251,16 +246,16 @@ def check(root: Path) -> list[str]:
                 )
 
     known = {CORE} | {place for places in TOOL_FILES.values() for place in places}
-    exempt = 0
     for name in files:
-        if name.rsplit("/", 1)[-1] not in RULE_FILE_NAMES or name in known:
-            continue
-        if name.startswith(EXEMPT_PREFIXES):
-            exempt += 1
-        else:
+        if name.rsplit("/", 1)[-1] in RULE_FILE_NAMES and name not in known:
             failures.append(f"{name}: a rule file a tool may load, outside the core and its stubs")
-    if exempt:
-        report.append(f"{exempt} rule files under {', '.join(EXEMPT_PREFIXES)} are reference data")
+
+    line_target = LINES.search(core_text)
+    if line_target:
+        lines = core_text.count("\n")
+        report.append(f"{CORE}: {lines} of {line_target.group(1)} lines")
+        if lines > int(line_target.group(1)):
+            failures.append(f"{CORE}: {lines} lines, over the {line_target.group(1)} it declares")
 
     if failures:
         raise CheckError("\n".join(failures))

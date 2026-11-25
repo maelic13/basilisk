@@ -41,13 +41,25 @@ TABLE_RULE = re.compile(r"^\|[-| :]+\|$")
 NORMATIVE = ("must", "never", "always", "only", "do not", "may not")
 
 INVARIANT, SCOPED, DUPLICATE, RATIONALE = "invariant", "task-scoped", "duplicate", "rationale"
+CORE, STUB = "AGENTS.md", "CLAUDE.md"
 RESEARCH, IMPLEMENTATION = "agents/research.md", "agents/implementation.md"
 MEASUREMENT, RECORDS = "agents/measurement.md", "agents/records.md"
 
-# Blocks that did not simply stay where they were: kind, then where each part
-# of the text is now. A place is (file, text); None stands for the block's own
-# text, and INDEX for the module's entry in the core's index.
-INDEX = object()
+
+class Index:
+    """The module's row in the core's index, which its header repeats."""
+
+    def __init__(self, module: str) -> None:
+        self.module = module
+
+
+class Replace:
+    """The block's own text with these fragments replaced, each found once."""
+
+    def __init__(self, *pairs: tuple[str, str]) -> None:
+        self.pairs = pairs
+
+
 POINTER_I = ("The workflow states and the return of a false premise are in `AGENTS.md`. A change "
              "that adds, removes or alters a mechanism also needs `agents/research.md`, *Before "
              "implementing a mechanism*; one that is measured or gated also needs "
@@ -55,60 +67,84 @@ POINTER_I = ("The workflow states and the return of a false premise are in `AGEN
 POINTER_M = ("Register an experiment by `agents/research.md`, *Experiment design*, before it "
              "runs.")
 POINTER_R = "`AGENTS.md` holds the rules every task shares."
+CLASS_ROW = "a duplicate of PLAN §2's table of the classes, dropped"
+
+# Blocks that did not simply stay where they were: kind, where each part of
+# the text is now, and a note. A place is (file, text); None stands for the
+# block's own text.
 MOVES: dict[str, tuple[str, list[tuple[str, object]], str]] = {
-    "A02": (INVARIANT, [("AGENTS.md",
+    "A02": (INVARIANT, [(CORE,
             "This file is always in force. The files under `agents/` are modules, as binding as "
             "this file: read one in full before starting when any of its triggers is true, and "
             "skip it only because none is, never to save time. Triggers are facts -- the task's "
-            "kind, the paths changed, the commands run -- and most leaves fire several. When "
+            "kind, the paths changed, the actions taken -- and most leaves fire several. When "
             "unsure, read the module.")], "reworded"),
-    "A03": (SCOPED, [("AGENTS.md", (INDEX, RESEARCH))], "reworded: triggers made observable"),
-    "A04": (SCOPED, [("AGENTS.md", (INDEX, IMPLEMENTATION)), ("AGENTS.md", (INDEX, RESEARCH))],
+    "A03": (SCOPED, [(CORE, Index(RESEARCH))], "reworded: triggers made observable"),
+    "A04": (SCOPED, [(CORE, Index(IMPLEMENTATION)), (CORE, Index(RESEARCH))],
             "reworded: triggers made observable"),
-    "A05": (SCOPED, [("AGENTS.md", (INDEX, MEASUREMENT))], "reworded: triggers made observable"),
-    "A06": (SCOPED, [("AGENTS.md", (INDEX, RECORDS))], "reworded: triggers made observable"),
-    "A12": (SCOPED, [(RECORDS, None)], "moved; overlaps D02"),
-    "A17": (SCOPED, [(RESEARCH, None)], "moved; its last sentence is R13's but for one word"),
+    "A05": (SCOPED, [(CORE, Index(MEASUREMENT))], "reworded: triggers made observable"),
+    "A06": (SCOPED, [(CORE, Index(RECORDS))], "reworded: triggers made observable"),
+    "A12": (SCOPED, [(RECORDS, None)], "moved"),
+    "A17": (SCOPED, [
+        (RESEARCH, Replace((" Prefer cheap discriminating evidence to a sophisticated "
+                            "implementation of an uncertain idea.", ""))),
+        (PACKET, "Prefer cheap discriminating evidence to a sophisticated implementation of an "
+                 "uncertain idea."),
+    ], "moved; its last sentence, a duplicate of R13's but for one word, was dropped"),
     "A18": (SCOPED, [(IMPLEMENTATION, None)], "moved"),
-    "A19": (SCOPED, [(IMPLEMENTATION, None)], "moved; overlaps I04"),
+    "A19": (SCOPED, [(IMPLEMENTATION, None)], "moved"),
     "A21": (SCOPED, [(RESEARCH, None)], "moved"),
-    "A22": (SCOPED, [(RECORDS, None)], "moved"),
-    "A23": (SCOPED, [(RECORDS, None)], "moved; PLAN §2 and GUIDE word the classes differently"),
-    "A24": (SCOPED, [(RECORDS, None)], "moved"),
-    "A25": (SCOPED, [(RECORDS, None)], "moved"),
-    "A26": (SCOPED, [(RECORDS, None)], "moved"),
-    "A27": (SCOPED, [(RECORDS, None)], "moved"),
-    "A28": (SCOPED, [(RECORDS, None)], "moved"),
+    "A22": (SCOPED, [(RECORDS,
+            "Open PLAN leaves carry a capability tag, which GUIDE shows. PLAN §2, *Workflow "
+            "states and capability classes*, defines the six classes.")],
+            "reworded: it points to PLAN's table"),
+    "A23": (DUPLICATE, [(PACKET, None)], CLASS_ROW),
+    "A24": (DUPLICATE, [(PACKET, None)], CLASS_ROW),
+    "A25": (DUPLICATE, [(PACKET, None)], CLASS_ROW),
+    "A26": (DUPLICATE, [(PACKET, None)], CLASS_ROW),
+    "A27": (DUPLICATE, [(PACKET, None)], CLASS_ROW),
+    "A28": (DUPLICATE, [(PACKET, None)], CLASS_ROW),
     "A29": (SCOPED, [(RECORDS, None)], "moved"),
-    "A37": (SCOPED, [("AGENTS.md", None)],
-            "kept in the core: implementation, review and measurement all need the number, and "
-            "`check_roadmap.py` checks it here"),
-    "A44": (INVARIANT, [("AGENTS.md", None)], "unchanged; \"the selected PLAN section\" is §7, item 1"),
-    "A47": (INVARIANT, [("AGENTS.md", None)], "unchanged; its last sentence overlaps M20"),
+    "A37": (SCOPED, [(IMPLEMENTATION, None)],
+            "moved, with `check_roadmap.py`'s anchor for the number"),
+    "A44": (INVARIANT, [(CORE,
+            "- Orient once per session: these rules, the modules whose triggers are true, "
+            "GUIDE's *Now* table and next step, and in PLAN the selected leaf's entry with the "
+            "lead text of its parent step and its phase -- never the whole phase, and §2 only "
+            "for a rule cited by number. Follow up with targeted searches and bounded excerpts; "
+            "re-read only changed regions or to answer a concrete question.")],
+            "reworded: it says how much of PLAN"),
+    "A47": (INVARIANT, [
+        (CORE, Replace((" Never shrink a registered run after seeing results.", ""))),
+        (MEASUREMENT, "Never shrink a registered run after seeing results."),
+    ], "split: its last sentence moved beside M20, unchanged"),
     "A48": (INVARIANT, [
-        ("AGENTS.md",
-         "- `master` is the trunk. Every coherent piece of work -- one feature or experiment, or "
-         "one tooling or documentation change -- lives on its own short-lived branch from "
-         "`master` and lands as ONE squash commit through a pull request: no merge commits, no "
-         "rebase merges. On the branch, commit in small verified steps after every completed "
-         "step or substep; GitHub keeps those commits under the PR (`refs/pull/<n>/head`) after "
-         "the squash."),
+        (CORE, Replace((" Before opening the PR, merge `master` into the branch if `master` "
+                        "moved, so the PR shows only the branch's own change. After the merge "
+                        "the branch is deleted (PROCESS *Delivery*).", ""))),
         (RECORDS,
          "- Before opening the PR, merge `master` into the branch if `master` moved, so the PR "
          "shows only the branch's own change. After the merge the branch is deleted (PROCESS "
          "*Delivery*)."),
     ], "split: its two pull-request sentences moved, unchanged"),
     "A49": (SCOPED, [(RECORDS, None)], "moved"),
-    "C03": (DUPLICATE, [("CLAUDE.md", None)],
-            "of A51, kept: it adds what is particular to Claude Code"),
-    "I01": (SCOPED, [(IMPLEMENTATION, (INDEX, IMPLEMENTATION)), (IMPLEMENTATION, POINTER_I)],
+    "C02": (INVARIANT, [(STUB,
+            "- The modules under `agents/` are deliberately not imported. Read each one whose "
+            "triggers in `AGENTS.md` *Rules by task* are true, in full, with the Read tool, "
+            "before planning or editing.")], "reworded"),
+    "C03": (DUPLICATE, [(STUB,
+            "- No AI attribution, even when the harness suggests one: `AGENTS.md` *Commits and "
+            "reporting* takes precedence, and `.claude/settings.json` turns Claude Code's own "
+            "attribution off.")],
+            "reworded: A51 states the rule, and this keeps what is particular to Claude Code"),
+    "I01": (SCOPED, [(IMPLEMENTATION, Index(IMPLEMENTATION)), (IMPLEMENTATION, POINTER_I)],
             "reworded: the header, and the pointer to the ownership bullets now below it"),
-    "M01": (SCOPED, [(MEASUREMENT, (INDEX, MEASUREMENT)), (MEASUREMENT, POINTER_M)],
+    "M01": (SCOPED, [(MEASUREMENT, Index(MEASUREMENT)), (MEASUREMENT, POINTER_M)],
             "reworded: the header; its second sentence is unchanged"),
     "M07": (SCOPED, [(MEASUREMENT,
             "- An LLVM major step is a speed change even at an identical fingerprint (RAR-P36 to "
             "RAR-P38).")], "reworded: M11's citation joins it"),
-    "M11": (RATIONALE, [(PACKET, None)], "moved out; its citation stays on M07"),
+    "M11": (RATIONALE, [(PACKET, None)], "an incident, moved out; its citation stays on M07"),
     "M12": (SCOPED, [
         (MEASUREMENT,
          "- A SQLite database is copied together with its `-wal` file, or read in place "
@@ -117,30 +153,44 @@ MOVES: dict[str, tuple[str, list[tuple[str, object]], str]] = {
          "Rarog's copy without it returned 39,437 of 39,600 games and a plausible but wrong "
          "termination table (RAR-M45)."),
     ], "reworded: the incident moved out, its citation stays"),
+    "M14": (SCOPED, [(MEASUREMENT, Replace(("in `AGENTS.md` or DESIGN",
+                                            "in `agents/implementation.md` or DESIGN")))],
+            "reworded: the restatement moved with A37"),
     "M22": (SCOPED, [(MEASUREMENT,
             "- **Fit the gate to the change; never copy the last launcher's method or cap.** The "
             "registration names the question the games must answer, the cheapest method that "
             "answers it, and why (BAS-S32, BAS-S33):")], "reworded: M26's citation joins it"),
-    "M26": (RATIONALE, [(PACKET, None)], "moved out; its citation stays on M22"),
+    "M26": (RATIONALE, [(PACKET, None)], "an incident, moved out; its citation stays on M22"),
     "M32": (SCOPED, [
         (MEASUREMENT, "- The bias is not one-sided (Rarog PROCESS *Harness*, 2026-10-11)."),
         (PACKET,
          "a fixed 600-game run read +70 where Rarog's SPRT had stopped at +54.8 (Rarog PROCESS "
          "*Harness*, 2026-10-11)."),
     ], "reworded: the incident moved out, its citation stays"),
-    "D01": (SCOPED, [(RECORDS, (INDEX, RECORDS))], "reworded: the header"),
-    "R01": (SCOPED, [(RESEARCH, (INDEX, RESEARCH)), (RESEARCH, POINTER_R)],
+    "D01": (SCOPED, [(RECORDS, Index(RECORDS))], "reworded: the header"),
+    "R01": (SCOPED, [(RESEARCH, Index(RESEARCH)), (RESEARCH, POINTER_R)],
             "reworded: the header; its last sentence is unchanged"),
-    "R13": (SCOPED, [(RESEARCH, None)], "unchanged; its last sentence is A17's but for one word"),
     "R14": (SCOPED, [
-        (RESEARCH, ("replace", "(BAS-X01: check-extension removal was +30.75 there and −10.17 "
-                    "here)", "(BAS-X01)")),
+        (RESEARCH, Replace(("(BAS-X01: check-extension removal was +30.75 there and −10.17 "
+                            "here)", "(BAS-X01)"))),
         (PACKET, "BAS-X01: check-extension removal was +30.75 there and −10.17 here"),
     ], "reworded: the incident moved out, its citation stays"),
+    "R15": (SCOPED, [(RESEARCH, Replace(
+        ("Rarog is read only through the pinned snapshots in `docs/reference/` (`rarog/`, and "
+         "`rarog-2026-10-06/`, the last import), never the live repository; no later Rarog "
+         "finding enters (maintainer decision 2026-10-06).",
+         "Rarog is read only at its two pinned commits, `015bccae` and `dcf15c51`, the last "
+         "import, never at its live head; no later Rarog finding enters (maintainer decision "
+         "2026-10-06). Its files are not copied into this repository (maintainer decision "
+         "2026-11-25); `docs/reference/README.md` says where the commits are and how a "
+         "reference resolves."),
+        ("never applies here, and a snapshot",
+         "never applies here, nor does one read in Rarog's repository, and a snapshot"),
+    ))], "reworded: Rarog's snapshots were removed"),
     "R19": (SCOPED, [
-        (RESEARCH, ("replace", "correct the file -- BAS-E53 exists because a load-bearing claim "
-                    "had never been measured and turned out to be false.",
-                    "correct the file (BAS-E53).")),
+        (RESEARCH, Replace(("correct the file -- BAS-E53 exists because a load-bearing claim "
+                            "had never been measured and turned out to be false.",
+                            "correct the file (BAS-E53)."))),
         (PACKET, "BAS-E53 exists because a load-bearing claim had never been measured and "
                  "turned out to be false."),
     ], "reworded: the incident moved out, its citation stays"),
@@ -207,7 +257,7 @@ def inventory(root: Path, final) -> tuple[list[dict], list[str]]:
     """Every base block with its row, and the failures of the word-for-word check."""
     final_text = {name: check_rules.squeeze(final(name)) for _, name in FILES}
     final_text[PACKET] = check_rules.squeeze(final(PACKET))
-    entries = check_rules.index_entries(final("AGENTS.md"))
+    entries = check_rules.index_entries(final(CORE))
     rows, failures = [], []
     for letter, name in FILES:
         for index, (line, section, text) in enumerate(blocks(git_show(root, BASE, name)), 1):
@@ -216,18 +266,27 @@ def inventory(root: Path, final) -> tuple[list[dict], list[str]]:
             kind, places, note = MOVES.get(ident, (default_kind, [(name, None)], "unchanged"))
             resolved = []
             for place, wanted in places:
+                searched = place
                 if wanted is None:
                     wanted = text
-                elif isinstance(wanted, tuple) and wanted[0] is INDEX:
-                    wanted = entries[wanted[1]]
-                elif isinstance(wanted, tuple) and wanted[0] == "replace":
-                    if text.count(wanted[1]) != 1:
-                        failures.append(f"{ident}: the replaced text is not in the block once")
-                    wanted = text.replace(wanted[1], wanted[2])
+                elif isinstance(wanted, Index):
+                    # check_rules holds the core's row and the module's header
+                    # to the same words, so the header stands for both.
+                    searched, wanted = wanted.module, entries[wanted.module]
+                elif isinstance(wanted, Replace):
+                    replaced = text
+                    for old, new in wanted.pairs:
+                        if replaced.count(old) != 1:
+                            failures.append(f"{ident}: not in the block once: {old[:50]}")
+                        replaced = replaced.replace(old, new)
+                    wanted = replaced
                 resolved.append((place, wanted))
-                if check_rules.squeeze(wanted) not in final_text[place]:
-                    failures.append(f"{ident}: not found word for word in {place}: {wanted[:70]}")
-            rows.append({"id": ident, "source": f"{name}:{line}", "section": section,
+                # The packet holds such text in a table cell, its bars escaped.
+                needle = cell(wanted) if place == PACKET else wanted
+                if check_rules.squeeze(needle) not in final_text[searched]:
+                    failures.append(f"{ident}: not found word for word in {searched}: "
+                                    f"{wanted[:70]}")
+            rows.append({"id": ident, "source": name, "line": line, "section": section,
                          "text": text, "kind": kind, "places": resolved, "note": note})
     unknown = sorted(set(MOVES) - {row["id"] for row in rows})
     if unknown:
@@ -246,32 +305,41 @@ def marker_counts(texts: list[str]) -> dict[str, int]:
 
 
 def render(root: Path, rows: list[dict], final) -> str:
-    out = [BEGIN, ""]
-    per_file = {name: sum(1 for row in rows if row["source"].startswith(name + ":"))
-                for _, name in FILES}
-    out += ["### Blocks at the base", "",
-            "| File | Blocks |", "|---|---|"]
-    out += [f"| `{name}` | {count} |" for name, count in per_file.items()]
+    def where(row: dict) -> set[str]:
+        return {place for place, _ in row["places"]}
+
+    core_rows = [row for row in rows if row["source"] == CORE]
+    module_rows = [row for row in rows if row["source"].startswith("agents/")]
+    out_rows = [row for row in rows if PACKET in where(row)]
+    incidents = [row for row in out_rows if "incident" in row["note"]]
+    duplicates = [row for row in out_rows if "duplicate" in row["note"]]
+    changed = [row for row in rows
+               if row["note"].startswith(("reworded", "split")) or PACKET in where(row)]
+
+    out = [BEGIN, "", "### Blocks at the base", "", "| File | Blocks |", "|---|---|"]
+    out += [f"| `{name}` | {sum(1 for row in rows if row['source'] == name)} |"
+            for _, name in FILES]
     out += [f"| **All** | **{len(rows)}** |", ""]
 
-    kept_core = sum(1 for r in rows if r["source"].startswith("AGENTS.md")
-                    and all(place == "AGENTS.md" for place, _ in r["places"]))
-    moved = sum(1 for r in rows if r["source"].startswith("AGENTS.md")
-                and all(place != "AGENTS.md" for place, _ in r["places"]))
-    split = sum(1 for r in rows if r["source"].startswith("AGENTS.md")
-                and len({place for place, _ in r["places"]}) > 1)
-    reworded = sum(1 for r in rows if r["note"].startswith("reworded"))
-    out_rows = [r for r in rows if any(place == PACKET for place, _ in r["places"])]
     out += ["### Totals", "", "| Count | Blocks |", "|---|---|",
-            f"| Core blocks kept in the core | {kept_core} |",
-            f"| Core blocks moved whole to a module | {moved} |",
-            f"| Core blocks split between the core and a module | {split} |",
-            f"| Stub blocks, unchanged | {per_file['CLAUDE.md']} |",
+            f"| Core blocks kept in the core | "
+            f"{sum(1 for r in core_rows if where(r) == {CORE})} |",
+            f"| Core blocks moved whole to a module | "
+            f"{sum(1 for r in core_rows if CORE not in where(r) and where(r) != {PACKET})} |",
+            f"| Core blocks split between the core and a module | "
+            f"{sum(1 for r in core_rows if CORE in where(r) and len(where(r)) > 1)} |",
+            f"| Core blocks dropped as duplicates | "
+            f"{sum(1 for r in core_rows if where(r) == {PACKET})} |",
+            f"| Stub blocks, all kept in the stub | "
+            f"{sum(1 for r in rows if r['source'] == STUB)} |",
             f"| Module blocks kept in their module | "
-            f"{sum(1 for r in rows if r['source'].startswith('agents/')) - sum(1 for r in out_rows if r['kind'] == RATIONALE)} |",
-            f"| Reworded (old and new text below) | {reworded} |",
-            f"| Exact duplicates merged | 0 |",
-            f"| Incident text moved out of the rules | {len(out_rows)} |",
+            f"{sum(1 for r in module_rows if r['source'] in where(r))} |",
+            f"| Module blocks moved out whole as incidents | "
+            f"{sum(1 for r in module_rows if where(r) == {PACKET})} |",
+            f"| Reworded or split (old and new text below) | "
+            f"{sum(1 for r in rows if r['note'].startswith(('reworded', 'split')))} |",
+            f"| Blocks with incident text moved out | {len(incidents)} |",
+            f"| Blocks with a duplicate dropped | {len(duplicates)} |",
             f"| Kind: invariant | {sum(1 for r in rows if r['kind'] == INVARIANT)} |",
             f"| Kind: task-scoped | {sum(1 for r in rows if r['kind'] == SCOPED)} |",
             f"| Kind: duplicate | {sum(1 for r in rows if r['kind'] == DUPLICATE)} |",
@@ -290,25 +358,27 @@ def render(root: Path, rows: list[dict], final) -> str:
     for row in rows:
         places = ", ".join(dict.fromkeys(
             "this packet" if place == PACKET else f"`{place}`" for place, _ in row["places"]))
-        out.append(f"| {row['id']} | `{row['source']}` | {row['kind']} | {places} | "
-                   f"{cell(row['note'])} | {cell(row['text'].replace('`', ''), 44)} |")
+        out.append(f"| {row['id']} | `{row['source']}:{row['line']}` | {row['kind']} | {places} "
+                   f"| {cell(row['note'])} | {cell(row['text'].replace('`', ''), 44)} |")
     out += [""]
 
-    out += ["### Rewordings: old text and new", ""]
-    for row in rows:
-        if not row["note"].startswith("reworded") and not row["note"].startswith("split"):
+    out += ["### Changed blocks: old text and new", ""]
+    for row in changed:
+        if where(row) == {PACKET}:
             continue
-        out += [f"**{row['id']}** (`{row['source']}`), old:", "", f"> {row['text']}", "", "new:", ""]
+        out += [f"**{row['id']}** (`{row['source']}:{row['line']}`), old:", "",
+                f"> {row['text']}", "", "new:", ""]
         for place, wanted in row["places"]:
-            where = "this packet, below" if place == PACKET else f"`{place}`"
-            out += [f"> {wanted}", ">", f"> -- {where}", ""]
+            label = "this packet, in the table below" if place == PACKET else f"`{place}`"
+            out += [f"> {wanted}", ">", f"> -- {label}", ""]
 
-    out += ["### Incident text moved out of the rules", "",
-            "| ID | Text, word for word |", "|---|---|"]
+    out += ["### Text that left the rules", "", "| ID | Why | Text, word for word |",
+            "|---|---|---|"]
     for row in out_rows:
+        why = "duplicate" if row in duplicates else "incident"
         for place, wanted in row["places"]:
             if place == PACKET:
-                out.append(f"| {row['id']} | {cell(wanted)} |")
+                out.append(f"| {row['id']} | {why} | {cell(wanted)} |")
     out += ["", END]
     return "\n".join(out)
 
@@ -329,7 +399,7 @@ def main() -> int:
     try:
         packet_path = args.root / PACKET
         if args.write:
-            # Two passes: the incident table is itself one of the places checked.
+            # Two passes: the table of text that left the rules is itself a place checked.
             for _ in range(2):
                 rows, _ = inventory(args.root, final)
                 text = check_rules.read(packet_path)
@@ -340,10 +410,9 @@ def main() -> int:
                 packet_path.write_bytes((head + render(args.root, rows, final) + tail)
                                         .encode("utf-8"))
         rows, failures = inventory(args.root, final)
-        packet = final(PACKET)
-        if render(args.root, rows, final) not in packet:
+        if render(args.root, rows, final) not in final(PACKET):
             failures.append(f"{PACKET}: the generated tables are stale; run --write")
-    except InventoryError as error:
+    except (InventoryError, check_rules.CheckError) as error:
         print(f"FAIL: {error}", file=sys.stderr)
         return 1
     for failure in failures:

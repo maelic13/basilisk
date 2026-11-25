@@ -9,10 +9,10 @@ from check_rules import CheckError
 
 HEADER = ("Scope: engine code. Read in full when: Task -- any `I1` leaf. "
           "Paths -- `src/`, `CMakeLists.txt`. Actions -- before writing code.")
+ROW = ("| `agents/code.md` | engine code. | any `I1` leaf. | `src/`, `CMakeLists.txt`. "
+       "| before writing code. |\n")
 CORE = ("# Contract\n\n## Rules by task\n\n"
-        "- **`agents/code.md`** -- Scope: engine code. Read in full when: Task --\n"
-        "  any `I1` leaf. Paths -- `src/`, `CMakeLists.txt`. Actions -- before\n"
-        "  writing code.\n\n"
+        "| Module | Scope | Task | Paths | Actions |\n|---|---|---|---|---|\n" + ROW + "\n"
         "## Changing these rules\n\n- Budget: **2,000** bytes for this file.\n")
 MODULE = ("# Code\n\nScope: engine code.\n\n"
           "Read in full when: Task -- any `I1` leaf. Paths -- `src/`,\n"
@@ -106,11 +106,25 @@ class CheckRulesTests(unittest.TestCase):
                                                     "writing code. And tests.\n\nA pointer"))
         self.assert_fails("agents/code.md: does not open with its scope and triggers")
 
-    def test_an_index_entry_without_a_trigger_kind_fails(self):
-        write_tree(self.root,
-                   core=CORE.replace(" Paths -- `src/`, `CMakeLists.txt`.", ""),
-                   module=MODULE.replace(" Paths -- `src/`,\n`CMakeLists.txt`.", ""))
-        self.assert_fails("the index entry for agents/code.md lacks Paths --")
+    def test_an_index_row_without_a_trigger_kind_fails(self):
+        write_tree(self.root, core=CORE.replace(" `src/`, `CMakeLists.txt`. |", ""))
+        self.assert_fails("the index row for agents/code.md needs a filled cell for each of")
+        write_tree(self.root, core=CORE.replace("`src/`, `CMakeLists.txt`.", " "))
+        self.assert_fails("the index row for agents/code.md needs a filled cell for each of")
+
+    def test_a_module_named_twice_fails(self):
+        write_tree(self.root, core=CORE.replace(ROW, ROW + ROW))
+        self.assert_fails("the index names agents/code.md twice")
+
+    def test_a_core_over_its_declared_lines_fails(self):
+        declared = CORE.replace("for this file.", "and **12** lines for this file.")
+        self.assertEqual(declared.count("\n"), 11)
+        self.assertIn("AGENTS.md: 11 of 12 lines",
+                      "\n".join(check_rules.check(write_tree(self.root, core=declared))))
+        write_tree(self.root, core=declared + "- One.\n")
+        check_rules.check(self.root)
+        write_tree(self.root, core=declared + "- One.\n- Two.\n")
+        self.assert_fails("AGENTS.md: 13 lines, over the 12 it declares")
 
     def test_a_missing_or_doubled_budget_fails(self):
         write_tree(self.root, core=CORE.replace("Budget: **2,000** bytes", "No budget"))
@@ -118,12 +132,12 @@ class CheckRulesTests(unittest.TestCase):
         write_tree(self.root, core=CORE + "- Budget: **9,000** bytes as well.\n")
         self.assert_fails("found 2")
 
-    def test_a_nested_rule_file_fails_unless_it_is_reference_data(self):
+    def test_a_nested_rule_file_fails_wherever_it_is(self):
         nested = self.root / "docs" / "reference" / "donor"
         nested.mkdir(parents=True)
         (nested / "AGENTS.md").write_text("Another repository's rules.\n", encoding="utf-8")
-        self.assertIn("1 rule files under docs/reference/ are reference data",
-                      "\n".join(check_rules.check(self.root)))
+        self.assert_fails("docs/reference/donor/AGENTS.md: a rule file a tool may load")
+        (nested / "AGENTS.md").unlink()
         (self.root / "src").mkdir()
         (self.root / "src" / "CLAUDE.md").write_text("Loaded on demand.\n", encoding="utf-8")
         self.assert_fails("src/CLAUDE.md: a rule file a tool may load")
