@@ -662,13 +662,13 @@ static void test_pawnless_scale_truth_table() {
         "8/8/3bb3/4k3/8/8/8/K6Q b - - 1 1",
     };
 #ifdef BASILISK_EVAL_REBUILD
-    // The rebuilt evaluation at its seed vector serves +216, +338 and +121:
+    // The rebuilt evaluation at its seed vector serves +213, +333 and +118:
     // the classical form's general factor for a lone queen, 37 + 3 per minor
     // against it (43 here), scales the queen's endgame half down. A known
     // shortfall of the seed against the bound above, kept exactly so that a
     // change to it is seen; re-read on the fitted vector.
     begin_section("KQ against two minors: the rebuilt seed's values");
-    static const int SEED_SERVED[] = {216, 338, 121};
+    static const int SEED_SERVED[] = {213, 333, 118};
     for (size_t i = 0; i < std::size(QUEEN_WINS); i++)
         EXPECT_EQ(-search_score(QUEEN_WINS[i], 1), SEED_SERVED[i]);
     end_section();

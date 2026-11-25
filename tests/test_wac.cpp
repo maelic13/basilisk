@@ -57,10 +57,10 @@ static const int TEST_DEPTH = 6;
 // fewer at depths 7 to 9 too (191/212/217 against 206/216/226), for +85 Elo in
 // games. The floor is that count less 13.
 // The rebuilt evaluation (EVAL_REBUILD) is its own evaluation on the same
-// search: at its seed vector it solves 193 at depth 6 (bench 4,040,623) where
+// search: at its seed vector it solves 195 at depth 6 (bench 3,717,775) where
 // the accepted one solves 181, and its floor is that count less 13.
 #ifdef BASILISK_EVAL_REBUILD
-static const int FLOOR = 180;
+static const int FLOOR = 182;
 #else
 static const int FLOOR = 168;
 #endif
