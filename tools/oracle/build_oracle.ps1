@@ -64,7 +64,9 @@ try {
     # AblationMask (B.0), and tools/oracle/oracle-eval-ablate.patch the
     # evaluation-family EvalAblationMask (C.2.9), and
     # tools/oracle/oracle-eval-transplant.patch, given after it, the
-    # transplant and matched-cost options (C.3.1). They never touch src/, so
+    # transplant and matched-cost options (C.3.1); oracle-eval-reference.patch
+    # the reference record (C.3.2), and oracle-eval-rebuild.patch compiles
+    # Basilisk's evaluator as its rebuilt arm (EVAL_REBUILD). They never touch src/, so
     # the identity check binds again after each one.
     $extraPatchRecords = @()
     foreach ($extra in $ExtraPatch) {

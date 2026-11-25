@@ -1,0 +1,15 @@
+diff --git a/hybrid/build.ps1 b/hybrid/build.ps1
+index 532dff6..57821ba 100644
+--- a/hybrid/build.ps1
++++ b/hybrid/build.ps1
+@@ -89,7 +89,9 @@ $commonFlags   = @("-O3", "-DNDEBUG", "-DIS_64BIT", "-DUSE_POPCNT", "-DUSE_PEXT"
+ # The matched evaluation ablation: Basilisk's evaluator is compiled as its
+ # Ablate flavour, whose mask is 0 (the released evaluation) until the
+ # EvalAblationMask option sets it.
+-$basiliskFlags = @("-std=c++23", "-I$repoRoot\src", "-DBASILISK_ABLATION",
++# The rebuilt evaluation (Basilisk's EVAL_REBUILD arm), so that the oracle
++# meters it against the donor's.
++$basiliskFlags = @("-std=c++23", "-I$repoRoot\src", "-DBASILISK_ABLATION", "-DBASILISK_EVAL_REBUILD",
+                    "-DPawnAttacks=basilisk_PawnAttacks") + $commonFlags
+ $sfFlags       = @("-std=c++17", "-I$sfSrc", "-DNO_PRETTY_PRINT") + $commonFlags
+ 

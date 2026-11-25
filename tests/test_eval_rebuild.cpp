@@ -343,6 +343,14 @@ int main(int argc, char** argv) {
     auto ev = std::make_unique<Evaluator>();
     if (argc > 1 && std::string(argv[1]) == "--coverage")
         return coverage(rows, *ev);
+    // `test_eval --served`: every fixture row's FEN and the value the rebuilt
+    // evaluation serves it, side to move, undamped: what an oracle built from
+    // this arm must read as its Basilisk value.
+    if (argc > 1 && std::string(argv[1]) == "--served") {
+        for (const Row& row : rows)
+            std::printf("%s\t%d\n", row.fen.c_str(), ev->evaluate_undamped(board_of(row.fen)));
+        return 0;
+    }
     std::printf("\nThe reference fixture: %zu rows\n", rows.size());
     test_parity(rows, *ev);
     test_colour_symmetry(rows, *ev);
