@@ -1,10 +1,27 @@
 # Implementing engine and tool changes
 
-Read this for `I1` and `I2` leaves and any change to engine source or tools.
-Workflow ownership (what implementation owns and must not change) is in
-`AGENTS.md`. A change that adds, removes or alters a mechanism also needs
+Scope: engine, test, build and tool code.
+
+Read in full when: Task -- any `I1` or `I2` leaf; a review of code. Paths --
+`src/`, `tests/`, `tools/`, `cmake/`, `CMakeLists.txt`, `CMakePresets.json`,
+`.github/workflows/`. Actions -- before writing or changing code anywhere
+else.
+
+The workflow states and the return of a false premise are in `AGENTS.md`. A
+change that adds, removes or alters a mechanism also needs
 `agents/research.md`, *Before implementing a mechanism*; one that is
 measured or gated also needs `agents/measurement.md`.
+
+## Ownership
+
+- **Implementation owns** ordinary engineering: idiomatic C++ structure,
+  necessary local refactoring, focused instrumentation and tests,
+  compilation, debugging and cheap deterministic qualification. The
+  maintainer need not prescribe it.
+- **Implementation does not** replace the hypothesis, broaden the mechanism,
+  add adjacent heuristics, tune unrelated constants, port extra donor
+  behaviour, relax a correctness test, change the experiment after exposure,
+  or rescue a weak candidate by changing its neighbours.
 
 ## Per-node code
 

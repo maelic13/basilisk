@@ -1,8 +1,16 @@
 # Measurement, gates and long runs
 
-Read this for `V` leaves and whenever a task builds a binary to measure,
-reads bench, NPS or `Diag` counters, plays games, runs or prepares an SPRT,
-SPSA, gauntlet, datagen or fit, or reads returned artifacts. Register an
+Scope: measurement, acceptance, gates and long runs.
+
+Read in full when: Task -- any `V` leaf. Paths -- `docs/experiments/`,
+`docs/EXPERIMENTS.md`, `tools/colosseum/`, `tools/run_*`,
+`.github/windows-clang-version`. Actions -- before building a binary to
+measure; before running or reading bench, NPS, `Diag` counters or a profile;
+before running, registering or preparing games, an SPRT, SPSA, gauntlet,
+datagen or fit; before handing the maintainer a command or launcher; before
+any run that loads the machine for minutes; before reading returned artifacts.
+
+Register an
 experiment by `agents/research.md`, *Experiment design*, before it runs.
 
 ## Measurement
@@ -27,18 +35,16 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
   tools, never a hand-rolled parser. Before differencing two counters, confirm
   they are in the same unit; a passing invariant does not prove comparability.
   Counter ratios are valid only at sampling stride 1.
-- An LLVM major step is a speed change even at an identical fingerprint.
+- An LLVM major step is a speed change even at an identical fingerprint
+  (RAR-P36 to RAR-P38).
   - It owes a pooled NPS read, registered with about ±2.5%, before the
     Windows pin (`.github/windows-clang-version`) moves.
   - Patch releases owe none. CI prints them, and every build manifest
     records the exact compiler.
   - No compiler step, a patch included, falls between an SPRT's arms. The
     wrapper refuses arms whose compilers differ.
-  - Rarog's LLVM 22 to 23 step kept its fingerprint and cost 1.5–1.7% pooled
-    with PGO (RAR-P36 to RAR-P38).
-- A SQLite database is copied together with its `-wal` file, or read in place.
-  Rarog's copy without it returned 39,437 of 39,600 games and a plausible but
-  wrong termination table (RAR-M45).
+- A SQLite database is copied together with its `-wal` file, or read in place
+  (RAR-M45).
 - A binary entered in a rated pool is a tagged release or carries its bench
   fingerprint or build flag in its version string, and its ledger row names
   the fingerprint. The harness runner is pinned the same way.
@@ -75,7 +81,7 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
   the expected value first.
 - **Fit the gate to the change; never copy the last launcher's method or
   cap.** The registration names the question the games must answer, the
-  cheapest method that answers it, and why:
+  cheapest method that answers it, and why (BAS-S32, BAS-S33):
   - a strength claim: the SPRT bracket above, its cap from the drift model
     at the expected value;
   - a repair kept unless it harms (H1 and the cap both keep it): the only
@@ -86,8 +92,6 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
     Elo) for a change that touches under 2% of games, more only when the
     exposure could carry a measurable effect;
   - a change that cannot alter a move (output, logging): no games.
-  BAS-S32 and BAS-S33 ran 4,000-pair caps, copied from a template, on
-  changes touching about 1% of games.
 - High bounds reject small gains. That is overnight compute: budget the games,
   do not widen the bounds or poll.
 - Bench and counter screens choose candidates and never accept strength. Do
@@ -99,8 +103,7 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
 - **First-crossing estimates.** The estimate at a stop was selected at the
   boundary, so it is recorded as a first-crossing estimate, never as the
   effect size.
-  - The bias is not one-sided: a fixed 600-game run read +70 where Rarog's
-    SPRT had stopped at +54.8 (Rarog PROCESS *Harness*, 2026-10-11).
+  - The bias is not one-sided (Rarog PROCESS *Harness*, 2026-10-11).
   - A stopped SPRT is never extended, and never re-scored on a
     counterfactual.
   - A stopped SPRT is the wrong instrument for parity.
