@@ -7,7 +7,7 @@
 // alone when BASILISK_EVAL_REBUILD is defined. Include it nowhere else.
 
 #include "eval_rb_material.h"
-#include "eval_rb_king.h"
+#include "eval_rb_threats.h"
 
 namespace rb {
 
@@ -112,6 +112,26 @@ int Evaluation<Rec>::value(bool& verdict) {
         if (!lazy)
             score += king;
 
+        // ---- Passed pawns, then the second lazy exit ---------------------------
+        const Score passed = passer_terms<WHITE>(b, pe, m) - passer_terms<BLACK>(b, pe, m);
+        if (!lazy) {
+            score += passed;
+            if (lazy_skip(score, LAZY_THRESHOLD_2, npm))
+                lazy = 2;
+        }
+
+        // ---- Threats and space ---------------------------------------------------
+        if (Rec || !lazy) {
+            const Score threats = threat_terms<WHITE>(b, m) - threat_terms<BLACK>(b, m);
+            const Score space = space_terms<WHITE>(b, pe, m) - space_terms<BLACK>(b, pe, m);
+            if (!lazy)
+                score += threats + space;
+            if constexpr (Rec) {
+                record_pair(rec->family[EVAL_ABLATE_THREATS], threats);
+                record_pair(rec->family[EVAL_ABLATE_SPACE], space);
+            }
+        }
+
         if constexpr (Rec) {
             record_pair(rec->piece_type[0], knights);
             record_pair(rec->piece_type[1], bishops);
@@ -120,6 +140,7 @@ int Evaluation<Rec>::value(bool& verdict) {
             record_pair(rec->family[EVAL_ABLATE_PIECES], piece_sum);
             record_pair(rec->family[EVAL_ABLATE_MOBILITY], mobility);
             record_pair(rec->family[EVAL_ABLATE_KING], king);
+            record_pair(rec->family[EVAL_ABLATE_PASSERS], passed);
         }
     }
     if constexpr (Rec)

@@ -271,6 +271,73 @@ struct EvalParams {
     int flank_attacks_mg = 8;      // per attack on our flank
     int flank_attacks_eg = 0;
 
+    // ---- Threats (ticket 5) ---------------------------------------------------
+    // By the attacked piece's PieceType: a minor attacking a weak or
+    // defended piece, a rook a weak one.
+    int threat_by_minor_mg[7] = { 0, 5, 57, 77, 88, 79, 0 };
+    int threat_by_minor_eg[7] = { 0, 32, 41, 56, 119, 161, 0 };
+    int threat_by_rook_mg[7] = { 0, 3, 37, 42, 0, 58, 0 };
+    int threat_by_rook_eg[7] = { 0, 46, 68, 60, 38, 41, 0 };
+    int threat_by_king_mg = 24;
+    int threat_by_king_eg = 89;
+    int hanging_mg = 69;
+    int hanging_eg = 36;
+    int weak_queen_protection_mg = 14;
+    int weak_queen_protection_eg = 0;
+    int restricted_piece_mg = 7;
+    int restricted_piece_eg = 7;
+    int threat_by_safe_pawn_mg = 173;
+    int threat_by_safe_pawn_eg = 94;
+    int threat_by_pawn_push_mg = 48;
+    int threat_by_pawn_push_eg = 39;
+    int knight_on_queen_mg = 16;
+    int knight_on_queen_eg = 11;
+    int slider_on_queen_mg = 60;
+    int slider_on_queen_eg = 18;
+
+    // ---- Passed pawns (ticket 5) ----------------------------------------------
+    int passed_rank_mg[8] = { 0, 10, 17, 15, 62, 168, 276, 0 };
+    int passed_rank_eg[8] = { 0, 28, 33, 41, 72, 177, 260, 0 };
+    int passed_file_mg = 11;  // per file from the edge, subtracted
+    int passed_file_eg = 8;
+    // By relative rank 3 to 6 and the king's distance to the block square
+    // (or to the square after it), capped at 5 (rb::passer_distance_index).
+    // Seeded with the reference's truncated products, the rank weight
+    // w = 5r - 13 times (d * 19 / 4), 2d and d.
+    int passed_their_king_eg[24] = {
+           0,    8,   18,   28,   38,   46,
+           0,   28,   63,   98,  133,  161,
+           0,   48,  108,  168,  228,  276,
+           0,   68,  153,  238,  323,  391 };
+    int passed_our_king_eg[24] = {
+           0,    4,    8,   12,   16,   20,
+           0,   14,   28,   42,   56,   70,
+           0,   24,   48,   72,   96,  120,
+           0,   34,   68,  102,  136,  170 };
+    int passed_our_king_next_eg[24] = {
+           0,    2,    4,    6,    8,   10,
+           0,    7,   14,   21,   28,   35,
+           0,   12,   24,   36,   48,   60,
+           0,   17,   34,   51,   68,   85 };
+    // A passer with a free block square, by relative rank 3 to 6 and the
+    // path's case * 2 + whether we hold the block square
+    // (rb::passer_path_index). Seeded with k * w, k = 35, 20, 9, 0, plus 5
+    // when held.
+    int passed_path_mg[32] = {
+          70,   80,   40,   50,   18,   28,    0,   10,
+         245,  280,  140,  175,   63,   98,    0,   35,
+         420,  480,  240,  300,  108,  168,    0,   60,
+         595,  680,  340,  425,  153,  238,    0,   85 };
+    int passed_path_eg[32] = {
+          70,   80,   40,   50,   18,   28,    0,   10,
+         245,  280,  140,  175,   63,   98,    0,   35,
+         420,  480,  240,  300,  108,  168,    0,   60,
+         595,  680,  340,  425,  153,  238,    0,   85 };
+
+    // ---- Space (ticket 5; a knob) ---------------------------------------------
+    // The space count times the weight squared, times this, over 256.
+    int space_weight = 16;
+
     // ---- Tempo, in units; converted with the value --------------------------
     int tempo = 28;
 };
@@ -365,4 +432,34 @@ struct EvalParams {
     X(PawnlessFlankEg,      pawnless_flank_eg,     1)               \
     X(FlankAttacksMg,       flank_attacks_mg,      1)               \
     X(FlankAttacksEg,       flank_attacks_eg,      1)               \
+    X(ThreatByMinorMg,      threat_by_minor_mg,    7)               \
+    X(ThreatByMinorEg,      threat_by_minor_eg,    7)               \
+    X(ThreatByRookMg,       threat_by_rook_mg,     7)               \
+    X(ThreatByRookEg,       threat_by_rook_eg,     7)               \
+    X(ThreatByKingMg,       threat_by_king_mg,     1)               \
+    X(ThreatByKingEg,       threat_by_king_eg,     1)               \
+    X(HangingMg,            hanging_mg,            1)               \
+    X(HangingEg,            hanging_eg,            1)               \
+    X(WeakQueenProtectionMg, weak_queen_protection_mg, 1)           \
+    X(WeakQueenProtectionEg, weak_queen_protection_eg, 1)           \
+    X(RestrictedPieceMg,    restricted_piece_mg,   1)               \
+    X(RestrictedPieceEg,    restricted_piece_eg,   1)               \
+    X(ThreatBySafePawnMg,   threat_by_safe_pawn_mg, 1)              \
+    X(ThreatBySafePawnEg,   threat_by_safe_pawn_eg, 1)              \
+    X(ThreatByPawnPushMg,   threat_by_pawn_push_mg, 1)              \
+    X(ThreatByPawnPushEg,   threat_by_pawn_push_eg, 1)              \
+    X(KnightOnQueenMg,      knight_on_queen_mg,    1)               \
+    X(KnightOnQueenEg,      knight_on_queen_eg,    1)               \
+    X(SliderOnQueenMg,      slider_on_queen_mg,    1)               \
+    X(SliderOnQueenEg,      slider_on_queen_eg,    1)               \
+    X(PassedRankMg,         passed_rank_mg,        8)               \
+    X(PassedRankEg,         passed_rank_eg,        8)               \
+    X(PassedFileMg,         passed_file_mg,        1)               \
+    X(PassedFileEg,         passed_file_eg,        1)               \
+    X(PassedTheirKingEg,    passed_their_king_eg, 24)               \
+    X(PassedOurKingEg,      passed_our_king_eg,   24)               \
+    X(PassedOurKingNextEg,  passed_our_king_next_eg, 24)            \
+    X(PassedPathMg,         passed_path_mg,       32)               \
+    X(PassedPathEg,         passed_path_eg,       32)               \
+    X(SpaceWeight,          space_weight,          1)               \
     X(Tempo,                tempo,                 1)
