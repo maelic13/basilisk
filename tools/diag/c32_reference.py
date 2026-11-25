@@ -17,7 +17,10 @@ checks read:
   2. The patch changes no value: the oracle's bench counts equal the C.2.9
      oracle's at its four configurations (C.3.1's check 1), and every row's
      final value equals the stock 9587eeeb build's `evalraw`.
-  3. The rows: every 21st of C.0's gate-game positions that is not in check
+  3. Whether the material key has a registered scaling function for
+     either side (`registered`): the reference's material entry then
+     returns before it computes the imbalance (Amendment 3).
+  4. The rows: every 21st of C.0's gate-game positions that is not in check
      (the 12,119 of BAS-O15's checks), then the hand-built rows of
      tests/fixtures/eval_reference_extra.txt, each followed by its
      colour-flipped mirror. Every halfmove clock is set to 0, so neither
@@ -60,11 +63,12 @@ PATCHES = [REPO / "tools" / "oracle" / name for name in
 
 # The producer: the oracle around src/ of the accepted head with the four
 # patches above (tools/oracle/build_oracle.ps1).
-ORACLE = {"path": c31.ENGINES / "oracle-c32-bfc3261-reference.exe",
-          "sha": "FA80FD6C5EB072F063BCEB04CF0C04EEDFA4097DD74A52A052D0D6448F563941"}
+ORACLE = {"path": c31.ENGINES / "oracle-c32-0fe7b13-reference.exe",
+          "sha": "A14D76E4A960F6B4F69960873AB939D7F22255E97D3A7F6FF866951AB2883609"}
 
 PAIRS = ["psq", "imbalance", *c31.FAMILIES, *c31.PIECES, "complexity", "adjusted"]
-SCALARS = ["specialised", "lazy", "ph", "strong", "entrysf", "scalefn", "generalsf", "sf", "v", "final"]
+SCALARS = ["specialised", "lazy", "ph", "strong", "entrysf", "scalefn", "generalsf", "sf", "v", "final",
+           "registered"]
 COLUMNS = (["fen", "source", "specialised", "lazy"]
            + [f"{name}_{half}" for name in PAIRS for half in ("mg", "eg")]
            + [s for s in SCALARS if s not in ("specialised", "lazy")])
@@ -175,11 +179,14 @@ def main(argv: list[str] | None = None) -> int:
 
         table = [{"fen": fen, "source": source, **{c: str(r[c]) for c in COLUMNS[2:]}}
                  for (fen, source), r in zip(rows, records)]
+        # Append-only: every existing row keeps its place and every value it
+        # holds. A column may be added; rows may be appended.
         existing = read_existing()
-        if existing and table[:len(existing)] != existing:
-            first = next(i for i, (a, b) in enumerate(zip(table, existing)) if a != b) \
-                if any(a != b for a, b in zip(table, existing)) else len(table)
-            raise c31.Failed(f"the fixture is append-only and row {first + 2} of {TSV.name} would change")
+        if len(existing) > len(table):
+            raise c31.Failed(f"the fixture is append-only: {len(existing)} rows exist, {len(table)} produced")
+        for i, old in enumerate(existing):
+            if {k: table[i].get(k) for k in old} != old:
+                raise c31.Failed(f"the fixture is append-only and row {i + 2} of {TSV.name} would change")
 
         with TSV.open("w", encoding="utf-8", newline="\n") as stream:
             writer = csv.DictWriter(stream, fieldnames=COLUMNS, delimiter="\t", lineterminator="\n")
@@ -199,7 +206,8 @@ def main(argv: list[str] | None = None) -> int:
                        "lazy1": sum(r["lazy"] == 1 for r in records),
                        "lazy2": sum(r["lazy"] == 2 for r in records),
                        "scaling_function": sum(r["scalefn"] for r in records),
-                       "entry_not_normal": sum(r["entrysf"] != 64 for r in records)},
+                       "entry_not_normal": sum(r["entrysf"] != 64 for r in records),
+                       "registered": sum(r["registered"] for r in records)},
             "fixture": {"file": TSV.name, "rows": len(table), "sha256": c31.sha256(TSV)},
         }
         MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")

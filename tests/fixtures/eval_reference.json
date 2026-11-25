@@ -1,13 +1,13 @@
 {
   "schema": "basilisk-eval-reference-v1",
   "producer": {
-    "oracle": "oracle-c32-bfc3261-reference.exe",
-    "oracle_sha256": "FA80FD6C5EB072F063BCEB04CF0C04EEDFA4097DD74A52A052D0D6448F563941",
+    "oracle": "oracle-c32-0fe7b13-reference.exe",
+    "oracle_sha256": "A14D76E4A960F6B4F69960873AB939D7F22255E97D3A7F6FF866951AB2883609",
     "patches": {
       "bridge-board-access.patch": "224E6E207E75A6AAEEDBB88AD6D4E8FF40EFCB23B43D61E5B8C61C3D283EF1DE",
       "oracle-eval-ablate.patch": "CBF0EC93694C852A22A89CBDC4BB11B45F961D7DD354B6C9953A8A8B2803066F",
       "oracle-eval-transplant.patch": "CDED8FE00F07DB78B3CB6438E4BB8DB2E27CEA9B6BE480F6F41B29E8B9423B4F",
-      "oracle-eval-reference.patch": "29DFE30819207FB6F2BF30EBCBDEA9931C2560B8454FE0E13BB6C09F7CCAC791"
+      "oracle-eval-reference.patch": "BC0D9756C6969543CF73A9D04728841D5977F36437C4088DA4F90850B8FA50B2"
     },
     "tool": "tools/diag/c32_reference.py"
   },
@@ -60,11 +60,12 @@
     "lazy1": 429,
     "lazy2": 577,
     "scaling_function": 58,
-    "entry_not_normal": 263
+    "entry_not_normal": 263,
+    "registered": 227
   },
   "fixture": {
     "file": "eval_reference.tsv",
     "rows": 12193,
-    "sha256": "EC6AE2FA02E328CA7DF5603CF13061D82A2D3F4832C34DA589AB63B6B958E6E2"
+    "sha256": "BF8CFB7C0C612622401F65C541F11C792B37AA98B1B66C19CAFE69D66B9D2CEB"
   }
 }
