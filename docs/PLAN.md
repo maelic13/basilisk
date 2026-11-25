@@ -411,7 +411,7 @@ derivations are in the linked records.
 | Protocol: `ponderhit` owned by the UCI thread; setup work done before `readyok`, never on the clock; a rejected `position` exits with status 1; tablebase PV lines time-boxed the Stockfish way | BAS-C10–BAS-C13; `tests/test_engine_ponder.cpp`, `tests/test_uci_protocol.cpp` |
 | Search parameters have one source (the X-macro table) | `src/search_params.h` |
 | Endgame measurement layers (truth, move quality, conversion, strength) | `analysis/endgame_measurement_layers_v1.md`; `DESIGN.md` §4 |
-| Behaviour-neutral change = exact fingerprint plus targeted checks plus pooled NPS | `AGENTS.md` |
+| Behaviour-neutral change = exact fingerprint plus targeted checks plus pooled NPS | `agents/implementation.md`, *Qualifying a change* |
 | Diagnostic counters: one table, each counter with its unit and denominator; names and units are the cross-engine contract, extended at the end and never renamed | `src/search_diagnostics.h`; `tools/diag/run_suite.py` |
 | Cross-engine board timings are compared only on the `cross-engine-board-v1` profile and its five-position corpus | `tests/board_performance.cpp` |
 | Per-node search code does not allocate or lock: allocations grow per iteration, never per node, at Threads 1 and 4; every allocator, copy or lock call the shipped code can reach from `negamax`, quiescence and the evaluation is a known guarded path | `tests/test_allocation_guard.cpp`; `tools/diag/hot_path_calls.py` on a `PROFILE_SYMBOLS` PGO build; `agents/implementation.md` *Per-node code* |

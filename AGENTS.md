@@ -14,42 +14,15 @@ rule is stated once: here if every task needs it, otherwise in the one
 This file is always in force. The files under `agents/` are modules, as
 binding as this file: read one in full before starting when any of its
 triggers is true, and skip it only because none is, never to save time.
-Triggers are facts -- the task's kind, the paths changed, the commands run --
+Triggers are facts -- the task's kind, the paths changed, the actions taken --
 and most leaves fire several. When unsure, read the module.
 
-- **`agents/research.md`** -- Scope: mechanisms, research, reviews, donors,
-  refusals and experiment design. Read in full when: Task -- research,
-  diagnosis, experiment design or a review; any `R2` or `R3` leaf. Paths --
-  `docs/DESIGN.md`, `docs/experiments/`, `analysis/`. Actions -- before
-  proposing, adding, removing or altering a mechanism, a code change meant to
-  alter a move included; when a change moves the bench fingerprint; before
-  reading another engine's source or `docs/reference/`; before registering an
-  experiment or closing a leaf that ran one.
-- **`agents/implementation.md`** -- Scope: engine, test, build and tool code.
-  Read in full when: Task -- any `I1` or `I2` leaf; a review of code. Paths --
-  `src/`, `tests/`, `tools/`, `cmake/`, `CMakeLists.txt`, `CMakePresets.json`,
-  `.github/workflows/`. Actions -- before writing or changing code anywhere
-  else.
-- **`agents/measurement.md`** -- Scope: measurement, acceptance, gates and
-  long runs. Read in full when: Task -- any `V` leaf. Paths --
-  `docs/experiments/`, `docs/EXPERIMENTS.md`, `tools/colosseum/`,
-  `tools/run_*`, `.github/windows-clang-version`. Actions -- before building a
-  binary to measure; before running or reading bench, NPS, `Diag` counters or
-  a profile; before running, registering or preparing games, an SPRT, SPSA,
-  gauntlet, datagen or fit; before handing the maintainer a command or
-  launcher; before any run that loads the machine for minutes; before reading
-  returned artifacts.
-- **`agents/records.md`** -- Scope: roadmap and ledger documents, evidence,
-  citations, tags, capability classes and the pull-request message. Read in
-  full when: Task -- any `M` leaf; closing any leaf. Paths -- `docs/PLAN.md`,
-  `GUIDE.md`, `CHANGELOG.md`, `docs/HISTORY.md`, `docs/EXPERIMENTS.md`,
-  `docs/experiments/`, `docs/archive/`, `analysis/`,
-  `tools/diag/citation_exceptions.tsv`. Actions -- before citing a commit in a
-  document; before adding a result, log or fixture to git; before creating,
-  pushing or deleting a tag, or keeping a branch; before opening a pull
-  request or writing its message; before changing a capability tag; when a
-  change is user-visible (strength, UCI options or output, defaults, the bench
-  fingerprint, platforms).
+| Module | Scope | Task | Paths changed | Actions |
+|---|---|---|---|---|
+| `agents/research.md` | Mechanisms, research, reviews, donors, refusals and experiment design. | Research, diagnosis, experiment design or a review; any `R2` or `R3` leaf. | `docs/DESIGN.md`, `docs/experiments/`, `analysis/`. | Before proposing, adding, removing or altering a mechanism, a code change meant to alter a move included; when a change moves the bench fingerprint; before reading another engine's source or `docs/reference/`; before registering an experiment or closing a leaf that ran one. |
+| `agents/implementation.md` | Engine, test, build and tool code. | Any `I1` or `I2` leaf; a review of code. | `src/`, `tests/`, `tools/`, `cmake/`, `CMakeLists.txt`, `CMakePresets.json`, `.github/workflows/`. | Before writing or changing code anywhere else. |
+| `agents/measurement.md` | Measurement, acceptance, gates and long runs. | Any `V` leaf. | `docs/experiments/`, `docs/EXPERIMENTS.md`, `tools/colosseum/`, `tools/run_*`, `.github/windows-clang-version`. | Before building a binary to measure; before running or reading bench, NPS, `Diag` counters or a profile; before running, registering or preparing games, an SPRT, SPSA, gauntlet, datagen or fit; before handing the maintainer a command or launcher; before any run that loads the machine for minutes; before reading returned artifacts. |
+| `agents/records.md` | Roadmap and ledger documents, evidence, citations, tags, capability classes and the pull-request message. | Any `M` leaf; closing any leaf. | `docs/PLAN.md`, `GUIDE.md`, `CHANGELOG.md`, `docs/HISTORY.md`, `docs/EXPERIMENTS.md`, `docs/experiments/`, `docs/archive/`, `analysis/`, `tools/diag/citation_exceptions.tsv`. | Before citing a commit in a document; before adding a result, log or fixture to git; before creating, pushing or deleting a tag, or keeping a branch; before opening a pull request or writing its message; before changing a capability tag; when a change is user-visible (strength, UCI options or output, defaults, the bench fingerprint, platforms). |
 
 **Before reporting work as done**, hold the triggers against what happened:
 the files changed, the commands run, and the commits, registrations and
@@ -137,12 +110,6 @@ name says.**
   bench, game gate or chess-specific test when that is what acceptance needs.
   Run each required check once on the final relevant state, and reuse the pass
   while its inputs are unchanged.
-- A behavior-neutral engine change reproduces the immediate development fingerprint (currently **3,359,329** at `bench 13`) plus focused tests for behaviour the bench does not reach.
-  Memory, state or concurrency work also needs the relevant sanitizer/stress
-  coverage. The comparison fingerprint is revision-specific: a deliberately
-  integrated behaviour change updates the fingerprint record; never preserve
-  a known defect to keep an obsolete count. Investigate a cross-platform
-  mismatch.
 - Check exit status directly, never through a pipe. Every scripted edit
   asserts its anchor matched once and preserves the file's line endings.
 - Test constructs and behaviour, not words in a comment.
@@ -165,8 +132,10 @@ name says.**
 
 ## Token-efficient execution
 
-- Orient once per session: these rules, the `agents/` files the task needs,
-  GUIDE's *Now* table and next step, the selected PLAN section. Follow up with
+- Orient once per session: these rules, the modules whose triggers are true,
+  GUIDE's *Now* table and next step, and in PLAN the selected leaf's entry
+  with the lead text of its parent step and its phase -- never the whole
+  phase, and §2 only for a rule cited by number. Follow up with
   targeted searches and bounded excerpts; re-read only changed regions or to
   answer a concrete question.
 - Batch independent reads and checks; send verbose output to logs and return
@@ -176,8 +145,7 @@ name says.**
   paths, completed checks, live process IDs, blocker, next action. After an
   interruption, inspect it and existing outputs before restarting anything.
 - Before repeating any read, check or run, name what changed or what it
-  answers; if nothing, skip it. Never shrink a registered run after seeing
-  results.
+  answers; if nothing, skip it.
 
 ## Commits and reporting
 
@@ -214,11 +182,11 @@ name says.**
 ## Changing these rules
 
 - Budget: **18,000** bytes for this file with everything a tool loads beside
-  it, and for each module: 75% of the smallest documented load limit, 24,000
-  bytes (`analysis/agent_rules_2026-11-25.md`). `python
-  tools/diag/check_rules.py` enforces it, the index and the module headers,
-  and runs in CI. Raising it is the maintainer's decision, recorded here with
-  its reason.
+  it, and for each module, and **200** lines for this file: 75% of the
+  smallest documented load limit, and Claude Code's target for one rule file
+  (`analysis/agent_rules_2026-11-25.md`). `python tools/diag/check_rules.py`
+  enforces both, with the index and the module headers, in CI. Raising either
+  is the maintainer's decision, recorded here with its reason.
 - A new rule goes into the module whose triggers reach the work it governs,
   and a new trigger into the index and the module's header together. Only a
   rule whose violation does damage on any task enters this file; if it does

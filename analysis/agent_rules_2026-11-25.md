@@ -3,7 +3,8 @@
 - State / class: closed with the change it describes; not a PLAN leaf (a
   maintainer request, 2026-11-25).
 - Owner / date: 2026-11-25.
-- Decision needed: the eight items in §7.
+- Decision needed: none open. §7 records the maintainer's decisions of
+  2026-11-25 and what was done on each.
 
 Agent tools load a rule file only up to a size limit and drop the rest
 without a warning, and a rulebook grows by one rule per incident. This packet
@@ -20,7 +21,7 @@ stores it, and with CRLF, as this host checks it out. The budget is held
 against the CRLF size, the larger of the two, so the answer is the same on
 every machine.
 
-**Evidence.** Loaded by a tool with no action from the agent:
+**Evidence.** Loaded by a tool with no action from the agent, at the base:
 
 | File | Loaded by | LF bytes | CRLF bytes | Lines |
 |---|---|---|---|---|
@@ -30,10 +31,11 @@ every machine.
 | Claude Code's memory index (`MEMORY.md`, outside the repository, on the maintainer's machine) | Claude Code | 6,190 | — | 44 |
 
 The repository holds no `GEMINI.md`, `.agent/`, `.cursor/`,
-`.github/copilot-instructions.md` or other stub. Two more files carry a rule
-file's name: `docs/reference/rarog/AGENTS.md` (21,572 CRLF bytes) and
-`docs/reference/rarog-2026-10-06/AGENTS.md` (23,805). They are Rarog's
-rules inside verbatim snapshots (§7, item 4).
+`.github/copilot-instructions.md` or other stub. At the base two more files
+carried a rule file's name, `AGENTS.md` in each of the two Rarog snapshots
+under `docs/reference/` (21,572 and 23,805 CRLF bytes): Rarog's rules, which
+a tool that loads the nearest `AGENTS.md` would have loaded. They left with
+the snapshots (§7, item 3).
 
 Read on a trigger, never loaded by a tool:
 
@@ -46,13 +48,15 @@ Read on a trigger, never loaded by a tool:
 
 Documents the rules send an agent to at orientation:
 
-| Document | What the rules say to read | CRLF bytes | Lines |
+| Document | What the rules said to read | CRLF bytes | Lines |
 |---|---|---|---|
 | `GUIDE.md` | its *Now* table and the next step; the file is one page | 7,676 | 159 |
 | `docs/PLAN.md` | "the selected PLAN section" | 233,828 whole | 3,644 |
 | — one leaf's entry | | median 1,469, largest 10,207 (82 entries) | |
+| — a parent step's lead text | | 388 to 4,105 (C.2 to C.4) | |
+| — a phase's lead text | | 42 to 12,834; Phase C 6,717 | |
 | — §2, the operating rules the modules cite by number | | 19,715 | 292 |
-| — Phase C, the current phase | | 132,611 | 2,157 |
+| — Phase C whole, the current phase | | 132,611 | 2,157 |
 | `docs/DESIGN.md` | first, before a mechanism (`agents/research.md`) | 12,100 | 206 |
 | `docs/PROCESS.md` | the procedure a rule names, by section | 54,884 whole | 930 |
 
@@ -79,32 +83,41 @@ instruction file was found on a translated page only and is not confirmed.
 
 **Inference.** The 24,000-byte cut this task was told of is Antigravity's,
 and it is documented. It is the smallest documented limit that applies to
-`AGENTS.md`. Windsurf's 12,000 characters is smaller, applies to another
-kind of file, and belongs to a tool this repository has no stub for (§7,
-item 6).
+`AGENTS.md`. Windsurf is another AI code editor; its 12,000 characters bound
+its own rules files, nothing in this repository is written for it, and its
+documentation does not say the number applies to `AGENTS.md`. It is recorded
+so that the number is at hand if Windsurf is ever used here.
 
 ## 3. Budget
 
 **Decision.** **18,000 bytes**: 75% of 24,000. It bounds every set of files
 a tool loads by itself (`AGENTS.md` alone, and `CLAUDE.md` with the
 `AGENTS.md` it imports) and each module, so that a module can always be read
-in one go. The core declares it, in *Changing these rules*;
-`tools/diag/check_rules.py` reads it from there and enforces it.
+in one go. The core also declares **200 lines** for itself, Claude Code's
+target for one rule file. Both numbers are in the core's *Changing these
+rules*; `tools/diag/check_rules.py` reads them from there and enforces them.
 
 | Set | Before | After | Of the budget | Of the 24,000-byte cut |
 |---|---|---|---|---|
-| `AGENTS.md` alone | 13,051 | 13,588 | 75% | 57% |
-| Claude Code: `CLAUDE.md` + `AGENTS.md` | 13,678 | 14,215 | 78% | 59% |
-| `agents/implementation.md` | 2,501 | 3,247 | 18% | |
-| `agents/measurement.md` | 7,921 | 7,917 | 43% | |
-| `agents/records.md` | 4,045 | 6,392 | 35% | |
-| `agents/research.md` | 7,884 | 8,675 | 48% | |
+| `AGENTS.md` alone | 13,051 | 13,017 | 72% | 54% |
+| Claude Code: `CLAUDE.md` + `AGENTS.md` | 13,678 | 13,476 | 74% | 56% |
+| `agents/implementation.md` | 2,501 | 3,751 | 20% | |
+| `agents/measurement.md` | 7,921 | 7,987 | 44% | |
+| `agents/records.md` | 4,045 | 6,081 | 33% | |
+| `agents/research.md` | 7,884 | 8,757 | 48% | |
 
-The core is 537 bytes larger than it was. About 2,700 bytes of task-scoped
-rules left it; the module index with observable triggers, the closing check,
-the conflict rule and the growth rules came in. Against Codex's 32 KiB the
-loaded set is 43%; against Antigravity's token budget it is roughly a fifth,
-at four bytes to a token.
+| Lines | Before | After |
+|---|---|---|
+| `AGENTS.md` | 222 | 196 |
+| `CLAUDE.md` | 15 | 12 |
+
+The core is 34 bytes smaller than it was and holds more: about 3,300 bytes
+of task-scoped rules left it, and the module index with observable triggers,
+the closing check, the conflict rule and the rules for changing the rules
+came in. Most of the fall in lines is the index, which is a table of four
+long rows; the bytes are the measure that the load limits use. Against
+Codex's 32 KiB the loaded set is 41%; against Antigravity's token budget it
+is roughly a sixth, at four bytes to a token.
 
 ## 4. The split
 
@@ -112,36 +125,42 @@ The rules were already split: `AGENTS.md` as the core and four modules under
 `agents/`, named by tests, tools, ledger entries and PLAN, so the module
 paths and section names stay. What changed:
 
-- **The index.** *Rules by task* was a table of task kinds. Each module now
-  has one entry giving its scope and three kinds of trigger: the task's
-  kind, the paths changed, the actions taken. Each module opens with the
-  same text, and the check fails when the two differ by a word.
+- **The index.** *Rules by task* was a table of task kinds. It is now a
+  table with one row for each module: its scope and three kinds of trigger,
+  the task's kind, the paths changed and the actions taken. Each module
+  opens with the same words, and the check fails when the two differ.
 - **A closing check**, before any report: hold the triggers against what was
   changed, run and committed; read what was missed; name the modules read.
   `check_rules.py --triggered` answers the path part from the branch's diff.
 - **Out of the core, unchanged**, each to the module whose trigger reaches
-  it: the capability classes, the squash message's shape, the two sentences
-  on merging `master` before a pull request and deleting the branch after,
-  and the `check_roadmap.py` commands (`agents/records.md`); what research
-  owns, and the independent review (`agents/research.md`); what
-  implementation owns and does not (`agents/implementation.md`).
-- **Kept in the core though task-scoped:** the fingerprint a
-  behaviour-neutral change reproduces. Implementation, review and
-  measurement all need the number, and `check_roadmap.py` checks it there.
+  it: the capability classes' rules, the squash message's shape, the two
+  sentences on merging `master` before a pull request and deleting the
+  branch after, and the `check_roadmap.py` commands (`agents/records.md`);
+  what research owns, and the independent review (`agents/research.md`);
+  what implementation owns and does not, and the fingerprint a
+  behaviour-neutral change reproduces (`agents/implementation.md`, where
+  `check_roadmap.py` now checks the number); the ban on shrinking a
+  registered run (`agents/measurement.md`).
+- **Orientation says how much of PLAN:** the leaf's entry with the lead text
+  of its parent step and its phase, never the whole phase, and §2 only for a
+  rule cited by number. PROCESS's research prompt says the same.
 - **Incidents out of the rules.** Six sentences that tell what once went
   wrong left the modules; each rule keeps its citation, and the sentences
   are in §5, word for word.
-- **`CLAUDE.md` is unchanged.** It imports the core and no module.
+- **Duplicates dropped.** The table of capability classes, worded a third
+  way beside PLAN §2's and GUIDE's, and one sentence that `agents/research.md`
+  held twice but for a word.
+- **`CLAUDE.md` is shorter.** It imports the core and no module, and keeps
+  only what is particular to Claude Code.
 
-New rules, which the base did not have. Each is short, and each is the
-maintainer's to strike:
+New rules, which the base did not have:
 
 | | Rule | Where |
 |---|---|---|
 | N1 | A module is as binding as the core, and is skipped only because no trigger is true, never to save time. | core, *Rules by task* |
 | N2 | The closing check, and the modules read are named in the report. | core, *Rules by task* |
 | N3 | If a rule conflicts with the task as given, or with another rule, stop and ask. | core, *Rules by task* |
-| N4 | The budget, and who may raise it. | core, *Changing these rules* |
+| N4 | The budgets, and who may raise them. | core, *Changing these rules* |
 | N5 | A new rule goes into the module whose triggers reach it; only a rule whose violation does damage on any task enters the core; the incident behind a rule goes to the ledger or a packet. | core, *Changing these rules* |
 | N6 | A stub may import the core and never a module. | core, *Changing these rules* |
 
@@ -164,13 +183,18 @@ A block is a paragraph, a list item or a table row; headings are not blocks.
 and fails unless every block's text, or the rewording recorded for it, is
 found word for word in the file its row names. Kinds: an *invariant* applies
 to every task; a *task-scoped* rule to certain work; a *duplicate* repeats
-the row it names; *rationale* tells why and is not a rule. IDs are the
+another statement; *rationale* tells why and is not a rule. IDs are the
 file's letter and the block's number at the base: A `AGENTS.md`, C
 `CLAUDE.md`, I, M, D and R the implementation, measurement, records
 (documents) and research modules.
 
-No two blocks were exact duplicates, so none were merged. The near
-duplicates are noted on their rows and listed in §7, item 2.
+No two blocks were word-for-word duplicates. Seven near duplicates were
+dropped on the maintainer's instruction of 2026-11-25, and their text is in
+the last table below. Four pairs that overlap were left, because each half
+says something the other does not: the two bullets on regenerating GUIDE
+(A12, D02), the two on relaxing a correctness test (A19, I04), the two on
+changing a run after its results (A47's last sentence, M20, now side by
+side), and the stub's line on attribution (C03, A51).
 
 <!-- BEGIN GENERATED by `python tools/diag/rules_inventory.py --write` -->
 
@@ -190,17 +214,19 @@ duplicates are noted on their rows and listed in §7, item 2.
 
 | Count | Blocks |
 |---|---|
-| Core blocks kept in the core | 40 |
-| Core blocks moved whole to a module | 14 |
-| Core blocks split between the core and a module | 1 |
-| Stub blocks, unchanged | 3 |
+| Core blocks kept in the core | 38 |
+| Core blocks moved whole to a module | 9 |
+| Core blocks split between the core and a module | 2 |
+| Core blocks dropped as duplicates | 6 |
+| Stub blocks, all kept in the stub | 3 |
 | Module blocks kept in their module | 85 |
-| Reworded (old and new text below) | 15 |
-| Exact duplicates merged | 0 |
-| Incident text moved out of the rules | 6 |
+| Module blocks moved out whole as incidents | 2 |
+| Reworded or split (old and new text below) | 23 |
+| Blocks with incident text moved out | 6 |
+| Blocks with a duplicate dropped | 7 |
 | Kind: invariant | 38 |
-| Kind: task-scoped | 104 |
-| Kind: duplicate | 1 |
+| Kind: task-scoped | 98 |
+| Kind: duplicate | 7 |
 | Kind: rationale or history | 2 |
 
 ### Normative words, before and after
@@ -208,9 +234,9 @@ duplicates are noted on their rows and listed in §7, item 2.
 | Word | At the base | Now |
 |---|---|---|
 | must | 8 | 7 |
-| never | 28 | 29 |
+| never | 28 | 30 |
 | always | 3 | 3 |
-| only | 27 | 29 |
+| only | 27 | 30 |
 | do not | 20 | 21 |
 | may not | 2 | 2 |
 
@@ -229,23 +255,23 @@ duplicates are noted on their rows and listed in §7, item 2.
 | A09 | `AGENTS.md:35` | invariant | `AGENTS.md` | unchanged | - "Do the next step" means handle only the e… |
 | A10 | `AGENTS.md:40` | invariant | `AGENTS.md` | unchanged | - Do not start later steps, combine adjacent… |
 | A11 | `AGENTS.md:42` | invariant | `AGENTS.md` | unchanged | - Finish the requested leaf, verify it propo… |
-| A12 | `AGENTS.md:45` | task-scoped | `agents/records.md` | moved; overlaps D02 | - After any PLAN change run python tools/dia… |
+| A12 | `AGENTS.md:45` | task-scoped | `agents/records.md` | moved | - After any PLAN change run python tools/dia… |
 | A13 | `AGENTS.md:51` | invariant | `AGENTS.md` | unchanged | The normal playing-change path is: |
 | A14 | `AGENTS.md:53` | invariant | `AGENTS.md` | unchanged | RESEARCH -> READY_FOR_IMPLEMENTATION -> IMPL… |
 | A15 | `AGENTS.md:55` | invariant | `AGENTS.md` | unchanged | Not every task uses every state. Documentati… |
 | A16 | `AGENTS.md:61` | invariant | `AGENTS.md` | unchanged | READY_FOR_IMPLEMENTATION is the hard boundar… |
-| A17 | `AGENTS.md:66` | task-scoped | `agents/research.md` | moved; its last sentence is R13's but for one word | - **Research owns** the causal question, com… |
+| A17 | `AGENTS.md:66` | task-scoped | `agents/research.md`, this packet | moved; its last sentence, a duplicate of R13's but for one word, was dropped | - **Research owns** the causal question, com… |
 | A18 | `AGENTS.md:70` | task-scoped | `agents/implementation.md` | moved | - **Implementation owns** ordinary engineeri… |
-| A19 | `AGENTS.md:74` | task-scoped | `agents/implementation.md` | moved; overlaps I04 | - **Implementation does not** replace the hy… |
+| A19 | `AGENTS.md:74` | task-scoped | `agents/implementation.md` | moved | - **Implementation does not** replace the hy… |
 | A20 | `AGENTS.md:78` | invariant | `AGENTS.md` | unchanged | - **A false premise returns the leaf.** Keep… |
 | A21 | `AGENTS.md:84` | task-scoped | `agents/research.md` | moved | - **Review is independent.** A cluster imple… |
-| A22 | `AGENTS.md:91` | task-scoped | `agents/records.md` | moved | Open PLAN leaves carry a capability tag, whi… |
-| A23 | `AGENTS.md:95` | task-scoped | `agents/records.md` | moved; PLAN §2 and GUIDE word the classes differently | \| R3 \| frontier research; unresolved causa… |
-| A24 | `AGENTS.md:96` | task-scoped | `agents/records.md` | moved | \| R2 \| bounded but correctness-sensitive a… |
-| A25 | `AGENTS.md:97` | task-scoped | `agents/records.md` | moved | \| I2 \| difficult implementation requiring… |
-| A26 | `AGENTS.md:98` | task-scoped | `agents/records.md` | moved | \| I1 \| well-specified implementation \| |
-| A27 | `AGENTS.md:99` | task-scoped | `agents/records.md` | moved | \| M \| mechanical documentation, manifests… |
-| A28 | `AGENTS.md:100` | task-scoped | `agents/records.md` | moved | \| V \| verification or measurement work \| |
+| A22 | `AGENTS.md:91` | task-scoped | `agents/records.md` | reworded: it points to PLAN's table | Open PLAN leaves carry a capability tag, whi… |
+| A23 | `AGENTS.md:95` | duplicate | this packet | a duplicate of PLAN §2's table of the classes, dropped | \| R3 \| frontier research; unresolved causa… |
+| A24 | `AGENTS.md:96` | duplicate | this packet | a duplicate of PLAN §2's table of the classes, dropped | \| R2 \| bounded but correctness-sensitive a… |
+| A25 | `AGENTS.md:97` | duplicate | this packet | a duplicate of PLAN §2's table of the classes, dropped | \| I2 \| difficult implementation requiring… |
+| A26 | `AGENTS.md:98` | duplicate | this packet | a duplicate of PLAN §2's table of the classes, dropped | \| I1 \| well-specified implementation \| |
+| A27 | `AGENTS.md:99` | duplicate | this packet | a duplicate of PLAN §2's table of the classes, dropped | \| M \| mechanical documentation, manifests… |
+| A28 | `AGENTS.md:100` | duplicate | this packet | a duplicate of PLAN §2's table of the classes, dropped | \| V \| verification or measurement work \| |
 | A29 | `AGENTS.md:102` | task-scoped | `agents/records.md` | moved | Classes are routing hints, not permission, s… |
 | A30 | `AGENTS.md:110` | invariant | `AGENTS.md` | unchanged | - Do the work specified by the current leaf.… |
 | A31 | `AGENTS.md:112` | invariant | `AGENTS.md` | unchanged | - If a newly found bug blocks the leaf, stop… |
@@ -254,17 +280,17 @@ duplicates are noted on their rows and listed in §7, item 2.
 | A34 | `AGENTS.md:122` | invariant | `AGENTS.md` | unchanged | - Call out suspicious or incorrect chess beh… |
 | A35 | `AGENTS.md:127` | invariant | `AGENTS.md` | unchanged | Almost every agent mistake in these projects… |
 | A36 | `AGENTS.md:134` | invariant | `AGENTS.md` | unchanged | - Match verification cost to risk. Do not ru… |
-| A37 | `AGENTS.md:139` | task-scoped | `AGENTS.md` | kept in the core: implementation, review and measurement all need the number, and `check_roadmap.py` checks it here | - A behavior-neutral engine change reproduce… |
+| A37 | `AGENTS.md:139` | task-scoped | `agents/implementation.md` | moved, with `check_roadmap.py`'s anchor for the number | - A behavior-neutral engine change reproduce… |
 | A38 | `AGENTS.md:145` | invariant | `AGENTS.md` | unchanged | - Check exit status directly, never through… |
 | A39 | `AGENTS.md:147` | invariant | `AGENTS.md` | unchanged | - Test constructs and behaviour, not words i… |
 | A40 | `AGENTS.md:151` | invariant | `AGENTS.md` | unchanged | - If the maintainer interrupts work with a c… |
 | A41 | `AGENTS.md:154` | invariant | `AGENTS.md` | unchanged | - Do not spawn broad parallel agents merely… |
 | A42 | `AGENTS.md:158` | invariant | `AGENTS.md` | unchanged | - Before nontrivial edits, briefly state the… |
 | A43 | `AGENTS.md:161` | invariant | `AGENTS.md` | unchanged | - A nontrivial final report normally names f… |
-| A44 | `AGENTS.md:167` | invariant | `AGENTS.md` | unchanged; "the selected PLAN section" is §7, item 1 | - Orient once per session: these rules, the… |
+| A44 | `AGENTS.md:167` | invariant | `AGENTS.md` | reworded: it says how much of PLAN | - Orient once per session: these rules, the… |
 | A45 | `AGENTS.md:171` | invariant | `AGENTS.md` | unchanged | - Batch independent reads and checks; send v… |
 | A46 | `AGENTS.md:174` | invariant | `AGENTS.md` | unchanged | - Keep a compact working record: leaf, sourc… |
-| A47 | `AGENTS.md:177` | invariant | `AGENTS.md` | unchanged; its last sentence overlaps M20 | - Before repeating any read, check or run, n… |
+| A47 | `AGENTS.md:177` | invariant | `AGENTS.md`, `agents/measurement.md` | split: its last sentence moved beside M20, unchanged | - Before repeating any read, check or run, n… |
 | A48 | `AGENTS.md:183` | invariant | `AGENTS.md`, `agents/records.md` | split: its two pull-request sentences moved, unchanged | - master is the trunk. Every coherent piece… |
 | A49 | `AGENTS.md:192` | task-scoped | `agents/records.md` | moved | - The squash message -- the PR title and des… |
 | A50 | `AGENTS.md:200` | invariant | `AGENTS.md` | unchanged | - Commits on a branch are working records, k… |
@@ -274,8 +300,8 @@ duplicates are noted on their rows and listed in §7, item 2.
 | A54 | `AGENTS.md:215` | invariant | `AGENTS.md` | unchanged | - When maintainer action is needed, give run… |
 | A55 | `AGENTS.md:217` | invariant | `AGENTS.md` | unchanged | - End-step reports are short: outcome, essen… |
 | C01 | `CLAUDE.md:3` | invariant | `CLAUDE.md` | unchanged | @AGENTS.md |
-| C02 | `CLAUDE.md:7` | invariant | `CLAUDE.md` | unchanged | - The files in agents/ are deliberately not… |
-| C03 | `CLAUDE.md:11` | duplicate | `CLAUDE.md` | of A51, kept: it adds what is particular to Claude Code | - No AI attribution anywhere -- no Co-Author… |
+| C02 | `CLAUDE.md:7` | invariant | `CLAUDE.md` | reworded | - The files in agents/ are deliberately not… |
+| C03 | `CLAUDE.md:11` | duplicate | `CLAUDE.md` | reworded: A51 states the rule, and this keeps what is particular to Claude Code | - No AI attribution anywhere -- no Co-Author… |
 | I01 | `agents/implementation.md:3` | task-scoped | `agents/implementation.md` | reworded: the header, and the pointer to the ownership bullets now below it | Read this for I1 and I2 leaves and any chang… |
 | I02 | `agents/implementation.md:11` | task-scoped | `agents/implementation.md` | unchanged | Per-node code (negamax, qsearch, move pickin… |
 | I03 | `agents/implementation.md:25` | task-scoped | `agents/implementation.md` | unchanged | - Exact bench identity is a necessary determ… |
@@ -293,10 +319,10 @@ duplicates are noted on their rows and listed in §7, item 2.
 | M08 | `agents/measurement.md:31` | task-scoped | `agents/measurement.md` | unchanged | - It owes a pooled NPS read, registered with… |
 | M09 | `agents/measurement.md:33` | task-scoped | `agents/measurement.md` | unchanged | - Patch releases owe none. CI prints them, a… |
 | M10 | `agents/measurement.md:35` | task-scoped | `agents/measurement.md` | unchanged | - No compiler step, a patch included, falls… |
-| M11 | `agents/measurement.md:37` | rationale | this packet | moved out; its citation stays on M07 | - Rarog's LLVM 22 to 23 step kept its finger… |
+| M11 | `agents/measurement.md:37` | rationale | this packet | an incident, moved out; its citation stays on M07 | - Rarog's LLVM 22 to 23 step kept its finger… |
 | M12 | `agents/measurement.md:39` | task-scoped | `agents/measurement.md`, this packet | reworded: the incident moved out, its citation stays | - A SQLite database is copied together with… |
 | M13 | `agents/measurement.md:42` | task-scoped | `agents/measurement.md` | unchanged | - A binary entered in a rated pool is a tagg… |
-| M14 | `agents/measurement.md:45` | task-scoped | `agents/measurement.md` | unchanged | - The current fingerprint is declared once,… |
+| M14 | `agents/measurement.md:45` | task-scoped | `agents/measurement.md` | reworded: the restatement moved with A37 | - The current fingerprint is declared once,… |
 | M15 | `agents/measurement.md:51` | task-scoped | `agents/measurement.md` | unchanged | - A playing change needs deterministic regre… |
 | M16 | `agents/measurement.md:54` | task-scoped | `agents/measurement.md` | unchanged | - Build the actual candidate configuration t… |
 | M17 | `agents/measurement.md:57` | task-scoped | `agents/measurement.md` | unchanged | - Score-based game adjudication is off by de… |
@@ -308,7 +334,7 @@ duplicates are noted on their rows and listed in §7, item 2.
 | M23 | `agents/measurement.md:79` | task-scoped | `agents/measurement.md` | unchanged | - a strength claim: the SPRT bracket above,… |
 | M24 | `agents/measurement.md:81` | task-scoped | `agents/measurement.md` | unchanged | - a repair kept unless it harms (H1 and the… |
 | M25 | `agents/measurement.md:88` | task-scoped | `agents/measurement.md` | unchanged | - a change that cannot alter a move (output,… |
-| M26 | `agents/measurement.md:89` | rationale | this packet | moved out; its citation stays on M22 | BAS-S32 and BAS-S33 ran 4,000-pair caps, cop… |
+| M26 | `agents/measurement.md:89` | rationale | this packet | an incident, moved out; its citation stays on M22 | BAS-S32 and BAS-S33 ran 4,000-pair caps, cop… |
 | M27 | `agents/measurement.md:91` | task-scoped | `agents/measurement.md` | unchanged | - High bounds reject small gains. That is ov… |
 | M28 | `agents/measurement.md:93` | task-scoped | `agents/measurement.md` | unchanged | - Bench and counter screens choose candidate… |
 | M29 | `agents/measurement.md:95` | task-scoped | `agents/measurement.md` | unchanged | - An unresolved stop is not "probably fine":… |
@@ -349,9 +375,9 @@ duplicates are noted on their rows and listed in §7, item 2.
 | R10 | `agents/research.md:27` | task-scoped | `agents/research.md` | unchanged | - For a substantial playing change, also sta… |
 | R11 | `agents/research.md:31` | task-scoped | `agents/research.md` | unchanged | - Prefer interaction-first analysis. Check f… |
 | R12 | `agents/research.md:37` | task-scoped | `agents/research.md` | unchanged | - **Recommend before you document.** When re… |
-| R13 | `agents/research.md:44` | task-scoped | `agents/research.md` | unchanged; its last sentence is A17's but for one word | - Price the experiment before substantial wo… |
+| R13 | `agents/research.md:44` | task-scoped | `agents/research.md` | unchanged | - Price the experiment before substantial wo… |
 | R14 | `agents/research.md:51` | task-scoped | `agents/research.md`, this packet | reworded: the incident moved out, its citation stays | - Donor engines teach mechanisms, contracts,… |
-| R15 | `agents/research.md:62` | task-scoped | `agents/research.md` | unchanged | - Rarog is read only through the pinned snap… |
+| R15 | `agents/research.md:62` | task-scoped | `agents/research.md` | reworded: Rarog's snapshots were removed | - Rarog is read only through the pinned snap… |
 | R16 | `agents/research.md:71` | task-scoped | `agents/research.md` | unchanged | - What may cross, and how the code is writte… |
 | R17 | `agents/research.md:78` | task-scoped | `agents/research.md` | unchanged | Refusing to build something, and refuting a… |
 | R18 | `agents/research.md:82` | task-scoped | `agents/research.md` | unchanged | - **Say "this does not fit; do not implement… |
@@ -364,7 +390,7 @@ duplicates are noted on their rows and listed in §7, item 2.
 | R25 | `agents/research.md:116` | task-scoped | `agents/research.md` | unchanged | - Freeze the prospective prediction, confide… |
 | R26 | `agents/research.md:121` | task-scoped | `agents/research.md` | unchanged | - Keep evidence layers separate. Better fit… |
 
-### Rewordings: old text and new
+### Changed blocks: old text and new
 
 **A02** (`AGENTS.md:14`), old:
 
@@ -372,7 +398,7 @@ duplicates are noted on their rows and listed in §7, item 2.
 
 new:
 
-> This file is always in force. The files under `agents/` are modules, as binding as this file: read one in full before starting when any of its triggers is true, and skip it only because none is, never to save time. Triggers are facts -- the task's kind, the paths changed, the commands run -- and most leaves fire several. When unsure, read the module.
+> This file is always in force. The files under `agents/` are modules, as binding as this file: read one in full before starting when any of its triggers is true, and skip it only because none is, never to save time. Triggers are facts -- the task's kind, the paths changed, the actions taken -- and most leaves fire several. When unsure, read the module.
 >
 > -- `AGENTS.md`
 
@@ -382,7 +408,7 @@ new:
 
 new:
 
-> Scope: mechanisms, research, reviews, donors, refusals and experiment design. Read in full when: Task -- research, diagnosis, experiment design or a review; any `R2` or `R3` leaf. Paths -- `docs/DESIGN.md`, `docs/experiments/`, `analysis/`. Actions -- before proposing, adding, removing or altering a mechanism, a code change meant to alter a move included; when a change moves the bench fingerprint; before reading another engine's source or `docs/reference/`; before registering an experiment or closing a leaf that ran one.
+> Scope: Mechanisms, research, reviews, donors, refusals and experiment design. Read in full when: Task -- Research, diagnosis, experiment design or a review; any `R2` or `R3` leaf. Paths -- `docs/DESIGN.md`, `docs/experiments/`, `analysis/`. Actions -- Before proposing, adding, removing or altering a mechanism, a code change meant to alter a move included; when a change moves the bench fingerprint; before reading another engine's source or `docs/reference/`; before registering an experiment or closing a leaf that ran one.
 >
 > -- `AGENTS.md`
 
@@ -392,11 +418,11 @@ new:
 
 new:
 
-> Scope: engine, test, build and tool code. Read in full when: Task -- any `I1` or `I2` leaf; a review of code. Paths -- `src/`, `tests/`, `tools/`, `cmake/`, `CMakeLists.txt`, `CMakePresets.json`, `.github/workflows/`. Actions -- before writing or changing code anywhere else.
+> Scope: Engine, test, build and tool code. Read in full when: Task -- Any `I1` or `I2` leaf; a review of code. Paths -- `src/`, `tests/`, `tools/`, `cmake/`, `CMakeLists.txt`, `CMakePresets.json`, `.github/workflows/`. Actions -- Before writing or changing code anywhere else.
 >
 > -- `AGENTS.md`
 
-> Scope: mechanisms, research, reviews, donors, refusals and experiment design. Read in full when: Task -- research, diagnosis, experiment design or a review; any `R2` or `R3` leaf. Paths -- `docs/DESIGN.md`, `docs/experiments/`, `analysis/`. Actions -- before proposing, adding, removing or altering a mechanism, a code change meant to alter a move included; when a change moves the bench fingerprint; before reading another engine's source or `docs/reference/`; before registering an experiment or closing a leaf that ran one.
+> Scope: Mechanisms, research, reviews, donors, refusals and experiment design. Read in full when: Task -- Research, diagnosis, experiment design or a review; any `R2` or `R3` leaf. Paths -- `docs/DESIGN.md`, `docs/experiments/`, `analysis/`. Actions -- Before proposing, adding, removing or altering a mechanism, a code change meant to alter a move included; when a change moves the bench fingerprint; before reading another engine's source or `docs/reference/`; before registering an experiment or closing a leaf that ran one.
 >
 > -- `AGENTS.md`
 
@@ -406,7 +432,7 @@ new:
 
 new:
 
-> Scope: measurement, acceptance, gates and long runs. Read in full when: Task -- any `V` leaf. Paths -- `docs/experiments/`, `docs/EXPERIMENTS.md`, `tools/colosseum/`, `tools/run_*`, `.github/windows-clang-version`. Actions -- before building a binary to measure; before running or reading bench, NPS, `Diag` counters or a profile; before running, registering or preparing games, an SPRT, SPSA, gauntlet, datagen or fit; before handing the maintainer a command or launcher; before any run that loads the machine for minutes; before reading returned artifacts.
+> Scope: Measurement, acceptance, gates and long runs. Read in full when: Task -- Any `V` leaf. Paths -- `docs/experiments/`, `docs/EXPERIMENTS.md`, `tools/colosseum/`, `tools/run_*`, `.github/windows-clang-version`. Actions -- Before building a binary to measure; before running or reading bench, NPS, `Diag` counters or a profile; before running, registering or preparing games, an SPRT, SPSA, gauntlet, datagen or fit; before handing the maintainer a command or launcher; before any run that loads the machine for minutes; before reading returned artifacts.
 >
 > -- `AGENTS.md`
 
@@ -416,9 +442,57 @@ new:
 
 new:
 
-> Scope: roadmap and ledger documents, evidence, citations, tags, capability classes and the pull-request message. Read in full when: Task -- any `M` leaf; closing any leaf. Paths -- `docs/PLAN.md`, `GUIDE.md`, `CHANGELOG.md`, `docs/HISTORY.md`, `docs/EXPERIMENTS.md`, `docs/experiments/`, `docs/archive/`, `analysis/`, `tools/diag/citation_exceptions.tsv`. Actions -- before citing a commit in a document; before adding a result, log or fixture to git; before creating, pushing or deleting a tag, or keeping a branch; before opening a pull request or writing its message; before changing a capability tag; when a change is user-visible (strength, UCI options or output, defaults, the bench fingerprint, platforms).
+> Scope: Roadmap and ledger documents, evidence, citations, tags, capability classes and the pull-request message. Read in full when: Task -- Any `M` leaf; closing any leaf. Paths -- `docs/PLAN.md`, `GUIDE.md`, `CHANGELOG.md`, `docs/HISTORY.md`, `docs/EXPERIMENTS.md`, `docs/experiments/`, `docs/archive/`, `analysis/`, `tools/diag/citation_exceptions.tsv`. Actions -- Before citing a commit in a document; before adding a result, log or fixture to git; before creating, pushing or deleting a tag, or keeping a branch; before opening a pull request or writing its message; before changing a capability tag; when a change is user-visible (strength, UCI options or output, defaults, the bench fingerprint, platforms).
 >
 > -- `AGENTS.md`
+
+**A17** (`AGENTS.md:66`), old:
+
+> - **Research owns** the causal question, competing hypotheses, interaction map, prospective prediction, falsifiers, the meaning of each experiment and the readiness decision. Prefer cheap discriminating evidence to a sophisticated implementation of an uncertain idea.
+
+new:
+
+> - **Research owns** the causal question, competing hypotheses, interaction map, prospective prediction, falsifiers, the meaning of each experiment and the readiness decision.
+>
+> -- `agents/research.md`
+
+> Prefer cheap discriminating evidence to a sophisticated implementation of an uncertain idea.
+>
+> -- this packet, in the table below
+
+**A22** (`AGENTS.md:91`), old:
+
+> Open PLAN leaves carry a capability tag, which GUIDE shows:
+
+new:
+
+> Open PLAN leaves carry a capability tag, which GUIDE shows. PLAN §2, *Workflow states and capability classes*, defines the six classes.
+>
+> -- `agents/records.md`
+
+**A44** (`AGENTS.md:167`), old:
+
+> - Orient once per session: these rules, the `agents/` files the task needs, GUIDE's *Now* table and next step, the selected PLAN section. Follow up with targeted searches and bounded excerpts; re-read only changed regions or to answer a concrete question.
+
+new:
+
+> - Orient once per session: these rules, the modules whose triggers are true, GUIDE's *Now* table and next step, and in PLAN the selected leaf's entry with the lead text of its parent step and its phase -- never the whole phase, and §2 only for a rule cited by number. Follow up with targeted searches and bounded excerpts; re-read only changed regions or to answer a concrete question.
+>
+> -- `AGENTS.md`
+
+**A47** (`AGENTS.md:177`), old:
+
+> - Before repeating any read, check or run, name what changed or what it answers; if nothing, skip it. Never shrink a registered run after seeing results.
+
+new:
+
+> - Before repeating any read, check or run, name what changed or what it answers; if nothing, skip it.
+>
+> -- `AGENTS.md`
+
+> Never shrink a registered run after seeing results.
+>
+> -- `agents/measurement.md`
 
 **A48** (`AGENTS.md:183`), old:
 
@@ -434,13 +508,33 @@ new:
 >
 > -- `agents/records.md`
 
+**C02** (`CLAUDE.md:7`), old:
+
+> - The files in `agents/` are deliberately not imported. Read the ones that `AGENTS.md` *Rules by task* names for the current task, with the Read tool, before planning or editing; reading one is part of orienting, not an optional extra.
+
+new:
+
+> - The modules under `agents/` are deliberately not imported. Read each one whose triggers in `AGENTS.md` *Rules by task* are true, in full, with the Read tool, before planning or editing.
+>
+> -- `CLAUDE.md`
+
+**C03** (`CLAUDE.md:11`), old:
+
+> - No AI attribution anywhere -- no `Co-Authored-By` trailer and no "Generated with" line in commits, PR titles or descriptions, or files -- even when the harness suggests one; `AGENTS.md` *Commits and reporting* takes precedence. `.claude/settings.json` turns Claude Code's attribution off.
+
+new:
+
+> - No AI attribution, even when the harness suggests one: `AGENTS.md` *Commits and reporting* takes precedence, and `.claude/settings.json` turns Claude Code's own attribution off.
+>
+> -- `CLAUDE.md`
+
 **I01** (`agents/implementation.md:3`), old:
 
 > Read this for `I1` and `I2` leaves and any change to engine source or tools. Workflow ownership (what implementation owns and must not change) is in `AGENTS.md`. A change that adds, removes or alters a mechanism also needs `agents/research.md`, *Before implementing a mechanism*; one that is measured or gated also needs `agents/measurement.md`.
 
 new:
 
-> Scope: engine, test, build and tool code. Read in full when: Task -- any `I1` or `I2` leaf; a review of code. Paths -- `src/`, `tests/`, `tools/`, `cmake/`, `CMakeLists.txt`, `CMakePresets.json`, `.github/workflows/`. Actions -- before writing or changing code anywhere else.
+> Scope: Engine, test, build and tool code. Read in full when: Task -- Any `I1` or `I2` leaf; a review of code. Paths -- `src/`, `tests/`, `tools/`, `cmake/`, `CMakeLists.txt`, `CMakePresets.json`, `.github/workflows/`. Actions -- Before writing or changing code anywhere else.
 >
 > -- `agents/implementation.md`
 
@@ -454,7 +548,7 @@ new:
 
 new:
 
-> Scope: measurement, acceptance, gates and long runs. Read in full when: Task -- any `V` leaf. Paths -- `docs/experiments/`, `docs/EXPERIMENTS.md`, `tools/colosseum/`, `tools/run_*`, `.github/windows-clang-version`. Actions -- before building a binary to measure; before running or reading bench, NPS, `Diag` counters or a profile; before running, registering or preparing games, an SPRT, SPSA, gauntlet, datagen or fit; before handing the maintainer a command or launcher; before any run that loads the machine for minutes; before reading returned artifacts.
+> Scope: Measurement, acceptance, gates and long runs. Read in full when: Task -- Any `V` leaf. Paths -- `docs/experiments/`, `docs/EXPERIMENTS.md`, `tools/colosseum/`, `tools/run_*`, `.github/windows-clang-version`. Actions -- Before building a binary to measure; before running or reading bench, NPS, `Diag` counters or a profile; before running, registering or preparing games, an SPRT, SPSA, gauntlet, datagen or fit; before handing the maintainer a command or launcher; before any run that loads the machine for minutes; before reading returned artifacts.
 >
 > -- `agents/measurement.md`
 
@@ -484,7 +578,17 @@ new:
 
 > Rarog's copy without it returned 39,437 of 39,600 games and a plausible but wrong termination table (RAR-M45).
 >
-> -- this packet, below
+> -- this packet, in the table below
+
+**M14** (`agents/measurement.md:45`), old:
+
+> - The current fingerprint is declared once, in GUIDE's *Now* table; `check_roadmap.py` fails when the restatement in `AGENTS.md` or DESIGN disagrees.
+
+new:
+
+> - The current fingerprint is declared once, in GUIDE's *Now* table; `check_roadmap.py` fails when the restatement in `agents/implementation.md` or DESIGN disagrees.
+>
+> -- `agents/measurement.md`
 
 **M22** (`agents/measurement.md:76`), old:
 
@@ -508,7 +612,7 @@ new:
 
 > a fixed 600-game run read +70 where Rarog's SPRT had stopped at +54.8 (Rarog PROCESS *Harness*, 2026-10-11).
 >
-> -- this packet, below
+> -- this packet, in the table below
 
 **D01** (`agents/records.md:3`), old:
 
@@ -516,7 +620,7 @@ new:
 
 new:
 
-> Scope: roadmap and ledger documents, evidence, citations, tags, capability classes and the pull-request message. Read in full when: Task -- any `M` leaf; closing any leaf. Paths -- `docs/PLAN.md`, `GUIDE.md`, `CHANGELOG.md`, `docs/HISTORY.md`, `docs/EXPERIMENTS.md`, `docs/experiments/`, `docs/archive/`, `analysis/`, `tools/diag/citation_exceptions.tsv`. Actions -- before citing a commit in a document; before adding a result, log or fixture to git; before creating, pushing or deleting a tag, or keeping a branch; before opening a pull request or writing its message; before changing a capability tag; when a change is user-visible (strength, UCI options or output, defaults, the bench fingerprint, platforms).
+> Scope: Roadmap and ledger documents, evidence, citations, tags, capability classes and the pull-request message. Read in full when: Task -- Any `M` leaf; closing any leaf. Paths -- `docs/PLAN.md`, `GUIDE.md`, `CHANGELOG.md`, `docs/HISTORY.md`, `docs/EXPERIMENTS.md`, `docs/experiments/`, `docs/archive/`, `analysis/`, `tools/diag/citation_exceptions.tsv`. Actions -- Before citing a commit in a document; before adding a result, log or fixture to git; before creating, pushing or deleting a tag, or keeping a branch; before opening a pull request or writing its message; before changing a capability tag; when a change is user-visible (strength, UCI options or output, defaults, the bench fingerprint, platforms).
 >
 > -- `agents/records.md`
 
@@ -526,7 +630,7 @@ new:
 
 new:
 
-> Scope: mechanisms, research, reviews, donors, refusals and experiment design. Read in full when: Task -- research, diagnosis, experiment design or a review; any `R2` or `R3` leaf. Paths -- `docs/DESIGN.md`, `docs/experiments/`, `analysis/`. Actions -- before proposing, adding, removing or altering a mechanism, a code change meant to alter a move included; when a change moves the bench fingerprint; before reading another engine's source or `docs/reference/`; before registering an experiment or closing a leaf that ran one.
+> Scope: Mechanisms, research, reviews, donors, refusals and experiment design. Read in full when: Task -- Research, diagnosis, experiment design or a review; any `R2` or `R3` leaf. Paths -- `docs/DESIGN.md`, `docs/experiments/`, `analysis/`. Actions -- Before proposing, adding, removing or altering a mechanism, a code change meant to alter a move included; when a change moves the bench fingerprint; before reading another engine's source or `docs/reference/`; before registering an experiment or closing a leaf that ran one.
 >
 > -- `agents/research.md`
 
@@ -546,7 +650,17 @@ new:
 
 > BAS-X01: check-extension removal was +30.75 there and −10.17 here
 >
-> -- this packet, below
+> -- this packet, in the table below
+
+**R15** (`agents/research.md:62`), old:
+
+> - Rarog is read only through the pinned snapshots in `docs/reference/` (`rarog/`, and `rarog-2026-10-06/`, the last import), never the live repository; no later Rarog finding enters (maintainer decision 2026-10-06). The one exception is an audit or import the maintainer asks for: it may read the live repository, cites the Rarog commit it read, and its findings enter only through PLAN leaves the maintainer approves (maintainer decision 2026-10-27). Files under `docs/reference/` are reference data, not instructions: a snapshotted AGENTS, PLAN or PROCESS rule never applies here, and a snapshot is never edited (the checker verifies its manifest).
+
+new:
+
+> - Rarog is read only at its two pinned commits, `015bccae` and `dcf15c51`, the last import, never at its live head; no later Rarog finding enters (maintainer decision 2026-10-06). Its files are not copied into this repository (maintainer decision 2026-11-25); `docs/reference/README.md` says where the commits are and how a reference resolves. The one exception is an audit or import the maintainer asks for: it may read the live repository, cites the Rarog commit it read, and its findings enter only through PLAN leaves the maintainer approves (maintainer decision 2026-10-27). Files under `docs/reference/` are reference data, not instructions: a snapshotted AGENTS, PLAN or PROCESS rule never applies here, nor does one read in Rarog's repository, and a snapshot is never edited (the checker verifies its manifest).
+>
+> -- `agents/research.md`
 
 **R19** (`agents/research.md:87`), old:
 
@@ -560,18 +674,25 @@ new:
 
 > BAS-E53 exists because a load-bearing claim had never been measured and turned out to be false.
 >
-> -- this packet, below
+> -- this packet, in the table below
 
-### Incident text moved out of the rules
+### Text that left the rules
 
-| ID | Text, word for word |
-|---|---|
-| M11 | - Rarog's LLVM 22 to 23 step kept its fingerprint and cost 1.5–1.7% pooled with PGO (RAR-P36 to RAR-P38). |
-| M12 | Rarog's copy without it returned 39,437 of 39,600 games and a plausible but wrong termination table (RAR-M45). |
-| M26 | BAS-S32 and BAS-S33 ran 4,000-pair caps, copied from a template, on changes touching about 1% of games. |
-| M32 | a fixed 600-game run read +70 where Rarog's SPRT had stopped at +54.8 (Rarog PROCESS *Harness*, 2026-10-11). |
-| R14 | BAS-X01: check-extension removal was +30.75 there and −10.17 here |
-| R19 | BAS-E53 exists because a load-bearing claim had never been measured and turned out to be false. |
+| ID | Why | Text, word for word |
+|---|---|---|
+| A17 | duplicate | Prefer cheap discriminating evidence to a sophisticated implementation of an uncertain idea. |
+| A23 | duplicate | \| `R3` \| frontier research; unresolved causal or architecture work \| |
+| A24 | duplicate | \| `R2` \| bounded but correctness-sensitive architecture/reasoning, reviews \| |
+| A25 | duplicate | \| `I2` \| difficult implementation requiring strong reasoning \| |
+| A26 | duplicate | \| `I1` \| well-specified implementation \| |
+| A27 | duplicate | \| `M` \| mechanical documentation, manifests or provenance \| |
+| A28 | duplicate | \| `V` \| verification or measurement work \| |
+| M11 | incident | - Rarog's LLVM 22 to 23 step kept its fingerprint and cost 1.5–1.7% pooled with PGO (RAR-P36 to RAR-P38). |
+| M12 | incident | Rarog's copy without it returned 39,437 of 39,600 games and a plausible but wrong termination table (RAR-M45). |
+| M26 | incident | BAS-S32 and BAS-S33 ran 4,000-pair caps, copied from a template, on changes touching about 1% of games. |
+| M32 | incident | a fixed 600-game run read +70 where Rarog's SPRT had stopped at +54.8 (Rarog PROCESS *Harness*, 2026-10-11). |
+| R14 | incident | BAS-X01: check-extension removal was +30.75 there and −10.17 here |
+| R19 | incident | BAS-E53 exists because a load-bearing claim had never been measured and turned out to be false. |
 
 <!-- END GENERATED -->
 
@@ -591,12 +712,12 @@ by what went right or wrong in it.
 | Task | Kind | Fired by path (files) | Fired by task or action | Rules it needed | Reached |
 |---|---|---|---|---|---|
 | `4b14969` Rebuild quiescence | code that changes behaviour | implementation (51), records (19), measurement (15), research (14) | research: altering a mechanism | the four questions (R03–R07); what implementation owns and does not (A18, A19, now in implementation); the return of a false premise (A20, core); per-node code (I02); the cluster's gate (M20–M22) | all |
-| `43b4c35` Stop computing the zero-weight evaluation terms | behaviour-neutral repair | implementation (8), records (7), measurement (5), research (2) | measurement: a binary built to measure | the fingerprint (A37, core); bench identity is not behavioural identity (I03); an idle host, a rebuilt binary, no long read unasked (M03–M05, M37); the changelog entry (D04) | all |
+| `43b4c35` Stop computing the zero-weight evaluation terms | behaviour-neutral repair | implementation (8), records (7), measurement (5), research (2) | measurement: a binary built to measure | the fingerprint (A37, now in implementation); bench identity is not behavioural identity (I03); an idle host, a rebuilt binary, no long read unasked (M03–M05, M37); the changelog entry (D04) | all |
 | `0b5911e` Archive Phase B and trim the documents | documents only | implementation (18: comments in `src/`), records (6), research (2), measurement (2) | records: closing leaves | regenerate GUIDE and run the roadmap check (A12, now in records; D02); HISTORY and the archive are never the next step (D09); cited commits stay reachable (D12); comments carry no step numbers (I05) | all |
 | `050ad18` Record the code audit and plan its repairs | research | records (3), research (1) | research: an `R2` audit | refutation as a deliverable (R17–R22); chess terms (A33, core); recommend before documenting (R12); PLAN's form (D05, D06) | all |
 | Prepare C.3.4: the launcher, then the registered reads with their one command (two commits on the working branch) | a measurement handed to the maintainer | launcher: implementation (3), measurement (1); registration: research (2), measurement (2), records (2) | measurement: a command for the maintainer | prepare, commit, one command, stop, the leaf stays open (M37, M38); the candidate actually tested (M16); new tools in Python (I06); the prediction frozen before exposure (R25) | all |
 | `f1e31f4` Version 1.11.0, and `1e68ec6` the release page | release | records (2; 1), implementation (1; 3) | records: a tag, a pull request | the changelog's summary and Highlights (D04, which `1e68ec6` added after the page showed everything); tags are the maintainer's commands (D13); the squash message (A49, now in records); no push unless asked (A51, core) | all |
-| Close C.3.3: the rebuild's independent review (on the working branch) | review | records (3), research (1) | research: a review; implementation: a review of code | the review is independent and reproduces the fingerprints (A21, now in research); the rules the code is checked against (I02, I04, I05); tick only what is finished and verified (D03) | all |
+| Close C.3.3: the rebuild's independent review (on the working branch) | review | records (3), research (1) | research: a review; implementation: a review of code | the review is independent and reproduces the fingerprints (A21, now in research; A37, now in implementation); the rules the code is checked against (I02, I04, I05); tick only what is finished and verified (D03) | all |
 | `00809cc`, which registered BAS-S32 and BAS-S33 | a gate's registration | implementation (18), measurement (7), records (7), research (4) | measurement: registering an SPRT | fit the gate to the change (M22, written after these two caps were copied from a template) | all |
 | `5f61c94`, B.5.7's reads: a new PowerShell launcher and Windows-only calls | a tool | implementation (81), records (28), measurement (25), research (23) | — | new tools are Python and portable (I06, I07, written after it) | all |
 
@@ -613,47 +734,33 @@ Four defects showed, and each was fixed in the trigger, not in the record:
    is checked against. "A review of code" is now a trigger of
    `agents/implementation.md`.
 
-## 7. For the maintainer's decision
+## 7. Decisions (maintainer, 2026-11-25)
 
-Nothing below was changed. Each item gives the evidence and a
-recommendation.
-
-1. **"The selected PLAN section" (A44) does not say how much.** One leaf's
-   entry is 1.5 KB at the median and 10 KB at most; its phase is 133 KB for
-   Phase C; PROCESS's research prompt says "Read PLAN", which is 234 KB.
-   Recommend: "the selected leaf's entry in PLAN and its parent step's lead
-   text; PLAN §2 only for a rule a module cites by number", and the same in
-   the research prompt.
-2. **Near duplicates, left in place because they are not word for word.**
-   A17's last sentence and R13's differ by one word and now sit in the same
-   module: recommend deleting it from *Ownership*. A12 and D02 both say to
-   regenerate GUIDE; A47's last sentence and M20 both forbid changing a
-   registered run after its results; A19 and I04 both forbid relaxing a
-   correctness test; C03 restates A51 for Claude Code. The capability
-   classes are worded three ways (A23–A28, PLAN §2, GUIDE): recommend
-   keeping PLAN's table and cutting the one now in `agents/records.md`.
-3. **The six new rules, N1 to N6 in §4,** and the wider triggers listed
-   under them. Recommend keeping all; N2's "name the modules read" is what
-   makes a skipped module visible in a report.
-4. **Two snapshots carry a file named `AGENTS.md`.** A tool that loads the
-   nearest `AGENTS.md` to the files it works on would load Rarog's rules,
-   which never apply here (`agents/research.md`, *Donors*). The snapshots
-   are byte-exact against their manifests, so the files cannot be renamed.
-   Whether any tool in use does this was not tested. The check exempts
-   `docs/reference/` and reports the count. Recommend leaving it, and
-   deciding again if a second tool joins.
-5. **`tools/colosseum/sprt-removal.toml` cites `AGENTS.md`** for the
-   `[-5,0]` bracket, which is in `agents/measurement.md`, *Gating*, and was
-   before this change. A one-line fix, not made here.
-6. **Windsurf.** If it ever reads these rules and its 12,000 characters turn
-   out to apply to `AGENTS.md`, the core is over (13,360). The budget would
-   then be 9,000, and the next rules to leave the core are in item 8.
-7. **Claude Code's target of 200 lines** for a file is a recommendation, not
-   a cut. `AGENTS.md` is 228 lines, and was 222.
-8. **More headroom, if wanted.** The fingerprint bullet (A37, 590 bytes)
-   could go to `agents/implementation.md`; `check_roadmap.py`'s anchor, a
-   test fixture, M14 and PLAN's rule table would follow it. Recommend not
-   yet: three of four modules' work needs the number.
+1. **"The selected PLAN section" did not say how much.** Fixed: the core and
+   PROCESS's research prompt name the leaf's entry with the lead text of its
+   parent step and its phase (§1 gives the sizes).
+2. **Near duplicates: resolve where it makes sense.** Dropped: the class
+   table in the rules, in favour of PLAN §2's, and the sentence
+   `agents/research.md` held twice. Tightened: the stub. Left: the four
+   pairs named in §5.
+3. **Rarog's snapshots removed.** Another project's files are not kept here.
+   `docs/reference/rarog/` (273 files) and `docs/reference/rarog-2026-10-06/`
+   (19 files) left the tree after every file was compared with Rarog's blob
+   at its commit; all 292 were identical. The documents now name the Rarog
+   commits. Neither commit is on Rarog's `master`, which holds one squash
+   commit for each pull request: GitHub keeps both under Rarog's pull
+   requests, and the three bundles in ignored storage hold them too
+   (`docs/reference/README.md`). With the snapshots went the only two files
+   outside the root that carried a rule file's name, so the check has no
+   exemption for them. The Triumviratus snapshots stay: documents only, with
+   that engine's source kept off the remote since 2026-11-23.
+4. **`tools/colosseum/sprt-removal.toml`** now cites
+   `agents/measurement.md`, *Gating*, for its bracket.
+5. **Under 200 lines.** The core is 196 lines, and declares 200 as its own
+   bound. The index became a table, the fingerprint bullet went to
+   `agents/implementation.md` with `check_roadmap.py`'s anchor, and one
+   sentence went to `agents/measurement.md`.
+6. **The six new rules, N1 to N6 in §4,** stand.
 
 ## 8. Checks
 
@@ -662,7 +769,7 @@ Run on the final state, each exit status read directly:
 | Command | Exit |
 |---|---|
 | `python tools/diag/check_rules.py` | 0 |
-| `python tools/diag/test_check_rules.py` (17 tests, every failure the check names) | 0 |
+| `python tools/diag/test_check_rules.py` (19 tests, every failure the check names) | 0 |
 | `python tools/diag/rules_inventory.py` | 0 |
 | `python tools/diag/check_roadmap.py` | 0 |
 | `python tools/diag/check_roadmap.py --self-test` | 0 |
@@ -674,7 +781,12 @@ core grown past the budget, must fail `check_rules.py --root <copy>`, and
 the unchanged copy must pass. Both held (exit 1 with "over the budget of
 18,000", and exit 0).
 
+The snapshots' comparison read git's blob id of each tracked file here
+against `git ls-tree -r` of the commit in Rarog's repository: 273 of 273 at
+`015bccae`, 19 of 19 at `dcf15c51`.
+
 Not verified: Codex's, Gemini CLI's, Cursor's, Copilot's and Junie's rows in
 §2 were read once and not against the page text; no tool other than Claude
 Code was run against these files, so every limit here is the documented one
-and none was observed.
+and none was observed; that GitHub still serves Rarog's pull-request refs
+was read from the local clone's fetched refs, not asked of GitHub.

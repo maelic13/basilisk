@@ -1,10 +1,10 @@
 # Measurement, gates and long runs
 
-Scope: measurement, acceptance, gates and long runs.
+Scope: Measurement, acceptance, gates and long runs.
 
-Read in full when: Task -- any `V` leaf. Paths -- `docs/experiments/`,
+Read in full when: Task -- Any `V` leaf. Paths -- `docs/experiments/`,
 `docs/EXPERIMENTS.md`, `tools/colosseum/`, `tools/run_*`,
-`.github/windows-clang-version`. Actions -- before building a binary to
+`.github/windows-clang-version`. Actions -- Before building a binary to
 measure; before running or reading bench, NPS, `Diag` counters or a profile;
 before running, registering or preparing games, an SPRT, SPSA, gauntlet,
 datagen or fit; before handing the maintainer a command or launcher; before
@@ -49,8 +49,8 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
   fingerprint or build flag in its version string, and its ledger row names
   the fingerprint. The harness runner is pinned the same way.
 - The current fingerprint is declared once, in GUIDE's *Now* table;
-  `check_roadmap.py` fails when the restatement in `AGENTS.md` or DESIGN
-  disagrees.
+  `check_roadmap.py` fails when the restatement in
+  `agents/implementation.md` or DESIGN disagrees.
 
 ## Acceptance
 
@@ -73,7 +73,8 @@ experiment by `agents/research.md`, *Experiment design*, before it runs.
 - The strength unit is one dependency-complete, locally fitted cluster;
   internal sub-steps get no gates of their own. Register it (an entry file
   and its index line, `docs/EXPERIMENTS.md` §11) before any games, and never
-  change bounds, cap, book or adjudication after seeing games.
+  change bounds, cap, book or adjudication after seeing games. Never shrink a
+  registered run after seeing results.
 - `[0,3]` nElo is the default bracket; `sprt.ps1`'s own default upper bound is
   5, so pass the registered bounds explicitly. Widen only for a genuinely large
   prior and say why. A removal or simplification uses `[-5,0]`; a repair of

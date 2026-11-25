@@ -1,10 +1,10 @@
 # Implementing engine and tool changes
 
-Scope: engine, test, build and tool code.
+Scope: Engine, test, build and tool code.
 
-Read in full when: Task -- any `I1` or `I2` leaf; a review of code. Paths --
+Read in full when: Task -- Any `I1` or `I2` leaf; a review of code. Paths --
 `src/`, `tests/`, `tools/`, `cmake/`, `CMakeLists.txt`, `CMakePresets.json`,
-`.github/workflows/`. Actions -- before writing or changing code anywhere
+`.github/workflows/`. Actions -- Before writing or changing code anywhere
 else.
 
 The workflow states and the return of a false premise are in `AGENTS.md`. A
@@ -39,6 +39,12 @@ with its reason.
 
 ## Qualifying a change
 
+- A behavior-neutral engine change reproduces the immediate development fingerprint (currently **3,359,329** at `bench 13`) plus focused tests for behaviour the bench does not reach.
+  Memory, state or concurrency work also needs the relevant sanitizer/stress
+  coverage. The comparison fingerprint is revision-specific: a deliberately
+  integrated behaviour change updates the fingerprint record; never preserve
+  a known defect to keep an obsolete count. Investigate a cross-platform
+  mismatch.
 - Exact bench identity is a necessary deterministic fingerprint, not proof of
   behavioral identity. Evaluation activation, terminal logic, time handling
   and other path-dependent changes can alter play while leaving bench equal;

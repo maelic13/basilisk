@@ -1,12 +1,12 @@
 # Documents, evidence and provenance
 
-Scope: roadmap and ledger documents, evidence, citations, tags, capability
+Scope: Roadmap and ledger documents, evidence, citations, tags, capability
 classes and the pull-request message.
 
-Read in full when: Task -- any `M` leaf; closing any leaf. Paths --
+Read in full when: Task -- Any `M` leaf; closing any leaf. Paths --
 `docs/PLAN.md`, `GUIDE.md`, `CHANGELOG.md`, `docs/HISTORY.md`,
 `docs/EXPERIMENTS.md`, `docs/experiments/`, `docs/archive/`, `analysis/`,
-`tools/diag/citation_exceptions.tsv`. Actions -- before citing a commit in a
+`tools/diag/citation_exceptions.tsv`. Actions -- Before citing a commit in a
 document; before adding a result, log or fixture to git; before creating,
 pushing or deleting a tag, or keeping a branch; before opening a pull request
 or writing its message; before changing a capability tag; when a change is
@@ -78,16 +78,8 @@ fingerprint, platforms).
 
 ## Capability classes
 
-Open PLAN leaves carry a capability tag, which GUIDE shows:
-
-| Class | Use |
-|---|---|
-| `R3` | frontier research; unresolved causal or architecture work |
-| `R2` | bounded but correctness-sensitive architecture/reasoning, reviews |
-| `I2` | difficult implementation requiring strong reasoning |
-| `I1` | well-specified implementation |
-| `M` | mechanical documentation, manifests or provenance |
-| `V` | verification or measurement work |
+Open PLAN leaves carry a capability tag, which GUIDE shows. PLAN §2,
+*Workflow states and capability classes*, defines the six classes.
 
 Classes are routing hints, not permission, state or evidence. The editable
 mapping from classes to currently available models belongs only in GUIDE.md.

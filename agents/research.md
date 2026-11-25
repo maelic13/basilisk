@@ -1,10 +1,10 @@
 # Research, experiment design and refusal
 
-Scope: mechanisms, research, reviews, donors, refusals and experiment design.
+Scope: Mechanisms, research, reviews, donors, refusals and experiment design.
 
-Read in full when: Task -- research, diagnosis, experiment design or a review;
+Read in full when: Task -- Research, diagnosis, experiment design or a review;
 any `R2` or `R3` leaf. Paths -- `docs/DESIGN.md`, `docs/experiments/`,
-`analysis/`. Actions -- before proposing, adding, removing or altering a
+`analysis/`. Actions -- Before proposing, adding, removing or altering a
 mechanism, a code change meant to alter a move included; when a change moves
 the bench fingerprint; before reading another engine's source or
 `docs/reference/`; before registering an experiment or closing a leaf that ran
@@ -16,8 +16,7 @@ one.
 
 - **Research owns** the causal question, competing hypotheses, interaction
   map, prospective prediction, falsifiers, the meaning of each experiment and
-  the readiness decision. Prefer cheap discriminating evidence to a
-  sophisticated implementation of an uncertain idea.
+  the readiness decision.
 
 ## Before implementing a mechanism
 
