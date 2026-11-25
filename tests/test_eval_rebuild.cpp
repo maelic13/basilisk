@@ -333,6 +333,36 @@ void test_verdict_is_zero(Evaluator& ev) {
     end_section();
 }
 
+// The bounds (§6.11): a value at or past the known-win band is clamped
+// inside it, and counted. No fixture row reaches it (the largest is about
+// 4,000), so a position is built for it: eight queens against two pawns, far
+// past 16,500 units, with no layer rule to answer it. Its mirror too.
+void test_clamp(Evaluator& ev) {
+    begin_section("a value past the known-win band serves KNOWN_WIN - 1, counted");
+    struct Case { const char* fen; int sign; };
+    for (const Case c : {Case{"k7/pp6/8/8/8/8/QQQQQQQ1/K6Q w - - 0 1", +1},
+                         Case{"k7/pp6/8/8/8/8/QQQQQQQ1/K6Q b - - 0 1", -1},
+                         Case{"k6q/qqqqqqq1/8/8/8/8/PP6/K7 b - - 0 1", +1},
+                         Case{"k6q/qqqqqqq1/8/8/8/8/PP6/K7 w - - 0 1", -1}}) {
+        const Board b = board_of(c.fen);
+        EvalRebuildRecord rec;
+        const int64_t before = ev.rebuild_clamps;
+        const int served = ev.rebuild_record(b, rec);
+        // The layer is silent and the drive is off at this phase, so the
+        // unclamped value is the converted taper, past the band.
+        EXPECT_EQ(rec.layer, 0);
+        EXPECT_EQ(rec.drove, 0);
+        EXPECT_EQ(rec.verdict, 0);
+        EXPECT(std::abs(rec.v * EVAL_REBUILD_CONVERSION_S / 1024) >= KNOWN_WIN);
+        EXPECT_EQ(served, c.sign * (KNOWN_WIN - 1));
+        EXPECT_EQ(ev.evaluate_undamped(b), c.sign * (KNOWN_WIN - 1));
+        // Only the Tune and Diag flavours count (DIAG_COUNT); each of the
+        // two evaluations above clamps once.
+        EXPECT_EQ(ev.rebuild_clamps - before, kDiagBuild ? 2 : 0);
+    }
+    end_section();
+}
+
 // ---- Carried from the accepted evaluation's suite -------------------------------
 // The caches' purity, the lazy exits' semantics and the matched ablation are
 // rules, not values: they hold on the rebuilt arm unchanged.
@@ -669,6 +699,7 @@ int main(int argc, char** argv) {
     test_parity(rows, *ev);
     test_colour_symmetry(rows, *ev);
     test_verdict_is_zero(*ev);
+    test_clamp(*ev);
 
     std::printf("\nCarried from the accepted evaluation's suite\n");
     test_cache_purity();
