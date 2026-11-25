@@ -572,7 +572,8 @@ How the phase is built for it:
   is rebuilt as one unit in the donor's form (C.3). That replaces the
   family order below, and the union becomes its second step: a Basilisk
   term returns beside the donor's only on its own read. C.3.1's
-  transplant read first asks whether two families are enough.
+  transplant read first asked whether two families are enough. It
+  could not answer: its control failed (BAS-O15).
 - **By where the deficit is.** Two thirds of it is realised on the full
   board (C.0), so the full-board families go first, and the order is
   decided again from games before the first family opens (C.2.10).
@@ -2068,6 +2069,9 @@ has lost games in both engines (BAS-X02).
   Basilisk's own base come within 30 Elo of the donor's whole
   evaluation, only those two are ported and the other families stay
   Basilisk's.
+  Read 2026-11-25 (BAS-O15): the instrument's control failed, so the
+  reads show nothing about a two-family port, and the rebuild stays
+  whole.
   Why:
   - The donor's lead belongs to the whole. All seven families together
     explain +162.8, the single meters sum to +39.6, and five of seven
@@ -2157,7 +2161,7 @@ has lost games in both engines (BAS-X02).
     or a king; or Basilisk's own terms cost it in play. The rebuild
     takes the donor's form and its tables together, so it does not wait
     on them.
-    - [ ] **C.3.1** `[R3]` Rebuild research and handoff
+    - [x] **C.3.1** `[R3]` Rebuild research and handoff
       It opens with the transplant read (BAS-O15,
       `analysis/c31_transplant_2026-11-25.md`, registered 2026-11-25):
       the donor's passers and king safety on Basilisk's own base, in
@@ -2173,15 +2177,21 @@ has lost games in both engines (BAS-X02).
       - the fit's method and the gate's registration.
       It proposes the PLAN edits that retire C.4 to C.6 and resize C.7,
       for the maintainer's sign-off. It ends in a frozen handoff.
-      The transplant's first read, 2026-11-25: the gain is −1.6 ± 12.4
-      over 3,000 games (BAS-O15, `t40-b`). The frozen rule names the
-      whole rebuild at a gain of 40 or less, and the two remaining
-      reads cannot change that.
       Handoff frozen 2026-11-25: `analysis/c31_rebuild_2026-11-25.md`.
       The packet's §13 was signed and applied on 2026-11-25: the
       reference, the retirements and the renumbering, the endgame
-      scaling leaf and the SPSA leaf's scope. The leaf closes when
-      BAS-O15's last two reads are recorded.
+      scaling leaf and the SPSA leaf's scope.
+      **Closed 2026-11-25** (BAS-O15; the transplant packet's result,
+      the rebuild packet's Amendments 1 and 2).
+      - The transplant, 3,000 games a read, no fault: its gain over
+        Basilisk's evaluation −1.6 [−10.7, +7.5]; the donor's over it
+        +122.1 [+113.1, +131.3]; the donor's over the control, all
+        seven families transplanted, +172.9 [+162.8, +183.4].
+      - The control failed and the instrument's falsifier fired, so
+        the reads show nothing about a two-family port. All three
+        predictions missed.
+      - The rebuild stays whole on the maintainer's decision and
+        BAS-O14. C.3.2's handoff is frozen.
     - [ ] **C.3.2** `[I2]` The port behind the switch, at parity
       Stage 4: the whole evaluation behind one switch, in Basilisk's own
       structure, equal to the reference on the fixture before any value
@@ -2623,7 +2633,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.3.1 | RESEARCH | R3 | The transplant's first read names the whole rebuild (gain −1.6 ± 12.4, BAS-O15); the handoff is frozen and the packet's §13 is signed and applied; open until the last two reads are recorded |
 | C.3.2 | READY_FOR_IMPLEMENTATION | I2 | Handoff: `analysis/c31_rebuild_2026-11-25.md` §5 to §10 (2026-11-25); starting it accepts the packet's reference, `9587eeeb`'s evaluation |
 | C.3.3 | RESEARCH | R2 | Not started |
 | C.3.4 | RESEARCH | V | Not started |

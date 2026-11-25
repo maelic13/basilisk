@@ -54,3 +54,45 @@ Elo, with an 80% band.
 - Falsifier of the instrument: g below zero with c above 60.
 
 #### RESULT — append after exposure
+
+- 2026-11-25. Three reads of 3,000 games, complete; no fault. Evidence:
+  `tools/results/c31-t40-b/`, `c31-d-t40/` and `c31-d-t127/`; the table
+  is `tools/results/c31-table.md` (`python tools/diag/c31_table.py`).
+- **g, T(40) over Basilisk's evaluation: −1.6 Elo [−10.7, +7.5].**
+  963 wins, 1,060 draws and 977 losses; pentanomial [117, 348, 577,
+  348, 110]. T(40) ran 2.15M nodes a second, Basilisk's arm 2.05M.
+- **s, the donor's evaluation over T(40): +122.1 [+113.1, +131.3].**
+  1,467 wins, 1,079 draws and 454 losses; pentanomial [27, 105, 476,
+  612, 280]. T(40) 2.10M, the donor's arm 2.02M.
+- **c, the donor's evaluation over T(127): +172.9 [+162.8, +183.4].**
+  1,756 wins, 869 draws and 375 losses; pentanomial [15, 84, 361, 585,
+  455]. T(127) 2.13M, the donor's arm 1.93M: flagged, one arm over 5%
+  faster. The faster arm lost, so the flag does not explain the result.
+- **The control failed and the instrument's falsifier fired:** g is
+  below zero with c above 60. With all seven of the donor's families
+  transplanted, T(127) plays about 51 below T(40) (c − s), and so below
+  Basilisk's own evaluation. The transplant does not carry the donor's
+  terms onto Basilisk's base.
+- **The rule** (the packet's §7). Rule 2's condition holds (g ≤ 40), but
+  rule 4 governs: the two-family port is not shown, either way, and the
+  rebuild stays whole, as the maintainer decided before the read. The
+  reads do not show that two families would not suffice.
+
+#### PREDICTION CALIBRATION
+
+- All three outside their bands: g −1.6 for +75 (+30 to +120); s +122.1
+  for +55 (+15 to +100); c +172.9 for +15 (−20 to +50).
+- The control was given 0.8 to pass and failed by 133.
+- What was wrong in the model: the two scales. They came from each whole
+  score's calibration to results by phase. A term's weight in play is
+  its size against the material and tables it sits beside. Hypotheses,
+  not tested: the rule shrank the donor's middlegame terms against
+  Basilisk's material and doubled its endgame terms, since the bridge
+  converts Basilisk's material at one rate where the donor's own
+  middlegame material is on a smaller scale than its endgame's; and
+  Basilisk's tables count again what the donor's terms count.
+- Not re-run: no decision waits on it. The question returns in a sound
+  form at C.3.6, where Basilisk's forms are read on the fitted port.
+- Withdrawn: the reading given while the reads ran, that the first read
+  alone decided for the whole rebuild. With the control failed, g
+  measures the instrument.

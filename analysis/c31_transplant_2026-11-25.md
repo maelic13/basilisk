@@ -373,3 +373,28 @@ The choice and any change to §8's predictions belong to Amendment 1.
   search's contempt, as stock.
 - **What the reviewer must check.** The patch against §2 as amended; the
   binary's hash and the six checks reproduced; the launch records' options.
+
+## Result and the rule applied (2026-11-25)
+
+Three reads of 3,000 games, no fault (BAS-O15; `tools/results/c31-table.md`).
+
+| Read | Quantity | Elo [95%] | Predicted | Nodes a second |
+|---|---|---|---|---|
+| `t40-b` | g | −1.6 [−10.7, +7.5] | +75, +30 to +120 | T(40) 2.15M; Basilisk's 2.05M |
+| `d-t40` | s | +122.1 [+113.1, +131.3] | +55, +15 to +100 | T(40) 2.10M; the donor's 2.02M |
+| `d-t127` | c | +172.9 [+162.8, +183.4] | +15, −20 to +50 | T(127) 2.13M; the donor's 1.93M (flagged) |
+
+- **The falsifier of §8 fired:** g below zero with c above 60. The
+  control's speed flag favours the arm that lost, so it does not
+  explain c.
+- **§7 applied.** Rule 4 governs: the control is above 40, the narrow
+  port is not shown, and the rebuild stays whole. Rule 2's condition
+  also holds, but with the control failed g measures the instrument,
+  not a two-family port.
+- **What the reads do not say:** that the donor's passers and king
+  safety, fitted beside Basilisk's other terms, would fail. They say
+  this instrument cannot put the donor's terms on Basilisk's base.
+- **Calibration.** None of three predictions inside its band. The
+  wrong part of the model is §3: scales taken from each whole score's
+  calibration by phase do not set a term's weight against the material
+  and tables beside it (BAS-O15, *Prediction calibration*).
