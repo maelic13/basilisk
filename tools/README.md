@@ -92,6 +92,8 @@ kept so the run can be reproduced from its ledger entry.
 | Tool | Purpose | Used by |
 |---|---|---|
 | `diag/check_roadmap.py` | PLAN's structure, order, register and fingerprint; the ledger's index against its entries, dispositions included; regenerates GUIDE's step list | AGENTS; every PLAN change; CI |
+| `diag/check_rules.py` | What each agent tool loads by itself, and each `agents/` module, against the budget `AGENTS.md` declares; the module index against the modules' headers; `--triggered` lists the modules a branch's changed paths require | AGENTS *Rules by task*, *Changing these rules*; CI |
+| `diag/rules_inventory.py` | The 2026-11-25 restructure of the rules lost nothing: every block of the rule files before it, found word for word where its row says | `analysis/agent_rules_2026-11-25.md`; run at the commit that landed it |
 | `diag/check_citations.py`, `diag/citation_exceptions.tsv` | Every cited commit stays reachable, or is declared another repository's | `agents/records.md`; PROCESS *Delivery*; CI |
 
 ## Search instruments

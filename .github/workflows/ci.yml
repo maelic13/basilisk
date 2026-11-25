@@ -396,6 +396,13 @@ jobs:
       - name: Roadmap and GUIDE agree
         run: python3 tools/diag/check_roadmap.py
 
+      # What every agent tool loads stays under the budget AGENTS.md declares,
+      # and the module index agrees with the modules.
+      - name: Agent rules fit their budget
+        run: |
+          python3 tools/diag/test_check_rules.py
+          python3 tools/diag/check_rules.py
+
       - name: Cited commits stay reachable
         run: |
           git fetch -q origin "+refs/pull/*/head:refs/remotes/origin/pr/*"
