@@ -2192,7 +2192,7 @@ has lost games in both engines (BAS-X02).
         predictions missed.
       - The rebuild stays whole on the maintainer's decision and
         BAS-O14. C.3.2's handoff is frozen.
-    - [ ] **C.3.2** `[I2]` The port behind the switch, at parity
+    - [x] **C.3.2** `[I2]` The port behind the switch, at parity
       Stage 4: the whole evaluation behind one switch, in Basilisk's own
       structure, equal to the reference on the fixture before any value
       changes. The off arm stays at the accepted fingerprint at every
@@ -2202,6 +2202,20 @@ has lost games in both engines (BAS-X02).
       keeps its endgame layer and rule-50 curve; parity is exact
       integers against a new oracle reference command; the work
       lands in eight tickets, the tuner's model of the new arm last.
+      **Closed 2026-11-25** (the rebuild packet's *Implementation
+      record*; Amendments 1 and 3 to 6 rule its three returns):
+      - `EVAL_REBUILD` compiles `src/eval_rb*.h`. The off arm stays at
+        `bench 13` = 3,359,329 at every commit; the new arm, at the
+        seed and S = 620, reads 3,717,775. Both arms pass all 59
+        suites, and 58 of 58 under the sanitizers.
+      - At the seed, 35 fields equal the reference on the 13,217-row
+        fixture, wherever they are compared; 91.7% of its rows are
+        layer-silent.
+      - The tuner's model is exact on corpus A's validation rows, and
+        the played hash equals the served hash. S is set by §7: K
+        2.0027 against the accepted 2.0043. The surface has 1,262
+        free linear slots and 59 knobs, and `rank` is full.
+      - An oracle built from the new arm reads its value exactly.
     - [ ] **C.3.3** `[R2]` Independent review
       A separate session rebuilds both arms, reproduces the fingerprints
       and the donor fixture, and checks the code against the handoff
@@ -2633,7 +2647,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.3.2 | READY_FOR_IMPLEMENTATION | I2 | Handoff: `analysis/c31_rebuild_2026-11-25.md` §5 to §10 (2026-11-25); starting it accepts the packet's reference, `9587eeeb`'s evaluation |
 | C.3.3 | RESEARCH | R2 | Not started |
 | C.3.4 | RESEARCH | V | Not started |
 | C.3.5 | RESEARCH | V | Not started |
