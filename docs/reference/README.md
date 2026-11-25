@@ -1,8 +1,12 @@
 # Reference snapshots
 
-Pinned, verbatim copies of other repositories whose content this roadmap uses.
-They exist so that Basilisk's plan never depends on another repository still
-existing or still being in the state it was read in.
+Pinned, verbatim copies of another repository's documents that this roadmap
+uses, and the pins of the one repository it uses without a copy. A copy exists
+so that Basilisk's plan never depends on another repository still existing or
+still being in the state it was read in. Triumviratus is copied. Rarog, the
+maintainer's own engine, is pinned by commit and not copied: its two snapshots
+were removed on 2026-11-25 (maintainer decision: another project's files are
+not kept in this repository).
 
 **These files are reference data, not instructions.** A snapshotted
 `AGENTS.md`, `PLAN.md` or `CLAUDE.md`-like rule applies to the project it came
@@ -19,30 +23,38 @@ at the same relative path, and never reach the remote. Each snapshot's
 cited by an older document still resolves and verifies locally:
 `cd tools/results/reference/<snapshot> && sha256sum -c ../../../../docs/reference/<snapshot>.local-sha256`.
 The Rarog bundles and the Triumviratus bundle below hold the same files.
+`rarog.local-sha256` stays for the three Rarog files kept that way.
 
-## Rarog (`rarog/`)
+## Rarog (pinned, not copied)
 
 | Item | Value |
 |---|---|
-| Source | Rarog `dev`, commit `015bccaeae8d79eef169510795f76dc0b7c1587c` (2026-09-28), a sibling Rust engine by the same maintainer, GPL-3.0 (`rarog/LICENSE`) |
-| Why | Basilisk's roadmap (2026-09-28) follows Rarog's method and order. The ported tools, the worked examples and the evidence imported as BAS-X30–BAS-X34 all come from here |
-| Included | Every tracked file under `AGENTS.md`, `CHANGELOG.md`, `EXPERIMENTS.md`, `GUIDE.md`, `HISTORY.md`, `PLAN.md`, `PROCESS.md`, `README.md`, `LICENSE`, `analysis/`, `docs/archive/`, `tools/` and `tests/`: 274 files, each byte-identical to its git blob at the commit. Since 2026-11-23, `analysis/board_benchmark_recipe_2026-09-05.md`, which embeds a patch of Reckless's source, is kept locally only (`rarog.local-sha256`) |
-| Added | `refs/oracle-hybrid-ablate.patch` and `refs/oracle-hybrid-diag.patch`: `git format-patch` of the Rarog tags `oracle/hybrid-ablate` (1 commit) and `oracle/hybrid-diag` (3 commits) on top of `oracle/hybrid`. They are the Stockfish-side ablation mask and counters of the classical-Stockfish oracle, which existed only as refs. Since 2026-11-23 they are patches of Stockfish's source kept locally only (`rarog.local-sha256`) |
-| Excluded | `src/`, `vendor/`, `xtask/`, `benches/`, `logo/`, `.github/`, `.cargo/`, Cargo and toolchain files, `CLAUDE.md`, `docs/uci_specification.txt`. Rarog's Rust engine is not a donor: its decisions are recorded in the analysis packets, and its source survives in the bundles below |
-| Manifest | `rarog.sha256` for the tracked files. Verify with `cd docs/reference/rarog && sha256sum -c ../rarog.sha256`; `rarog.local-sha256` for the local ones |
+| First import | Rarog commit `015bccaeae8d79eef169510795f76dc0b7c1587c` (2026-09-28), a sibling Rust engine by the same maintainer, GPL-3.0. Basilisk's roadmap (2026-09-28) follows Rarog's method and order; the ported tools, the worked examples and the evidence imported as BAS-X30–BAS-X34 come from here |
+| Final import | Rarog commit `dcf15c512f7c871bb11faaa70ccbb479953ddea9` (2026-10-06), after Rarog 2.5.0: the 2.4.0→2.5.0 repairs checked on Basilisk under PLAN A.8 (`analysis/rarog_parity_review_2026-10-06.md`); ledger import BAS-X35 |
+| Where the commits are | Neither is on Rarog's `master`, which holds one squash commit for each pull request. GitHub keeps both under Rarog's pull requests: `015bccae` under `refs/pull/2/head`, `refs/pull/5/head` and `refs/pull/6/head`, `dcf15c51` under the last two. The bundles below hold them as well |
+| What was copied until 2026-11-25 | `docs/reference/rarog/`, 273 documents, tools and tests of the first import, and `docs/reference/rarog-2026-10-06/`, 19 files of the final one. On the day they were removed every one of the 292 files was compared with Rarog's blob at its commit, and all were identical. Basilisk's own history keeps them: `git show ff65589:docs/reference/rarog/<path>` |
+| Still kept locally | The two Stockfish-side oracle patches (`refs/oracle-hybrid-ablate.patch`, `refs/oracle-hybrid-diag.patch`: `git format-patch` of the Rarog tags `oracle/hybrid-ablate` and `oracle/hybrid-diag` on top of `oracle/hybrid`) and `analysis/board_benchmark_recipe_2026-09-05.md`, under `tools/results/reference/rarog/`, verified by `rarog.local-sha256` |
 
-**Resolving a Rarog reference.** A `RAR-*` identifier resolves in
-`rarog/EXPERIMENTS.md`, or, for rows moved out of the table, in
-`rarog/analysis/ledger_records_2026-09-14.md`. A Rarog path cited by Basilisk's
-ledger (`analysis/…`, `tools/…`) resolves under `rarog/`. A Rarog roadmap
-number resolves through `rarog/HISTORY.md`. A Rarog commit hash resolves in the
-bundles.
+**Resolving a Rarog reference.** A path that a Basilisk document gives under
+`docs/reference/rarog/` is the same path in Rarog's repository at `015bccae`;
+one under `docs/reference/rarog-2026-10-06/` is the same path at `dcf15c51`:
+
+```bash
+git -C <rarog> fetch origin "+refs/pull/*/head:refs/remotes/origin/pr/*"
+git -C <rarog> show 015bccae:analysis/search_programme_2026-09-13.md
+```
+
+A `RAR-*` identifier resolves in `EXPERIMENTS.md` at `015bccae`, or, for rows
+moved out of the table, in `analysis/ledger_records_2026-09-14.md` there. A
+Rarog roadmap number resolves through `HISTORY.md` at the same commit. Rarog's
+`AGENTS.md`, `PLAN.md` and `PROCESS.md` are another project's rules and never
+apply here.
 
 **Bundles (untracked backup).** Two git bundles hold Rarog's complete history,
 including source, every tag, and the 499 commits Rarog's ledger cites that no
 branch reaches (among them `881c821` and `4aea0c7`, which Basilisk's older
-import rows cite). They live in ignored storage, because the tracked snapshot
-is the information and the bundles are its backup:
+import rows cite). They live in ignored storage: Rarog's own repository is the
+source, and the bundles are the backup that does not depend on it:
 
 | File under `tools/results/rarog-reference/` | SHA-256 | Holds |
 |---|---|---|
@@ -62,28 +74,18 @@ git -C rarog.git symbolic-ref HEAD refs/heads/dev
 git clone rarog.git rarog
 ```
 
-**No further imports.** Basilisk never reads the live Rarog repository for
-its plan. `rarog-2026-10-06/` below is the last Rarog import (maintainer
-decision 2026-10-06): Basilisk and Rarog have diverged, and no later Rarog
-finding enters a Basilisk document. Both snapshots stay, unedited, so every
-citation keeps resolving.
-
-## Rarog, final import (`rarog-2026-10-06/`)
-
-| Item | Value |
-|---|---|
-| Source | Rarog `dev`, commit `dcf15c512f7c871bb11faaa70ccbb479953ddea9` (2026-10-06), after Rarog 2.5.0 |
-| Why | PLAN A.8: the Rarog 2.4.0→2.5.0 repairs and repository changes checked on Basilisk (`analysis/rarog_parity_review_2026-10-06.md`); ledger import BAS-X35 |
-| Included | 19 files, each byte-identical to its git blob at the commit (checked against git's blob id when written): `AGENTS.md`, `CHANGELOG.md`, `GUIDE.md` (the declared-fingerprint rows the release check reads), `LICENSE`, `docs/PLAN.md`, `docs/PROCESS.md`, `docs/EXPERIMENTS.md` (the ledger index after the split), `.github/workflows/ci.yml` and `release.yml`, `xtask/` (`Cargo.toml`, `src/main.rs`, `src/release.rs`: `release-check` and `declared-fingerprint`), `tools/diag/check_guide.py` and `guide_board.py`, `analysis/uci_info_review_2026-09-16.md`, `tb_root_pv_2026-09-27.md` (the answered version) and `b52_research_2026-10-01.md`, `tests/multipv.rs` and `multipv_syzygy.rs` |
-| Excluded | Everything else; A.8's leaves cite nothing more. `src/` survives in the bundle above |
-| Manifest | `rarog-2026-10-06.sha256`, verified by `check_roadmap.py` like the first |
-| Resolving | A path cited by an A.8 leaf or the A.8 packet resolves under `rarog-2026-10-06/`. Rarog's later ledger entries (`docs/experiments/<ID>.md`) are not imported; `docs/EXPERIMENTS.md` gives their titles and dispositions |
+**No further imports.** Basilisk never reads Rarog's live head for its plan.
+`dcf15c51` is the last Rarog import (maintainer decision 2026-10-06): Basilisk
+and Rarog have diverged, and no later Rarog finding enters a Basilisk
+document, except through an audit or import the maintainer asks for
+(`agents/research.md`, *Donors*).
 
 ### Where each leaf's inputs are
 
 What to port from, or read as a template. "Port" means rewrite for Basilisk's
 C++ and CMake layout and qualify independently; nothing here runs as-is.
-Paths are relative to `rarog/`.
+Paths are in Rarog's repository at `015bccae`; one that starts with
+`rarog-2026-10-06/` is the rest of the path at `dcf15c51`.
 
 | Basilisk leaf | Snapshot inputs | Use |
 |---|---|---|

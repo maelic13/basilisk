@@ -16,8 +16,9 @@ roadmap uses lettered phases (`A.2.1`, `B.3`); [`HISTORY.md`](HISTORY.md)
 resolves every retired number to its archived roadmap and maps retired open
 leaves to their current identifiers. Rows from BAS-X30 on cite the lettered
 roadmap. Rarog identifiers (`RAR-*`) and Rarog paths cited anywhere in this
-ledger resolve in the pinned snapshot `docs/reference/rarog/` (Rarog
-`015bccae`), or for BAS-X35 in `docs/reference/rarog-2026-10-06/`, or for
+ledger resolve in Rarog's repository at `015bccae`, or for BAS-X35 at
+`dcf15c51` (a path an entry gives under `docs/reference/rarog/` or
+`docs/reference/rarog-2026-10-06/` is the same path at that commit), or for
 BAS-X36 in Rarog's live repository at `ec6f5b5`, or for BAS-X41 at `019646a`
 (with the run artifacts copied to `tools/results/imported-rarog-2026-11-04/`),
 read under A.12's exception;

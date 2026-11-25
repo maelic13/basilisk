@@ -56,16 +56,17 @@ goes back to the implementer for a fix: it goes to research.
 
 ### Reusable research prompt
 
-> Investigate `<PLAN leaf>` as research, not implementation. Read PLAN,
+> Investigate `<PLAN leaf>` as research, not implementation. Read the
+> leaf's entry in PLAN with the lead text of its step and its phase,
 > EXPERIMENTS (including the retry map), HISTORY's number map, DESIGN, the
 > linked analysis and the relevant source; measured evidence outranks
 > roadmap assumptions. Read the donor (modern Stockfish at the pinned
 > revision for search, TT, histories, time and threads; classical Stockfish
 > for the evaluation, `sf_16`'s first and `9587eeeb`'s second, and
 > `9587eeeb` as the oracle) for mechanism, population
-> and interaction, never for transcription; read the Rarog snapshots in
-> `docs/reference/` as a worked example of the same method, never the
-> live Rarog repository and never as a donor. State the precise question, the leading
+> and interaction, never for transcription; read Rarog at its pinned
+> commits (`docs/reference/README.md`) as a worked example of the same
+> method, never at its live head and never as a donor. State the precise question, the leading
 > and competing hypotheses, the shared signals and interactions, and whether
 > search, evaluation, tooling or instrument effects could explain it. Design
 > the cheapest discriminating test first; freeze its prediction, confidence,
@@ -270,10 +271,11 @@ Donors (maintainer decision 2026-09-28; PLAN rule 1 points here):
 
 Rarog and Manta are worked examples of the same method; Reckless is Rarog's
 donor. None of them donates to Basilisk, and their verdicts are priors, never
-acceptance. Rarog is read only through the pinned snapshots in
-`docs/reference/` (`rarog/` and the last import, `rarog-2026-10-06/`), whose
-README says how to resolve a reference; no later Rarog finding enters
-(maintainer decision 2026-10-06). No Basilisk leaf may depend on the live
+acceptance. Rarog is read only at its two pinned commits, `015bccae` and the
+last import, `dcf15c51`, never at its live head; `docs/reference/README.md`
+says where they are and how to resolve a reference. No later Rarog finding
+enters (maintainer decision 2026-10-06), and Rarog's files are not copied
+here (maintainer decision 2026-11-25). No Basilisk leaf may depend on the live
 Rarog repository.
 
 - **May cross:** architecture, mechanisms, population choices, contracts,

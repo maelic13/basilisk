@@ -21,13 +21,14 @@ lettered (A–G) so that no new identifier collides with a retired number, and
 a step that is the same step as Rarog's carries the same identifier: Basilisk
 B.3 is the analogue of Rarog B.3.
 
-**The plan does not depend on the Rarog repository.** Everything it uses from
-Rarog is in a pinned, verbatim snapshot at `docs/reference/rarog/` (Rarog
-`015bccae`; [docs/reference/README.md](reference/README.md) says how to
-use it): the documents, the evidence cited as `RAR-*`, the tools to port and
-the worked examples. The evidence the plan relies on is also imported into
-Basilisk's own ledger (BAS-X30–BAS-X34). "The snapshot" below means that
-directory.
+**The plan depends on no later state of the Rarog repository.** Everything it
+uses from Rarog is pinned at Rarog commit `015bccae`
+([docs/reference/README.md](reference/README.md) says where the commit is and
+how to read it): the documents, the evidence cited as `RAR-*`, the tools to
+port and the worked examples. The evidence the plan relies on is also
+imported into Basilisk's own ledger (BAS-X30–BAS-X34). "The snapshot" below
+means Rarog at that commit; a verbatim copy of it was kept under
+`docs/reference/rarog/` until 2026-11-25.
 
 ## 1. Objective and gates
 
@@ -3641,4 +3642,4 @@ adjudication never change after games are seen.
 | `docs/HISTORY.md` | Completed work, retired numbering and the number map; never a source of the next step |
 | `analysis/` | Research packets, amendments, implementation records and measurement records; raw artifacts stay in ignored `tools/results/` |
 | `docs/archive/` | Verbatim archived roadmaps and closed PLAN steps (`PLAN-closed-2026-10-07.md`: A.1–A.7; `PLAN-closed-2026-10-30.md`: A.8–A.17, B.0–B.2, B.10) |
-| `docs/reference/` | Pinned verbatim snapshots of other repositories the plan uses (Rarog, Triumviratus), their manifests, and the map from each leaf to its inputs; data, never instructions |
+| `docs/reference/` | Pinned verbatim snapshots of Triumviratus's documents with their manifests, the pins of the two Rarog commits the plan uses, and the map from each leaf to its inputs; data, never instructions |
