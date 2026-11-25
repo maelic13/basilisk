@@ -309,3 +309,67 @@ binary wait for the amendment, because the patch may change.
 The implementer's view: option 2, because it changes X only where the
 donor's own factor multiplies nothing and makes check 5 hold as written.
 The choice and any change to §8's predictions belong to Amendment 1.
+
+## Amendment 1 — the scale factor where the donor's scales nothing (2026-11-25)
+
+- **Option chosen and why.** Return 1's option 2, chosen by the maintainer
+  on 2026-11-25. It changes X only where the donor's own factor multiplies
+  a zero endgame score, so it is §2's factor wherever the donor applies
+  one, and it makes check 5 hold as written.
+- **Predictions affected.** None. §8 stands as registered, and the change
+  is clerical: no game had been played, and it touches X only in the
+  game positions whose donor endgame score is exactly zero, 378 of the
+  12,119 (3.1%), mostly drawish endgames. Return 1's 956 (7.9%) counted the
+  trace's printed 0.00, which also holds scores under half a hundredth of a
+  pawn; X is §2's exactly in the other 96.9%.
+- **Handoff clause replaced.** §2, "with `ph` that evaluation's game phase
+  and `sf` the scale factor it applies", now reads: "with `ph` that
+  evaluation's game phase and `sf` the scale factor it applies; where that
+  evaluation's whole endgame score after `winnable()` is zero, so that its
+  factor scales nothing, `sf` is the factor the same rule gives the side
+  eg(t) favours (Black when eg(t) is zero too, where the term vanishes)".
+  §4 is unchanged.
+
+## Implementation record
+
+- **Commits.** `4156385` (the patch and the checks as §2 stood), `ded4c19`
+  (Return 1), `3d2d8f0` (the factor by Amendment 1), and the commit that
+  adds the launcher, the table and this record.
+- **Binary.** `tools/test_engines/oracle-c31-3d2d8f0-transplant.exe`,
+  SHA-256 ECF6C8BD71BB011899F0AFCBF5431C2100D500C8DE74A18BA11CD87FC37F1C4D,
+  from `tools/oracle/build_oracle.ps1 -BasiliskRevision 3d2d8f0 -Label
+  c31-3d2d8f0-transplant -ExtraPatch oracle-eval-ablate.patch,
+  oracle-eval-transplant.patch`. `src/` is byte-identical to `e56f1e1`'s,
+  so `bench 13` stays 3,359,329. Conformance 471,519 positions, 0
+  mismatches; oracle bench 1,017,388, as the C.2.9 oracle's.
+- **The six checks** on that binary (`tools/diag/c31_checks.py`, record
+  `tools/results/c31-checks/checks.json`):
+
+  | Check | Result |
+  |---|---|
+  | 1 | HCE true: 293,089 at mask 0, 289,609 at 127; HCE false: 322,185 and 384,959; the C.2.9 oracle's counts |
+  | 2 | the same four with matched cost on |
+  | 3 | mask 0: 293,089; mask 40: 272,892; 40 with mg scale 1024: 256,981; 40 with eg scale 1024: 293,365; 127: 269,110 |
+  | 4 | 12,119 positions; 48,476 cells at S = 40, 242,380 at S = 127; largest gap 0.00495 of a pawn, under the trace's 0.005; X and T recomputed from each line agree; `sf` is the donor's wherever its endgame score is not zero (378 positions where it is) |
+  | 5 | no asymmetric position at S = 40 or 127 |
+  | 6 | refused at `isready` and at `go` for both combinations; the valid one accepted |
+
+  Check 3's counts differ from Return 1's because the bench reaches
+  positions whose donor endgame score is zero.
+- **Launcher.** `tools/run_c31_reads.py`, on `run_c210_reads.py`'s
+  pattern. Before any read it checks the hash, requires the checks' record
+  to be a full PASS for this hash, and reruns checks 1, 2, 3 and 6. Every
+  arm states all six evaluation options. After a dry run it refuses a
+  launch record in which an arm does not carry exactly its options; a
+  record with one option changed was refused. A finished read is refused
+  with exit 2. All three dry runs pass, and so does a smoke of four games a
+  read under other arm names (`tools/results/c31-smoke-*`).
+- **Table.** `tools/diag/c31_table.py`, with `test_c31_table.py`: c210's
+  recount checks, Elo with its 95% interval, pentanomial, nodes a second
+  and nodes a move by arm, clamped draws, and rule 5's two flags.
+- **Deviations from the handoff.** None beyond Amendment 1. Where §2 is
+  silent: X is not grained, T is not clamped (a T in the mate range stops
+  the engine), and in search the donor's full evaluation keeps the
+  search's contempt, as stock.
+- **What the reviewer must check.** The patch against §2 as amended; the
+  binary's hash and the six checks reproduced; the launch records' options.
