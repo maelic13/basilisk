@@ -261,10 +261,10 @@ Donors (maintainer decision 2026-09-28; PLAN rule 1 points here):
 - **Triumviratus** (maintainer decision 2026-11-03), for mechanisms only:
   measured priors on its Stockfish-19-shaped search, board and
   infrastructure, time management, NNUE architecture and training, and its
-  own measurement failures. Read through the pinned snapshots
-  `docs/reference/triumviratus/` (`main` at `0c18907`) and
-  `docs/reference/triumviratus-networks/` (`5f3dc60`), never the live
-  repository; a later finding enters only through a new dated snapshot.
+  own measurement failures. Read at its pinned commits (`main` at `0c18907`,
+  the networks at `5f3dc60`), in the local copies
+  `docs/reference/README.md` describes, never the live
+  repository; a later finding enters only through a new pinned commit.
   `analysis/triumviratus_review_2026-11-03.md` maps every finding to its
   leaf. Its verdicts are priors, like Rarog's: one machine, self-play,
   often early-stopped SPRTs, a search tuned around a network.

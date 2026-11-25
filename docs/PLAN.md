@@ -167,8 +167,8 @@ roadmap.
      board and infrastructure mechanisms, time-management rules, NNUE
      architecture and training lessons, and the failure modes it found in
      its own measurement. Its verdicts are priors, never acceptance; it is
-     read through the pinned snapshots `docs/reference/triumviratus/` and
-     `docs/reference/triumviratus-networks/`, and
+     read at its pinned commits, in the local copies
+     `docs/reference/README.md` describes, and
      `analysis/triumviratus_review_2026-11-03.md` maps each finding to its
      leaf.
 
@@ -3642,4 +3642,4 @@ adjudication never change after games are seen.
 | `docs/HISTORY.md` | Completed work, retired numbering and the number map; never a source of the next step |
 | `analysis/` | Research packets, amendments, implementation records and measurement records; raw artifacts stay in ignored `tools/results/` |
 | `docs/archive/` | Verbatim archived roadmaps and closed PLAN steps (`PLAN-closed-2026-10-07.md`: A.1–A.7; `PLAN-closed-2026-10-30.md`: A.8–A.17, B.0–B.2, B.10) |
-| `docs/reference/` | Pinned verbatim snapshots of Triumviratus's documents with their manifests, the pins of the two Rarog commits the plan uses, and the map from each leaf to its inputs; data, never instructions |
+| `docs/reference/` | The pinned commits of the other repositories the plan uses (Rarog, Triumviratus), the manifests of their local copies, and the map from each leaf to its inputs; no other project's file is tracked |

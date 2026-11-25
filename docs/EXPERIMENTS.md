@@ -24,8 +24,10 @@ BAS-X36 in Rarog's live repository at `ec6f5b5`, or for BAS-X41 at `019646a`
 read under A.12's exception;
 `docs/reference/README.md` says how. Triumviratus items (`TS-1`, `TB-1`
 and the like) and paths cited by BAS-X37–X40 resolve in
-`analysis/triumviratus_review_2026-11-03.md` and the snapshots
-`docs/reference/triumviratus/` and `docs/reference/triumviratus-networks/`. Do not rewrite measured records merely because the roadmap was
+`analysis/triumviratus_review_2026-11-03.md` and the local copies of
+Triumviratus at its pinned commits (`docs/reference/README.md`; a path given
+under `docs/reference/triumviratus/` or `docs/reference/triumviratus-networks/`
+is the same path there). Do not rewrite measured records merely because the roadmap was
 reordered; the retry map in section 9 is live routing and carries current
 destinations.
 

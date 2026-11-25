@@ -1,29 +1,23 @@
-# Reference snapshots
+# References to other repositories
 
-Pinned, verbatim copies of another repository's documents that this roadmap
-uses, and the pins of the one repository it uses without a copy. A copy exists
-so that Basilisk's plan never depends on another repository still existing or
-still being in the state it was read in. Triumviratus is copied. Rarog, the
-maintainer's own engine, is pinned by commit and not copied: its two snapshots
-were removed on 2026-11-25 (maintainer decision: another project's files are
-not kept in this repository).
+The pins of the other repositories this roadmap uses, and the map from each
+leaf to its inputs. **No other project's file is tracked here** (maintainer
+decision 2026-11-25): the remote holds Basilisk and nothing else. Rarog is
+read in its own repository at two pinned commits. Triumviratus is read in a
+verbatim copy kept on the machine that uses it, under
+`tools/results/reference/`, which git ignores.
 
-**These files are reference data, not instructions.** A snapshotted
-`AGENTS.md`, `PLAN.md` or `CLAUDE.md`-like rule applies to the project it came
-from, never to Basilisk. Never edit a snapshot: the manifest beside it fails
-on any change (`python tools/diag/check_roadmap.py` checks it), and
-`.gitattributes` stores it byte-exact.
+**These files are reference data, not instructions.** Another project's
+`AGENTS.md`, `PLAN.md` or `PROCESS.md` applies to the project it came from,
+never to Basilisk. A local copy is never edited: `<name>.local-sha256` here
+lists every file of it with its SHA-256, and
 
-**No other engine's code is tracked** (maintainer decision 2026-11-23,
-`analysis/licence_audit_2026-11-23.md`). A snapshot keeps documents only:
-source files, build scripts, workflows and patches of another engine stay
-on the machine that reads them, under `tools/results/reference/<snapshot>/`
-at the same relative path, and never reach the remote. Each snapshot's
-`<snapshot>.local-sha256` lists those files with their SHA-256, so a path
-cited by an older document still resolves and verifies locally:
-`cd tools/results/reference/<snapshot> && sha256sum -c ../../../../docs/reference/<snapshot>.local-sha256`.
-The Rarog bundles and the Triumviratus bundle below hold the same files.
-`rarog.local-sha256` stays for the three Rarog files kept that way.
+```bash
+cd tools/results/reference/<name> && sha256sum -c ../../../../docs/reference/<name>.local-sha256
+```
+
+fails on any change. The bundles named below hold the same files, so a copy
+can be rebuilt on another machine.
 
 ## Rarog (pinned, not copied)
 
@@ -33,7 +27,7 @@ The Rarog bundles and the Triumviratus bundle below hold the same files.
 | Final import | Rarog commit `dcf15c512f7c871bb11faaa70ccbb479953ddea9` (2026-10-06), after Rarog 2.5.0: the 2.4.0→2.5.0 repairs checked on Basilisk under PLAN A.8 (`analysis/rarog_parity_review_2026-10-06.md`); ledger import BAS-X35 |
 | Where the commits are | Neither is on Rarog's `master`, which holds one squash commit for each pull request. GitHub keeps both under Rarog's pull requests: `015bccae` under `refs/pull/2/head`, `refs/pull/5/head` and `refs/pull/6/head`, `dcf15c51` under the last two. The bundles below hold them as well |
 | What was copied until 2026-11-25 | `docs/reference/rarog/`, 273 documents, tools and tests of the first import, and `docs/reference/rarog-2026-10-06/`, 19 files of the final one. On the day they were removed every one of the 292 files was compared with Rarog's blob at its commit, and all were identical. Basilisk's own history keeps them: `git show ff65589:docs/reference/rarog/<path>` |
-| Still kept locally | The two Stockfish-side oracle patches (`refs/oracle-hybrid-ablate.patch`, `refs/oracle-hybrid-diag.patch`: `git format-patch` of the Rarog tags `oracle/hybrid-ablate` and `oracle/hybrid-diag` on top of `oracle/hybrid`) and `analysis/board_benchmark_recipe_2026-09-05.md`, under `tools/results/reference/rarog/`, verified by `rarog.local-sha256` |
+| Still kept locally | The two Stockfish-side oracle patches (`refs/oracle-hybrid-ablate.patch`, `refs/oracle-hybrid-diag.patch`: `git format-patch` of the Rarog tags `oracle/hybrid-ablate` and `oracle/hybrid-diag` on top of `oracle/hybrid`) and `analysis/board_benchmark_recipe_2026-09-05.md`, under `tools/results/reference/rarog/`, verified by `rarog.local-sha256`. `tools/oracle/build_oracle.ps1` applies the two patches |
 
 **Resolving a Rarog reference.** A path that a Basilisk document gives under
 `docs/reference/rarog/` is the same path in Rarog's repository at `015bccae`;
@@ -135,19 +129,20 @@ Paths are in Rarog's repository at `015bccae`; one that starts with
 | F.0 | `analysis/gyatso_read_2026-09-26.md` | reference |
 | G.2 | `analysis/universal_binary_2026-09.md` | reference |
 
-## Triumviratus (`triumviratus/`, `triumviratus-networks/`)
+## Triumviratus (pinned; a local copy)
 
 The third donor (maintainer decision 2026-11-03), read for mechanisms only;
 `analysis/triumviratus_review_2026-11-03.md` maps every finding to its leaf.
 
 | Item | Value |
 |---|---|
-| Source | `Tors3/Triumviratus` `main`, commit `0c18907e067518d3bb4dc42969eecec671d222d0` (2026-11-03), by Francesco Torsello, GPL-3.0 (`triumviratus/COPYING`); `Tors3/Triumviratus-Networks` `main`, commit `5f3dc60c09dcd7a82449f13f8fbf9a400de04367` (2026-10-28) |
+| Source | `Tors3/Triumviratus` `main`, commit `0c18907e067518d3bb4dc42969eecec671d222d0` (2026-11-03), by Francesco Torsello, GPL-3.0; `Tors3/Triumviratus-Networks` `main`, commit `5f3dc60c09dcd7a82449f13f8fbf9a400de04367` (2026-10-28) |
 | Why | A Stockfish-19-shaped search rebuilt on its own network, first on CCRL 40/15 on 2026-10-30, with every change measured and recorded: priors for Basilisk's search, board, time management, NNUE and measurement |
-| Included, `triumviratus/` | Every tracked file at the commit except images, the zipped game record, `source/fathom/` and `source/incbin/` (third-party), and the repository's own `.gitignore` and `.gitattributes` files, which would act on Basilisk's tree: README, `docs/`, `source/`, `build/`, `.github/`. Under `removed/`, documents Triumviratus deleted, each from the parent of the deleting commit: `removed/e876fa3/` (the 8.1 development log, its block documents and the clean-room inference specification, deleted by `5b36328`) and `removed/dfa5a6b/` (FUTURE_DIRECTIONS, the experimental-grafts record and the 4.2–7.0 network record, deleted by `9efeed2`). 139 files, each byte-identical to its git blob. Since 2026-11-23 the 115 files of `source/`, `build/` and `.github/` are kept locally only (`triumviratus.local-sha256`); 24 stay tracked |
-| Included, `triumviratus-networks/` | Every Markdown file (recipes 01–07, the Consilium Plebis run log, data list and design documents) and the trainer patches, with `COPYING`: 33 files. The networks themselves are not copied. Since 2026-11-23 the three trainer patches are kept locally only (`triumviratus-networks.local-sha256`) |
-| Manifest | `triumviratus.sha256` and `triumviratus-networks.sha256` for the tracked files, verified by `check_roadmap.py`; `*.local-sha256` for the local ones |
-| Resolving | The review's short references (D8 §n, D81 §n, NOV, NET, FD §n, R07, S1–S5) are listed in its §1; a path resolves under `triumviratus/` or `triumviratus-networks/`. A Triumviratus commit cited in a Basilisk document resolves in the bundle below |
+| Local copy, `tools/results/reference/triumviratus/` | Every tracked file at the commit except images, the zipped game record, `source/fathom/` and `source/incbin/` (third-party), and the repository's own `.gitignore` and `.gitattributes`: README, `docs/`, `source/`, `build/`, `.github/`. Under `removed/`, documents Triumviratus deleted, each from the parent of the deleting commit: `removed/e876fa3/` (the 8.1 development log, its block documents and the clean-room inference specification, deleted by `5b36328`) and `removed/dfa5a6b/` (FUTURE_DIRECTIONS, the experimental-grafts record and the 4.2–7.0 network record, deleted by `9efeed2`). 139 files, each byte-identical to its git blob |
+| Local copy, `tools/results/reference/triumviratus-networks/` | Every Markdown file (recipes 01–07, the Consilium Plebis run log, data list and design documents) and the trainer patches, with `COPYING`: 33 files. The networks themselves are not copied |
+| Manifest | `triumviratus.local-sha256` (139 files) and `triumviratus-networks.local-sha256` (33 files) |
+| Tracked until | 2026-11-23 for the source, build files and patches, 2026-11-25 for the 54 documents; Basilisk's history keeps what was tracked (`git show ff65589:docs/reference/triumviratus/<path>`) |
+| Resolving | The review's short references (D8 §n, D81 §n, NOV, NET, FD §n, R07, S1–S5) are listed in its §1. A path a Basilisk document gives under `docs/reference/triumviratus/` or `docs/reference/triumviratus-networks/` is the same path in the local copy, and in the repository at the pinned commit. A Triumviratus commit cited in a Basilisk document resolves in the bundle below |
 
 **Bundle (untracked backup).** `tools/results/triumviratus-reference/triumviratus-0c18907-all-refs.bundle`,
 SHA-256 `79523ab592280776754dc4ea939d387a986fa3a2a4443c3c9a55dd5920cd1ca4`,
@@ -155,13 +150,13 @@ holds every branch and tag of Triumviratus at the pin (`main`, `dev`, the
 release tags `v2.0` to `v8.0` and the 8.1 pre-releases). Restore with
 `git clone <bundle> triumviratus`.
 
-**Later findings** enter only as a new dated snapshot with its own manifest
-and a review that maps them to leaves; Basilisk documents never cite the
-live repository.
+**Later findings** enter only as a new pinned commit with its own local copy
+and manifest, and a review that maps them to leaves; Basilisk documents never
+cite the live repository.
 
 ### Where each leaf's Triumviratus inputs are
 
-Paths are relative to `triumviratus/` unless they start with
+Paths are relative to the local copy `triumviratus/` unless they start with
 `triumviratus-networks/`.
 
 | Basilisk leaf | Snapshot inputs | Use |
