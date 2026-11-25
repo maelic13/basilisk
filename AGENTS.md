@@ -19,7 +19,7 @@ and most leaves fire several. When unsure, read the module.
 
 | Module | Scope | Task | Paths changed | Actions |
 |---|---|---|---|---|
-| `agents/research.md` | Mechanisms, research, reviews, donors, refusals and experiment design. | Research, diagnosis, experiment design or a review; any `R2` or `R3` leaf. | `docs/DESIGN.md`, `docs/experiments/`, `analysis/`. | Before proposing, adding, removing or altering a mechanism, a code change meant to alter a move included; when a change moves the bench fingerprint; before reading another engine's source or `docs/reference/`; before registering an experiment or closing a leaf that ran one. |
+| `agents/research.md` | Mechanisms, research, reviews, donors, refusals and experiment design. | Research, diagnosis, experiment design or a review; any `R2` or `R3` leaf. | `docs/DESIGN.md`, `docs/experiments/`, `analysis/`. | Before proposing, adding, removing or altering a mechanism, a code change meant to alter a move included; when a change moves the bench fingerprint; before reading another engine's source or documents; before registering an experiment or closing a leaf that ran one. |
 | `agents/implementation.md` | Engine, test, build and tool code. | Any `I1` or `I2` leaf; a review of code. | `src/`, `tests/`, `tools/`, `cmake/`, `CMakeLists.txt`, `CMakePresets.json`, `.github/workflows/`. | Before writing or changing code anywhere else. |
 | `agents/measurement.md` | Measurement, acceptance, gates and long runs. | Any `V` leaf. | `docs/experiments/`, `docs/EXPERIMENTS.md`, `tools/colosseum/`, `tools/run_*`, `.github/windows-clang-version`. | Before building a binary to measure; before running or reading bench, NPS, `Diag` counters or a profile; before running, registering or preparing games, an SPRT, SPSA, gauntlet, datagen or fit; before handing the maintainer a command or launcher; before any run that loads the machine for minutes; before reading returned artifacts. |
 | `agents/records.md` | Roadmap and ledger documents, evidence, citations, tags, capability classes and the pull-request message. | Any `M` leaf; closing any leaf. | `docs/PLAN.md`, `GUIDE.md`, `CHANGELOG.md`, `docs/HISTORY.md`, `docs/EXPERIMENTS.md`, `docs/experiments/`, `docs/archive/`, `analysis/`, `tools/diag/citation_exceptions.tsv`. | Before citing a commit in a document; before adding a result, log or fixture to git; before creating, pushing or deleting a tag, or keeping a branch; before opening a pull request or writing its message; before changing a capability tag; when a change is user-visible (strength, UCI options or output, defaults, the bench fingerprint, platforms). |
@@ -193,4 +193,5 @@ name says.**
   not fit, a rule here moves to a module or is compressed first. The incident
   behind a rule goes to the ledger or an `analysis/` packet, cited beside it.
 - A tool stub such as `CLAUDE.md` may import this file and never a module: an
-  import is loaded on every task.
+  import is loaded on every task. The rules are kept for Claude, Codex,
+  Antigravity and Gemini CLI; no other tool's limit shapes them.
