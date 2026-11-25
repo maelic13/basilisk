@@ -75,3 +75,29 @@
   exits.
 
 #### RESULT — append after exposure
+
+##### Run 1 (`fb6f3b3`, `tools/results/c34-fit-onek/` and `tools/results/c34-fit-kphase/`)
+
+Both arms converged cleanly by patience with exact played-hash identity across final, relevelled and baked vectors (`header_restored: true`; rank `1,220` of `1,220`; `16` sparse `Connected*` cells support-frozen in mean-anchored tables):
+
+- **`one-k`**: `K = 2.002698`; validation MSE `0.09639910` → `0.09299295` (`−3.53%`), or `0.09390130` under `k-phase`'s `K(phase)`. Stages: KS1 pass 17 (`0.09529109`), linear epoch 4,051 (`0.0930378`), KS3 pass 15 (`0.09280965`), polish epoch 1,003 (`0.0929688`). Lazy share `14.67%` (`28,944 / 197,277`) → `13.70%` (`27,021 / 197,277`). Played hash 01b088354446dcbb (seed e87063a94a5a10bc); `bench_baked = 3,556,275` (`−4.3%`). Relevelled material (`P, N, B, R, Q`): `MgVal [77, 632, 679, 991, 2362]`, `EgVal [302, 1052, 1113, 1772, 3087]`. Marginal piece values (`tools/texel/piece_values.py`, `phase 0-7 / 8-15 / 16-24`): P `189 / 146 / 116` (seed `138 / 134 / 146`), N `570 / 589 / 448` (`457 / 546 / 563`), B `599 / 616 / 497` (`483 / 572 / 607`), R `972 / 929 / 712` (`767 / 835 / 810`), Q `1076 / 1264 / 1442` (`910 / 1116 / 1423`).
+- **`k-phase`**: `K_eg = 3.026687, K_mg = 0.970080`; validation MSE `0.09466759` → `0.09276149` (`−2.01%`), or `0.09445043` under `K = 2.002698` (beats `one-k` in every phase band at each band's own K). Stages: KS1 pass 17 (`0.09415106`), linear epoch 1,770 (`0.0928207`), KS3 pass 18 (`0.09262661`), polish epoch 843 (`0.092756`). Lazy share `14.67%` → `13.95%` (`27,523 / 197,277`). Played hash c081097b94ea6882; `bench_baked = 3,928,657` (`+5.7%`). Relevelled material: `MgVal [131, 848, 921, 1337, 2559]`, `EgVal [227, 834, 877, 1411, 2683]`. Marginal piece values (`phase 0-7 / 8-15 / 16-24`): P `150 / 140 / 159`, N `454 / 550 / 586`, B `472 / 576 / 644`, R `780 / 848 / 875`, Q `946 / 1194 / 1548` (all within −2.3% to +8.9% of seed).
+- **`test_eval` on baked binary**: `33` failures on each arm, matching the donor-seed parity checks expected to move; all structural, symmetry, cache, lazy, clamp and verdict checks pass.
+- **Knob bounds hit (triggers Amendment 7 re-run)**:
+  - `one-k` (4 on bound): `ImbOurs[17]` (`−483`, LO), `ImbOurs[18]` (`−467`, LO), `ImbOurs[19]` (`−734`, LO), `KdFlankDefence[0]` (`10`, HI); near bound: `ImbOurs[20]` (`564 / 594`), `KdKnightDefender[0]` (`186 / 200`).
+  - `k-phase` (4 on bound): `ImbOurs[19]` (`466`, HI), `KdKnightDefender[0]` (`200`, HI), `KdFlankDefence[0]` (`10`, HI), and `KdBlockers[0]` (`0`, LO — physical non-negativity floor: a blocker shielding our king from a slider does not increase safety, so it is not widened below zero).
+- **Separate non-blocking observation**: `ThreatByMinorMg[6]`, `ThreatByMinorEg[6]`, `ThreatByRookMg[6]`, `ThreatByRookEg[6]` (the enemy king slot, `seed = 0`, 368–728 rows of train support from bishop/rook x-rays through a pinned enemy queen) moved to `+638..+902` on `one-k` and `+465..+569` (for the top-moving `ThreatByRookEg/Mg[6]`, `ThreatByMinorMg[6]`) on `k-phase`. Left unchanged in Run 2 so Run 2 isolates knob bounds alone; flagged to maintainer separately.
+- **Run 1 prediction calibration (prospective section above unchanged)**: Both losses, marginal piece-value shifts (`+18%` to `+37%` in `phase 0-7`, `−12%` to `−21%` for P/N/B/R in `phase 16-24` under `one-k`; within `−2.3%` to `+8.9%` across all cells under `k-phase`), convergence and played-hash identity all landed inside the registered 80% bands. Disposing Run 1 is deferred pending Run 2 with widened knob bounds; conversion floors and paired games were not yet run.
+
+##### Amendment 1 — Run 2 (widened knob bounds, 2026-11-25)
+
+- **Trigger**: Amendment 7, point 5 ("A knob that ends on a bound is widened and the fit repeated") after Run 1's four bound hits (`ImbOurs[17..19]`, `KdFlankDefence`, `KdKnightDefender`).
+- **Source & surface**: tooling commit `2e77b9a` (`src/` unchanged from `7d68e25`; `tools/texel/surface_rebuild_v1.tsv` SHA-256 `B4486569…`; Run 1 artifacts preserved in `c34-fit-onek/` and `c34-fit-kphase/`).
+- **Widened bounds (`tools/texel/surface.py`)**:
+  - `RB_IMBALANCE_REACH`: `600` → `1500` (`step = 300`, `ImbOurs[0..20]` and `ImbTheirs[0..14]`);
+  - `KdKnightDefender[0]`: `[0, 200]` → `[0, 500]` (`step = 50`);
+  - `KdFlankDefence[0]`: `[0, 10]` → `[0, 40]` (`step = 4`);
+  - `KdBlockers[0]` held at `[0, 200]` (zero is a physical floor).
+- **Outputs**: `tools/results/c34-fit-onek-r2/` and `tools/results/c34-fit-kphase-r2/`.
+- **Stop rule**: if any imbalance knob reaches its `±1500` bound in Run 2, treat `Q × {N, B, R}` as near-collinear with `PstMgQueen` / phase and return to research before playing games; otherwise proceed to the deterministic conversion floors (`KBNK`, `KQK`, `KRK`, `KBBK` at 60k nodes), `KQ` vs two minors re-read, and the 2,000-game paired runs against the seed arm.
+- **Command**: `python tools/run_c34_fits.py --arm all`
