@@ -27,6 +27,67 @@ inline bool lazy_skip(Score s, int threshold, int npm) {
     return std::abs(s.mg + s.eg) / 2 > threshold + npm / 64;
 }
 
+// winnable()'s complexity: how much of the halves the attacking side keeps.
+// Its constants are structure constants (Â§8).
+struct Winnable {
+    Score adjusted;
+    Score complexity;   // the change to each half
+    Color strong;
+};
+
+inline Winnable winnable(const Board& b, const PawnEntry& e, Score score) {
+    const Square wk = b.king_square(WHITE), bk = b.king_square(BLACK);
+    const int outflanking = file_distance(wk, bk) - rank_distance(wk, bk);
+    const Bitboard pawns = pieces(b, PAWN);
+    const bool both_flanks = (pawns & QUEEN_SIDE) && (pawns & KING_SIDE);
+    const bool almost_unwinnable = outflanking < 0 && !both_flanks;
+    const bool infiltration = rank_of(wk) > RANK_4 || rank_of(bk) < RANK_5;
+
+    const int complexity = 9 * popcount(e.passed[WHITE] | e.passed[BLACK])
+                         + 12 * popcount(pawns)
+                         + 9 * outflanking
+                         + 21 * both_flanks
+                         + 24 * infiltration
+                         + 51 * !non_pawn_material(b)
+                         - 43 * almost_unwinnable
+                         - 110;
+
+    auto sign = [](int x) { return (x > 0) - (x < 0); };
+    const int u = sign(score.mg) * std::clamp(complexity + 50, -std::abs(score.mg), 0);
+    const int v = sign(score.eg) * std::max(complexity, -std::abs(score.eg));
+    const Score adjusted{score.mg + u, score.eg + v};
+    return {adjusted, {u, v}, adjusted.eg > 0 ? WHITE : BLACK};
+}
+
+// The general scale-factor heuristics for the strong side.
+inline int general_scale_factor(const Board& b, const PawnEntry& e, Color strong) {
+    const Color weak = ~strong;
+    if (is_opposite_coloured_bishops(b)) {
+        if (non_pawn_material(b, WHITE) == NPM_BISHOP && non_pawn_material(b, BLACK) == NPM_BISHOP)
+            return 18 + 4 * popcount(e.passed[strong]);
+        return 22 + 3 * popcount(b.occupancy_bb(strong));
+    }
+    const Bitboard strong_pawns = b.piece_bb(strong, PAWN);
+    if (non_pawn_material(b, WHITE) == NPM_ROOK && non_pawn_material(b, BLACK) == NPM_ROOK
+        && count(b, strong, PAWN) - count(b, weak, PAWN) <= 1
+        && bool(KING_SIDE & strong_pawns) != bool(QUEEN_SIDE & strong_pawns)
+        && (KingAttacks[b.king_square(weak)] & b.piece_bb(weak, PAWN)))
+        return 36;
+    if (popcount(pieces(b, QUEEN)) == 1) {
+        const Color minors = count(b, WHITE, QUEEN) == 1 ? BLACK : WHITE;
+        return 37 + 3 * (count(b, minors, BISHOP) + count(b, minors, KNIGHT));
+    }
+    return std::min(64, 36 + 7 * count(b, strong, PAWN));
+}
+
+// Basilisk's own phase by piece count, 0 to 24, which the mate drive reads.
+inline int piece_count_phase(const Board& b) {
+    int phase = 0;
+    for (int pt = PAWN; pt <= KING; pt++)
+        phase += popcount(pieces(b, PieceType(pt))) * PHASE_W[pt];
+    return std::min(phase, TOTAL_PHASE);
+}
+
 inline void record_pair(int (&out)[2], Score s) {
     out[0] = s.mg;
     out[1] = s.eg;
@@ -46,10 +107,11 @@ class Evaluation {
 public:
     Evaluation(const Board& board, PawnEntry (&pawn_table)[PAWN_TABLE_SIZE],
                ImbalanceEntry (&imbalance_table)[1 << IMBALANCE_TABLE_BITS],
-               int& imbalance_generation, int tables_generation, EvalRebuildRecord* record)
+               int& imbalance_generation, int tables_generation, int64_t& clamps,
+               EvalRebuildRecord* record)
         : b(board), pawn_table_(pawn_table), imbalance_table_(imbalance_table),
           imbalance_generation_(imbalance_generation), tables_generation_(tables_generation),
-          rec(record) {}
+          clamps_(clamps), rec(record) {}
 
     // The value from the side to move's view, in centipawns.
     int value(bool& verdict);
@@ -60,6 +122,7 @@ private:
     ImbalanceEntry (&imbalance_table_)[1 << IMBALANCE_TABLE_BITS];
     int& imbalance_generation_;
     int tables_generation_;
+    int64_t& clamps_;
     EvalRebuildRecord* rec;
 };
 
@@ -143,12 +206,47 @@ int Evaluation<Rec>::value(bool& verdict) {
             record_pair(rec->family[EVAL_ABLATE_PASSERS], passed);
         }
     }
-    if constexpr (Rec)
-        rec->lazy = lazy;
 
-    const int v = taper(score, ph, 64);
-    const int cp = to_centipawns(v);
-    return (b.turn() == WHITE ? cp : -cp) + p.tempo * CONVERSION_S / 1024;
+    // ---- Winnable: the complexity adjustment and the strong side -------------------
+    const Winnable w = winnable(b, pe, score);
+    const int general_sf = general_scale_factor(b, pe, w.strong);
+
+    // ---- The endgame layer and the scale factor (§6.8) -----------------------------
+    // The layer sees the converted taper at a factor of 64 with the mate
+    // drive's addition, tapered by the piece-count phase. Where it overrides
+    // or scales, its result stands; where it is silent, the general factor
+    // scales the endgame half.
+    const int t = to_centipawns(taper(w.adjusted, ph, 64));
+    const int phase24 = piece_count_phase(b);
+    const int drive = mate_drive_eg(b, t, phase24) * (TOTAL_PHASE - phase24) / TOTAL_PHASE;
+    int kind;
+    const int layered = endgame_layer<false, false>(b, t + drive, verdict, kind);
+    const int v = taper(w.adjusted, ph, general_sf);
+    const int white = kind != LAYER_SILENT ? layered : to_centipawns(v) + drive;
+
+    if constexpr (Rec) {
+        rec->lazy = lazy;
+        record_pair(rec->complexity, w.complexity);
+        record_pair(rec->adjusted, w.adjusted);
+        rec->strong = int(w.strong);
+        rec->general_sf = general_sf;
+        rec->sf = kind == LAYER_SILENT ? general_sf : -1;
+        rec->v = v;
+        rec->layer = kind;
+        rec->drove = drive != 0;
+    }
+
+    // ---- The side to move, the tempo and the bounds ------------------------------------
+    // An override is the layer's own value: no tempo, no clamp.
+    const int stm = b.turn() == WHITE ? white : -white;
+    if (kind == LAYER_OVERRIDE)
+        return stm;
+    const int served = stm + p.tempo * CONVERSION_S / 1024;
+    if (std::abs(served) >= KNOWN_WIN) {
+        DIAG_COUNT(++clamps_);
+        return served > 0 ? KNOWN_WIN - 1 : -(KNOWN_WIN - 1);
+    }
+    return served;
 }
 
 } // namespace rb

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <string>
 
 #include "board.h"
@@ -56,6 +57,9 @@ struct EvalRebuildRecord {
     int piece_type[4][2] = {};
     int complexity[2] = {}, adjusted[2] = {};
     int ph = 0, strong = 0, general_sf = 64, sf = 64, v = 0;
+    // What the endgame layer did (0 silent, 1 scaled, 2 overridden; sf is -1
+    // where it acted) and whether the mate drive fired.
+    int layer = 0, drove = 0;
 };
 #endif
 
@@ -129,6 +133,10 @@ public:
     // from. Reset per `go` alongside the lazy-audit block.
     int64_t eval_calls = 0;
     int64_t pawn_probes = 0, pawn_hits = 0;
+#ifdef BASILISK_EVAL_REBUILD
+    // Values the rebuilt evaluation clamped inside the known-win band.
+    int64_t rebuild_clamps = 0;
+#endif
 
 #ifdef BASILISK_TUNE
     // Enabled only by the hidden tune-build UCI `Diag` option. Counted at the
@@ -139,7 +147,17 @@ public:
 #endif
 
 private:
+#ifdef BASILISK_EVAL_REBUILD
+    // Its entries hold each king's shelter too, so the table is some 1.8 MB:
+    // on the heap, allocated once, so that an evaluator still fits on a
+    // thread's stack.
+    struct PawnTable {
+        PawnEntry entries[PAWN_TABLE_SIZE];
+    };
+    std::unique_ptr<PawnTable> pawn_table_ = std::make_unique<PawnTable>();
+#else
     PawnEntry pawn_table_[PAWN_TABLE_SIZE];
+#endif
     ImbalanceEntry imbalance_table_[1 << IMBALANCE_TABLE_BITS];
     int imbalance_generation_ = 0;
 

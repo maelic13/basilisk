@@ -689,15 +689,26 @@ int krppkrp_scale_unfloored(const Board& b, Color strong) {
 // Definition lives in eval.h so the Texel tuner uses the identical
 // curve; see the shared-predicates block there.
 
+// What the layer did to its score: left it, scaled it, or replaced it.
+enum EndgameLayerKind : int { LAYER_SILENT, LAYER_SCALED, LAYER_OVERRIDE };
+
 // `draw_verdict` is set when the 0 returned is one of the draw verdicts below
 // (KNNK, the drawn KPK, the wrong-corner KBP-K, a pawnless side that cannot
-// mate): a classification, which the search adds no correction to.
-[[maybe_unused]] static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
+// mate): a classification, which the search adds no correction to. `kind`
+// says what the layer did. OcbStep runs the opposite-coloured-bishop scale;
+// the rebuilt evaluation leaves it to the classical form's general factors.
+// The rebuilt evaluation also skips the scaling steps on a score of exactly
+// 0 (ScaleZero false): their strong side is Black at a tie whatever the
+// colours, and a scaled 0 there would send a position and its mirror down
+// different paths. The overrides do not read the score.
+template<bool OcbStep, bool ScaleZero = true>
+static int endgame_layer(const Board& b, int score, bool& draw_verdict, int& kind) {
     auto lone_king = [&](Color c) {
         return b.occupancy_bb(c) == sq_bb(b.king_square(c));
     };
     int total_pawns = popcount(b.piece_bb(WHITE, PAWN) | b.piece_bb(BLACK, PAWN));
     bool scaled = false;
+    kind = LAYER_SILENT;
     TR_ENDGAME_STEP(EG_UNCHANGED, 1, 1);
 
     // ---- Step 3.10 guard: the known-endgame rules (KNNK / KPK / KBNK / KBP /
@@ -726,6 +737,7 @@ int krppkrp_scale_unfloored(const Board& b, Color strong) {
         if (is_knnk_draw(b)) {
             draw_verdict = true;
             TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
+            kind = LAYER_OVERRIDE;
             return 0;
         }
 
@@ -738,6 +750,7 @@ int krppkrp_scale_unfloored(const Board& b, Color strong) {
             Color strong = cnt[WHITE][PAWN] ? WHITE : BLACK;
             if (lone_king(~strong)) {
                 TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
+            kind = LAYER_OVERRIDE;
                 if (!kpk_strong_wins(b, strong)) {
                     draw_verdict = true;
                     return 0; // drawn KPK
@@ -760,6 +773,7 @@ int krppkrp_scale_unfloored(const Board& b, Color strong) {
             if (!lone_king(weak) || (!cnt[strong][QUEEN] && !cnt[strong][ROOK]))
                 continue;
             TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
+            kind = LAYER_OVERRIDE;
             const int above = top_tier_score(b, strong);
             const int v = cnt[strong][QUEEN]
                 ? BARE_KING_QUEEN_TIER + std::min(above, BARE_KING_CAP - BARE_KING_QUEEN_TIER)
@@ -771,6 +785,7 @@ int krppkrp_scale_unfloored(const Board& b, Color strong) {
         // bonus, and stay under the rook tier.
         auto minor_tier = [&](int drive_score, Color strong) {
             TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
+            kind = LAYER_OVERRIDE;
             const int v = std::min(std::abs(drive_score) + cnt[strong][PAWN] * BARE_KING_PAWN_STEP,
                                    BARE_KING_ROOK_TIER - 1);
             return (strong == WHITE) ? v : -v;
@@ -821,6 +836,7 @@ int krppkrp_scale_unfloored(const Board& b, Color strong) {
             if (KING_DIST[b.king_square(weak)][promo] <= 1) {
                 draw_verdict = true;
                 TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
+            kind = LAYER_OVERRIDE;
                 return 0; // defender holds the wrong-corner draw
             }
         }
@@ -835,13 +851,14 @@ int krppkrp_scale_unfloored(const Board& b, Color strong) {
         // other often can (its pawn runs): the tables call 2.6% to 7.9% of such
         // positions wins for it, and a verdict would take the search's
         // correction away from them. The score stays 0, an estimate.
-        {
+        if (ScaleZero || score != 0) {
             const Color strong = (score > 0) ? WHITE : BLACK;
             const int scale = pawnless_scale(b, strong);
             if (scale != SCALE_NORMAL) {
                 score = score * scale / SCALE_NORMAL;
                 scaled = true;
                 TR_ENDGAME_STEP(EG_SCALED, scale, SCALE_NORMAL);
+                kind = LAYER_SCALED;
                 draw_verdict = scale == 0 && !b.piece_bb(~strong, PAWN);
             }
         }
@@ -853,7 +870,7 @@ int krppkrp_scale_unfloored(const Board& b, Color strong) {
     // lives out here. The gate is a few bitboard ORs rather than a popcount
     // census: this runs on every node, and BAS-E34 measured what a census on
     // the middlegame path costs (+20.5% bench nodes).
-    if (!scaled) {
+    if (!scaled && (ScaleZero || score != 0)) {
         const Bitboard minors_queens =
               b.piece_bb(WHITE, KNIGHT) | b.piece_bb(WHITE, BISHOP) | b.piece_bb(WHITE, QUEEN)
             | b.piece_bb(BLACK, KNIGHT) | b.piece_bb(BLACK, BISHOP) | b.piece_bb(BLACK, QUEEN);
@@ -863,27 +880,34 @@ int krppkrp_scale_unfloored(const Board& b, Color strong) {
                 score = score * scale / SCALE_NORMAL;
                 scaled = true;
                 TR_ENDGAME_STEP(EG_SCALED, scale, SCALE_NORMAL);
+                kind = LAYER_SCALED;
             }
         }
     }
 
     // Opposite-coloured bishops: draw-scale toward 32/48, relaxed to at most
     // neutral by pawn count (capped -- see ocb_draw_scale in eval.h).
-    if (!scaled && is_opposite_coloured_bishops(b)) {   // predicate shared with the tuner
+    if (OcbStep && !scaled && is_opposite_coloured_bishops(b)) {   // predicate shared with the tuner
         score = score * ocb_draw_scale(total_pawns) / 48;
         TR_ENDGAME_STEP(EG_SCALED, ocb_draw_scale(total_pawns), 48);
+        kind = LAYER_SCALED;
     }
 
     return score;
 }
 
-// The mate drive reads the running sum after every family and before the
-// tempo; what it returns is added to the endgame half.
-[[maybe_unused]] static EvalScore mate_drive(const Board& b, const EvalScore& sum, int phase) {
-    int mg = 0, eg = 0;
+// The accepted evaluation's layer, its opposite-bishop step included.
+[[maybe_unused]] static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
+    int kind;
+    return endgame_layer<true>(b, score, draw_verdict, kind);
+}
+
+// The mate drive's endgame addition for a White-view score in centipawns,
+// at the piece-count phase; 0 where its gate is shut.
+static int mate_drive_eg(const Board& b, int score_approx, int phase) {
+    int eg = 0;
     // ---- Endgame mate-drive (frozen) ---------------------------------------
     if (phase <= 6) {
-        int score_approx = taper(sum, phase);
         if (std::abs(score_approx) > 200) {
             Color winning = (score_approx > 0) ? WHITE : BLACK;
             Color losing  = ~winning;
@@ -921,5 +945,13 @@ int krppkrp_scale_unfloored(const Board& b, Color strong) {
             }
         }
     }
-    return {mg, eg};
+    return eg;
+}
+
+// The mate drive reads the running sum after every family and before the
+// tempo; what it returns is added to the endgame half.
+[[maybe_unused]] static EvalScore mate_drive(const Board& b, const EvalScore& sum, int phase) {
+    if (phase > 6)
+        return {0, 0};
+    return {0, mate_drive_eg(b, taper(sum, phase), phase)};
 }

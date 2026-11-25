@@ -89,7 +89,12 @@ std::vector<Row> load_fixture() {
 //   STAGE1 where the reference passed its first lazy exit, STAGE2 its
 //          second: the families it computed. The record holds every family
 //          whichever exit the new arm takes.
-enum Scope { EVERY, WHOLE, STAGE1, STAGE2 };
+//   SILENT on layer-silent rows: WHOLE rows where the reference's material
+//          entry is normal and no scaling function answered, and Basilisk's
+//          endgame layer neither overrode nor scaled (§9). A row the mate
+//          drive fired on is compared too: its addition enters after the
+//          value before conversion (Amendment 4).
+enum Scope { EVERY, WHOLE, STAGE1, STAGE2, SILENT };
 
 // A compared field: its fixture column, where the record holds it, whether
 // it is a White-view score (negated in the colour mirror) or a colourless
@@ -101,7 +106,12 @@ struct Field {
     Scope scope;
 };
 
-bool in_scope(const Row& row, Scope scope) {
+bool layer_silent(const Row& row, const EvalRebuildRecord& rec) {
+    return !row.value.at("specialised") && !row.value.at("registered") && row.value.at("entrysf") == 64
+        && !row.value.at("scalefn") && rec.layer == 0;
+}
+
+bool in_scope(const Row& row, const EvalRebuildRecord& rec, Scope scope) {
     if (row.value.at("specialised"))
         return false;
     switch (scope) {
@@ -109,6 +119,7 @@ bool in_scope(const Row& row, Scope scope) {
     case WHOLE:  return !row.value.at("registered");
     case STAGE1: return row.value.at("lazy") != 1;
     case STAGE2: return row.value.at("lazy") == 0;
+    case SILENT: return layer_silent(row, rec);
     }
     return false;
 }
@@ -142,6 +153,14 @@ const std::vector<Field>& compared() {
         {"threats_eg", [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_THREATS][1]; }, true, STAGE2},
         {"space_mg", [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_SPACE][0]; }, true, STAGE2},
         {"space_eg", [](const EvalRebuildRecord& r) { return r.family[EVAL_ABLATE_SPACE][1]; }, true, STAGE2},
+        {"lazy",          [](const EvalRebuildRecord& r) { return r.lazy; }, false, WHOLE},
+        {"complexity_mg", [](const EvalRebuildRecord& r) { return r.complexity[0]; }, true, WHOLE},
+        {"complexity_eg", [](const EvalRebuildRecord& r) { return r.complexity[1]; }, true, WHOLE},
+        {"adjusted_mg",   [](const EvalRebuildRecord& r) { return r.adjusted[0]; }, true, WHOLE},
+        {"adjusted_eg",   [](const EvalRebuildRecord& r) { return r.adjusted[1]; }, true, WHOLE},
+        {"generalsf",     [](const EvalRebuildRecord& r) { return r.general_sf; }, false, WHOLE},
+        {"sf",            [](const EvalRebuildRecord& r) { return r.sf; }, false, SILENT},
+        {"v",             [](const EvalRebuildRecord& r) { return r.v; }, true, SILENT},
     };
     return fields;
 }
@@ -162,7 +181,7 @@ void test_parity(const std::vector<Row>& rows, Evaluator& ev) {
         int differ = 0;
         for (size_t i = 0; i < rows.size(); i++) {
             const Row& row = rows[i];
-            if (!in_scope(row, f.scope))
+            if (!in_scope(row, records[i], f.scope))
                 continue;
             const int want = row.value.at(f.column), got = f.get(records[i]);
             if (got != want && ++differ <= 3)
@@ -175,6 +194,51 @@ void test_parity(const std::vector<Row>& rows, Evaluator& ev) {
     }
     end_section();
     std::printf("    %d fields on %zu rows\n", checked, rows.size());
+
+    // The layer-silent rows must be at least 90% of the fixture (§9).
+    begin_section("layer-silent rows are at least 90% of the fixture");
+    size_t silent = 0;
+    for (size_t i = 0; i < rows.size(); i++)
+        silent += layer_silent(rows[i], records[i]);
+    std::unordered_map<std::string, std::pair<size_t, size_t>> by_source;
+    for (size_t i = 0; i < rows.size(); i++) {
+        const std::string source = rows[i].source.substr(0, rows[i].source.find(':'));
+        auto& [n, s] = by_source[source];
+        n++;
+        s += layer_silent(rows[i], records[i]);
+    }
+    for (const auto& [source, ns] : by_source)
+        std::printf("\n    %-18s %5zu of %5zu silent", source.c_str(), ns.second, ns.first);
+    // Why the game rows that are not silent are not, by the first reason.
+    size_t why[6] = {};
+    const char* const reasons[6] = {"specialised", "registered", "entry factor", "scaling function",
+                                    "layer override", "layer scale"};
+    for (size_t i = 0; i < rows.size(); i++) {
+        const Row& row = rows[i];
+        const EvalRebuildRecord& rec = records[i];
+        if (row.source != "game" || layer_silent(row, rec))
+            continue;
+        const int r = row.value.at("specialised") ? 0 : row.value.at("registered") ? 1
+                    : row.value.at("entrysf") != 64 ? 2 : row.value.at("scalefn") ? 3
+                    : rec.layer == 2 ? 4 : 5;
+        why[r]++;
+    }
+    for (int r = 0; r < 6; r++)
+        std::printf("\n    game rows not silent by %-17s %5zu", reasons[r], why[r]);
+    EXPECT(silent * 10 >= rows.size() * 9);
+    end_section();
+    std::printf("    %zu of %zu rows (%.1f%%)\n", silent, rows.size(), 100.0 * double(silent) / double(rows.size()));
+}
+
+// Whether the mirror's field is the original's, negated for a White-view
+// score. Where the adjusted endgame half is 0 the strong side is Black for
+// both colours, as in the reference, so the factors may differ; they scale
+// nothing there, and the value is compared regardless.
+bool mirrors(const Field& f, const EvalRebuildRecord& a, const EvalRebuildRecord& m) {
+    const std::string column = f.column;
+    if (a.adjusted[1] == 0 && (column == "generalsf" || column == "sf"))
+        return true;
+    return f.get(m) == (f.white_view ? -f.get(a) : f.get(a));
 }
 
 void test_colour_symmetry(const std::vector<Row>& rows, Evaluator& ev) {
@@ -187,9 +251,14 @@ void test_colour_symmetry(const std::vector<Row>& rows, Evaluator& ev) {
         const int vm = ev.rebuild_record(board_of(mirrored), m);
         bool same = va == vm;
         for (const Field& f : compared())
-            same &= f.get(m) == (f.white_view ? -f.get(a) : f.get(a));
-        if (!same && ++differ <= 3)
-            std::fprintf(stderr, "\n    asymmetric: %s", row.fen.c_str());
+            same &= mirrors(f, a, m);
+        if (!same && ++differ <= 3) {
+            std::fprintf(stderr, "\n    asymmetric: %s (value %d, mirror %d; adjusted eg %d):",
+                         row.fen.c_str(), va, vm, a.adjusted[1]);
+            for (const Field& f : compared())
+                if (!mirrors(f, a, m))
+                    std::fprintf(stderr, " %s", f.column);
+        }
     }
     EXPECT_EQ(differ, 0);
     end_section();
