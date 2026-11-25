@@ -29,6 +29,26 @@
   Basilisk's endgame layer and rule-50 curve, and reaches the search
   about a quarter larger than the donor's (620/1024 centipawns a unit,
   then the bridge's 206/100).
+- Completed 2026-11-25, before any game (C.3.4's preparation):
+  - Binary: `tools/test_engines/oracle-c34-7d68e25-rebuild.exe`, SHA-256
+    A53A9BA17F04248531F4892619354A9EF5B699F202965FF0B0FED0331EE1BD08.
+  - It was built by `tools/oracle/build_oracle.ps1` with
+    `oracle-eval-ablate.patch`, `oracle-eval-transplant.patch`,
+    `oracle-eval-reference.patch` and `oracle-eval-rebuild.patch`, in
+    that order, around `7d68e25`'s `src/`, byte-identical. That is the
+    commit BAS-M25's arms are built from.
+  - Conformance: 471,519 positions, 0 mismatches. Oracle bench 955,525,
+    equal to C.3.2's rebuilt oracle.
+  - At mask 0 its Basilisk value equals the new arm's served value on
+    all 13,217 fixture rows, through the bridge's ×206/100, with 0
+    mismatches. The head's oracle mismatches on 12,667 of them.
+  - Arms: `Oracle 9587 eval` (`Use Basilisk HCE=false`) first, and
+    `Oracle rebuilt eval` (`=true`) fixed at 1500. The first arm's
+    rating less 1500 is the read. Each arm carries its switch,
+    `EvalAblationMask=0`, Hash 64 and Threads 1, and nothing else; the
+    dry run's launch record shows this.
+  - Command: `python tools/run_c34_reads.py --read o16`. The table:
+    `python tools/diag/c34_table.py`.
 
 #### PRE-REGISTERED PREDICTION — frozen 2026-11-25
 
