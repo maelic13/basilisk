@@ -61,3 +61,38 @@
 
 #### RESULT — append after exposure
 
+- 2026-11-25. Complete: 3,000 games (`tools/results/c34-o16/`, PGN
+  SHA-256 `70CEBB22…61045493`), zero engine faults, zero time losses,
+  recount agrees. Summary table: `tools/results/c34-table.md`.
+- **Oracle 9587 eval minus Oracle rebuilt eval: +42.4 Elo [+35.1, +49.7]**
+  (pentanomial 95% CI; trinomial [+33.3, +51.5]), score 56.07%
+  (1,682.0 / 3,000), 989 wins, 1,386 draws, 625 losses, pentanomial
+  [21, 232, 676, 504, 67].
+- **Flagged (`an arm >5% faster`):** `Oracle 9587 eval` ran 2.86M
+  nodes/s (183,745 nodes/move, mean non-mate depth 18.27) against
+  `Oracle rebuilt eval`'s 2.53M nodes/s (165,070 nodes/move, mean
+  non-mate depth 18.22), ratio 1.129 (+12.9% NPS, matching BAS-O14's
+  1.143 bridge overhead).
+- Clamped bare-king draws: 41 for `Oracle rebuilt eval` (30 KRvK, 4
+  KRPvK, 3 KBNvK, 2 KRBvK, 1 KQPvK, 1 KBBvK) against 2 for `Oracle
+  9587 eval`, a net 39 draws (~4.5–5 Elo) from the oracle bridge's clamp
+  artifact (`BAS-M25` had 0 on the rebuilt arm). Terminations: 1,614
+  checkmates, 742 threefold, 381 insufficient material, 245 fifty-move,
+  18 stalemate.
+- Closes 103.8 Elo of BAS-O14's +146.2 gap inside `9587eeeb`'s search,
+  consistent with BAS-M25's +99.8 in Basilisk's search.
+- Rule applied: below +50 and speed-flagged (decides nothing alone);
+  does not return C.3.4 to research.
+
+#### PREDICTION CALIBRATION
+
+- Missed the 80% band (+42.4 for +15, band −5 to +40; magnitude miss,
+  with the speed flag active).
+- What the model underestimated: the combined drag of the 12.9% bridge
+  NPS overhead (~10–15 Elo), 39 net bridge-clamped bare-king draws
+  (~4.5–5 Elo), the 1.247× score inflation through the bridge (mean
+  |score| 439 cp against 395 cp), and unported `endgame.cpp`, contempt
+  and grain (245 fifty-move draws against 18 in BAS-M25, led by BPvB,
+  RPvR, RNvR, BPvP and RBvR).
+
+
