@@ -568,6 +568,10 @@ Since C.2.8's refit the head is 120.0 behind head to head (BAS-M24), and
 its evaluation is 146.2 behind `9587eeeb`'s in one search (BAS-O14).
 
 How the phase is built for it:
+- **Whole, since 2026-11-25** (maintainer, after C.2.10). The evaluation
+  is rebuilt as one unit in the donor's form (C.3). That replaces the
+  family order below, and the union becomes its second step: a Basilisk
+  term returns beside the donor's only on its own read.
 - **By where the deficit is.** Two thirds of it is realised on the full
   board (C.0), so the full-board families go first, and the order is
   decided again from games before the first family opens (C.2.10).
@@ -2044,8 +2048,47 @@ has lost games in both engines (BAS-X02).
         screen's leading family reads −2.1 ± 12.5 in games.
       - Scored: 5 of 12 reads inside their 80% bands; all four ranked
         predictions missed.
-- [ ] **C.3** Pawns and passers cluster
-  The first family since 2026-11-25 (C.2.10's order, from games).
+- [ ] **C.3** Evaluation rebuilt whole in the donor's form
+  Decided 2026-11-25 (maintainer, after C.2.10): the evaluation is
+  rebuilt as one unit in classical Stockfish's form, as Phase B rebuilt
+  the search, and not family by family. C.4, C.5 and C.6 are built here
+  as parts of it; their entries keep their inputs until C.3.1's handoff
+  retires them.
+  Why:
+  - The donor's lead belongs to the whole. All seven families together
+    explain +162.8, the single meters sum to +39.6, and five of seven
+    read zero or below alone (BAS-O14).
+  - Results cannot steer family ports. With one K over all rows
+    Basilisk's score predicts results better than the donor's, by
+    49.8e-4 nats on corpus A and 23.0e-4 on gate games, and it plays
+    146.2 worse in one search
+    (`tools/results/c210-close/donor_distance.py`, not registered).
+  - The families are coupled through the tables. Basilisk's endgame
+    pawn table pays up to 270 on the seventh rank, so a passer port
+    beside it has its credit split again by the fit.
+  - A whole port has the strongest check there is: its value equal to
+    the reference's on a fixture of game positions, before any value
+    moves.
+  - A prior, from Rarog (its RAR-O13 and its E.4.0 packet, read at
+    `a8c116e` on the maintainer's request): `sf_16`'s evaluation in
+    Rarog's own search read +80.3 ± 10.8 at equal nodes and +68.8 ± 10.4
+    on the clock, `sf_11`'s +74.4 ± 10.6, and Rarog rebuilds whole.
+  Not played: the donor's evaluation in Basilisk's own search. The
+  port's first read, at converted seed values, gives that number
+  (C.3.4), so no separate instrument is built for it.
+  Open, and C.3.1's to settle with the maintainer:
+  - the reference: `9587eeeb`'s evaluation, never tuned beside a
+    network and the one BAS-O14 measured, or `sf_16`'s. They are level
+    in play (BAS-O09). `sf_16`'s lazy cut reads the search's root score,
+    it has no tempo, and it damps specialised endings;
+  - the fit: by games from converted seeds, or a static fit, given that
+    results from Basilisk's own games do not see the gap;
+  - what stays Basilisk's: its endgame layer and rule-50 curve, and
+    which of its own terms return beside the donor's, each on its own
+    read. Mobility, pawn structure and the piece terms read above the
+    donor's in BAS-O14;
+  - the disclosure the README and its notices then owe.
+  **Pawns and passers, the first family by C.2.10's order:**
   Passer king proximity, blocker ownership, path safety, unstoppable and
   rook-behind conditions; structure conditionality (doubled, isolated,
   backward, connected, levers); refit; gate. The dispositions of the archived
@@ -2089,38 +2132,45 @@ has lost games in both engines (BAS-X02).
     passer terms costs the donor 379.9 and Basilisk 103.1 (1e-4 nats),
     while the donor's term adds 5.4 to Basilisk's whole score, and 14.0
     at phase 0–9 (BAS-E62).
-  - Three readings stay open, and C.3.1 separates them before any term
-    is designed: the donor's form is worth more; Basilisk's passer
-    value sits in a table that cannot see a blocker or a king; or
-    Basilisk's own terms cost it in play.
-    - [ ] **C.3.1** `[R3]` Cluster research and handoff
-      Stages 1 to 3 of the cluster shape, from C.2.10's order and
-      inputs. It opens with the read the meter cannot give: each
-      evaluation with and without its own passer terms on the oracle
-      (masks 0 and 32 at one `Use Basilisk HCE`, both values; two reads
-      of 3,000 games, maintainer-run). That sizes the three readings
-      above. Structure is ported only on its own evidence; its meter
-      gives none. It ends in a frozen handoff, or a `NO_CHANGE`, for
-      each term.
-    - [ ] **C.3.2** `[I2]` Implementation behind the switch
-      Stage 4: the handoff's terms behind one umbrella switch, the off
-      arm at the accepted fingerprint at every commit, the donor fixture,
-      the trace slots, and the new shared inputs in C.1's producer.
+  - Three readings stay open: the donor's form is worth more;
+    Basilisk's passer value sits in a table that cannot see a blocker
+    or a king; or Basilisk's own terms cost it in play. The rebuild
+    takes the donor's form and its tables together, so it does not wait
+    on them.
+    - [ ] **C.3.1** `[R3]` Rebuild research and handoff
+      The packet for the whole rebuild:
+      - the reference evaluation and its scope: terms, tables,
+        imbalance, winnable, scale factors, the lazy cut and tempo;
+      - the scale conversion, and the known-win and mate tiers;
+      - the parity fixture;
+      - what Basilisk keeps;
+      - the fit's method and the gate's registration.
+      It proposes the PLAN edits that retire C.4 to C.6 and resize C.7,
+      for the maintainer's sign-off. It ends in a frozen handoff.
+    - [ ] **C.3.2** `[I2]` The port behind the switch, at parity
+      Stage 4: the whole evaluation behind one switch, in Basilisk's own
+      structure, equal to the reference on the fixture before any value
+      changes. The off arm stays at the accepted fingerprint at every
+      commit.
     - [ ] **C.3.3** `[R2]` Independent review
       A separate session rebuilds both arms, reproduces the fingerprints
       and the donor fixture, and checks the code against the handoff
       clause by clause. Its acceptance is recorded before the refit.
-    - [ ] **C.3.4** `[V]` Whole-surface refit
-      Stage 5: the directional screen, the anchored fit, the
-      fitted-constant analysis, the bake and the PGO builds; the lazy
-      margin block (C-98); the gate prepared and dry-run.
+    - [ ] **C.3.4** `[V]` Seed-value read and fit
+      The port at converted seed values against the head, with its speed
+      and tree reads: the donor's evaluation in Basilisk's own search.
+      Then the fit by C.3.1's method, the fitted-constant analysis, the
+      bake and the PGO builds; the lazy margin block (C-98); the gate
+      prepared and dry-run.
     - [ ] **C.3.5** `[V]` Gate, frontier pair and close
       Stages 6 to 8: the maintainer-run SPRT with its `10+0.1` and NPS
       reads (C-99), an equal-node companion if an equal-time gate fails
-      (C-95), then the frontier pair, the flip and the ledger rows. Under
-      +10 here, the meter did not rank what a port gains, and C.2.10's
-      order is read again before C.4 opens.
+      (C-95), then the frontier pair, the flip and the ledger rows. The
+      bracket and the falsifier are C.3.1's registration.
 - [ ] **C.4** `[I2]` King safety, phase and tempo cluster
+  Folded into C.3 on 2026-11-25 (maintainer): built there as part of the
+  whole rebuild. This entry keeps the family's inputs and is retired at
+  C.3.1's handoff.
   King safety cluster in the donor's shape: attacker units and weights, safe
   and unsafe checks by piece, weak ring squares, flank attack and defence,
   shelter and storm with the castling alternative, the queenless reduction and
@@ -2194,6 +2244,9 @@ has lost games in both engines (BAS-X02).
     passers and 80.9 ± 13.9 ahead of the piece terms. It is also the
     largest donor gain in the screen on corpus A (BAS-E62).
 - [ ] **C.5** `[I2]` Material, imbalance and pieces cluster
+  Folded into C.3 on 2026-11-25 (maintainer): built there as part of the
+  whole rebuild. This entry keeps the family's inputs and is retired at
+  C.3.1's handoff.
   Imbalance in the donor's quadratic form, bishop pair and bishop-pawn
   colour, outposts (including BAS-E07's absent `BadOutpost`), long diagonal,
   rook files, trapped rook, queen weakness and king-protector distance;
@@ -2248,6 +2301,9 @@ has lost games in both engines (BAS-X02).
     over all gate-game rows and 9.9 [5.7, 14.2] at phase 10–17
     (BAS-E62's control).
 - [ ] **C.6** `[I2]` Mobility, space and threats cluster
+  Folded into C.3 on 2026-11-25 (maintainer): built there as part of the
+  whole rebuild. This entry keeps the family's inputs and is retired at
+  C.3.1's handoff.
   The last family since 2026-11-25: C.2.10's games moved it from first
   (maintainer, 2026-11-18, on C.0's evidence).
   The donor's space, which Basilisk does
@@ -2695,14 +2751,14 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.3.1 | RESEARCH | R3 | Not started; pawns and passers since 2026-11-25 (C.2.10); it opens with the passers' self-ablation reads |
+| C.3.1 | RESEARCH | R3 | Not started; the whole rebuild's packet and handoff (maintainer, 2026-11-25) |
 | C.3.2 | RESEARCH | I2 | Not started |
 | C.3.3 | RESEARCH | R2 | Not started |
 | C.3.4 | RESEARCH | V | Not started |
 | C.3.5 | RESEARCH | V | Not started |
-| C.4 | RESEARCH | I2 | Not started |
-| C.5 | RESEARCH | I2 | Not started |
-| C.6 | RESEARCH | I2 | Not started; C.0's contract is its packet §8.2 |
+| C.4 | RESEARCH | I2 | Folded into C.3 on 2026-11-25; retired at C.3.1's handoff |
+| C.5 | RESEARCH | I2 | Folded into C.3 on 2026-11-25; retired at C.3.1's handoff |
+| C.6 | RESEARCH | I2 | Folded into C.3 on 2026-11-25; retired at C.3.1's handoff; C.0's contract is its packet §8.2 |
 | C.7.2 | RESEARCH | R3 | Not started |
 | C.7.3 | RESEARCH | I2 | Not started |
 | C.7.4 | RESEARCH | R3 | Not started |

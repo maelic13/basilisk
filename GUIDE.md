@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.3.1** `[R3]` Cluster research and handoff — Claude Fable
+**Next step:** **C.3.1** `[R3]` Rebuild research and handoff — Claude Fable
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -84,11 +84,11 @@ the six-stage gating shape), are in
         - [x] **C.2.8.4** `[V]` The registered gates
     - [x] **C.2.9** `[I1]` Family screen and matched-ablation tools
     - [x] **C.2.10** `[R3]` Family order from games and screens
-- [ ] **C.3** Pawns and passers cluster
-    - [ ] **C.3.1** `[R3]` Cluster research and handoff
-    - [ ] **C.3.2** `[I2]` Implementation behind the switch
+- [ ] **C.3** Evaluation rebuilt whole in the donor's form
+    - [ ] **C.3.1** `[R3]` Rebuild research and handoff
+    - [ ] **C.3.2** `[I2]` The port behind the switch, at parity
     - [ ] **C.3.3** `[R2]` Independent review
-    - [ ] **C.3.4** `[V]` Whole-surface refit
+    - [ ] **C.3.4** `[V]` Seed-value read and fit
     - [ ] **C.3.5** `[V]` Gate, frontier pair and close
 - [ ] **C.4** `[I2]` King safety, phase and tempo cluster
 - [ ] **C.5** `[I2]` Material, imbalance and pieces cluster
