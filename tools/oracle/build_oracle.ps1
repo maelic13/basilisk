@@ -62,7 +62,9 @@ try {
     Invoke-Checked 'src/ identity check' { git -C $work diff --quiet $srcCommit -- src }
     # Instrument patches: the local oracle-hybrid-ablate.patch adds the search
     # AblationMask (B.0), and tools/oracle/oracle-eval-ablate.patch the
-    # evaluation-family EvalAblationMask (C.2.9). They never touch src/, so
+    # evaluation-family EvalAblationMask (C.2.9), and
+    # tools/oracle/oracle-eval-transplant.patch, given after it, the
+    # transplant and matched-cost options (C.3.1). They never touch src/, so
     # the identity check binds again after each one.
     $extraPatchRecords = @()
     foreach ($extra in $ExtraPatch) {

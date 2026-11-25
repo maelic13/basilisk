@@ -1,0 +1,490 @@
+diff --git a/hybrid/stockfish/src/evaluate.cpp b/hybrid/stockfish/src/evaluate.cpp
+index 8ea9cae..58a544f 100644
+--- a/hybrid/stockfish/src/evaluate.cpp
++++ b/hybrid/stockfish/src/evaluate.cpp
+@@ -20,6 +20,8 @@
+ 
+ #include <algorithm>
+ #include <cassert>
++#include <cstdint>
++#include <cstdlib>
+ #include <cstring>   // For std::memset
+ #include <iomanip>
+ #include <sstream>
+@@ -170,7 +172,7 @@ namespace {
+ 
+   public:
+     Evaluation() = delete;
+-    explicit Evaluation(const Position& p) : pos(p) {}
++    explicit Evaluation(const Position& p, Eval::Families* f = nullptr) : pos(p), fam(f) {}
+     Evaluation& operator=(const Evaluation&) = delete;
+     Value value();
+ 
+@@ -184,6 +186,8 @@ namespace {
+     Value winnable(Score score) const;
+ 
+     const Position& pos;
++    Eval::Families* fam;            // the transplant's record, or null
++    mutable int appliedScale = SCALE_FACTOR_NORMAL; // winnable()'s sf
+     Material::Entry* me;
+     Pawns::Entry* pe;
+     Bitboard mobilityArea[COLOR_NB];
+@@ -803,6 +807,8 @@ namespace {
+             sf = std::min(sf, 36 + 7 * pos.count<PAWN>(strongSide));
+     }
+ 
++    appliedScale = sf;
++
+     // Interpolate between the middlegame and (scaled by 'sf') endgame score
+     v =  mg * int(me->game_phase())
+        + eg * int(PHASE_MIDGAME - me->game_phase()) * ScaleFactor(sf) / SCALE_FACTOR_NORMAL;
+@@ -833,7 +839,11 @@ namespace {
+     // If we have a specialized evaluation function for the current material
+     // configuration, call it and return.
+     if (me->specialized_eval_exists())
++    {
++        if (fam)
++            fam->specialised = true;
+         return me->evaluate(pos);
++    }
+ 
+     // Initialize score by reading the incrementally updated scores included in
+     // the position object (material + piece square tables) and the material
+@@ -847,6 +857,8 @@ namespace {
+     auto ablated = [](int bit) { return (Eval::ablationMask >> bit) & 1; };
+     if (!ablated(4))
+         score += pe->pawn_score(WHITE) - pe->pawn_score(BLACK);
++    if (fam)
++        fam->term[4] = pe->pawn_score(WHITE) - pe->pawn_score(BLACK);
+ 
+     // Early exit if score is high
+     auto lazy_skip = [&](Value lazyThreshold) {
+@@ -854,7 +866,11 @@ namespace {
+     };
+ 
+     if (lazy_skip(LazyThreshold1))
++    {
++        if (fam)
++            fam->lazyExit = 1;
+         goto make_v;
++    }
+ 
+     // Main evaluation begins here
+     initialize<WHITE>();
+@@ -863,10 +879,13 @@ namespace {
+     // Pieces evaluated first (also populates attackedBy, attackedBy2).
+     // Note that the order of evaluation of the terms is left unspecified.
+     {
+-    const Score pieceTerms =  pieces<WHITE, KNIGHT>() - pieces<BLACK, KNIGHT>()
+-                            + pieces<WHITE, BISHOP>() - pieces<BLACK, BISHOP>()
+-                            + pieces<WHITE, ROOK  >() - pieces<BLACK, ROOK  >()
+-                            + pieces<WHITE, QUEEN >() - pieces<BLACK, QUEEN >();
++    // One statement per piece type, in the stock expression's left-to-right
++    // order, so the transplant can see each type's term.
++    const Score knightTerms = pieces<WHITE, KNIGHT>() - pieces<BLACK, KNIGHT>();
++    const Score bishopTerms = pieces<WHITE, BISHOP>() - pieces<BLACK, BISHOP>();
++    const Score rookTerms   = pieces<WHITE, ROOK  >() - pieces<BLACK, ROOK  >();
++    const Score queenTerms  = pieces<WHITE, QUEEN >() - pieces<BLACK, QUEEN >();
++    const Score pieceTerms  = knightTerms + bishopTerms + rookTerms + queenTerms;
+     if (!ablated(6))
+         score += pieceTerms;
+ 
+@@ -880,10 +899,25 @@ namespace {
+         score += kingTerms;
+     if (!ablated(5))
+         score += passedTerms;
++    if (fam)
++    {
++        fam->term[6] = pieceTerms;
++        fam->pieceType[0] = knightTerms;
++        fam->pieceType[1] = bishopTerms;
++        fam->pieceType[2] = rookTerms;
++        fam->pieceType[3] = queenTerms;
++        fam->term[1] = mobility[WHITE] - mobility[BLACK];
++        fam->term[3] = kingTerms;
++        fam->term[5] = passedTerms;
++    }
+     }
+ 
+     if (lazy_skip(LazyThreshold2))
++    {
++        if (fam)
++            fam->lazyExit = 2;
+         goto make_v;
++    }
+ 
+     {
+     const Score threatTerms = threats<WHITE>() - threats<BLACK>();
+@@ -892,11 +926,21 @@ namespace {
+         score += threatTerms;
+     if (!ablated(0))
+         score += spaceTerms;
++    if (fam)
++    {
++        fam->term[2] = threatTerms;
++        fam->term[0] = spaceTerms;
++    }
+     }
+ 
+ make_v:
+     // Derive single value from mg and eg parts of score
+     Value v = winnable(score);
++    if (fam)
++    {
++        fam->phase = int(me->game_phase());
++        fam->scaleFactor = appliedScale;
++    }
+ 
+     // In case of tracing add all remaining individual evaluation terms
+     if (T)
+@@ -927,9 +971,122 @@ make_v:
+ 
+ int Eval::ablationMask = 0;
+ 
++namespace {
++
++  // A value computed only for its cost must still be computed: link-time
++  // optimisation could otherwise drop the part of an evaluation whose result
++  // is discarded.
++  inline void keep(Value v) { asm volatile("" : : "r"(int(v)) : "memory"); }
++
++  // T(S) = bridge(Basilisk without its families S) + X(S). Basilisk's side
++  // already carries the mask S (HybridEval::set_transplant_mask), and the
++  // donor's EvalAblationMask is 0, so the donor's evaluation is full.
++  Value transplant_value(const Position& pos, int mask) {
++    Eval::Families fam;
++    keep(Evaluation<NO_TRACE>(pos, &fam).value());
++    const Value b = HybridEval::evaluate(pos);
++    const Value x = Eval::transplant_contribution(pos, fam, mask,
++                                                  HybridEval::transplant_mg_scale(),
++                                                  HybridEval::transplant_eg_scale());
++    const Value t = b + x;
++    // Never reached by the measured scales; a static value in the mate range
++    // would corrupt the search's mate arithmetic, so it stops the run.
++    if (abs(t) >= VALUE_TB_WIN_IN_MAX_PLY)
++        std::abort();
++    return t;
++  }
++
++} // namespace
++
++Value Eval::evaluate_families(const Position& pos, Families& out) {
++  out = Families{};
++  return Evaluation<NO_TRACE>(pos, &out).value();
++}
++
++Value Eval::transplant_contribution(const Position& pos, const Families& fam,
++                                    int mask, int mgScale, int egScale) {
++  Score t = SCORE_ZERO;
++  for (int bit = 0; bit < 7; ++bit)
++      if ((mask >> bit) & 1)
++          t += fam.term[bit];
++
++  // X = (s_mg mg(t) ph + s_eg eg(t) (128 - ph) sf / 64) / 128 with the scales
++  // in 1/1024, in one exact integer expression and one division that
++  // truncates toward zero, as the donor's own divisions do.
++  const int64_t ph = fam.phase;
++  const int64_t mg = int(mg_value(t)), eg = int(eg_value(t));
++  const int64_t num =  int64_t(mgScale) * mg * ph * SCALE_FACTOR_NORMAL
++                     + int64_t(egScale) * eg * (PHASE_MIDGAME - ph) * fam.scaleFactor;
++  int64_t x = num / (int64_t(1024) * SCALE_FACTOR_NORMAL * PHASE_MIDGAME);
++
++  // The donor's side to move's point of view, then its rule-50 damping.
++  x = pos.side_to_move() == WHITE ? x : -x;
++  x = x * (100 - pos.rule50_count()) / 100;
++  return Value(int(x));
++}
++
++std::string Eval::transplant_trace(const Position& pos) {
++
++  if (pos.checkers())
++      return "transplant none (in check)";
++  const std::string refused = HybridEval::configuration_error();
++  if (!refused.empty())
++      return "transplant refused: " + refused;
++
++  // The donor's trace evaluates with no contempt; so does this line, so that
++  // the lazy exits it reports are the trace's.
++  const Score contempt = pos.this_thread()->contempt;
++  pos.this_thread()->contempt = SCORE_ZERO;
++  Families fam;
++  const Value donor = evaluate_families(pos, fam);
++  pos.this_thread()->contempt = contempt;
++
++  const int mask = HybridEval::transplant_mask();
++  const int mgScale = HybridEval::transplant_mg_scale();
++  const int egScale = HybridEval::transplant_eg_scale();
++  Score t = SCORE_ZERO;
++  for (int bit = 0; bit < 7; ++bit)
++      if ((mask >> bit) & 1)
++          t += fam.term[bit];
++  // Under a transplant mask the bridge evaluates Basilisk without S; at mask
++  // 0 it is the matched ablation's Basilisk, and T is B.
++  const Value b = HybridEval::evaluate(pos);
++  const Value x = transplant_contribution(pos, fam, mask, mgScale, egScale);
++
++  static const char* const Names[7] = {
++      "space", "mobility", "threats", "king", "pawns", "passed", "pieces" };
++  static const char* const PieceNames[4] = { "knights", "bishops", "rooks", "queens" };
++
++  std::stringstream ss;
++  ss << "transplant mask " << mask << " mgscale " << mgScale << " egscale " << egScale
++     << " B " << int(b) << " mg " << int(mg_value(t)) << " eg " << int(eg_value(t))
++     << " ph " << fam.phase << " sf " << fam.scaleFactor << " X " << int(x)
++     << " T " << int(b + x) << " donor " << int(donor)
++     << " lazy " << fam.lazyExit << " specialised " << int(fam.specialised);
++  for (int bit = 0; bit < 7; ++bit)
++      ss << " " << Names[bit] << " " << int(mg_value(fam.term[bit]))
++         << " " << int(eg_value(fam.term[bit]));
++  for (int i = 0; i < 4; ++i)
++      ss << " " << PieceNames[i] << " " << int(mg_value(fam.pieceType[i]))
++         << " " << int(eg_value(fam.pieceType[i]));
++  return ss.str();
++}
++
+ Value Eval::evaluate(const Position& pos) {
+-  return HybridEval::enabled() ? HybridEval::evaluate(pos)
+-                               : Evaluation<NO_TRACE>(pos).value();
++  if (const int mask = HybridEval::transplant_mask())
++      return transplant_value(pos, mask);
++
++  if (!HybridEval::matched_cost())
++      return HybridEval::enabled() ? HybridEval::evaluate(pos)
++                                   : Evaluation<NO_TRACE>(pos).value();
++
++  // Matched cost: both evaluations run whichever value is returned, so no
++  // arm is faster for evaluating less.
++  const Value donor    = Evaluation<NO_TRACE>(pos).value();
++  const Value basilisk = HybridEval::evaluate(pos);
++  keep(donor);
++  keep(basilisk);
++  return HybridEval::enabled() ? basilisk : donor;
+ }
+ 
+ 
+diff --git a/hybrid/stockfish/src/evaluate.h b/hybrid/stockfish/src/evaluate.h
+index d9c8889..6d565ce 100644
+--- a/hybrid/stockfish/src/evaluate.h
++++ b/hybrid/stockfish/src/evaluate.h
+@@ -36,6 +36,31 @@ namespace Eval {
+ // scaling are never masked. 0 is stock.
+ extern int ablationMask;
+ 
++// One full, unmasked evaluation's family scores, White minus Black, in the
++// ablation mask's bit order. A family the evaluation never computed for the
++// position (a specialised endgame, a lazy exit before it) stays zero.
++struct Families {
++  Score term[7]      = {};
++  Score pieceType[4] = {};  // knights, bishops, rooks, queens; term[6] is their sum
++  int   phase        = 0;   // the material entry's game phase, 0..PHASE_MIDGAME
++  int   scaleFactor  = SCALE_FACTOR_NORMAL; // the factor winnable() applied
++  int   lazyExit     = 0;   // 0, or the lazy threshold (1 or 2) that ended it
++  bool  specialised  = false;
++};
++
++// The donor's evaluation with its families recorded; returns its value.
++Value evaluate_families(const Position& pos, Families& out);
++
++// The transplant's donor contribution X(S) from the families in `mask`,
++// interpolated by the evaluation's own phase and scale factor with the two
++// scales (in 1/1024), damped by the donor's rule-50 rule, side to move's view.
++Value transplant_contribution(const Position& pos, const Families& fam,
++                              int mask, int mgScale, int egScale);
++
++// One line with B, mg(t), eg(t), ph, sf, X, T and every family, in internal
++// units, under the configured transplant (the check of the instrument).
++std::string transplant_trace(const Position& pos);
++
+ std::string trace(const Position& pos);
+ 
+ Value evaluate(const Position& pos);
+diff --git a/hybrid/stockfish/src/hybrid_eval.cpp b/hybrid/stockfish/src/hybrid_eval.cpp
+index d55c76e..89b7919 100644
+--- a/hybrid/stockfish/src/hybrid_eval.cpp
++++ b/hybrid/stockfish/src/hybrid_eval.cpp
+@@ -27,6 +27,22 @@ namespace HybridEval {
+ namespace {
+ 
+ bool useBasiliskHce = true;
++int  ablationMask   = 0;
++int  transplantMask = 0;
++int  mgScale        = DefaultTransplantMgScale;
++int  egScale        = DefaultTransplantEgScale;
++bool matchedCost    = false;
++
++// Basilisk's side has one family mask. Under a transplant it removes the
++// transplanted families from Basilisk's evaluation; otherwise it is the
++// matched ablation's mask. Recomputed from both on every change, so the order
++// in which the options arrive does not matter.
++void sync_basilisk_mask() {
++  const int mask = transplantMask ? transplantMask : ablationMask;
++  // A mask Basilisk's side silently ignored would measure nothing.
++  if (!BasiliskBridge::set_eval_ablation_mask(static_cast<std::uint32_t>(mask)))
++      std::abort();
++}
+ 
+ } // namespace
+ 
+@@ -44,9 +60,37 @@ void set_enabled(bool value) {
+ 
+ void set_ablation_mask(int mask) {
+   Eval::ablationMask = mask;
+-  // A mask Basilisk's side silently ignored would measure nothing.
+-  if (!BasiliskBridge::set_eval_ablation_mask(static_cast<std::uint32_t>(mask)))
+-      std::abort();
++  ablationMask = mask;
++  sync_basilisk_mask();
++}
++
++void set_transplant_mask(int mask) {
++  transplantMask = mask;
++  sync_basilisk_mask();
++}
++
++void set_transplant_scales(int mg, int eg) {
++  mgScale = mg;
++  egScale = eg;
++}
++
++void set_matched_cost(bool value) {
++  matchedCost = value;
++}
++
++int  transplant_mask()     { return transplantMask; }
++int  transplant_mg_scale() { return mgScale; }
++int  transplant_eg_scale() { return egScale; }
++bool matched_cost()        { return matchedCost; }
++
++std::string configuration_error() {
++  if (transplantMask && !useBasiliskHce)
++      return "EvalTransplantMask " + std::to_string(transplantMask)
++           + " needs Use Basilisk HCE=true";
++  if (transplantMask && ablationMask)
++      return "EvalTransplantMask " + std::to_string(transplantMask)
++           + " needs EvalAblationMask=0, not " + std::to_string(ablationMask);
++  return {};
+ }
+ 
+ Value evaluate(const Position& pos) {
+diff --git a/hybrid/stockfish/src/hybrid_eval.h b/hybrid/stockfish/src/hybrid_eval.h
+index fddffb0..56d1ee8 100644
+--- a/hybrid/stockfish/src/hybrid_eval.h
++++ b/hybrid/stockfish/src/hybrid_eval.h
+@@ -21,6 +21,24 @@ bool enabled();
+ void set_enabled(bool value);
+ // Both evaluations' matched family mask; aborts if Basilisk's cannot take it.
+ void set_ablation_mask(int mask);
++
++// The transplant read: T(S) = bridge(Basilisk without its families S) + X(S),
++// X from one full donor evaluation (Eval::transplant_contribution). The
++// scales are in 1/1024. A mask other than 0 needs Use Basilisk HCE=true and
++// EvalAblationMask=0; configuration_error() names any other combination.
++constexpr int DefaultTransplantMgScale = 697;
++constexpr int DefaultTransplantEgScale = 2022;
++void set_transplant_mask(int mask);
++void set_transplant_scales(int mgScale, int egScale);
++// Matched cost: every evaluation call computes both evaluations.
++void set_matched_cost(bool value);
++int  transplant_mask();
++int  transplant_mg_scale();
++int  transplant_eg_scale();
++bool matched_cost();
++// Empty when the options form a valid combination, else why not.
++std::string configuration_error();
++
+ Value evaluate(const Position& pos);
+ 
+ } // namespace HybridEval
+diff --git a/hybrid/stockfish/src/uci.cpp b/hybrid/stockfish/src/uci.cpp
+index bb57c80..d9260d4 100644
+--- a/hybrid/stockfish/src/uci.cpp
++++ b/hybrid/stockfish/src/uci.cpp
+@@ -20,11 +20,13 @@
+ 
+ #include <cassert>
+ #include <cmath>
++#include <cstdlib>
+ #include <iostream>
+ #include <sstream>
+ #include <string>
+ 
+ #include "evaluate.h"
++#include "hybrid_eval.h"
+ #include "movegen.h"
+ #include "position.h"
+ #include "search.h"
+@@ -107,8 +109,21 @@ namespace {
+   // the thinking time and other parameters from the input string, then starts
+   // the search.
+ 
++  // A combination of the evaluation options that the oracle does not define
++  // is refused, never ignored: the engine names it and exits.
++  void refuse_invalid_configuration() {
++    const string refused = HybridEval::configuration_error();
++    if (!refused.empty())
++    {
++        sync_cout << "info string ERROR refused: " << refused << sync_endl;
++        std::exit(EXIT_FAILURE);
++    }
++  }
++
+   void go(Position& pos, istringstream& is, StateListPtr& states) {
+ 
++    refuse_invalid_configuration();
++
+     Search::LimitsType limits;
+     string token;
+     bool ponderMode = false;
+@@ -254,7 +269,11 @@ void UCI::loop(int argc, char* argv[]) {
+       else if (token == "go")         go(pos, is, states);
+       else if (token == "position")   position(pos, is, states);
+       else if (token == "ucinewgame") Search::clear();
+-      else if (token == "isready")    sync_cout << "readyok" << sync_endl;
++      else if (token == "isready")
++      {
++          refuse_invalid_configuration();
++          sync_cout << "readyok" << sync_endl;
++      }
+ 
+       // Additional custom non-UCI commands, mainly for debugging.
+       // Do not use these commands during a search!
+@@ -262,6 +281,7 @@ void UCI::loop(int argc, char* argv[]) {
+       else if (token == "bench")    bench(pos, is, states);
+       else if (token == "d")        sync_cout << pos << sync_endl;
+       else if (token == "eval")     sync_cout << Eval::trace(pos) << sync_endl;
++      else if (token == "transplant") sync_cout << Eval::transplant_trace(pos) << sync_endl;
+       else if (token == "compiler") sync_cout << compiler_info() << sync_endl;
+       else
+           sync_cout << "Unknown command: " << cmd << sync_endl;
+diff --git a/hybrid/stockfish/src/ucioption.cpp b/hybrid/stockfish/src/ucioption.cpp
+index 5898003..6b0f771 100644
+--- a/hybrid/stockfish/src/ucioption.cpp
++++ b/hybrid/stockfish/src/ucioption.cpp
+@@ -45,6 +45,12 @@ void on_threads(const Option& o) { Threads.set(size_t(o)); }
+ void on_tb_path(const Option& o) { Tablebases::init(o); }
+ void on_hybrid_eval(const Option& o) { HybridEval::set_enabled(double(o) != 0); }
+ void on_eval_ablation(const Option& o) { HybridEval::set_ablation_mask(int(o)); }
++void on_transplant(const Option& o) { HybridEval::set_transplant_mask(int(o)); }
++void on_transplant_scale(const Option&) {
++  HybridEval::set_transplant_scales(int(Options["EvalTransplantMgScale"]),
++                                    int(Options["EvalTransplantEgScale"]));
++}
++void on_matched_cost(const Option& o) { HybridEval::set_matched_cost(double(o) != 0); }
+ 
+ 
+ /// Our case insensitive less() function as required by UCI protocol
+@@ -84,6 +90,14 @@ void init(OptionsMap& o) {
+   // The matched evaluation ablation, one bit per family in both evaluations
+   // (evaluate.h); 0 is stock. Set it before the first search.
+   o["EvalAblationMask"]      << Option(0, 0, 127, on_eval_ablation);
++  // The transplant read: Basilisk's evaluation without the families of the
++  // mask plus the donor's, at the two scales (1/1024); 0 is off. Needs
++  // Use Basilisk HCE=true and EvalAblationMask=0; go refuses otherwise.
++  o["EvalTransplantMask"]    << Option(0, 0, 127, on_transplant);
++  o["EvalTransplantMgScale"] << Option(HybridEval::DefaultTransplantMgScale, 0, 4096, on_transplant_scale);
++  o["EvalTransplantEgScale"] << Option(HybridEval::DefaultTransplantEgScale, 0, 4096, on_transplant_scale);
++  // Matched cost: every evaluation computes both evaluations.
++  o["EvalMatchedCost"]       << Option(false, on_matched_cost);
+   o["SyzygyPath"]            << Option("<empty>", on_tb_path);
+   o["SyzygyProbeDepth"]      << Option(1, 1, 100);
+   o["Syzygy50MoveRule"]      << Option(true);
