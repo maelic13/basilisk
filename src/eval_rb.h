@@ -239,9 +239,10 @@ int Evaluation<Rec>::value(bool& verdict) {
     }
 
     // ---- The side to move, the tempo and the bounds ------------------------------------
-    // An override is the layer's own value: no tempo, no clamp.
+    // An override is the layer's own value, and a draw verdict is a 0: no
+    // tempo, no clamp.
     const int stm = b.turn() == WHITE ? white : -white;
-    if (kind == LAYER_OVERRIDE)
+    if (kind == LAYER_OVERRIDE || verdict)
         return stm;
     const int served = stm + p.tempo * CONVERSION_S / 1024;
     if (std::abs(served) >= KNOWN_WIN) {

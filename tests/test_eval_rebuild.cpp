@@ -249,7 +249,7 @@ void test_colour_symmetry(const std::vector<Row>& rows, Evaluator& ev) {
         EvalRebuildRecord a, m;
         const int va = ev.rebuild_record(board_of(row.fen), a);
         const int vm = ev.rebuild_record(board_of(mirrored), m);
-        bool same = va == vm;
+        bool same = va == vm && a.verdict == m.verdict;
         for (const Field& f : compared())
             same &= mirrors(f, a, m);
         if (!same && ++differ <= 3) {
@@ -315,6 +315,19 @@ int coverage(const std::vector<Row>& rows, Evaluator& ev) {
     return 0;
 }
 
+// A draw verdict is a 0: the search asks about a verdict only for a served 0
+// (corrected_eval), so a verdict row must serve exactly that.
+void test_verdict_is_zero(Evaluator& ev) {
+    begin_section("a level pawnless draw serves 0 with its verdict");
+    for (const char* fen : {"8/8/3k4/8/2b5/8/4B3/4K3 w - - 0 1", "8/8/3k4/8/2b5/8/4B3/4K3 b - - 0 1",
+                            "8/8/3k4/8/2n5/8/4N3/4K3 w - - 0 1", "8/8/3k4/8/2n5/8/4N3/4K3 b - - 0 1"}) {
+        const Board b = board_of(fen);
+        EXPECT_EQ(ev.evaluate_undamped(b), 0);
+        EXPECT(ev.draw_verdict(b));
+    }
+    end_section();
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -333,6 +346,7 @@ int main(int argc, char** argv) {
     std::printf("\nThe reference fixture: %zu rows\n", rows.size());
     test_parity(rows, *ev);
     test_colour_symmetry(rows, *ev);
+    test_verdict_is_zero(*ev);
 
     return harness_summary();
 }

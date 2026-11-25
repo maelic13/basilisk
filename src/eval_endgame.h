@@ -697,10 +697,11 @@ enum EndgameLayerKind : int { LAYER_SILENT, LAYER_SCALED, LAYER_OVERRIDE };
 // mate): a classification, which the search adds no correction to. `kind`
 // says what the layer did. OcbStep runs the opposite-coloured-bishop scale;
 // the rebuilt evaluation leaves it to the classical form's general factors.
-// The rebuilt evaluation also skips the scaling steps on a score of exactly
-// 0 (ScaleZero false): their strong side is Black at a tie whatever the
-// colours, and a scaled 0 there would send a position and its mirror down
-// different paths. The overrides do not read the score.
+// On a score of exactly 0 the pawnless step names Black as its strong side
+// whatever the colours. The rebuilt evaluation (ScaleZero false) then runs it
+// only where its scale is the same with either colour as the strong side, so
+// a position and its mirror take the same path; the other steps do not read
+// the score's sign.
 template<bool OcbStep, bool ScaleZero = true>
 static int endgame_layer(const Board& b, int score, bool& draw_verdict, int& kind) {
     auto lone_king = [&](Color c) {
@@ -851,7 +852,7 @@ static int endgame_layer(const Board& b, int score, bool& draw_verdict, int& kin
         // other often can (its pawn runs): the tables call 2.6% to 7.9% of such
         // positions wins for it, and a verdict would take the search's
         // correction away from them. The score stays 0, an estimate.
-        if (ScaleZero || score != 0) {
+        if (ScaleZero || score != 0 || pawnless_scale(b, WHITE) == pawnless_scale(b, BLACK)) {
             const Color strong = (score > 0) ? WHITE : BLACK;
             const int scale = pawnless_scale(b, strong);
             if (scale != SCALE_NORMAL) {
@@ -870,7 +871,7 @@ static int endgame_layer(const Board& b, int score, bool& draw_verdict, int& kin
     // lives out here. The gate is a few bitboard ORs rather than a popcount
     // census: this runs on every node, and BAS-E34 measured what a census on
     // the middlegame path costs (+20.5% bench nodes).
-    if (!scaled && (ScaleZero || score != 0)) {
+    if (!scaled) {
         const Bitboard minors_queens =
               b.piece_bb(WHITE, KNIGHT) | b.piece_bb(WHITE, BISHOP) | b.piece_bb(WHITE, QUEEN)
             | b.piece_bb(BLACK, KNIGHT) | b.piece_bb(BLACK, BISHOP) | b.piece_bb(BLACK, QUEEN);
