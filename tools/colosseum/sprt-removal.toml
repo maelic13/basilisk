@@ -1,4 +1,4 @@
-# Removal or simplification: [-5,0] normalized Elo (AGENTS.md).
+# Removal or simplification: [-5,0] normalized Elo (agents/measurement.md, Gating).
 extend = "sprt-default.toml"
 
 [options]

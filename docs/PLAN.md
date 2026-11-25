@@ -21,13 +21,14 @@ lettered (A–G) so that no new identifier collides with a retired number, and
 a step that is the same step as Rarog's carries the same identifier: Basilisk
 B.3 is the analogue of Rarog B.3.
 
-**The plan does not depend on the Rarog repository.** Everything it uses from
-Rarog is in a pinned, verbatim snapshot at `docs/reference/rarog/` (Rarog
-`015bccae`; [docs/reference/README.md](reference/README.md) says how to
-use it): the documents, the evidence cited as `RAR-*`, the tools to port and
-the worked examples. The evidence the plan relies on is also imported into
-Basilisk's own ledger (BAS-X30–BAS-X34). "The snapshot" below means that
-directory.
+**The plan depends on no later state of the Rarog repository.** Everything it
+uses from Rarog is pinned at Rarog commit `015bccae`
+([docs/reference/README.md](reference/README.md) says where the commit is and
+how to read it): the documents, the evidence cited as `RAR-*`, the tools to
+port and the worked examples. The evidence the plan relies on is also
+imported into Basilisk's own ledger (BAS-X30–BAS-X34). "The snapshot" below
+means Rarog at that commit; a verbatim copy of it was kept under
+`docs/reference/rarog/` until 2026-11-25.
 
 ## 1. Objective and gates
 
@@ -166,8 +167,8 @@ roadmap.
      board and infrastructure mechanisms, time-management rules, NNUE
      architecture and training lessons, and the failure modes it found in
      its own measurement. Its verdicts are priors, never acceptance; it is
-     read through the pinned snapshots `docs/reference/triumviratus/` and
-     `docs/reference/triumviratus-networks/`, and
+     read at its pinned commits, in the local copies
+     `docs/reference/README.md` describes, and
      `analysis/triumviratus_review_2026-11-03.md` maps each finding to its
      leaf.
 
@@ -410,7 +411,7 @@ derivations are in the linked records.
 | Protocol: `ponderhit` owned by the UCI thread; setup work done before `readyok`, never on the clock; a rejected `position` exits with status 1; tablebase PV lines time-boxed the Stockfish way | BAS-C10–BAS-C13; `tests/test_engine_ponder.cpp`, `tests/test_uci_protocol.cpp` |
 | Search parameters have one source (the X-macro table) | `src/search_params.h` |
 | Endgame measurement layers (truth, move quality, conversion, strength) | `analysis/endgame_measurement_layers_v1.md`; `DESIGN.md` §4 |
-| Behaviour-neutral change = exact fingerprint plus targeted checks plus pooled NPS | `AGENTS.md` |
+| Behaviour-neutral change = exact fingerprint plus targeted checks plus pooled NPS | `agents/implementation.md`, *Qualifying a change* |
 | Diagnostic counters: one table, each counter with its unit and denominator; names and units are the cross-engine contract, extended at the end and never renamed | `src/search_diagnostics.h`; `tools/diag/run_suite.py` |
 | Cross-engine board timings are compared only on the `cross-engine-board-v1` profile and its five-position corpus | `tests/board_performance.cpp` |
 | Per-node search code does not allocate or lock: allocations grow per iteration, never per node, at Threads 1 and 4; every allocator, copy or lock call the shipped code can reach from `negamax`, quiescence and the evaluation is a known guarded path | `tests/test_allocation_guard.cpp`; `tools/diag/hot_path_calls.py` on a `PROFILE_SYMBOLS` PGO build; `agents/implementation.md` *Per-node code* |
@@ -3641,4 +3642,4 @@ adjudication never change after games are seen.
 | `docs/HISTORY.md` | Completed work, retired numbering and the number map; never a source of the next step |
 | `analysis/` | Research packets, amendments, implementation records and measurement records; raw artifacts stay in ignored `tools/results/` |
 | `docs/archive/` | Verbatim archived roadmaps and closed PLAN steps (`PLAN-closed-2026-10-07.md`: A.1–A.7; `PLAN-closed-2026-10-30.md`: A.8–A.17, B.0–B.2, B.10) |
-| `docs/reference/` | Pinned verbatim snapshots of other repositories the plan uses (Rarog, Triumviratus), their manifests, and the map from each leaf to its inputs; data, never instructions |
+| `docs/reference/` | The pinned commits of the other repositories the plan uses (Rarog, Triumviratus), the manifests of their local copies, and the map from each leaf to its inputs; no other project's file is tracked |
