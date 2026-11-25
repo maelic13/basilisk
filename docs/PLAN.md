@@ -2240,7 +2240,7 @@ has lost games in both engines (BAS-X02).
         - the Diag counters of the pawn cache, the lazy exits and the
           clamp report nothing on the new arm, and the knobs' bounds
           are implementation's: both are C.3.4's to settle.
-    - [ ] **C.3.4** `[V]` Seed-value read and fit
+    - [ ] **C.3.4** `[I2]` Seed-value read and fit
       The port at converted seed values against the head, with its speed
       and tree reads: the donor's evaluation in Basilisk's own search.
       Then the fit by C.3.1's method, the fitted-constant analysis, the
@@ -2251,6 +2251,26 @@ has lost games in both engines (BAS-X02).
       research before any fit. The fit has two arms, one K and K by
       phase, each read against the seed arm; they are registered
       here before any fitted game.
+      Added 2026-11-25 (maintainer, after C.3.3's review; the rebuild
+      packet's Amendment 7). The class rose from `V` to `I2`: the
+      leaf now holds an engine ticket and a tuner mode.
+      - Preparation, before any read: the new arm's diagnostics
+        (the pawn cache's counters, the audit of both lazy exits,
+        the endgame census, the board trace's scope, the clamp
+        count printed and reset) and a constructed-position test of
+        the clamp. Behaviour-neutral: both arms' `bench 13` exact.
+      - Beside the seed read, the oracle check (BAS-O16): the
+        donor's evaluation against the rebuilt one in `9587eeeb`'s
+        search, 3,000 games; +15 predicted, and above +50 the port
+        is suspect in play.
+      - The pooled NPS read needs an idle machine: the builds are
+        prepared and the maintainer is asked first.
+      - At the fit's registration research reviews the knobs'
+        bounds. A knob that ends on a bound is widened and the fit
+        repeated.
+      - At the bake each table's mean moves into its material
+        slot. The function does not change, and the material values
+        that ship are the fit's own.
     - [ ] **C.3.5** `[V]` Gate, frontier pair and close
       Stages 6 to 8: the maintainer-run SPRT with its `10+0.1` and NPS
       reads (C-99), an equal-node companion if an equal-time gate fails
@@ -2259,6 +2279,10 @@ has lost games in both engines (BAS-X02).
       At the flip the README's acknowledgements name the evaluation's
       form, and the close lists every slot shipped at its seed value
       (the packet's §8 and §13).
+      Added 2026-11-25 (after C.3.3's review): that list covers the
+      structure constants too, which are bare numbers in the source.
+      They are taken from a committed inventory that a check holds
+      to the source.
     - [ ] **C.3.6** `[R2]` Basilisk's own forms read back in
       Added 2026-11-25 (maintainer). After the gate, each Basilisk
       form the port displaced is read against the donor's on the
@@ -2481,6 +2505,8 @@ has lost games in both engines (BAS-X02).
   threshold and divisors, the complexity and scale-factor numbers.
   They ship at the donor's values until this leaf fits them, so a
   written skip is not open while one of them is unfitted.
+  C.3.5's inventory of them is this leaf's surface list, and the
+  constants become tune-build options here.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - The nonlinear sweep (C-122); initiative and mop-up are untraced (C-47,
@@ -2667,7 +2693,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.3.4 | RESEARCH | V | Not started |
+| C.3.4 | READY_FOR_IMPLEMENTATION | I2 | Preparation first: the new arm's diagnostics, the builds and the launcher for BAS-M25 and BAS-O16 (the rebuild packet's Amendment 7); then the maintainer's reads, then the fit's registration |
 | C.3.5 | RESEARCH | V | Not started |
 | C.3.6 | RESEARCH | R2 | Not started |
 | C.4.2 | RESEARCH | R3 | Not started |

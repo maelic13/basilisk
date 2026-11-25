@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.3.4** `[V]` Seed-value read and fit — Claude Sonnet
+**Next step:** **C.3.4** `[I2]` Seed-value read and fit — Claude Opus
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -88,7 +88,7 @@ the six-stage gating shape), are in
     - [x] **C.3.1** `[R3]` Rebuild research and handoff
     - [x] **C.3.2** `[I2]` The port behind the switch, at parity
     - [x] **C.3.3** `[R2]` Independent review
-    - [ ] **C.3.4** `[V]` Seed-value read and fit
+    - [ ] **C.3.4** `[I2]` Seed-value read and fit
     - [ ] **C.3.5** `[V]` Gate, frontier pair and close
     - [ ] **C.3.6** `[R2]` Basilisk's own forms read back in
 - [ ] **C.4** Endgame handling and winnability
