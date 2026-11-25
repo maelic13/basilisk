@@ -72,6 +72,18 @@ struct TuneSet {
     void end_row() { offset.push_back(index.size()); }
 };
 
+struct KSchedule {
+    double k_eg = 0.0;
+    double k_mg = 0.0;
+
+    bool active() const { return k_eg > 0.0 && k_mg > 0.0; }
+    bool is_phase() const { return k_eg != k_mg; }
+    double at(int phase) const {
+        return k_eg + (k_mg - k_eg) * (static_cast<double>(phase) / 24.0);
+    }
+    static KSchedule constant(double k) { return {k, k}; }
+};
+
 struct TuneOptions {
     std::string group;
     std::string train_path;
@@ -83,6 +95,7 @@ struct TuneOptions {
     double l2 = 0.0;      // L2-to-prior (toward base/default weights); 0 = off
     double smooth = 0.0;  // second-difference penalty on the ordered tables; 0 = off
     double K = 0.0;       // the frozen K; 0 = fit it on the holdout, as before
+    KSchedule K_phase;    // linear-in-phase K(phase) = K_eg + (K_mg - K_eg) * phase / 24
     int patience = 20;    // stop when the holdout has not improved for this many epochs; 0 = off
     double min_delta = 0.0;  // a gain counts for patience only above this; 0 = any gain
 };
@@ -277,12 +290,28 @@ static double parse_nonneg_double_arg(const char* value, const char* name) {
     return parsed;
 }
 
+static KSchedule parse_k_phase_arg(const char* value, const char* name) {
+    std::string text = value ? value : "";
+    const size_t comma = text.find(',');
+    if (comma == std::string::npos || text.find(',', comma + 1) != std::string::npos) {
+        std::cerr << "Bad value for " << name << ": " << text << " (expected K_eg,K_mg)\n";
+        std::exit(1);
+    }
+    const std::string eg_s = text.substr(0, comma);
+    const std::string mg_s = text.substr(comma + 1);
+    if (eg_s.empty() || mg_s.empty()) {
+        std::cerr << "Bad value for " << name << ": " << text << " (expected K_eg,K_mg)\n";
+        std::exit(1);
+    }
+    return {parse_double_arg(eg_s.c_str(), name), parse_double_arg(mg_s.c_str(), name)};
+}
+
 static void usage(const char* exe) {
     std::cerr
         << "Usage:\n"
         << "  " << exe << " --verify <dataset.csv> [--max-positions N]\n"
         << "  " << exe << " --played-hash <dataset.csv>\n"
-        << "  " << exe << " --loss <dataset.csv> [--K K] [--skip N] [--max-positions N]\n"
+        << "  " << exe << " --loss <dataset.csv> [--K K | --K-phase K_eg,K_mg | --fit-k-phase] [--skip N] [--max-positions N]\n"
         << "  " << exe << " --dump-played <dataset.csv> <out.txt>\n"
         << "  " << exe << " --list-params\n"
         << "  " << exe << " --dump-coeffs <dataset.csv> <out.f64> [--max-positions N]\n"
@@ -294,7 +323,7 @@ static void usage(const char* exe) {
         << "  " << exe << " --feature-support <dataset.csv> [--max-positions N]\n"
         << "  " << exe << " --dump-eval <dataset.csv> [limit]\n"
         << "  " << exe << " --audit-coverage\n"
-        << "  " << exe << " --tune-kingsafety <train.csv> <holdout.csv> [out.txt] [--epochs N] [--max-positions N] [--step S] [--K K]\n"
+        << "  " << exe << " --tune-kingsafety <train.csv> <holdout.csv> [out.txt] [--epochs N] [--max-positions N] [--step S] [--K K | --K-phase K_eg,K_mg]\n"
         << "  " << exe << " --tune <group> <train.csv> <holdout.csv> [out/eval_params.txt] [options]\n"
         << "\n"
         << "Groups:\n"
@@ -314,15 +343,16 @@ static void usage(const char* exe) {
         << "  all         all meaningful eval params\n"
         << "\n"
         << "Options:\n"
-        << "  --epochs N         optimizer epochs (default 200)\n"
-        << "  --lr X             Adam learning rate (default 0.3)\n"
-        << "  --l2 X             L2-to-prior strength (pull toward default weights; default 0 = off)\n"
-        << "  --smooth X         second-difference penalty on the ordered tables (default 0 = off)\n"
-        << "  --K K              the frozen K (also --tune-kingsafety); default: fitted on the holdout\n"
-        << "  --patience N       stop when the holdout has not improved for N epochs (default 20; 0 = off)\n"
-        << "  --min-delta X      count a holdout gain for --patience only when it exceeds X (default 0);\n"
-        << "                     a run stopped by patience has converged, and the best vector is kept\n"
-        << "  --max-positions N  cap positions loaded from each file (default 5000000; 0 = all)\n"
+        << "  --epochs N            optimizer epochs (default 200)\n"
+        << "  --lr X                Adam learning rate (default 0.3)\n"
+        << "  --l2 X                L2-to-prior strength (pull toward default weights; default 0 = off)\n"
+        << "  --smooth X            second-difference penalty on the ordered tables (default 0 = off)\n"
+        << "  --K K                 the frozen K (also --tune-kingsafety); default: fitted on the holdout\n"
+        << "  --K-phase K_eg,K_mg   frozen linear K(phase) = K_eg + (K_mg - K_eg) * phase / 24\n"
+        << "  --patience N          stop when the holdout has not improved for N epochs (default 20; 0 = off)\n"
+        << "  --min-delta X         count a holdout gain for --patience only when it exceeds X (default 0);\n"
+        << "                        a run stopped by patience has converged, and the best vector is kept\n"
+        << "  --max-positions N     cap positions loaded from each file (default 5000000; 0 = all)\n"
         << "  A fit whose holdout still improved at its last epoch, or whose largest move\n"
         << "  reached 0.9 x lr x epochs, exits 3: its schedule, not the data, stopped it.\n";
 }
@@ -357,6 +387,8 @@ static TuneOptions parse_tune_options(int argc, char* argv[]) {
             opts.smooth = parse_nonneg_double_arg(argv[argi++], "--smooth");
         } else if (opt == "--K" && argi < argc) {
             opts.K = parse_double_arg(argv[argi++], "--K");
+        } else if (opt == "--K-phase" && argi < argc) {
+            opts.K_phase = parse_k_phase_arg(argv[argi++], "--K-phase");
         } else if (opt == "--patience" && argi < argc) {
             opts.patience = parse_int_arg(argv[argi++], "--patience");
         } else if (opt == "--min-delta" && argi < argc) {
@@ -368,6 +400,10 @@ static TuneOptions parse_tune_options(int argc, char* argv[]) {
         }
     }
 
+    if (opts.K > 0.0 && opts.K_phase.active()) {
+        std::cerr << "--K and --K-phase cannot both be set.\n";
+        std::exit(1);
+    }
     if (opts.epochs <= 0) {
         std::cerr << "--epochs must be positive.\n";
         std::exit(1);
@@ -1657,14 +1693,20 @@ static double sigmoid(double score, double K) {
     return 1.0 / (1.0 + std::exp(-K * score / 400.0));
 }
 
-static double default_loss(const TuneSet& set, double K) {
+static double default_loss(const TuneSet& set, const KSchedule& ks) {
     double loss = 0.0;
+    const bool by_phase = ks.is_phase() && !set.phase.empty();
     for (size_t i = 0; i < set.size(); ++i) {
-        double sig = sigmoid(static_cast<double>(set.base_score[i]), K);
+        const double k = by_phase ? ks.at(set.phase[i]) : ks.k_eg;
+        double sig = sigmoid(static_cast<double>(set.base_score[i]), k);
         double diff = static_cast<double>(set.result[i]) - sig;
         loss += diff * diff;
     }
     return loss / static_cast<double>(set.size());
+}
+
+static double default_loss(const TuneSet& set, double K) {
+    return default_loss(set, KSchedule::constant(K));
 }
 
 static double score_from_weights(const TuneSet& set,
@@ -1684,10 +1726,12 @@ static double traced_loss(const TuneSet& set,
                           const std::vector<int>& active,
                           const double* base_w,
                           const double* w,
-                          double K) {
+                          const KSchedule& ks) {
     double loss = 0.0;
+    const bool by_phase = ks.is_phase() && !set.phase.empty();
     for (size_t i = 0; i < set.size(); ++i) {
-        double sig = sigmoid(score_from_weights(set, i, active, base_w, w), K);
+        const double k = by_phase ? ks.at(set.phase[i]) : ks.k_eg;
+        double sig = sigmoid(score_from_weights(set, i, active, base_w, w), k);
         double diff = static_cast<double>(set.result[i]) - sig;
         loss += diff * diff;
     }
@@ -1700,7 +1744,7 @@ static void report_phase_buckets(const TuneSet& set,
                                  const std::vector<int>& active,
                                  const double* base_w,
                                  const double* w,
-                                 double K) {
+                                 const KSchedule& ks) {
     double initial_loss[5] = {0, 0, 0, 0, 0};
     double tuned_loss[5] = {0, 0, 0, 0, 0};
     long   cnt[5]  = {0, 0, 0, 0, 0};
@@ -1711,8 +1755,9 @@ static void report_phase_buckets(const TuneSet& set,
               : (ph >= 8)  ? 2
               : (ph >= 3)  ? 3
                            : 4;
-        double initial_sig = sigmoid(score_from_weights(set, i, active, base_w, base_w), K);
-        double tuned_sig = sigmoid(score_from_weights(set, i, active, base_w, w), K);
+        const double ki = ks.at(ph);
+        double initial_sig = sigmoid(score_from_weights(set, i, active, base_w, base_w), ki);
+        double tuned_sig = sigmoid(score_from_weights(set, i, active, base_w, w), ki);
         double initial_diff = static_cast<double>(set.result[i]) - initial_sig;
         double tuned_diff = static_cast<double>(set.result[i]) - tuned_sig;
         initial_loss[b] += initial_diff * initial_diff;
@@ -1734,17 +1779,22 @@ static void report_phase_buckets(const TuneSet& set,
 }
 
 // ---------------------------------------------------------------------------
-// K calibration (golden-section search on validation set)
+// K calibration (golden-section search and phase-linear fit on validation)
 // ---------------------------------------------------------------------------
 // A K at the edge of its search interval is not a fit: the loss kept falling
 // past the bound, so the scores and the labels disagree in scale.
-static constexpr double K_LO = 0.5, K_HI = 2.5;
+static constexpr double K_LO = 0.3, K_HI = 5.0;
 static void check_K_inside_bounds(double K) {
     if (K < K_LO + 1e-4 || K > K_HI - 1e-4) {
         std::cerr << "FATAL: K = " << K << " is at the bound of [" << K_LO << ", " << K_HI
                   << "]; the scores and the labels disagree in scale.\n";
         std::exit(2);
     }
+}
+
+static void check_K_schedule_inside_bounds(const KSchedule& ks) {
+    check_K_inside_bounds(ks.k_eg);
+    check_K_inside_bounds(ks.k_mg);
 }
 
 static double fit_K(const TuneSet& positions) {
@@ -1765,21 +1815,80 @@ static double fit_K(const TuneSet& positions) {
     return K;
 }
 
+static KSchedule fit_K_phase(const TuneSet& positions) {
+    std::cout << "Fitting linear K(phase) on " << positions.size() << " positions... ";
+    double best_loss = std::numeric_limits<double>::infinity();
+    KSchedule best{2.0, 2.0};
+    constexpr int GRID = 25;
+    for (int i = 0; i < GRID; ++i) {
+        const double keg = K_LO + (K_HI - K_LO) * static_cast<double>(i) / static_cast<double>(GRID - 1);
+        for (int j = 0; j < GRID; ++j) {
+            const double kmg = K_LO + (K_HI - K_LO) * static_cast<double>(j) / static_cast<double>(GRID - 1);
+            const KSchedule cand{keg, kmg};
+            const double loss = default_loss(positions, cand);
+            if (loss < best_loss) {
+                best_loss = loss;
+                best = cand;
+            }
+        }
+    }
+    static constexpr double STEPS[] = {0.2, 0.05, 0.01, 0.002, 0.0005, 0.0001, 0.00002, 0.000005};
+    static constexpr int DIRS[8][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, -1}, {1, -1}, {-1, 1}};
+    for (double step : STEPS) {
+        for (;;) {
+            bool improved = false;
+            for (const auto& dir : DIRS) {
+                const KSchedule cand{
+                    std::clamp(best.k_eg + dir[0] * step, K_LO, K_HI),
+                    std::clamp(best.k_mg + dir[1] * step, K_LO, K_HI)
+                };
+                if (cand.k_eg == best.k_eg && cand.k_mg == best.k_mg)
+                    continue;
+                const double loss = default_loss(positions, cand);
+                if (loss < best_loss - 1e-13) {
+                    best_loss = loss;
+                    best = cand;
+                    improved = true;
+                }
+            }
+            if (!improved)
+                break;
+        }
+    }
+    std::cout << "K_eg = " << best.k_eg << ", K_mg = " << best.k_mg << "\n";
+    check_K_schedule_inside_bounds(best);
+    return best;
+}
+
 static int phase_band(int phase) {
     return (phase >= 20) ? 0 : (phase >= 14) ? 1 : (phase >= 8) ? 2 : (phase >= 3) ? 3 : 4;
 }
 
 // The loss of the played score at the current vector (--init), on a file's
-// used rows after its first --skip rows: K fitted on it unless --K freezes it,
-// then K fitted again in each phase band and the loss at the frozen K, by
-// band. The fit driver fits K once with this on validation at the seed, and
-// reads the residuals of the rows a fit did not use the same way.
-static void cmd_loss(const std::string& path, double frozen_K, long skip, int max_positions) {
+// used rows after its first --skip rows: K fitted on it unless --K or
+// --K-phase freezes it (or --fit-k-phase fits K_eg, K_mg), then K fitted again
+// in each phase band and the loss under the schedule, by band.
+static void cmd_loss(const std::string& path, double frozen_K, const KSchedule& frozen_K_phase,
+                     bool fit_phase_k, long skip, int max_positions) {
     TuneSet set = load_tune_dataset(path, {}, max_positions, skip);
-    const double K = frozen_K > 0.0 ? frozen_K : fit_K(set);
-    if (frozen_K > 0.0)
-        check_K_inside_bounds(K);
-    std::printf("rows: %zu\nK: %.6f\nloss: %.8f\n", set.size(), K, default_loss(set, K));
+    KSchedule ks;
+    if (frozen_K_phase.active()) {
+        ks = frozen_K_phase;
+        check_K_schedule_inside_bounds(ks);
+    } else if (fit_phase_k) {
+        ks = fit_K_phase(set);
+    } else if (frozen_K > 0.0) {
+        check_K_inside_bounds(frozen_K);
+        ks = KSchedule::constant(frozen_K);
+    } else {
+        ks = KSchedule::constant(fit_K(set));
+    }
+    if (frozen_K_phase.active() || fit_phase_k)
+        std::printf("rows: %zu\nK_eg: %.6f\nK_mg: %.6f\nloss: %.8f\n",
+                    set.size(), ks.k_eg, ks.k_mg, default_loss(set, ks));
+    else
+        std::printf("rows: %zu\nK: %.6f\nloss: %.8f\n",
+                    set.size(), ks.k_eg, default_loss(set, ks));
     static const char* names[5] = {"opening", "early_mid", "middlegame", "endgame", "deep_endgame"};
     for (int band = 0; band < 5; ++band) {
         TuneSet part;
@@ -1801,7 +1910,7 @@ static void cmd_loss(const std::string& path, double frozen_K, long skip, int ma
             if (default_loss(part, m1) < default_loss(part, m2)) hi = m2; else lo = m1;
         }
         std::printf("band %s: rows %zu  K %.6f  loss at K %.8f  loss at its own K %.8f\n",
-                    names[band], part.size(), (lo + hi) / 2.0, default_loss(part, K),
+                    names[band], part.size(), (lo + hi) / 2.0, default_loss(part, ks),
                     default_loss(part, (lo + hi) / 2.0));
     }
 }
@@ -1920,14 +2029,19 @@ static void cmd_tune(const TuneOptions& opts) {
     std::cout << "Loaded " << holdout.size() << " holdout positions.\n";
 
     // K is fitted once, on validation at the seed, and frozen across every
-    // stage and arm (--K); fitting it again per run moves the target the
-    // stages are compared on.
-    double K = opts.K;
-    if (K > 0.0) {
-        check_K_inside_bounds(K);
-        std::cout << "K frozen at " << K << ".\n";
+    // stage and arm (--K or --K-phase); fitting it again per run moves the
+    // target the stages are compared on.
+    KSchedule ks;
+    if (opts.K_phase.active()) {
+        ks = opts.K_phase;
+        check_K_schedule_inside_bounds(ks);
+        std::cout << "K frozen at K(phase): K_eg=" << ks.k_eg << ", K_mg=" << ks.k_mg << ".\n";
+    } else if (opts.K > 0.0) {
+        check_K_inside_bounds(opts.K);
+        ks = KSchedule::constant(opts.K);
+        std::cout << "K frozen at " << ks.k_eg << ".\n";
     } else {
-        K = fit_K(holdout);
+        ks = KSchedule::constant(fit_K(holdout));
     }
 
     double base_w[EVAL_PARAM_FLAT_SIZE];
@@ -2037,8 +2151,8 @@ static void cmd_tune(const TuneOptions& opts) {
         return opts.l2 * sum;
     };
 
-    double initial_train_loss = traced_loss(train, active, base_w, w, K);
-    double initial_holdout_loss = traced_loss(holdout, active, base_w, w, K);
+    double initial_train_loss = traced_loss(train, active, base_w, w, ks);
+    double initial_holdout_loss = traced_loss(holdout, active, base_w, w, ks);
     std::cout << "Initial train loss  = " << initial_train_loss << "\n";
     std::cout << "Initial holdout loss= " << initial_holdout_loss << "\n";
 
@@ -2058,17 +2172,19 @@ static void cmd_tune(const TuneOptions& opts) {
     std::vector<double> v(active.size(), 0.0);
     int t = 0;
     const double n = static_cast<double>(train.size());
+    const bool by_phase = ks.is_phase() && !train.phase.empty();
 
     for (int epoch = 1; epoch <= opts.epochs; epoch++) {
         auto t0 = std::chrono::steady_clock::now();
         std::fill(grad.begin(), grad.end(), 0.0);
 
         for (size_t i = 0; i < train.size(); ++i) {
+            const double ki = by_phase ? ks.at(train.phase[i]) : ks.k_eg;
             double score = score_from_weights(train, i, active, base_w, w);
-            double sig = sigmoid(score, K);
+            double sig = sigmoid(score, ki);
             double err = static_cast<double>(train.result[i]) - sig;
             double dsig = sig * (1.0 - sig);
-            double coeff = -2.0 * err * dsig * (K / 400.0);
+            double coeff = -2.0 * err * dsig * (ki / 400.0);
 
             for (size_t k = train.offset[i]; k < train.offset[i + 1]; ++k)
                 grad[train.index[k]] += coeff * static_cast<double>(train.value[k]);
@@ -2117,7 +2233,7 @@ static void cmd_tune(const TuneOptions& opts) {
 
         auto t1 = std::chrono::steady_clock::now();
         double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        double holdout_loss = traced_loss(holdout, active, base_w, w, K);
+        double holdout_loss = traced_loss(holdout, active, base_w, w, ks);
         if (holdout_loss < best_holdout) {
             best_holdout = holdout_loss;
             best_epoch = epoch;
@@ -2132,7 +2248,7 @@ static void cmd_tune(const TuneOptions& opts) {
         if (epoch == 1 || epoch % 10 == 0 || epoch == opts.epochs) {
             // The data loss, and the objective the optimiser descends: the
             // data loss plus the penalties when they are on.
-            double train_loss = traced_loss(train, active, base_w, w, K);
+            double train_loss = traced_loss(train, active, base_w, w, ks);
             if (opts.l2 > 0.0 || opts.smooth > 0.0)
                 std::printf("Epoch %4d  train=%.8f  objective=%.8f  holdout=%.8f  %.0f ms\n",
                             epoch, train_loss, train_loss + l2_penalty(w) + smooth_penalty(w),
@@ -2184,7 +2300,7 @@ static void cmd_tune(const TuneOptions& opts) {
                   << " (holdout=" << best_holdout << ").\n";
     }
 
-    report_phase_buckets(holdout, active, base_w, w, K);
+    report_phase_buckets(holdout, active, base_w, w, ks);
 
     for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
         if (!is_active[static_cast<size_t>(i)] && w[i] != base_w[i]) {
@@ -2215,6 +2331,7 @@ static void cmd_tune(const TuneOptions& opts) {
 struct KsSnap {
     Board::PositionSnapshot position;
     Color    stm;
+    uint8_t  phase;
     float    result;
 };
 
@@ -2243,7 +2360,7 @@ static std::vector<KsSnap> ks_load(const std::string& path, int max_positions) {
         const bool ok = model_row(tmp, score, model, &stage);
         counts.add(ok, model, stage, tmp);
         if (!ok || model.status != RowModel::USED) continue;
-        KsSnap s{tmp.snapshot_position(), tmp.turn(), result};
+        KsSnap s{tmp.snapshot_position(), tmp.turn(), static_cast<uint8_t>(g_trace.phase), result};
         out.push_back(s);
         if (max_positions > 0 && static_cast<int>(out.size()) >= max_positions) break;
     }
@@ -2257,8 +2374,9 @@ static std::vector<KsSnap> ks_load(const std::string& path, int max_positions) {
     return out;
 }
 
-static double ks_mse(const std::vector<KsSnap>& pos, double K, Board& scratch, Evaluator& ev) {
+static double ks_mse(const std::vector<KsSnap>& pos, const KSchedule& ks, Board& scratch, Evaluator& ev) {
     double loss = 0.0;
+    const bool by_phase = ks.is_phase();
     for (const auto& s : pos) {
         ks_board_from_snap(scratch, s);
         g_rest = {};
@@ -2272,7 +2390,8 @@ static double ks_mse(const std::vector<KsSnap>& pos, double K, Board& scratch, E
         const int white = g_rest.lazy ? damp_white(g_rest.lazy_endgame, scratch.rule50_count())
                                       : (s.stm == WHITE) ? sc : -sc;
 #endif
-        double sig = 1.0 / (1.0 + std::exp(-K * static_cast<double>(white) / 400.0));
+        const double ki = by_phase ? ks.at(s.phase) : ks.k_eg;
+        double sig = 1.0 / (1.0 + std::exp(-ki * static_cast<double>(white) / 400.0));
         double d = static_cast<double>(s.result) - sig;
         loss += d * d;
     }
@@ -2283,7 +2402,8 @@ static double ks_fit_K(const std::vector<KsSnap>& pos, Board& scratch, Evaluator
     double lo = K_LO, hi = K_HI;
     for (int i = 0; i < 40; ++i) {
         double m1 = lo + (hi - lo) / 3.0, m2 = hi - (hi - lo) / 3.0;
-        if (ks_mse(pos, m1, scratch, ev) < ks_mse(pos, m2, scratch, ev)) hi = m2; else lo = m1;
+        if (ks_mse(pos, KSchedule::constant(m1), scratch, ev)
+            < ks_mse(pos, KSchedule::constant(m2), scratch, ev)) hi = m2; else lo = m1;
     }
     const double K = (lo + hi) / 2.0;
     check_K_inside_bounds(K);
@@ -2361,6 +2481,7 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     std::string out_path = "tools/texel/out/kingsafety.txt";
     int epochs = 0, max_positions = 0, init_step = 8;
     double frozen_K = 0.0;
+    KSchedule frozen_K_phase;
     int argi = 4;
     if (argi < argc && !is_option(argv[argi])) out_path = argv[argi++];
     while (argi < argc) {
@@ -2369,7 +2490,12 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
         else if (o == "--max-positions" && argi < argc) max_positions = parse_int_arg(argv[argi++], "--max-positions");
         else if (o == "--step" && argi < argc) init_step = parse_int_arg(argv[argi++], "--step");
         else if (o == "--K" && argi < argc) frozen_K = parse_double_arg(argv[argi++], "--K");
+        else if (o == "--K-phase" && argi < argc) frozen_K_phase = parse_k_phase_arg(argv[argi++], "--K-phase");
         else { std::cerr << "Unknown option " << o << "\n"; usage(argv[0]); std::exit(1); }
+    }
+    if (frozen_K > 0.0 && frozen_K_phase.active()) {
+        std::cerr << "--K and --K-phase cannot both be set.\n";
+        std::exit(1);
     }
 
     std::cout << "Loading train from " << train_path << " ...\n";
@@ -2383,13 +2509,18 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     Evaluator& ev = *ev_ptr;
     Board scratch;
 
-    double K = frozen_K;
-    if (K > 0.0) {
-        check_K_inside_bounds(K);
-        std::cout << "K frozen at " << K << ".\n";
+    KSchedule ks;
+    if (frozen_K_phase.active()) {
+        ks = frozen_K_phase;
+        check_K_schedule_inside_bounds(ks);
+        std::cout << "K frozen at K(phase): K_eg=" << ks.k_eg << ", K_mg=" << ks.k_mg << ".\n";
+    } else if (frozen_K > 0.0) {
+        check_K_inside_bounds(frozen_K);
+        ks = KSchedule::constant(frozen_K);
+        std::cout << "K frozen at " << ks.k_eg << ".\n";
     } else {
-        K = ks_fit_K(holdout, scratch, ev);
-        std::cout << "K = " << K << "\n";
+        ks = KSchedule::constant(ks_fit_K(holdout, scratch, ev));
+        std::cout << "K = " << ks.k_eg << "\n";
     }
 
     EvalParams& P = g_eval_params;
@@ -2468,8 +2599,8 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     std::vector<int> seed;
     for (auto& kn : knobs) seed.push_back(*kn.p);
 
-    double best = ks_mse(train, K, scratch, ev);
-    double init_holdout = ks_mse(holdout, K, scratch, ev);
+    double best = ks_mse(train, ks, scratch, ev);
+    double init_holdout = ks_mse(holdout, ks, scratch, ev);
     double best_holdout = init_holdout;
     int best_holdout_pass = 0;
     std::vector<int> best_holdout_values = seed;
@@ -2506,14 +2637,14 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
                 int trial = std::clamp(old + delta, lo, hi);
                 if (trial == old) continue;
                 *kn.p = trial;
-                double m = ks_mse(train, K, scratch, ev);
+                double m = ks_mse(train, ks, scratch, ev);
                 if (m < best - 1e-12) { best = m; improved = true; knob_improved = true; }
                 else *kn.p = old;
             }
             if (per_knob && !knob_improved)
                 kn.step /= 2;
         }
-        double hold = ks_mse(holdout, K, scratch, ev);
+        double hold = ks_mse(holdout, ks, scratch, ev);
         if (per_knob)
             std::printf("pass %2d  train=%.8f  holdout=%.8f\n", pass, best, hold);
         else
@@ -2530,8 +2661,8 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
 
     for (size_t i = 0; i < knobs.size(); ++i)
         *knobs[i].p = best_holdout_values[i];
-    double final_train = ks_mse(train, K, scratch, ev);
-    double final_holdout = ks_mse(holdout, K, scratch, ev);
+    double final_train = ks_mse(train, ks, scratch, ev);
+    double final_holdout = ks_mse(holdout, ks, scratch, ev);
     std::cout << "Restored best holdout pass " << best_holdout_pass
               << " (holdout=" << best_holdout << ").\n";
     std::cout << "\nFinal train MSE = " << final_train << ", holdout MSE = " << final_holdout
@@ -2574,17 +2705,28 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         double K = 0.0;
+        KSchedule K_phase;
+        bool fit_phase_k = false;
         long skip = 0;
         int maxpos = 0;
-        for (int a = 3; a < argc; a += 2) {
-            const std::string o = argv[a];
-            if (a + 1 >= argc) { usage(argv[0]); return 1; }
-            if (o == "--K") K = parse_double_arg(argv[a + 1], "--K");
-            else if (o == "--skip") skip = parse_int_arg(argv[a + 1], "--skip");
-            else if (o == "--max-positions") maxpos = parse_int_arg(argv[a + 1], "--max-positions");
+        for (int a = 3; a < argc;) {
+            const std::string o = argv[a++];
+            if (o == "--fit-k-phase") {
+                fit_phase_k = true;
+                continue;
+            }
+            if (a >= argc) { usage(argv[0]); return 1; }
+            if (o == "--K") K = parse_double_arg(argv[a++], "--K");
+            else if (o == "--K-phase") K_phase = parse_k_phase_arg(argv[a++], "--K-phase");
+            else if (o == "--skip") skip = parse_int_arg(argv[a++], "--skip");
+            else if (o == "--max-positions") maxpos = parse_int_arg(argv[a++], "--max-positions");
             else { usage(argv[0]); return 1; }
         }
-        cmd_loss(argv[2], K, skip, maxpos);
+        if ((K > 0.0) + K_phase.active() + fit_phase_k > 1) {
+            std::cerr << "--K, --K-phase and --fit-k-phase are mutually exclusive.\n";
+            return 1;
+        }
+        cmd_loss(argv[2], K, K_phase, fit_phase_k, skip, maxpos);
     } else if (mode == "--dump-played") {
         if (argc != 4) {
             usage(argv[0]);

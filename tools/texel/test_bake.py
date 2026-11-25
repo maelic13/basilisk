@@ -4,6 +4,7 @@ from pathlib import Path
 import bake
 
 HEADER = Path(__file__).resolve().parents[2] / "src" / "eval_params.h"
+REBUILD_HEADER = Path(__file__).resolve().parents[2] / "src" / "eval_rb_params.h"
 
 
 class BakeProvenanceTests(unittest.TestCase):
@@ -69,6 +70,59 @@ class BakeFormattingTests(unittest.TestCase):
 
         self.assertIn("\n    int table[1][2] = {", rewritten)
         self.assertNotIn("\n        int table[1][2] = {", rewritten)
+
+
+class RebuildAndRelevelTests(unittest.TestCase):
+    def setUp(self):
+        self.header = REBUILD_HEADER.read_text(encoding="utf-8")
+        self.params = bake.parse_param_list(self.header)
+        self.vector = bake.header_vector(self.header, self.params)
+        self.root = bake.vector_hash(self.vector)
+
+    def test_rebuild_header_roundtrip_passes(self):
+        self.assertEqual(len(self.vector), 1450)
+        text = bake.format_vector(self.vector, self.root, self.root)
+        self.assertEqual(bake.check_dump(text, self.params, self.header), [])
+
+    def test_relevel_material_preserves_sum_and_dead_squares(self):
+        # Shift every piece PST away from zero to verify exact material re-levelling.
+        tweaked = []
+        offsets = {"PstMgPawn": 40, "PstEgPawn": -30, "PstMgKnight": 17, "PstEgKnight": -23,
+                   "PstMgBishop": 11, "PstEgBishop": 19, "PstMgRook": -13, "PstEgRook": 51,
+                   "PstMgQueen": 29, "PstEgQueen": -41}
+        for name, idx, val in self.vector:
+            if name in offsets:
+                if "Pawn" in name and (idx < 8 or idx >= 56):
+                    tweaked.append((name, idx, 0))
+                else:
+                    tweaked.append((name, idx, val + offsets[name]))
+            else:
+                tweaked.append((name, idx, val))
+
+        before = {(n, i): v for n, i, v in tweaked}
+        releveled, shifts = bake.relevel_material(tweaked)
+        after = {(n, i): v for n, i, v in releveled}
+
+        self.assertEqual(len(releveled), len(tweaked))
+        self.assertEqual(len(shifts), 10)
+        for phase, pst_prefix in (("Mg", "PstMg"), ("Eg", "PstEg")):
+            for pt, piece in ((1, "Pawn"), (2, "Knight"), (3, "Bishop"), (4, "Rook"), (5, "Queen")):
+                mat_name = f"{phase}Val"
+                pst_name = f"{pst_prefix}{piece}"
+                live = range(8, 56) if pt == 1 else range(64)
+                for sq in live:
+                    self.assertEqual(before[(mat_name, pt)] + before[(pst_name, sq)],
+                                     after[(mat_name, pt)] + after[(pst_name, sq)])
+                if pt == 1:
+                    for sq in (*range(8), *range(56, 64)):
+                        self.assertEqual(after[(pst_name, sq)], 0)
+            self.assertEqual(before[(f"{phase}Val", 0)], after[(f"{phase}Val", 0)])
+            self.assertEqual(before[(f"{phase}Val", 6)], after[(f"{phase}Val", 6)])
+            for sq in range(64):
+                self.assertEqual(before[(f"{pst_prefix}King", sq)], after[(f"{pst_prefix}King", sq)])
+
+        text = bake.format_vector(releveled, self.root, self.root)
+        self.assertEqual(bake.check_dump(text, self.params, self.header), [])
 
 
 if __name__ == "__main__":
