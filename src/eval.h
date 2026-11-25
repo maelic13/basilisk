@@ -58,8 +58,9 @@ struct EvalRebuildRecord {
     int complexity[2] = {}, adjusted[2] = {};
     int ph = 0, strong = 0, general_sf = 64, sf = 64, v = 0;
     // What the endgame layer did (0 silent, 1 scaled, 2 overridden; sf is -1
-    // where it acted) and whether the mate drive fired.
-    int layer = 0, drove = 0;
+    // where it acted), whether the mate drive fired, the score the layer read
+    // (centipawns, White's view) and whether it set a draw verdict.
+    int layer = 0, drove = 0, layer_input = 0, verdict = 0;
 };
 #endif
 

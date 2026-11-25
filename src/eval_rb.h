@@ -234,6 +234,8 @@ int Evaluation<Rec>::value(bool& verdict) {
         rec->v = v;
         rec->layer = kind;
         rec->drove = drive != 0;
+        rec->layer_input = t + drive;
+        rec->verdict = verdict;
     }
 
     // ---- The side to move, the tempo and the bounds ------------------------------------
