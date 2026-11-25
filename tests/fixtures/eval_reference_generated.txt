@@ -470,3 +470,45 @@ k7/4P2b/7K/4Q1r1/8/8/7R/8 w - - 0 1 ; queen mobility 25
 3k3K/8/5R1N/6r1/4Q3/8/8/5b2 w - - 0 1 ; queen mobility 27
 8/6N1/8/2n5/4Q3/8/1k3K2/R2br3 w - - 0 1 ; queen mobility 27
 4r3/P7/3K4/8/R3Q3/1b6/8/6k1 w - - 0 1 ; queen mobility 27
+8/1r3p2/8/4k3/8/2q5/2P5/B6K w - - 0 1 ; B x-ray to the king
+8/1r3p2/8/5k2/8/3q4/2P5/KB6 w - - 0 1 ; B x-ray to the king
+8/1r3p2/8/6k1/8/4q3/2P5/K1B5 w - - 0 1 ; B x-ray to the king
+8/1r3p2/8/7k/8/5q2/2P5/K2B4 w - - 0 1 ; B x-ray to the king
+8/1r3p2/8/k7/8/2q5/2P5/4B2K w - - 0 1 ; B x-ray to the king
+8/1r3p2/8/1k6/8/3q4/2P5/K4B2 w - - 0 1 ; B x-ray to the king
+8/1r3p2/8/2k5/8/4q3/2P5/K5B1 w - - 0 1 ; B x-ray to the king
+8/1r3p2/8/3k4/8/5q2/2P5/K6B w - - 0 1 ; B x-ray to the king
+8/1r3p2/4k3/8/2q5/8/B1P5/K7 w - - 0 1 ; B x-ray to the king
+8/1r3p2/5k2/8/3q4/8/1BP5/K7 w - - 0 1 ; B x-ray to the king
+8/1r3p2/8/k7/8/q7/2P5/R6K w - - 0 1 ; R x-ray to the king
+8/1r3p2/8/8/8/8/2P5/R1q1k2K w - - 0 1 ; R x-ray to the king
+8/1r3p2/8/8/8/8/2P5/KR1q1k2 w - - 0 1 ; R x-ray to the king
+8/1r3p2/8/2k5/8/2q5/2P5/2R4K w - - 0 1 ; R x-ray to the king
+8/1r3p2/8/8/8/8/2P5/K1R1q1k1 w - - 0 1 ; R x-ray to the king
+8/1r3p2/8/3k4/8/3q4/2P5/K2R4 w - - 0 1 ; R x-ray to the king
+8/1r3p2/8/8/8/8/2P5/K2R1q1k w - - 0 1 ; R x-ray to the king
+8/1r3p2/8/4k3/8/4q3/2P5/K3R3 w - - 0 1 ; R x-ray to the king
+8/1r3p2/8/8/8/8/2P5/k1q1R2K w - - 0 1 ; R x-ray to the king
+8/1r3p2/8/5k2/8/5q2/2P5/K4R2 w - - 0 1 ; R x-ray to the king
+8/1r3p2/8/6k1/8/6q1/2P5/K5R1 w - - 0 1 ; R x-ray to the king
+8/1r3p2/8/8/8/8/2P5/K1k1q1R1 w - - 0 1 ; R x-ray to the king
+K7/P7/8/8/8/3R4/4r3/k7 w - - 0 1 ; passer on rank 7, king 1 ahead
+K7/P7/8/8/8/3R4/4r3/7k w - - 0 1 ; passer on rank 7, king 1 ahead
+K7/P7/8/8/8/3R4/4r3/4k3 w - - 0 1 ; passer on rank 7, king 1 ahead
+K7/P7/8/8/k7/3R4/4r3/8 w - - 0 1 ; passer on rank 7, king 1 ahead
+K7/P7/8/8/7k/3R4/4r3/8 w - - 0 1 ; passer on rank 7, king 1 ahead
+1K6/1P6/8/8/8/4R3/5r2/k7 w - - 0 1 ; passer on rank 7, king 1 ahead
+1K6/1P6/8/8/8/4R3/5r2/7k w - - 0 1 ; passer on rank 7, king 1 ahead
+1K6/1P6/8/8/8/4R3/5r2/3k4 w - - 0 1 ; passer on rank 7, king 1 ahead
+1K6/1P6/8/8/k7/4R3/5r2/8 w - - 0 1 ; passer on rank 7, king 1 ahead
+1K6/1P6/8/8/7k/4R3/5r2/8 w - - 0 1 ; passer on rank 7, king 1 ahead
+K7/8/P7/8/8/3R4/4r3/k7 w - - 0 1 ; passer on rank 6, king 2 ahead
+K7/8/P7/8/8/3R4/4r3/7k w - - 0 1 ; passer on rank 6, king 2 ahead
+K7/8/P7/8/8/3R4/4r3/4k3 w - - 0 1 ; passer on rank 6, king 2 ahead
+K7/8/P7/8/k7/3R4/4r3/8 w - - 0 1 ; passer on rank 6, king 2 ahead
+K7/8/P7/8/7k/3R4/4r3/8 w - - 0 1 ; passer on rank 6, king 2 ahead
+1K6/8/1P6/8/8/4R3/5r2/k7 w - - 0 1 ; passer on rank 6, king 2 ahead
+1K6/8/1P6/8/8/4R3/5r2/7k w - - 0 1 ; passer on rank 6, king 2 ahead
+1K6/8/1P6/8/8/4R3/5r2/3k4 w - - 0 1 ; passer on rank 6, king 2 ahead
+1K6/8/1P6/8/k7/4R3/5r2/8 w - - 0 1 ; passer on rank 6, king 2 ahead
+1K6/8/1P6/8/7k/4R3/5r2/8 w - - 0 1 ; passer on rank 6, king 2 ahead
