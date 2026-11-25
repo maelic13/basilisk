@@ -612,12 +612,12 @@ static void append_group(std::vector<int>& out, int group) {
         out.push_back(base + i);
 }
 
-static void append_groups(std::vector<int>& out, int first, int last) {
+[[maybe_unused]] static void append_groups(std::vector<int>& out, int first, int last) {
     for (int g = first; g <= last; ++g)
         append_group(out, g);
 }
 
-static void append_material(std::vector<int>& out) {
+[[maybe_unused]] static void append_material(std::vector<int>& out) {
     int mg = eval_param_offset(EPG_MgVal);
     int eg = eval_param_offset(EPG_EgVal);
     for (int pt = PAWN; pt <= QUEEN; ++pt) {
@@ -645,6 +645,7 @@ static std::vector<int> active_indices_for_group(const std::string& group) {
         for (size_t i = 0; i < rows.size(); ++i)
             if (rows[i].stage == "linear")
                 active.push_back(static_cast<int>(i));
+#ifndef BASILISK_EVAL_REBUILD
     } else if (group == "material") {
         append_material(active);
     } else if (group == "scalars") {
@@ -750,6 +751,7 @@ static std::vector<int> active_indices_for_group(const std::string& group) {
             append_group(active, g);
         for (int g = EPG_PassedMg; g <= EPG_Tempo; ++g)
             append_group(active, g);
+#endif
     } else {
         std::cerr << "Unknown tune group '" << group << "'.\n";
         std::exit(1);
@@ -763,12 +765,12 @@ static std::vector<int> active_indices_for_group(const std::string& group) {
     return active;
 }
 
-static float trace_coeff(const EvalTrace& tr, int idx) {
+[[maybe_unused]] static float trace_coeff(const EvalTrace& tr, int idx) {
     return static_cast<float>(
         tr.mg[idx] * tr.phase + tr.eg[idx] * (24 - tr.phase)) / 24.0f;
 }
 
-static int flat_index(int group, int idx = 0) {
+[[maybe_unused]] static int flat_index(int group, int idx = 0) {
     return eval_param_offset(group) + idx;
 }
 
@@ -803,6 +805,11 @@ struct RowModel {
     int played_white = 0;          // the score the engine serves, White's view
     double scale = 1.0;            // d played / d tapered sum, at the seed
     const EvalTrace* trace = nullptr;
+#ifdef BASILISK_EVAL_REBUILD
+    // The rebuilt arm's gradient: d played / d (traced middlegame, endgame
+    // sum), and d played / d tempo, at the seed.
+    double scale_mg = 0.0, scale_eg = 0.0, tempo = 0.0;
+#endif
 };
 
 static const std::vector<long>& seed_weights() {
@@ -814,11 +821,11 @@ static const std::vector<long>& seed_weights() {
     return w;
 }
 
-static int taper_int(long mg, long eg, int phase) {
+[[maybe_unused]] static int taper_int(long mg, long eg, int phase) {
     return static_cast<int>((mg * phase + eg * (24 - phase)) / 24);
 }
 
-static int apply_step(const EvalEndgameStep& step, int tapered) {
+[[maybe_unused]] static int apply_step(const EvalEndgameStep& step, int tapered) {
     return step.kind == EG_SCALED ? tapered * step.num / step.den : tapered;
 }
 
@@ -826,6 +833,120 @@ static int damp_white(int score, int clock) {
     return clock > 0 ? damp_rule50(score, clock) : score;
 }
 
+#ifdef BASILISK_EVAL_REBUILD
+// The rebuilt evaluation's played function (analysis/c31_rebuild_2026-11-25.md
+// §6), recomputed from its record in the engine's integer arithmetic:
+//   - the sum: the traced terms times the weights, plus the knobs' terms;
+//   - winnable, from the recorded complexity, which no slot moves;
+//   - the taper at a factor of 64, converted: the layer's input with the
+//     recorded mate drive;
+//   - the layer's step: scaled by num / den, or silent, when the taper at
+//     the general factor, converted, plus the drive; an override or a draw
+//     verdict is served as the layer set it;
+//   - the side to move, the tempo, the clamp and the rule-50 damping.
+// Every stage must equal the engine's at the seed. The gradient is
+// linearised there: winnable passes a half or holds it at 0, the taper
+// weighs each half by its phase and factor, then S / 1024, the layer's scale
+// and the damping's slope; a clamped row has none.
+static int rb_taper(long mg, long eg, int ph, int sf) {
+    return static_cast<int>((mg * ph + eg * (128 - ph) * sf / 64) / 128);
+}
+static int rb_cp(long v) { return static_cast<int>(v * EVAL_REBUILD_CONVERSION_S / 1024); }
+
+static bool model_row(const Board& b, int served_stm, RowModel& out, std::string* mismatch) {
+    const std::vector<long>& w = seed_weights();
+    const int served_white = (b.turn() == WHITE) ? served_stm : -served_stm;
+    const int clock = b.rule50_count();
+    auto fail = [&](const char* stage) {
+        if (mismatch)
+            *mismatch = stage;
+        return false;
+    };
+
+    out = RowModel{};
+    out.lazy = g_rest.lazy != 0;
+    out.trace = out.lazy ? &g_lazy_trace : &g_trace;
+    const int* rest_mg = out.lazy ? g_rest.lazy_mg : g_rest.mg;
+    const int* rest_eg = out.lazy ? g_rest.lazy_eg : g_rest.eg;
+    long mg = 0, eg = 0;
+    for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
+        mg += out.trace->mg[i] * w[static_cast<size_t>(i)];
+        eg += out.trace->eg[i] * w[static_cast<size_t>(i)];
+    }
+    for (int s = 0; s < REST_SOURCE_NB; ++s) {
+        mg += rest_mg[s];
+        eg += rest_eg[s];
+    }
+    if (mg != g_rest.sum_mg || eg != g_rest.sum_eg)
+        return fail("the running sum");
+
+    const long c = g_rest.complexity;
+    auto sign = [](long x) { return (x > 0) - (x < 0); };
+    const long amg = mg + sign(mg) * std::clamp(c + 50, -std::abs(mg), 0L);
+    const long aeg = eg + sign(eg) * std::max(c, -std::abs(eg));
+    // Whether a small change of a half moves it after winnable.
+    const bool pass_mg = c + 50 >= 0 || (mg != 0 && c + 50 >= -std::abs(mg));
+    const bool pass_eg = eg != 0 ? c >= -std::abs(eg) : c >= 0;
+
+    const int ph = g_rest.ph;
+    const int t = rb_cp(rb_taper(amg, aeg, ph, 64));
+    if (t != g_rest.t)
+        return fail("the taper at 64");
+
+    const EvalEndgameStep& step = g_rest.step;
+    const int input = t + g_rest.drive;
+    double layer_scale = 1.0;
+    int sf = 64;
+    int white = g_rest.white;
+    if (step.kind == EG_SCALED) {
+        white = input * step.num / step.den;
+        layer_scale = double(step.num) / double(step.den);
+    } else if (step.kind == EG_UNCHANGED) {
+        sf = g_rest.general_sf;
+        white = rb_cp(rb_taper(amg, aeg, ph, sf)) + g_rest.drive;
+    }
+    if (white != g_rest.white)
+        return fail("the endgame layer");
+
+    const int stm_white = b.turn() == WHITE ? white : -white;
+    const bool fixed = step.kind == EG_OVERRIDE || step.verdict;
+    int served = stm_white;
+    bool clamped = false;
+    if (!fixed) {
+        served = stm_white + w[static_cast<size_t>(eval_param_offset(EPG_Tempo))]
+                                 * EVAL_REBUILD_CONVERSION_S / 1024;
+        if (std::abs(served) >= KNOWN_WIN) {
+            served = served > 0 ? KNOWN_WIN - 1 : -(KNOWN_WIN - 1);
+            clamped = true;
+        }
+    }
+    if (served != g_rest.served)
+        return fail("the tempo and the bounds");
+    const int undamped_white = b.turn() == WHITE ? served : -served;
+    if (damp_white(undamped_white, clock) != served_white)
+        return fail("the rule-50 damping");
+
+    out.played_white = served_white;
+    out.status = step.kind == EG_OVERRIDE ? RowModel::OVERRIDE
+               : step.verdict             ? RowModel::VERDICT
+                                          : RowModel::USED;
+    if (!fixed && !clamped) {
+        const double tail = double(EVAL_REBUILD_CONVERSION_S) / 1024.0 * layer_scale
+                          * (clock > 0 ? double(damp_rule50_scale_num(clock)) / double(DAMP_RULE50_DEN) : 1.0);
+        out.scale_mg = pass_mg ? tail * ph / 128.0 : 0.0;
+        out.scale_eg = pass_eg ? tail * (128 - ph) * sf / (64.0 * 128.0) : 0.0;
+        out.tempo = (b.turn() == WHITE ? 1.0 : -1.0) * double(EVAL_REBUILD_CONVERSION_S) / 1024.0
+                  * (clock > 0 ? double(damp_rule50_scale_num(clock)) / double(DAMP_RULE50_DEN) : 1.0);
+    }
+    return true;
+}
+
+// A row's coefficient of slot idx: d played / d weight at the seed.
+static double row_coeff(const RowModel& model, int idx) {
+    return model.trace->mg[idx] * model.scale_mg + model.trace->eg[idx] * model.scale_eg
+         + (idx == eval_param_offset(EPG_Tempo) ? model.tempo : 0.0);
+}
+#else
 // The model of the row the evaluator just scored (g_trace and g_rest hold its
 // record). Returns false, with the stage named in *mismatch, when a stage of
 // the model disagrees with the engine.
@@ -885,6 +1006,7 @@ static bool model_row(const Board& b, int served_stm, RowModel& out, std::string
               * (clock > 0 ? double(damp_rule50_scale_num(clock)) / double(DAMP_RULE50_DEN) : 1.0);
     return true;
 }
+#endif
 
 // Rows by what the model made of them, for the load reports.
 struct ModelCounts {
@@ -928,12 +1050,12 @@ static bool clamp_held(int idx) {
     return g_clamp_held && (*g_clamp_held)[static_cast<size_t>(idx)];
 }
 
-static void clamp_range(double* w, int idx, double lo, double hi) {
+[[maybe_unused]] static void clamp_range(double* w, int idx, double lo, double hi) {
     if (!clamp_held(idx))
         w[idx] = std::clamp(w[idx], lo, hi);
 }
 
-static void clamp_group_range(double* w, int group, double lo, double hi) {
+[[maybe_unused]] static void clamp_group_range(double* w, int group, double lo, double hi) {
     int base = eval_param_offset(group);
     int len = EVAL_PARAM_LENS[group];
     for (int i = 0; i < len; ++i)
@@ -944,7 +1066,7 @@ static void clamp_group_range(double* w, int group, double lo, double hi) {
 // is bounded below by the entry before it and above by the smallest held entry
 // after it: a free entry that the data pushed past a held neighbour stops at
 // it, instead of the held neighbour being moved.
-static void enforce_chain(double* w, const std::vector<int>& chain) {
+[[maybe_unused]] static void enforce_chain(double* w, const std::vector<int>& chain) {
     std::vector<double> upper(chain.size(), std::numeric_limits<double>::infinity());
     double bound = std::numeric_limits<double>::infinity();
     for (size_t k = chain.size(); k-- > 0;) {
@@ -961,7 +1083,7 @@ static void enforce_chain(double* w, const std::vector<int>& chain) {
     }
 }
 
-static void enforce_non_decreasing(double* w, int group, int first, int last) {
+[[maybe_unused]] static void enforce_non_decreasing(double* w, int group, int first, int last) {
     const int base = eval_param_offset(group);
     std::vector<int> chain;
     for (int i = first; i <= last; ++i)
@@ -969,6 +1091,16 @@ static void enforce_non_decreasing(double* w, int group, int first, int last) {
     enforce_chain(w, chain);
 }
 
+#ifdef BASILISK_EVAL_REBUILD
+// The rebuilt arm's bounds are its surface manifest's; only the slots no
+// position reads are held at 0.
+static void clamp_weights_for_group(const std::string&, double* w) {
+    for (int g : {EPG_MgVal, EPG_EgVal}) {
+        w[eval_param_offset(g) + NO_PIECE_TYPE] = 0.0;
+        w[eval_param_offset(g) + KING] = 0.0;
+    }
+}
+#else
 static void clamp_weights_for_group(const std::string&, double* w) {
     int mg = eval_param_offset(EPG_MgVal);
     int eg = eval_param_offset(EPG_EgVal);
@@ -1049,6 +1181,7 @@ static void clamp_weights_for_group(const std::string&, double* w) {
     clamp_group_range(w, EPG_SpaceBlockedMg, -10.0, 10.0);
     clamp_group_range(w, EPG_Tempo, 0.0, 50.0);
 }
+#endif
 
 // ---------------------------------------------------------------------------
 // Dataset loading
@@ -1146,8 +1279,12 @@ static TuneSet load_tune_dataset(const std::string& path,
         out.base_score.push_back(static_cast<float>(model.played_white));
         out.phase.push_back(static_cast<uint8_t>(g_trace.phase));
         for (size_t j = 0; j < active.size(); ++j)
+#ifdef BASILISK_EVAL_REBUILD
+            out.add_coefficient(static_cast<int>(j), static_cast<float>(row_coeff(model, active[j])));
+#else
             out.add_coefficient(static_cast<int>(j),
                                 static_cast<float>(trace_coeff(*model.trace, active[j]) * model.scale));
+#endif
         out.end_row();
 
         if (max_positions > 0 && static_cast<int>(out.size()) >= max_positions)
@@ -1281,9 +1418,13 @@ static void for_each_coeff_row(const std::string& path, int limit, RowFn&& row_f
         if (!ok || model.status != RowModel::USED)
             continue;
         for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i)
+#ifdef BASILISK_EVAL_REBUILD
+            coeff[static_cast<size_t>(i)] = row_coeff(model, i);
+#else
             coeff[static_cast<size_t>(i)] =
                 (model.trace->mg[i] * model.trace->phase + model.trace->eg[i] * (24 - model.trace->phase))
                 / 24.0 * model.scale;
+#endif
         row_fn(coeff, rows.lineno(), model);
         if (limit > 0 && ++used >= limit)
             break;
@@ -1391,6 +1532,7 @@ static void cmd_played_hash(const std::string& path) {
 // they are reported separately as expected-zero, not flagged. Also closes the
 // Phase-3 trace-regression item (d): every traced term must fire nonzero.
 // ---------------------------------------------------------------------------
+#ifndef BASILISK_EVAL_REBUILD
 static const char* const FS_GROUP_NAMES[EPG_COUNT] = {
 #define X(name, member, len) #name,
     EVAL_PARAM_LIST(X)
@@ -1505,6 +1647,8 @@ static void cmd_feature_support(const std::string& path, int max_positions) {
                      "small holdout under-samples rare terms).\n";
     }
 }
+
+#endif // !BASILISK_EVAL_REBUILD
 
 // ---------------------------------------------------------------------------
 // Sigmoid / loss helpers
@@ -1801,9 +1945,16 @@ static void cmd_tune(const TuneOptions& opts) {
         std::vector<char> on(EVAL_PARAM_FLAT_SIZE, 0);
         for (int idx : active)
             on[static_cast<size_t>(idx)] = 1;
+#ifdef BASILISK_EVAL_REBUILD
+        // The rebuilt arm's tables ordered by one count: mobility and the
+        // passer's rank.
+        const int ordered[] = {EPG_MobNMg, EPG_MobNEg, EPG_MobBMg, EPG_MobBEg, EPG_MobRMg, EPG_MobREg,
+                               EPG_MobQMg, EPG_MobQEg, EPG_PassedRankMg, EPG_PassedRankEg};
+#else
         const int ordered[] = {EPG_MobNMg, EPG_MobNEg, EPG_MobBMg, EPG_MobBEg, EPG_MobRMg, EPG_MobREg,
                                EPG_MobQMg, EPG_MobQEg, EPG_PassedMg, EPG_PassedEg,
                                EPG_ConnectedRankMg, EPG_ConnectedRankEg};
+#endif
         for (int g : ordered) {
             const int base = eval_param_offset(g);
             for (int i = 1; i + 1 < EVAL_PARAM_LENS[g]; ++i) {
@@ -2112,10 +2263,15 @@ static double ks_mse(const std::vector<KsSnap>& pos, double K, Board& scratch, E
         ks_board_from_snap(scratch, s);
         g_rest = {};
         const int sc = ev.evaluate(scratch);
+#ifdef BASILISK_EVAL_REBUILD
+        // The rebuilt arm's traced build serves what a release build serves.
+        const int white = (s.stm == WHITE) ? sc : -sc;
+#else
         // The played score: where a release build stops at the lazy
         // checkpoint, the cheap block's value, which no king-safety knob moves.
         const int white = g_rest.lazy ? damp_white(g_rest.lazy_endgame, scratch.rule50_count())
                                       : (s.stm == WHITE) ? sc : -sc;
+#endif
         double sig = 1.0 / (1.0 + std::exp(-K * static_cast<double>(white) / 400.0));
         double d = static_cast<double>(s.result) - sig;
         loss += d * d;
@@ -2143,6 +2299,7 @@ static double ks_fit_K(const std::vector<KsSnap>& pos, Board& scratch, Evaluator
 // registry and reports which instrument reaches it, so that an exclusion has to
 // be a decision someone made rather than an oversight nobody saw.
 // ---------------------------------------------------------------------------
+#ifndef BASILISK_EVAL_REBUILD
 static const char* const EVAL_GROUP_NAMES[] = {
 #define X(name, member, len) #name,
     EVAL_PARAM_LIST(X)
@@ -2196,6 +2353,8 @@ static void cmd_audit_coverage() {
     }
 }
 
+#endif // !BASILISK_EVAL_REBUILD
+
 static void cmd_tune_kingsafety(int argc, char* argv[]) {
     if (argc < 4) { usage(argv[0]); std::exit(1); }
     std::string train_path = argv[2], holdout_path = argv[3];
@@ -2234,6 +2393,13 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     }
 
     EvalParams& P = g_eval_params;
+#ifdef BASILISK_EVAL_REBUILD
+    (void)P;
+    if (g_surface_path.empty()) {
+        std::cerr << "FATAL: the rebuilt arm's knobs are its surface manifest's; pass --surface.\n";
+        std::exit(2);
+    }
+#else
     // The descent keeps the table non-decreasing by clamping each entry
     // between its neighbours, which holds only if the table starts that way:
     // on a table that does not, the bounds cross. A linear stage before this
@@ -2246,6 +2412,7 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
             std::exit(2);
         }
     }
+#endif
     struct Knob { int* p; const char* name; int sub; int lo; int hi; int table_idx; int step; };
     std::vector<Knob> knobs;
     auto add = [&](int* p, const char* n, int sub, int lo, int hi, int ti) {
@@ -2261,7 +2428,11 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
         for (size_t i = 0; i < rows.size(); ++i) {
             if (rows[i].stage != "kingsafety")
                 continue;
+#ifdef BASILISK_EVAL_REBUILD
+            const bool table = false;
+#else
             const bool table = std::string(all[i].group) == "SafetyTable";
+#endif
             if (table && all[i].sub == 0) {
                 std::cerr << "FATAL: safety_table[0] is the table's anchor and cannot be a knob.\n";
                 std::exit(2);
@@ -2271,6 +2442,7 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
         }
         std::cout << "Surface: " << knobs.size() << " king-safety knobs.\n";
     } else {
+#ifndef BASILISK_EVAL_REBUILD
     for (int pt = KNIGHT; pt <= QUEEN; ++pt) add(&P.ks_unit[pt], "ks_unit", pt, 0, 20, -1);
     add(&P.ks_coord_bonus, "ks_coord_bonus", 0, 0, 20, -1);
     for (int pt = KNIGHT; pt <= QUEEN; ++pt) add(&P.ks_safe_check[pt], "ks_safe_check", pt, 0, 30, -1);
@@ -2281,6 +2453,9 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     add(&P.ks_noqueen_num, "ks_noqueen_num", 0, 0, 8, -1);
     add(&P.ks_noqueen_den, "ks_noqueen_den", 0, 1, 8, -1);
     for (int i = 2; i < 25; ++i) add(&P.safety_table[i], "safety_table", i, 0, 600, i);
+#else
+    (void)add;
+#endif
     }
     for (const Knob& kn : knobs) {
         if (*kn.p < kn.lo || *kn.p > kn.hi) {
@@ -2322,10 +2497,12 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
                 int delta = (dir == 0) ? kstep : -kstep;
                 int old = *kn.p;
                 int lo = kn.lo, hi = kn.hi;
+#ifndef BASILISK_EVAL_REBUILD
                 if (kn.table_idx >= 0) {            // keep safety_table non-decreasing
                     lo = std::max(kn.lo, P.safety_table[kn.table_idx - 1]);
                     hi = (kn.table_idx < 24) ? std::min(kn.hi, P.safety_table[kn.table_idx + 1]) : kn.hi;
                 }
+#endif
                 int trial = std::clamp(old + delta, lo, hi);
                 if (trial == old) continue;
                 *kn.p = trial;
@@ -2454,7 +2631,14 @@ int main(int argc, char* argv[]) {
         for (int a = 3; a + 1 < argc; ++a)
             if (std::string(argv[a]) == "--max-positions")
                 maxpos = parse_int_arg(argv[a + 1], "--max-positions");
+#ifdef BASILISK_EVAL_REBUILD
+        (void)maxpos;
+        std::cerr << "--feature-support reads the accepted registry; on the rebuilt arm use "
+                     "test_eval --coverage.\n";
+        return 1;
+#else
         cmd_feature_support(argv[2], maxpos);
+#endif
     } else if (mode == "--tune") {
         TuneOptions opts = parse_tune_options(argc, argv);
         cmd_tune(opts);
@@ -2462,7 +2646,13 @@ int main(int argc, char* argv[]) {
         if (argc < 3) { usage(argv[0]); std::exit(1); }
         cmd_dump_eval(argv[2], argc > 3 ? std::atoi(argv[3]) : 0);
     } else if (mode == "--audit-coverage") {
+#ifdef BASILISK_EVAL_REBUILD
+        std::cerr << "--audit-coverage reads the accepted registry; on the rebuilt arm the "
+                     "surface manifest classes every slot.\n";
+        return 1;
+#else
         cmd_audit_coverage();
+#endif
     } else if (mode == "--tune-kingsafety") {
         cmd_tune_kingsafety(argc, argv);
     } else {

@@ -149,6 +149,7 @@ int main(int argc, char* argv[]) {
             trace.add(g_trace.mg[i]);
             trace.add(g_trace.eg[i]);
         }
+#ifndef BASILISK_EVAL_REBUILD
         if (rest_report) {
             // The traced terms' sums, as reconstruct() forms them.
             int64_t mg_dot = 0, eg_dot = 0;
@@ -182,6 +183,7 @@ int main(int argc, char* argv[]) {
                                   + std::abs(g_rest.sum_eg - eg_dot - frozen_eg));
         }
 #endif
+#endif
         verdict.add(ev->draw_verdict(b) ? 1 : 0);
     }
 
@@ -190,6 +192,13 @@ int main(int argc, char* argv[]) {
     std::printf("verdict_hash: %016llx\n", static_cast<unsigned long long>(verdict.h));
 #ifdef TEXEL_TRACE
     std::printf("trace_hash: %016llx\n", static_cast<unsigned long long>(trace.h));
+#ifdef BASILISK_EVAL_REBUILD
+    if (rest_report) {
+        std::fprintf(stderr, "--rest reads the accepted evaluation's remainder; on the rebuilt arm "
+                             "the tuner's --verify checks it.\n");
+        return 2;
+    }
+#else
     if (rest_report) {
         for (const RestStat* s : {&rest_total, &rest_passer, &rest_mate, &rest_rounding,
                                   &rest_endgame, &rest_damping, &rest_unattributed})
@@ -197,6 +206,7 @@ int main(int argc, char* argv[]) {
                         static_cast<long long>(s->abs_sum), static_cast<long long>(s->abs_max));
         return rest_unattributed.nonzero == 0 ? 0 : 1;
     }
+#endif
 #endif
 
     if (!lazy_audit)
