@@ -132,16 +132,54 @@ bool Evaluator::draw_verdict(const Board& b) {
 // since it pays for an evaluation.
 #ifdef BASILISK_EVAL_REBUILD
 int Evaluator::evaluate_full(const Board& b, bool& verdict, [[maybe_unused]] bool query) {
+#ifdef BASILISK_BOARD_TRACE
+    board_trace::EvalScope trace_eval_scope;
+#endif
     DIAG_COUNT(++eval_calls);
-    return rb::Evaluation<false>(b, pawn_table_->entries, imbalance_table_, imbalance_generation_,
-                                 g_eval_tables_generation, rebuild_clamps, nullptr).value(verdict);
+#ifdef BASILISK_TUNE
+    if (diag_endgames && !query)
+        record_endgame_occurrence(b, endgame_occurrence);
+#endif
+    rb::Evaluation<false> e(b, pawn_table_->entries, imbalance_table_, imbalance_generation_,
+                            g_eval_tables_generation, {rebuild_clamps, pawn_probes, pawn_hits}, nullptr);
+    const int served = e.value(verdict);
+#if !defined(TEXEL_TRACE) && (defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC))
+    if (diag_lazy && !query && e.exit_taken()) {
+        // The lazy audit: the whole function evaluated on the side, its counters
+        // kept out of the search's, and the exit's value served either way, so
+        // the audit is bench-identical. The caches it reads hold functions of
+        // their keys, so what it stores changes no later value.
+        int64_t clamps = 0, probes = 0, hits = 0;
+        bool full_verdict = false;
+        rb::Evaluation<false, false> full(b, pawn_table_->entries, imbalance_table_, imbalance_generation_,
+                                          g_eval_tables_generation, {clamps, probes, hits}, nullptr);
+        const int full_served = full.value(full_verdict);
+        const int threshold = e.exit_taken() == 1 ? rb::LAZY_THRESHOLD_1 : rb::LAZY_THRESHOLD_2;
+        const int64_t d = std::llabs((long long)full_served - served);
+        const bool flip = (full_served > 0) != (served > 0) && full_served != 0 && served != 0;
+        const bool crossing = !rb::lazy_skip(full.sum(), threshold, full.npm());
+        LazyExitAudit& a = lazy_exit_audit[e.exit_taken() - 1];
+        a.fires++;
+        a.absdelta_sum += d;
+        a.absdelta_max = std::max<int64_t>(a.absdelta_max, d);
+        a.sign_flips += flip;
+        a.crossings += crossing;
+        lazy_fires++;
+        lazy_absdelta_sum += d;
+        lazy_absdelta_max = std::max<int64_t>(lazy_absdelta_max, d);
+        lazy_sign_flips += flip;
+        lazy_margin_crossings += crossing;
+    }
+#endif
+    return served;
 }
 
 int Evaluator::rebuild_record(const Board& b, EvalRebuildRecord& out) {
     out = EvalRebuildRecord{};
     bool verdict = false;
     return rb::Evaluation<true>(b, pawn_table_->entries, imbalance_table_, imbalance_generation_,
-                                g_eval_tables_generation, rebuild_clamps, &out).value(verdict);
+                                g_eval_tables_generation, {rebuild_clamps, pawn_probes, pawn_hits},
+                                &out).value(verdict);
 }
 #else
 int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {

@@ -100,22 +100,38 @@ inline int taper(Score s, int ph, int sf) {
     return (s.mg * ph + s.eg * (PHASE_MIDGAME - ph) * sf / 64) / PHASE_MIDGAME;
 }
 
+// The evaluator's counters an evaluation adds to; counted in the Tune and
+// Diag flavours only (DIAG_COUNT).
+struct Counters {
+    int64_t& clamps;
+    int64_t& pawn_probes;
+    int64_t& pawn_hits;
+};
+
 // One evaluation's working state. Rec builds also fill an EvalRebuildRecord
 // with every intermediate the parity test compares; the served value is the
-// same in both.
-template<bool Rec>
+// same in both. Exits = false takes neither lazy exit: the full function,
+// which the lazy audit compares with what an exit served.
+template<bool Rec, bool Exits = true>
 class Evaluation {
 public:
     Evaluation(const Board& board, PawnEntry (&pawn_table)[PAWN_TABLE_SIZE],
                ImbalanceEntry (&imbalance_table)[1 << IMBALANCE_TABLE_BITS],
-               int& imbalance_generation, int tables_generation, int64_t& clamps,
+               int& imbalance_generation, int tables_generation, Counters counters,
                EvalRebuildRecord* record)
         : b(board), pawn_table_(pawn_table), imbalance_table_(imbalance_table),
           imbalance_generation_(imbalance_generation), tables_generation_(tables_generation),
-          clamps_(clamps), rec(record) {}
+          counters_(counters), rec(record) {}
 
     // The value from the side to move's view, in centipawns.
     int value(bool& verdict);
+
+    // After value(): the lazy exit taken (0 none, 1 or 2), the sum the
+    // families gave (with Exits = false, every family's) and the non-pawn
+    // material the exits' thresholds read.
+    int exit_taken() const { return exit_; }
+    Score sum() const { return sum_; }
+    int npm() const { return npm_; }
 
 private:
     const Board& b;
@@ -123,12 +139,15 @@ private:
     ImbalanceEntry (&imbalance_table_)[1 << IMBALANCE_TABLE_BITS];
     int& imbalance_generation_;
     int tables_generation_;
-    int64_t& clamps_;
+    Counters counters_;
     EvalRebuildRecord* rec;
+    int exit_ = 0;
+    Score sum_{};
+    int npm_ = 0;
 };
 
-template<bool Rec>
-int Evaluation<Rec>::value(bool& verdict) {
+template<bool Rec, bool Exits>
+int Evaluation<Rec, Exits>::value(bool& verdict) {
     verdict = false;
     const EvalParams& p = g_eval_params;
 
@@ -139,7 +158,7 @@ int Evaluation<Rec>::value(bool& verdict) {
     const int ph = game_phase(b);
 
     // ---- Pawns -----------------------------------------------------------------
-    PawnEntry& pe = pawn_probe(b, pawn_table_);
+    PawnEntry& pe = pawn_probe(b, pawn_table_, counters_.pawn_probes, counters_.pawn_hits);
     const Score pawns{pe.score[WHITE][0] - pe.score[BLACK][0], pe.score[WHITE][1] - pe.score[BLACK][1]};
     // The matched ablation (EvalAblationBit): a masked family is computed and
     // recorded, and enters no sum, the lazy exits' included. Material, the
@@ -170,7 +189,7 @@ int Evaluation<Rec>::value(bool& verdict) {
     };
 #endif
     const int npm = non_pawn_material(b);
-    int lazy = lazy_skip(score, LAZY_THRESHOLD_1, npm) ? 1 : 0;
+    int lazy = Exits && lazy_skip(score, LAZY_THRESHOLD_1, npm) ? 1 : 0;
 #ifdef TEXEL_TRACE
     if (lazy)
         snapshot();
@@ -205,7 +224,7 @@ int Evaluation<Rec>::value(bool& verdict) {
         if (!lazy) {
             if (!eval_ablated(EVAL_ABLATE_PASSERS))
                 score += passed;
-            if (lazy_skip(score, LAZY_THRESHOLD_2, npm)) {
+            if (Exits && lazy_skip(score, LAZY_THRESHOLD_2, npm)) {
                 lazy = 2;
 #ifdef TEXEL_TRACE
                 snapshot();
@@ -280,7 +299,7 @@ int Evaluation<Rec>::value(bool& verdict) {
     if (kind != LAYER_OVERRIDE && !verdict) {
         served = stm + p.tempo * CONVERSION_S / 1024;
         if (std::abs(served) >= KNOWN_WIN) {
-            DIAG_COUNT(++clamps_);
+            DIAG_COUNT(++counters_.clamps);
             served = served > 0 ? KNOWN_WIN - 1 : -(KNOWN_WIN - 1);
         }
     }
@@ -298,6 +317,9 @@ int Evaluation<Rec>::value(bool& verdict) {
     g_rest.step.verdict = verdict;
     g_rest.served = served;
 #endif
+    exit_ = lazy;
+    sum_ = score;
+    npm_ = npm;
     return served;
 }
 

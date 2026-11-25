@@ -143,7 +143,17 @@ public:
     int64_t pawn_probes = 0, pawn_hits = 0;
 #ifdef BASILISK_EVAL_REBUILD
     // Values the rebuilt evaluation clamped inside the known-win band.
+    // Reset per `go` alongside the counters above.
     int64_t rebuild_clamps = 0;
+    // The rebuilt evaluation has two lazy exits; the audit above sums them,
+    // and this splits it by the exit taken ([0] the first, [1] the second).
+    // A crossing here is a full sum whose halves would not pass that exit's
+    // own test: the exit called decided what the whole function did not.
+    struct LazyExitAudit {
+        int64_t fires = 0, sign_flips = 0, crossings = 0;
+        int64_t absdelta_sum = 0, absdelta_max = 0;
+    };
+    LazyExitAudit lazy_exit_audit[2];
 #endif
 
 #ifdef BASILISK_TUNE

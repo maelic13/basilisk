@@ -113,12 +113,19 @@ Score pawn_structure(const Board& b, PawnEntry& e) {
 }
 
 // The pawn entry for b's pawns: probed, or computed and stored. Its key is
-// never 0 for a real structure, so an empty slot answers for none.
-inline PawnEntry& pawn_probe(const Board& b, PawnEntry (&table)[PAWN_TABLE_SIZE]) {
+// never 0 for a real structure, so an empty slot answers for none. A traced
+// build always recomputes, and counts nothing: it has no cache to size.
+inline PawnEntry& pawn_probe(const Board& b, PawnEntry (&table)[PAWN_TABLE_SIZE],
+                             [[maybe_unused]] int64_t& probes, [[maybe_unused]] int64_t& hits) {
     const Key key = b.pawn_key_value() ^ eval_ablation_key() ^ 0x5D1C4F0A7E3B9286ULL;
     PawnEntry& e = table[key & (PAWN_TABLE_SIZE - 1)];
-    if (e.key == key && !TRACED)
-        return e;
+    if constexpr (!TRACED) {
+        DIAG_COUNT(++probes);
+        if (e.key == key) {
+            DIAG_COUNT(++hits);
+            return e;
+        }
+    }
     e.key = key;
     e.blocked_count = 0;
     const Score w = pawn_structure<WHITE>(b, e);
