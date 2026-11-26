@@ -125,3 +125,18 @@
   `tools/diag/nps_read.py`; idle host.
 - Prediction: `−4.5%`, 80% band `−6.0%` to `−3.0%`. The gate is already
   decided; this read decides nothing alone and is recorded beside it.
+
+#### NPS read — RESULT, 2026-11-26
+
+- `tools/results/c35-nps/` (`verdict-2.json`), two cycles of `bench 13`
+  pinned on CPU 30, host 0.8% and 0.6% busy, no disturbed cycle, the tool's
+  next step `DONE`.
+- **The shipped evaluation against the head: −3.88% [−4.65%, −3.10%]**
+  (Welch df 3.8): 2.351M against 2.446M nodes a second, the means of the
+  four builds' medians (2.356M, 2.350M, 2.345M, 2.354M against 2.440M,
+  2.432M, 2.460M, 2.452M). The tool's gain-form verdict reads `NO_CHANGE`:
+  no gain; the interval shows the slowdown.
+- Inside the prediction's band (`−4.5%`, `−6.0%` to `−3.0%`), and 0.6
+  points less than BAS-M25's seed read (`−4.47%`). The fingerprints differ
+  (3,880,333 against 3,359,329), so this is speed per node of two
+  evaluations, not a pure speed change; the gate's games already price it.

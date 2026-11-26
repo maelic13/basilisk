@@ -2326,6 +2326,19 @@ has lost games in both engines (BAS-X02).
         `README.md`, `AGENTS.md`, `GUIDE.md`, `docs/DESIGN.md`, and the
         complete own-values audit (`156/1,450` equal to seed: `119` fixed,
         `16` support-frozen, `18` free linear, `3` free knobs) recorded.
+      - **The retired evaluation removed** (maintainer, 2026-11-26;
+        `e58d51f`, `ab0c141`): the `EVAL_REBUILD` switch, the old
+        evaluation's seven family headers, its suite and its verdict golden
+        file. Behaviour-neutral: `bench 13` 3,880,333 on the release, tune,
+        diagnostic and ablation builds, 59/59 CTest, the played hash
+        fa8739a3fc205e63 and the tuner's `--verify` unchanged. The fit tools
+        now default to `src/eval_rb_params.h` and `surface_rebuild_v1.tsv`.
+        C.3.6 takes the displaced forms from `99e6353`, the last commit that
+        compiles them.
+      - **NPS (BAS-E65, C-99):** pooled, four PGO builds an arm, the
+        shipped evaluation at `ab0c141` against the head at `99e6353`:
+        **−3.88% [−4.65%, −3.10%]**, inside the predicted band (BAS-M25's
+        seed read was −4.47%).
     - [ ] **C.3.6** `[R2]` Basilisk's own forms read back in
       Added 2026-11-25 (maintainer). After the gate, each Basilisk
       form the port displaced is read against the donor's on the

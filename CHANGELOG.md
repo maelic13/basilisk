@@ -16,13 +16,20 @@ and next step).
 
 ### Changed
 
-- The evaluation's weights were refitted all together on a new set
-  of positions from Basilisk's own games, starting from Stockfish 16's
-  piece-square shapes. It measured **+85.2 ± 14.9 Elo** at `3+0.03`
-  (1,110 games, a sequential test stopped when it was sure). A few won
-  endgames with bishops, knights or rooks and pawns are converted slightly
-  less often at low node counts; later endgame work addresses them. The
-  `bench` fingerprint is now **3,359,329**.
+- A new evaluation. It is built in the form of classical Stockfish's, the
+  last hand-written evaluation before its neural network, and every one of
+  its weights was fitted on positions from Basilisk's own games. Against
+  the evaluation it replaces it measured **+85.3 Elo** at `3+0.03` (1,034
+  games, a sequential test stopped when it was sure) and **+95.1 Elo** at
+  `10+0.1` (1,000 games); that one, a refit of the old evaluation earlier
+  in this cycle, had itself measured +85.2 ± 14.9 Elo over the evaluation
+  before it. Stockfish 16 with its classical evaluation now leads Basilisk
+  by **39.8 Elo** head to head at `3+0.03`, down from 120.0 (3,000 games
+  each). The new evaluation searches about 4% fewer positions per second,
+  which the results above already include. A few won endgames, two
+  knights against a pawn and some with bishops and pawns, are converted
+  slightly less often; later endgame work addresses them. The `bench`
+  fingerprint is now **3,880,333**.
 - Mating a lone king with a queen or a rook now follows a fixed technique:
   drive the defending king to the edge and bring the attacking king closer.
   Before, the score in these endings came from the general evaluation, so
