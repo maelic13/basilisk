@@ -199,9 +199,14 @@ void test_parity(const std::vector<Row>& rows, Evaluator& ev) {
     }
     end_section();
     std::printf("    %d fields on %zu rows\n", checked, rows.size());
+}
 
+void test_layer_silent(const std::vector<Row>& rows, Evaluator& ev) {
     // The layer-silent rows must be at least 90% of the fixture (§9).
     begin_section("layer-silent rows are at least 90% of the fixture");
+    std::vector<EvalRebuildRecord> records(rows.size());
+    for (size_t i = 0; i < rows.size(); i++)
+        ev.rebuild_record(board_of(rows[i].fen), records[i]);
     size_t silent = 0;
     for (size_t i = 0; i < rows.size(); i++)
         silent += layer_silent(rows[i], records[i]);
@@ -696,7 +701,13 @@ int main(int argc, char** argv) {
         return 0;
     }
     std::printf("\nThe reference fixture: %zu rows\n", rows.size());
-    test_parity(rows, *ev);
+    // Donor-seed parity (35 fields against 9587eeeb in eval_reference.tsv) held at 7d68e25
+    // and is opt-in (--parity) once C.3.4 baked Basilisk's own k-phase weights.
+    if (argc > 1 && std::string(argv[1]) == "--parity") {
+        test_parity(rows, *ev);
+        return harness_summary();
+    }
+    test_layer_silent(rows, *ev);
     test_colour_symmetry(rows, *ev);
     test_verdict_is_zero(*ev);
     test_clamp(*ev);
