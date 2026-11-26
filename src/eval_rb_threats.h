@@ -58,11 +58,25 @@ Score threat_terms(const Board& b, const Maps& m) {
     score += Score{p.restricted_piece_mg, p.restricted_piece_eg} * popcount(restricted);
     RB_TR2(RestrictedPiece, 0, SG * popcount(restricted));
 
-    // Our relatively safe pawns attacking their pieces, now or after a push.
+    // Our relatively safe pawns attacking their pieces, now or after a push;
+    // or Basilisk's own, any pawn of ours attacking a piece, by its type.
     Bitboard safe = ~m.attacked_by[Them][ALL_PIECES] | m.attacked_by[Us][ALL_PIECES];
-    const Bitboard by_safe_pawn = pawn_attacks<Us>(b.piece_bb(Us, PAWN) & safe) & non_pawn_enemies;
-    score += Score{p.threat_by_safe_pawn_mg, p.threat_by_safe_pawn_eg} * popcount(by_safe_pawn);
-    RB_TR2(ThreatBySafePawn, 0, SG * popcount(by_safe_pawn));
+    if constexpr (own_form(OWN_PAWN_THREAT)) {
+        const Bitboard hit = m.attacked_by[Us][PAWN] & b.occupancy_bb(Them);
+        const int minors = popcount(hit & (pieces(b, KNIGHT) | pieces(b, BISHOP)));
+        const int rooks = popcount(hit & pieces(b, ROOK));
+        const int queens = popcount(hit & pieces(b, QUEEN));
+        score += Score{p.own_threat_minor_mg, p.own_threat_minor_eg} * minors
+               + Score{p.own_threat_rook_mg, p.own_threat_rook_eg} * rooks
+               + Score{p.own_threat_queen_mg, p.own_threat_queen_eg} * queens;
+        RB_TR2(OwnThreatMinor, 0, SG * minors);
+        RB_TR2(OwnThreatRook, 0, SG * rooks);
+        RB_TR2(OwnThreatQueen, 0, SG * queens);
+    } else {
+        const Bitboard by_safe_pawn = pawn_attacks<Us>(b.piece_bb(Us, PAWN) & safe) & non_pawn_enemies;
+        score += Score{p.threat_by_safe_pawn_mg, p.threat_by_safe_pawn_eg} * popcount(by_safe_pawn);
+        RB_TR2(ThreatBySafePawn, 0, SG * popcount(by_safe_pawn));
+    }
 
     Bitboard pushes = shift_up<Us>(b.piece_bb(Us, PAWN)) & ~b.all_pieces();
     pushes |= shift_up<Us>(pushes & RELATIVE_RANK_3) & ~b.all_pieces();
@@ -151,14 +165,52 @@ Score passer_terms(const Board& b, const PawnEntry& e, const Maps& m) {
         score += bonus - Score{p.passed_file_mg, p.passed_file_eg} * edge_distance(file_of(s));
         RB_TR2(PassedFile, 0, -SG * edge_distance(file_of(s)));
     }
+
+    // Basilisk's rook behind a passer: each rook, ours or theirs, on the file
+    // of one of our passers and behind the rearmost of them, from our side.
+    if constexpr (own_form(OWN_ROOK_BEHIND_PASSER)) {
+        auto behind = [&](Square r) {
+            const Bitboard on_file = e.passed[Us] & file_bb_of(r);
+            if (!on_file)
+                return false;
+            return Us == WHITE ? rank_of(r) < rank_of(Square(lsb(on_file)))
+                               : rank_of(r) > rank_of(Square(msb(on_file)));
+        };
+        int ours = 0, theirs = 0;
+        for (Bitboard bb = b.piece_bb(Us, ROOK); bb; )
+            ours += behind(Square(pop_lsb(bb)));
+        for (Bitboard bb = b.piece_bb(Them, ROOK); bb; )
+            theirs += behind(Square(pop_lsb(bb)));
+        score += Score{p.own_rook_behind_passer_mg, p.own_rook_behind_passer_eg} * ours
+               + Score{p.own_enemy_rook_passer_mg, p.own_enemy_rook_passer_eg} * theirs;
+        RB_TR2(OwnRookBehindPasser, 0, SG * ours);
+        RB_TR2(OwnEnemyRookPasser, 0, SG * theirs);
+    }
     return score;
 }
 
 template<Color Us>
 Score space_terms(const Board& b, const PawnEntry& e, const Maps& m) {
+    constexpr Color Them = Us == WHITE ? BLACK : WHITE;
+    if constexpr (own_form(OWN_SPACE)) {
+        // Basilisk's three middlegame terms, at any material: the safe
+        // squares on files c to f and our ranks 2 to 4 (no pawn of ours, none
+        // of theirs attacking), alone, times our pieces bar pawns and the
+        // king, and times our pawns with any piece directly ahead.
+        constexpr Bitboard OWN_SPACE_MASK = Us == WHITE ? CENTER_FILES & (rank_bb(1) | rank_bb(2) | rank_bb(3))
+                                                        : CENTER_FILES & (rank_bb(6) | rank_bb(5) | rank_bb(4));
+        const EvalParams& p = g_eval_params;
+        const int squares = popcount(OWN_SPACE_MASK & ~b.piece_bb(Us, PAWN) & ~e.attacks[Them]);
+        const int pieces_bar_pawns = popcount(b.occupancy_bb(Us)) - count(b, Us, PAWN) - 1;
+        const int blocked = popcount(b.piece_bb(Us, PAWN) & shift_down<Us>(b.all_pieces()));
+        TR_MG(OwnSpaceMg, 0, SIGN<Us> * squares);
+        TR_MG(OwnSpacePieceMg, 0, SIGN<Us> * squares * pieces_bar_pawns);
+        TR_MG(OwnSpaceBlockedMg, 0, SIGN<Us> * squares * blocked);
+        return Score{p.own_space_mg * squares + p.own_space_piece_mg * squares * pieces_bar_pawns
+                     + p.own_space_blocked_mg * squares * blocked, 0};
+    }
     if (non_pawn_material(b) < SPACE_THRESHOLD)
         return {};
-    constexpr Color Them = Us == WHITE ? BLACK : WHITE;
     constexpr Bitboard SPACE_MASK = Us == WHITE ? CENTER_FILES & (rank_bb(1) | rank_bb(2) | rank_bb(3))
                                                 : CENTER_FILES & (rank_bb(6) | rank_bb(5) | rank_bb(4));
     const EvalParams& p = g_eval_params;

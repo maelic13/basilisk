@@ -288,6 +288,57 @@ struct EvalParams {
 
     // ---- Tempo, in units; converted with the value --------------------------
     int tempo = 36;
+
+    // ---- Basilisk's own forms (src/eval.h, OwnForm) -------------------------
+    // Read only when their bit is compiled in. Each value is added where its
+    // form applies, so a penalty is negative. A form that replaces the
+    // classical one is seeded with the retired evaluation's value converted
+    // to these units (cp * 1024 / 620, rounded); one added beside it is
+    // seeded at 0, so the bit alone at its seed serves the same value.
+    int own_tempo_mg = 45;
+    int own_space_mg = 0;
+    int own_space_piece_mg = 2;
+    int own_space_blocked_mg = -2;
+    int own_minor_king_ring_mg = 5;
+    int own_minor_king_ring_eg = 2;
+    int own_rook_king_ring_mg = -66;
+    int own_rook_king_ring_eg = -10;
+    int own_bad_bishop_mg = -3;
+    int own_bad_bishop_eg = -20;
+    int own_knight_outpost_mg = 31;
+    int own_knight_outpost_eg = 33;
+    int own_reachable_outpost_mg = 17;
+    int own_reachable_outpost_eg = 21;
+    int own_minor_behind_pawn_mg = 17;
+    int own_minor_behind_pawn_eg = 2;
+    int own_rook_queen_file_mg = 30;
+    int own_rook_queen_file_eg = -3;
+    int own_queen_infiltration_mg = -74;
+    int own_queen_infiltration_eg = 307;
+    int own_threat_minor_mg = 144;
+    int own_threat_minor_eg = 94;
+    int own_threat_rook_mg = 144;
+    int own_threat_rook_eg = 94;
+    int own_threat_queen_mg = 144;
+    int own_threat_queen_eg = 94;
+    int own_doubled_mg = -2;
+    int own_doubled_eg = -23;
+    int own_backward_mg = 0;
+    int own_backward_eg = -10;
+    int own_pawn_majority_mg = 0;
+    int own_pawn_majority_eg = 0;
+    int own_pawn_islands_mg = 0;
+    int own_pawn_islands_eg = 0;
+    int own_connected_rooks_mg = 0;
+    int own_connected_rooks_eg = 0;
+    int own_rook_closed_mg = 0;
+    int own_rook_closed_eg = 0;
+    int own_trapped_bishop_mg = 0;
+    int own_trapped_bishop_eg = 0;
+    int own_rook_behind_passer_mg = 0;
+    int own_rook_behind_passer_eg = 0;
+    int own_enemy_rook_passer_mg = 0;
+    int own_enemy_rook_passer_eg = 0;
 };
 
 #define EVAL_PARAM_LIST(X)                                          \
@@ -410,4 +461,48 @@ struct EvalParams {
     X(PassedPathMg,         passed_path_mg,       32)               \
     X(PassedPathEg,         passed_path_eg,       32)               \
     X(SpaceWeight,          space_weight,          1)               \
-    X(Tempo,                tempo,                 1)
+    X(Tempo,                tempo,                 1)               \
+    X(OwnTempoMg,           own_tempo_mg,          1)               \
+    X(OwnSpaceMg,           own_space_mg,          1)               \
+    X(OwnSpacePieceMg,      own_space_piece_mg,    1)               \
+    X(OwnSpaceBlockedMg,    own_space_blocked_mg,  1)               \
+    X(OwnMinorKingRingMg,   own_minor_king_ring_mg, 1)              \
+    X(OwnMinorKingRingEg,   own_minor_king_ring_eg, 1)              \
+    X(OwnRookKingRingMg,    own_rook_king_ring_mg, 1)               \
+    X(OwnRookKingRingEg,    own_rook_king_ring_eg, 1)               \
+    X(OwnBadBishopMg,       own_bad_bishop_mg,     1)               \
+    X(OwnBadBishopEg,       own_bad_bishop_eg,     1)               \
+    X(OwnKnightOutpostMg,   own_knight_outpost_mg, 1)               \
+    X(OwnKnightOutpostEg,   own_knight_outpost_eg, 1)               \
+    X(OwnReachableOutpostMg, own_reachable_outpost_mg, 1)           \
+    X(OwnReachableOutpostEg, own_reachable_outpost_eg, 1)           \
+    X(OwnMinorBehindPawnMg, own_minor_behind_pawn_mg, 1)            \
+    X(OwnMinorBehindPawnEg, own_minor_behind_pawn_eg, 1)            \
+    X(OwnRookQueenFileMg,   own_rook_queen_file_mg, 1)              \
+    X(OwnRookQueenFileEg,   own_rook_queen_file_eg, 1)              \
+    X(OwnQueenInfiltrationMg, own_queen_infiltration_mg, 1)         \
+    X(OwnQueenInfiltrationEg, own_queen_infiltration_eg, 1)         \
+    X(OwnThreatMinorMg,     own_threat_minor_mg,   1)               \
+    X(OwnThreatMinorEg,     own_threat_minor_eg,   1)               \
+    X(OwnThreatRookMg,      own_threat_rook_mg,    1)               \
+    X(OwnThreatRookEg,      own_threat_rook_eg,    1)               \
+    X(OwnThreatQueenMg,     own_threat_queen_mg,   1)               \
+    X(OwnThreatQueenEg,     own_threat_queen_eg,   1)               \
+    X(OwnDoubledMg,         own_doubled_mg,        1)               \
+    X(OwnDoubledEg,         own_doubled_eg,        1)               \
+    X(OwnBackwardMg,        own_backward_mg,       1)               \
+    X(OwnBackwardEg,        own_backward_eg,       1)               \
+    X(OwnPawnMajorityMg,    own_pawn_majority_mg,  1)               \
+    X(OwnPawnMajorityEg,    own_pawn_majority_eg,  1)               \
+    X(OwnPawnIslandsMg,     own_pawn_islands_mg,   1)               \
+    X(OwnPawnIslandsEg,     own_pawn_islands_eg,   1)               \
+    X(OwnConnectedRooksMg,  own_connected_rooks_mg, 1)              \
+    X(OwnConnectedRooksEg,  own_connected_rooks_eg, 1)              \
+    X(OwnRookClosedMg,      own_rook_closed_mg,    1)               \
+    X(OwnRookClosedEg,      own_rook_closed_eg,    1)               \
+    X(OwnTrappedBishopMg,   own_trapped_bishop_mg, 1)               \
+    X(OwnTrappedBishopEg,   own_trapped_bishop_eg, 1)               \
+    X(OwnRookBehindPasserMg, own_rook_behind_passer_mg, 1)          \
+    X(OwnRookBehindPasserEg, own_rook_behind_passer_eg, 1)          \
+    X(OwnEnemyRookPasserMg, own_enemy_rook_passer_mg, 1)            \
+    X(OwnEnemyRookPasserEg, own_enemy_rook_passer_eg, 1)

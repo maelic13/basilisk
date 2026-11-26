@@ -68,23 +68,26 @@ Score pawn_structure(const Board& b, PawnEntry& e) {
             e.passed[Us] |= sq_bb(s);
 
         [[maybe_unused]] constexpr int SG = SIGN<Us>;
+        // Basilisk's own classification replaces the classical doubled and
+        // backward scores; the backward flag above still shapes the span.
+        constexpr bool CLASSICAL = !own_form(OWN_PAWN_CLASS);
         if (support | phalanx) {
             const int i = connected_index(r, phalanx != 0, opposed != 0, popcount(support));
             score += Score{p.connected_mg[i], p.connected_eg[i]};
             RB_TR2(Connected, i, SG);
         } else if (!neighbours) {
-            if (opposed && (ours & forward_file(Them, s)) && !(theirs & adjacent_files(s))) {
+            if (CLASSICAL && opposed && (ours & forward_file(Them, s)) && !(theirs & adjacent_files(s))) {
                 score -= Score{p.doubled_mg, p.doubled_eg};
                 RB_TR2(Doubled, 0, -SG);
             } else {
                 score -= Score{p.isolated_mg, p.isolated_eg};
                 RB_TR2(Isolated, 0, -SG);
-                if (!opposed) {
+                if (CLASSICAL && !opposed) {
                     score -= Score{p.weak_unopposed_mg, p.weak_unopposed_eg};
                     RB_TR2(WeakUnopposed, 0, -SG);
                 }
             }
-        } else if (backward) {
+        } else if (CLASSICAL && backward) {
             score -= Score{p.backward_mg, p.backward_eg};
             RB_TR2(Backward, 0, -SG);
             if (!opposed) {
@@ -93,8 +96,28 @@ Score pawn_structure(const Board& b, PawnEntry& e) {
             }
         }
 
+        if constexpr (!CLASSICAL) {
+            // Backward: no pawn of ours strictly behind on an adjacent file,
+            // and its stop square attacked by one of theirs; a phalanx
+            // neighbour does not prevent it. Doubled: another pawn of ours
+            // on its file, counted for each.
+            const bool own_backward = !(ours & pawn_attack_span(Them, s)) && lever_push;
+            if (own_backward) {
+                score += Score{p.own_backward_mg, p.own_backward_eg};
+                RB_TR2(OwnBackward, 0, SG);
+            }
+            if (more_than_one(ours & file_bb_of(s))) {
+                score += Score{p.own_doubled_mg, p.own_doubled_eg};
+                RB_TR2(OwnDoubled, 0, SG);
+            }
+            if ((!neighbours || own_backward) && !opposed) {
+                score -= Score{p.weak_unopposed_mg, p.weak_unopposed_eg};
+                RB_TR2(WeakUnopposed, 0, -SG);
+            }
+        }
+
         if (!support) {
-            if (doubled) {
+            if (CLASSICAL && doubled) {
                 score -= Score{p.doubled_mg, p.doubled_eg};
                 RB_TR2(Doubled, 0, -SG);
             }
@@ -108,6 +131,29 @@ Score pawn_structure(const Board& b, PawnEntry& e) {
             score += Score{p.blocked_pawn_mg[r - RANK_5], p.blocked_pawn_eg[r - RANK_5]};
             RB_TR2(BlockedPawn, r - RANK_5, SG);
         }
+    }
+
+    // Basilisk's majority: more of our pawns than theirs on a wing (files a
+    // to d, e to h), each wing once.
+    if constexpr (own_form(OWN_MAJORITY)) {
+        for (const Bitboard wing : {QUEEN_SIDE, KING_SIDE}) {
+            if (popcount(ours & wing) > popcount(theirs & wing)) {
+                score += Score{p.own_pawn_majority_mg, p.own_pawn_majority_eg};
+                RB_TR2(OwnPawnMajority, 0, SIGN<Us>);
+            }
+        }
+    }
+    // Basilisk's islands: our groups of adjacent files holding pawns.
+    if constexpr (own_form(OWN_ISLANDS)) {
+        int islands = 0;
+        bool previous = false;
+        for (int f = 0; f < 8; f++) {
+            const bool has = (ours & file_bb(f)) != 0;
+            islands += has && !previous;
+            previous = has;
+        }
+        score += Score{p.own_pawn_islands_mg, p.own_pawn_islands_eg} * islands;
+        RB_TR2(OwnPawnIslands, 0, SIGN<Us> * islands);
     }
     return score;
 }

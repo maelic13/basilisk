@@ -42,6 +42,46 @@ static constexpr int IMBALANCE_TABLE_BITS = 10;
 // against 2.0043.
 inline constexpr int EVAL_REBUILD_CONVERSION_S = 620;
 
+// Basilisk's own evaluation forms, read back in one at a time beside or in
+// place of the classical form's (analysis/c36_own_forms_2026-11-26.md §4):
+// one bit each, compiled from the EVAL_OWN_FORMS CMake value. At 0 none is
+// compiled in and every own-form slot is unread.
+#ifndef BASILISK_OWN_FORMS
+#define BASILISK_OWN_FORMS 0
+#endif
+enum OwnForm : unsigned {
+    OWN_PHASE              = 1u << 0,   // both tapers by the piece-count phase
+    OWN_TEMPO              = 1u << 1,   // the tempo in the middlegame half
+    OWN_OCB                = 1u << 2,   // the layer's opposite-bishop scale
+    OWN_SPACE              = 1u << 3,
+    OWN_MOBILITY           = 1u << 4,   // plain attacks inside the old area
+    OWN_KING_ZONE          = 1u << 5,
+    OWN_BAD_BISHOP         = 1u << 6,
+    OWN_OUTPOST            = 1u << 7,
+    OWN_MINOR_BEHIND_PAWN  = 1u << 8,
+    OWN_ROOK_QUEEN_FILE    = 1u << 9,
+    OWN_QUEEN_INFILTRATION = 1u << 10,
+    OWN_PAWN_THREAT        = 1u << 11,
+    OWN_PAWN_CLASS         = 1u << 12,  // doubled and backward
+    OWN_MAJORITY           = 1u << 13,
+    OWN_ISLANDS            = 1u << 14,
+    // Bit 15 is reserved: the rook on its seventh rank, withdrawn before any
+    // read because the 64-square rook table already holds it.
+    OWN_RESERVED_15        = 1u << 15,
+    OWN_CONNECTED_ROOKS    = 1u << 16,
+    OWN_ROOK_CLOSED_FILE   = 1u << 17,
+    OWN_TRAPPED_BISHOP     = 1u << 18,
+    OWN_ROOK_BEHIND_PASSER = 1u << 19,
+    OWN_FORMS_ALL          = (1u << 20) - 1
+};
+inline constexpr unsigned OWN_FORMS = BASILISK_OWN_FORMS;
+static_assert((OWN_FORMS & ~unsigned(OWN_FORMS_ALL)) == 0, "EVAL_OWN_FORMS names an unknown bit");
+static_assert((OWN_FORMS & OWN_RESERVED_15) == 0, "EVAL_OWN_FORMS bit 15 is reserved: no form is compiled for it");
+inline constexpr bool own_form(unsigned bit) { return (OWN_FORMS & bit) != 0; }
+// The taper's phase divisor: the piece-count phase runs to 24, the
+// non-pawn-material phase to 128.
+inline constexpr int OWN_PHASE_DEN = own_form(OWN_PHASE) ? 24 : 128;
+
 // The rebuilt evaluation's intermediates for one position, in the classical
 // form's units and White's view, as the reference producer prints them
 // (tests/fixtures/eval_reference.tsv): what the parity test compares. Pairs

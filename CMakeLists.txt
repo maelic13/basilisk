@@ -794,6 +794,26 @@ if(DIAGNOSTIC)
     message(STATUS "DIAGNOSTIC build: diagnostic UCI options exposed (BASILISK_DIAGNOSTIC defined)")
 endif()
 
+# Basilisk's own evaluation forms (src/eval.h, OwnForm): a bit mask, 0 by
+# default, compiled into every target so the engine, the tuner and the tests
+# evaluate the same function.
+set(EVAL_OWN_FORMS "0" CACHE STRING "Bit mask of Basilisk's own evaluation forms compiled in (src/eval.h, OwnForm)")
+if(NOT EVAL_OWN_FORMS MATCHES "^[0-9]+$")
+    message(FATAL_ERROR "EVAL_OWN_FORMS must be a decimal bit mask, not '${EVAL_OWN_FORMS}'")
+endif()
+if(NOT EVAL_OWN_FORMS STREQUAL "0")
+    set(_own_form_targets ${_ALL_TARGETS})
+    foreach(_tgt basilisk-texel eval_hash_trace)
+        if(TARGET ${_tgt})
+            list(APPEND _own_form_targets ${_tgt})
+        endif()
+    endforeach()
+    foreach(_tgt IN LISTS _own_form_targets)
+        target_compile_definitions(${_tgt} PRIVATE BASILISK_OWN_FORMS=${EVAL_OWN_FORMS}u)
+    endforeach()
+    message(STATUS "EVAL_OWN_FORMS=${EVAL_OWN_FORMS}: Basilisk's own evaluation forms compiled in")
+endif()
+
 if(ABLATION)
     foreach(_tgt IN LISTS _ALL_TARGETS)
         target_compile_definitions(${_tgt} PRIVATE BASILISK_ABLATION)
