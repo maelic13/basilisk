@@ -2517,8 +2517,11 @@ has lost games in both engines (BAS-X02).
       - KRPPKRP has truth: the 7-man tables are installed, so this leaf's
         wording is stale (C-24); gates without tablebases expose static
         small-endgame scores (C-147).
-- [ ] **C.5** Residual and refit cycles
+- [ ] **C.5** Residual, refit cycles and the speed pass
   It was C.8 until 2026-11-25.
+  Since 2026-11-26 (maintainer) the speed pass closes this step (C.5.3
+  to C.5.5), after the forms are final and before the fits that read
+  the evaluation's cost.
   Reworked 2026-11-18 (maintainer, after C.0): the phase ends on its
   meters, so the residual is investigated before the closing fits.
     - [ ] **C.5.1** `[R3]` Residual investigation
@@ -2527,7 +2530,7 @@ has lost games in both engines (BAS-X02).
       family screen both ways and the frontier pair, and reads C.2.2's
       H-distribution result beside them. Its questions:
       - how much of 217.3 is left, and in which family and phase;
-      - whether what is left is evaluation at all: speed (C.9), the
+      - whether what is left is evaluation at all: speed (C.5.3), the
         search's margins on the new evaluation (C.7), or positions a
         search visits and a game does not (the corpus);
       - which donor forms were screened out and are worth a game-level
@@ -2551,6 +2554,100 @@ has lost games in both engines (BAS-X02).
       - Refit cycles diminish (+11.0, then +6.7 in Rarog), so size from
         earlier cycles' games (C-123); priors (C-68); scores re-dumped
         after each refit (C-69).
+    - [ ] **C.5.3** `[R3]` Speed research: the gap to the donors, split
+      It was C.9 until 2026-11-26 and C.12 until 2026-11-25 (evaluation
+      throughput, bit-exact; archived 8.12).
+      Widened and moved 2026-11-26 (maintainer): a speed pass over the
+      whole engine, not the evaluation's hot paths alone, because
+      Basilisk is much slower than its donors. It runs as research,
+      implementation and a gate (C.5.3 to C.5.5), as B.8's pass did
+      (B.8.8, B.8.9).
+      - **Why here.** The forms are final after C.5.2, and the fits
+        after it read the evaluation's cost: C.6 fits the two lazy
+        thresholds, which trade accuracy for the time a skipped
+        evaluation saves, and C.7 refits the search on the result.
+        C.8's reads at a clock (the frontier field, D.1's gauntlet,
+        C.10.1's scores) are then taken at the release's speed.
+      - **The measured gap.** In the frontier pair Stockfish 16 HCE
+        searches 2.79M nodes a second and 192,355 nodes a move against
+        the head's 2.01M and 137,013 (BAS-M27): 39% more. Before the
+        rebuild it was 2.76M against 2.00M (BAS-M24), so the gap is
+        older than the donor's forms and is not theirs alone. The
+        rebuild cost −3.88% [−4.65%, −3.10%] pooled on `bench 13`
+        (BAS-E65), beside C.1's −0.71%.
+      - **Identity.** Every change in the pass keeps every score and
+        the `bench 13` fingerprint of the head it starts from.
+      - A lever that changes a score is not built in the pass. This
+        leaf reports it: one on the lazy exits is C.6's input, and any
+        other goes to H.1's triage.
+      This leaf is a packet in `analysis/` and a ranked handoff, with no
+      engine change. Its questions:
+      - whether the two node counts are the same count (B.8.7 counts as
+        modern Stockfish does; `sf_16` is read for its own), and the
+        gap in time per node if they are not;
+      - how the gap splits: the evaluation's cost per call on one
+        fixture of game positions, Basilisk's against the reference's
+        (`9587eeeb`) built with the same compiler, flags and PGO; and
+        the rest of a node (make, generation, picker, table, search
+        bookkeeping) from profiles of both engines on one workload,
+        with the oracle's hybrids where they separate the two;
+      - what the donors do that Basilisk does not, read in the local
+        latest Stockfish first and in the reference for the classical
+        evaluation: tables and caches, what is kept incrementally,
+        attack maps built once, data layout, build flags;
+      - duplicate calculations across a seam: search and evaluator,
+        picker and search, make and search;
+      - ideas no donor uses, where the profile supports them.
+      Inputs carried from the earlier leaf and from B.8:
+      - Profile terms, phases and cache paths first.
+      - B.8.8's packet (`analysis/b88_speed_packet_2026-11-15.md`): its
+        negatives (TB-16) are not re-read without a new reason, and its
+        Return 1 stands: a memory item is judged on the game cohort
+        (`tools/cohort_read.py`, BAS-P37), not on `bench` alone.
+      - C.1's accepted cost is recovered here (2026-11-20). The C.1
+        restructure read −0.71% [−0.94%, −0.48%] against the pre-C.1
+        base `496248d`, so the pools
+        `tools/test_engines/c1-base.pool.json` and `c1-head` stay as
+        its reference
+        (`analysis/c0_evaluation_programme_2026-11-18.md` §10.10). The
+        cost's mechanism is not known. It tracked the PGO build's
+        `Evaluator::evaluate_full` instruction count: +95 over the base
+        at −0.71%, +272 at −1.61%, +533 at −2.73%. Watch that count.
+      Rarog audit inputs (2026-10-24,
+      `analysis/rarog_audit_2026-10-24.md`; IDs are its items):
+      - Played and full scores dumped (C-89); cache purity (C-105); a
+        runtime lazy margin clears the caches (C-42); the profile comes
+        from A.9.5.
+      - Code audit 2026-10-27 (§6.3 E9), read on the retired
+        evaluation: no material or imbalance cache, so the
+        twelve-popcount census and the imbalance were rebuilt on every
+        call (the pawn cache is pure). The rebuilt evaluation has an
+        imbalance table (`src/eval.h`), so the item is read again on
+        it before it is ranked. E8's lazy cut is C.6's and C.7's.
+      It ends with a ranked list. Each item carries its mechanism, its
+      share of the profile, its predicted gain, its proof of identity
+      and the read that keeps or reverts it. An item under 0.5% of
+      samples is not built (H.4's rule). The guard for each kind of
+      item is registered here, before C.5.4 builds one.
+    - [ ] **C.5.4** `[I2]` Speed pass: the implementation
+      Added 2026-11-26 (maintainer). C.5.3's items in its order, one
+      commit each.
+      - Optimize only measured hot paths, with exact bench plus direct
+        score-corpus identity: the played and the full scores dumped
+        and compared (C-89).
+      - Each item is kept or reverted on C.5.3's registered read, and a
+        reverted item is recorded with its figure.
+      - A false premise returns the leaf to C.5.3's packet.
+    - [ ] **C.5.5** `[V]` Speed pass: pooled read, gate and close
+      Added 2026-11-26 (maintainer).
+      - Gate with interleaved pooled NPS and a natural-termination SPRT,
+        the pass against the head it started from.
+      - The game-cohort read beside it, loaded and at one engine.
+      - Then the frontier pair, as after every accepted gate (the
+        cluster shape's stage 7): its speed and depth figures are read
+        against BAS-M27's.
+      - The close states what share of C.5.3's gap is recovered and
+        what is left, with its owner (H.4 on the network head).
 - [ ] **C.6** `[V]` Nonlinear HCE SPSA or a written skip
   Nonlinear HCE SPSA (archived 8.10): only live, frequent terms Texel cannot
   price, such as the king-danger map, from a zero-game activation and
@@ -2575,7 +2672,7 @@ has lost games in both engines (BAS-X02).
   Scope (maintainer 2026-11-12): this is the classical stage's big fit,
   properly investigated and as long as it needs: it finds the joint
   optimum of the engine's parameters on the new evaluation and finishes
-  the best HCE engine before C.9's throughput work and C.10's release.
+  the best HCE engine before C.8's freeze and C.10's release.
   Several nights are acceptable, with large early moves and a slowly
   decaying schedule. Rule 7c's ceiling does not bind it; its own
   registration sets the horizon and the stop.
@@ -2632,8 +2729,9 @@ has lost games in both engines (BAS-X02).
   - Re-read the HCE frontier field (BAS-M18) with the C head: the aim's
     meter, in the field and head to head (2026-11-18).
   - Its 1T pool gauntlet, clock- and node-annotated, is D.1's loss-analysis
-    source: C.9 is bit-exact, so those games are the play of D.1's entry
-    head (2026-11-05).
+    source: nothing after the freeze changes a move or the speed (the
+    speed pass is C.5's since 2026-11-26), so those games are the play
+    of D.1's entry head (2026-11-05).
   - Ablate low-information mechanisms.
   - Freeze the classical evaluation.
   - Its games are C.10.1's fitting data: the frozen head's own score at
@@ -2650,96 +2748,10 @@ has lost games in both engines (BAS-X02).
     the C.0 head as anchors, by material class. It locates where the
     programme moved the evaluation and accepts nothing. Its prior is
     Rarog's read of the 2026-11-14 head (C.2.10).
-- [ ] **C.9** Throughput against the donors, bit-exact
-  It was C.12 until 2026-11-25.
-  Evaluation throughput, bit-exact (archived 8.12).
-  Widened 2026-11-26 (maintainer): a speed pass over the whole engine,
-  not the evaluation's hot paths alone, because Basilisk is much slower
-  than its donors. It opens as research, implementation and a gate, as
-  B.8's pass did (B.8.8, B.8.9).
-  - The measured gap. In the frontier pair Stockfish 16 HCE searches
-    2.79M nodes a second and 192,355 nodes a move against the head's
-    2.01M and 137,013 (BAS-M27): 39% more. Before the rebuild it was
-    2.76M against 2.00M (BAS-M24), so the gap is older than the donor's
-    forms and is not theirs alone. The rebuild cost −3.88%
-    [−4.65%, −3.10%] pooled on `bench 13` (BAS-E65), beside C.1's
-    −0.71%.
-  - Every change here keeps every score and the `bench 13` fingerprint.
-    C.8's games are D.1's entry play and C.10.1's fitting data, so the
-    frozen head's moves stay the release's.
-  - A lever that changes a score is not built here. The lazy-eval
-    thresholds are C.7's, audited before the freeze (2026-11-05). Any
-    other such lever C.9.1 finds is reported and goes to H.1's triage.
-    - [ ] **C.9.1** `[R3]` Speed research: the gap to the donors, split
-      Added 2026-11-26 (maintainer). A packet in `analysis/` and a
-      ranked handoff; no engine change. Its questions:
-      - whether the two node counts are the same count (B.8.7 counts as
-        modern Stockfish does; `sf_16` is read for its own), and the
-        gap in time per node if they are not;
-      - how the gap splits: the evaluation's cost per call on one
-        fixture of game positions, Basilisk's against the reference's
-        (`9587eeeb`) built with the same compiler, flags and PGO; and
-        the rest of a node (make, generation, picker, table, search
-        bookkeeping) from profiles of both engines on one workload,
-        with the oracle's hybrids where they separate the two;
-      - what the donors do that Basilisk does not, read in the local
-        latest Stockfish first and in the reference for the classical
-        evaluation: tables and caches (pawn, material and imbalance),
-        what is kept incrementally, attack maps built once, data layout,
-        build flags;
-      - duplicate calculations across a seam: search and evaluator,
-        picker and search, make and search;
-      - ideas no donor uses, where the profile supports them.
-      Inputs carried from the earlier leaf and from B.8:
-      - Profile terms, phases and cache paths first.
-      - B.8.8's packet (`analysis/b88_speed_packet_2026-11-15.md`): its
-        negatives (TB-16) are not re-read without a new reason, and its
-        Return 1 stands: a memory item is judged on the game cohort
-        (`tools/cohort_read.py`, BAS-P37), not on `bench` alone.
-      - The audit items and C.1's cost, listed under this step below.
-      It ends with a ranked list. Each item carries its mechanism, its
-      share of the profile, its predicted gain, its proof of identity
-      and the read that keeps or reverts it. An item under 0.5% of
-      samples is not built (H.4's rule). The guard for each kind of
-      item is registered here, before C.9.2 builds one.
-    - [ ] **C.9.2** `[I2]` Speed pass: the implementation
-      Added 2026-11-26 (maintainer). C.9.1's items in its order, one
-      commit each.
-      - Optimize only measured hot paths, with exact bench plus direct
-        score-corpus identity: the played and the full scores dumped
-        and compared (C-89).
-      - Each item is kept or reverted on C.9.1's registered read, and a
-        reverted item is recorded with its figure.
-      - A false premise returns the leaf to C.9.1's packet.
-    - [ ] **C.9.3** `[V]` Speed pass: pooled read, gate and close
-      Added 2026-11-26 (maintainer).
-      - Gate with interleaved pooled NPS and a natural-termination SPRT,
-        the pass against the frozen head.
-      - The game-cohort read beside it, loaded and at one engine.
-      - Then the frontier pair, as after every accepted gate (the
-        cluster shape's stage 7): its speed and depth figures are read
-        against BAS-M27's.
-      - The close states what share of the gap of C.9.1 is recovered
-        and what is left, with its owner (H.4 on the network head).
-  - C.1's accepted cost is recovered here (2026-11-20). The C.1 restructure
-    read −0.71% [−0.94%, −0.48%] against the pre-C.1 base `496248d`, so
-    the pools `tools/test_engines/c1-base.pool.json` and `c1-head` stay as
-    its reference (`analysis/c0_evaluation_programme_2026-11-18.md` §10.10).
-    The cost's mechanism is not known. It tracked the PGO build's
-    `Evaluator::evaluate_full` instruction count: +95 over the base at
-    −0.71%, +272 at −1.61%, +533 at −2.73%. Watch that count.
-  Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
-  are its items):
-  - Played and full scores dumped (C-89); cache purity (C-105); a runtime lazy
-    margin clears the caches (C-42); the profile comes from A.9.5.
-  - Code audit 2026-10-27 (§6.3 E9): there is no material or imbalance
-    cache, so the twelve-popcount census and the imbalance are rebuilt on
-    every call (the pawn cache is pure); a cache that keeps every score
-    identical belongs here. E8's lazy cut is C.7's.
 - [ ] **C.10** Interim release after the evaluation programme
   It was C.13 until 2026-11-25.
   Maintainer decision 2026-10-24: the evaluation programme's head is released
-  as 1.12.0 once C.9 closes, as Rarog cut 2.6.0 from its C head. Since
+  as 1.12.0 once C.8 closes, as Rarog cut 2.6.0 from its C head. Since
   2026-11-21 (maintainer) the release first prints its score on a fitted
   scale (C.10.1), so 1.12.0 is the first release whose +1.00 means an even
   chance. Since 2026-11-26 (maintainer) the remote is cleaned before the
@@ -2748,8 +2760,8 @@ has lost games in both engines (BAS-X02).
       Added 2026-11-21 (maintainer; `analysis/rarog_import_2026-11-21.md`
       §2.1, after Rarog's D.7.12). Output only: no search or clock
       decision reads the printed score, and `bench 13` is unchanged. Its
-      constants are fitted on the frozen head (C.8), and C.9 is
-      bit-exact, so they are the release's.
+      constants are fitted on the frozen head (C.8), and nothing after
+      the freeze changes a move, so they are the release's.
       - **The form is Stockfish's, whole** (`src/uci.cpp`,
         `win_rate_params`, `win_rate_model`, `to_cp` and `wdl` at
         `sf_19`).
@@ -2874,13 +2886,13 @@ leaf's tag. Later phases carry only a class until they open.
 | C.4.7 | RESEARCH | V | Not started |
 | C.5.1 | RESEARCH | R3 | Not started |
 | C.5.2 | RESEARCH | V | Not started |
+| C.5.3 | RESEARCH | R3 | Not started |
+| C.5.4 | RESEARCH | I2 | Not started |
+| C.5.5 | RESEARCH | V | Not started |
 | C.6 | RESEARCH | V | Not started |
 | C.7.1 | RESEARCH | R2 | Not started |
 | C.7.2 | RESEARCH | V | Not started |
 | C.8 | RESEARCH | V | Not started |
-| C.9.1 | RESEARCH | R3 | Not started |
-| C.9.2 | RESEARCH | I2 | Not started |
-| C.9.3 | RESEARCH | V | Not started |
 | C.10.1 | RESEARCH | I1 | Not started |
 | C.10.3 | RESEARCH | R2 | Not started |
 | C.10.4 | RESEARCH | M | Not started |
@@ -2972,7 +2984,8 @@ leaf's tag. Later phases carry only a class until they open.
     cell (B.16.3, TT-1; `tools/diag/loss_by_cell.py`, BAS-M14's method)
     says which clock situations lose games. It is run here, first, on the
     clock- and node-annotated games of C.8's pool gauntlet, the play of
-    this leaf's entry head against stronger engines (C.9 is bit-exact);
+    this leaf's entry head against stronger engines (nothing after the
+    freeze changes a move or the speed);
     the wall-clock read (B.16.1, TT-2; `tools/diag/wallclock.py`) is
     re-read on this leaf's head, about seven minutes on an idle host, and
     sizes the overhead the budget must leave, B.16.1's numbers its prior.
@@ -3739,7 +3752,7 @@ already repairing or a form it must choose anyway, and says so.
     share by phase (TT-10).
 - [ ] **H.4** `[R2]` Throughput at an identical tree on the network head
   Added 2026-11-11 (Rarog's H.4; `analysis/rarog_import_2026-11-11.md`).
-  B.8.5 and C.9 profile the classical engine, and F.5 covers the
+  B.8.5 and C.5.3 profile the classical engine, and F.5 covers the
   network's inference. On the network head's profile, the leads that did
   not pay there, or were never read, are read again where the network
   changed what is hot: the board, SEE, picker, prefetch and layout items
@@ -3848,7 +3861,7 @@ already repairing or a form it must choose anyway, and says so.
 | Search deficit G(0) | Paired, head against the frozen classical-Stockfish search oracle rebuilt with the head's HCE, 3,000 games, no adjudication; at equal time (BAS-O05) and, from B.11.1, also with the bridge's price returned as time odds (RAR-O08) | A.7.3, B.11.1 |
 | Evaluation deficit | Hybrid at the head against the classical-Stockfish-HCE hybrid, same search | C.8 |
 | Cluster acceptance | Registered final-PGO SPRT, bracket per rule 5, `[0,10]` for B.2 | every cluster |
-| Neutral change | Exact fingerprint, release and sanitizer CTest, pooled-PGO NPS | B.1, B.8, C.1, C.9, F.1 |
+| Neutral change | Exact fingerprint, release and sanitizer CTest, pooled-PGO NPS | B.1, B.8, C.1, C.5.4, F.1 |
 | Conversion | A.5.5's audit on the latest pool tournament | every checkpoint |
 | Fixed-node shape | Oracle differential at stride 1, depth at 300k nodes, branching profile, WAC at fixed nodes, positional screen | B clusters |
 | Endgame layers | Truth cohort, drawn overclaim, conversion at the deployment bracket, floors | C.4 |

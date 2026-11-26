@@ -82,7 +82,7 @@ kept so the run can be reproduced from its ledger entry.
 | `nps_read.ps1` | The pooled NPS read: two or more pools and named contrasts between them, interleaved cycles of a pinned `bench 13 3`, every run archived, step 1 and `-Extend` | PROCESS *Build, bench and NPS*; BAS-P18, BAS-P19, BAS-P21 |
 | `diag/nps_read.py` | The read's decision from its archive: per-build medians, a Welch t-interval per contrast, the two steps and the disturbance rule | `nps_read.ps1` |
 | `nps_ab.ps1` | The earlier bootstrap NPS A/B, kept only to compare with rows before A.9.4 | BAS-P12 to BAS-P17 |
-| `profile.ps1` | A user-mode sampling profile of a Profile-flavor engine over `bench 13` or an EPD cohort | PROCESS *Build, bench and NPS*; B.8.5, C.9 |
+| `profile.ps1` | A user-mode sampling profile of a Profile-flavor engine over `bench 13` or an EPD cohort | PROCESS *Build, bench and NPS*; B.8.5, C.5.3 |
 | `diag/profile_regions.py`, `.json` | The profile's samples charged by inline chain to the innermost engine file's region, and refused when that attribution cannot be trusted | `profile.ps1` |
 | `diag/verify_isa.py` | Each asset's CPU-tier contract from its disassembly: portable, AVX2, PEXT, and ARM64 with its required `prfm` | CI, Release |
 | `diag/release_check.py` | The release checks: version sources, CHANGELOG section, GUIDE's released row and fingerprint, the release line | PROCESS *Release*; `release.yml` |

@@ -879,7 +879,7 @@ and refuse; they never accept a Basilisk change.
 | Prior IDs | Retry condition | PLAN destination |
 |---|---|---|
 | BAS-R02, BAS-R03 | Root-confidence inputs or evaluator score scale materially change. | D.1; re-audit at F.6 |
-| BAS-P04, BAS-P05, BAS-P06 | A new profile demonstrates changed reuse, cache pressure or PGO coverage. | C.9 for the evaluation's caches, D.2 for the TT |
+| BAS-P04, BAS-P05, BAS-P06 | A new profile demonstrates changed reuse, cache pressure or PGO coverage. | C.5.3 for the evaluation's caches, D.2 for the TT |
 | BAS-C05 (both encodings) | A measured 4T-only strength anomaly traced to TT publication, OR a TT redesign that widens the slot for an independent reason (e.g. the multiply-hi indexing deferred in PLAN section 6), OR a pooled `nps_ab.ps1` run showing a coherent layout inside +/-0.5% of plain-key. Reasoning alone does not reopen it: both prior repairs were correct and both lost Elo. | D.2, which owns the TT publication repair (PLAN §2 *Standing contracts*) |
 | BAS-P07, BAS-X07 | Production ARM64 artifacts show missing prefetch or measured hot-state contention; isolate one valid variant per target-native A/B. | A.4.1, E.3.2, G.2 |
 | BAS-E03, BAS-E04, BAS-E06 | NNUE data/teacher experiment, not another unchanged-surface HCE constant fit; frozen teacher and holdout are available. | C.2.8 and C.5 only on a changed search and surface; F.2–F.3 for teacher data |

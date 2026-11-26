@@ -98,18 +98,17 @@ the six-stage gating shape), are in
     - [ ] **C.4.5** `[I2]` Group B families by measured kind
     - [ ] **C.4.6** `[R2]` Lower-yield remainder
     - [ ] **C.4.7** `[V]` Endgame gate and closure
-- [ ] **C.5** Residual and refit cycles
+- [ ] **C.5** Residual, refit cycles and the speed pass
     - [ ] **C.5.1** `[R3]` Residual investigation
     - [ ] **C.5.2** `[V]` Refit cycles
+    - [ ] **C.5.3** `[R3]` Speed research: the gap to the donors, split
+    - [ ] **C.5.4** `[I2]` Speed pass: the implementation
+    - [ ] **C.5.5** `[V]` Speed pass: pooled read, gate and close
 - [ ] **C.6** `[V]` Nonlinear HCE SPSA or a written skip
 - [ ] **C.7** Joint re-fit on the new evaluation
     - [ ] **C.7.1** `[R2]` Joint-fit investigation and registration
     - [ ] **C.7.2** `[V]` The joint fit, PGO and gate
 - [ ] **C.8** `[V]` Freeze the classical evaluation
-- [ ] **C.9** Throughput against the donors, bit-exact
-    - [ ] **C.9.1** `[R3]` Speed research: the gap to the donors, split
-    - [ ] **C.9.2** `[I2]` Speed pass: the implementation
-    - [ ] **C.9.3** `[V]` Speed pass: pooled read, gate and close
 - [ ] **C.10** Interim release after the evaluation programme
     - [ ] **C.10.1** `[I1]` Reported score and WDL in Stockfish's form
     - [ ] **C.10.3** `[R2]` Remote inventory and the ruling

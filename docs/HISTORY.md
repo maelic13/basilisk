@@ -12,8 +12,8 @@ quiescence moved from A.11.10 to A.11.11; and on 2026-11-05 the open steps
 of Phases B to D were renumbered in the order they run. The *Number map*
 below resolves the earlier numbering of all three. On 2026-11-11 open
 leaves of B.6, B.9, B.11, C.2, C.7 and F moved to new numbers, none of
-them reused; the map resolves those too, and C.10.2's move to C.10.5 on
-2026-11-26. Retired identifiers stay valid in `EXPERIMENTS.md`,
+them reused; the map resolves those too, and the moves of C.9 and
+C.10.2 on 2026-11-26. Retired identifiers stay valid in `EXPERIMENTS.md`,
 `analysis/`, source comments and commit messages, and resolve here:
 
 | Scheme | Where it appears | Resolve it in |
@@ -559,13 +559,15 @@ if C.3.6 returns that form.
     in a frozen handoff, or a `NO_CHANGE`, for each term.
 
 Moved in Phase C on 2026-11-26 (at the maintainer's request for a speed
-pass and a clean-up of the remote before the release): C.9 opens as
-C.9.1 to C.9.3 and keeps its number, and the remote clean-up, C.10.3 and
-C.10.4, runs before the cut. No number is reused.
+pass and a clean-up of the remote before the release). The throughput
+leaf is widened to the whole engine and moves ahead of C.6, whose lazy
+thresholds are fitted on the evaluation's cost; the remote clean-up,
+C.10.3 and C.10.4, runs before the cut. No number is reused, and C.9
+names nothing now. For one commit that day the pass was C.9.1 to C.9.3.
 
 | Was | Now | Note |
 |---|---|---|
-| C.9 | C.9, C.9.1–C.9.3 | throughput, widened from the evaluation to the whole engine |
+| C.9 | C.5.3–C.5.5 | the speed pass: research, implementation, gate |
 | C.10.2 | C.10.5 | the 1.12.0 cut |
 
 ## Completed current-roadmap work (dated records; PLAN owns IDs)
