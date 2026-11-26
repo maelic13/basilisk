@@ -2370,18 +2370,55 @@ has lost games in both engines (BAS-X02).
           - Passing forms take SPRTs one at a time, largest gain first,
             each against the evaluation then shipped and re-screened
             after any acceptance.
-        - [ ] **C.3.6.2** `[I2]` The forms behind one switch, and the screen's tools
+        - [x] **C.3.6.2** `[I2]` The forms behind one switch, and the screen's tools
           The packet's §8: `EVAL_OWN_FORMS`, a bit mask in §4's order,
           default 0. Mask 0 keeps `bench 13` 3,880,333 and the played
           hash at every commit. Each bit is modelled exactly by the
           tuner and is colour symmetric, and an added bit at seed 0 is
           the shipped evaluation. Then the screen tool and the frozen
           launcher for BAS-O18's 24 arms, in Python, dry-run.
-        - [ ] **C.3.6.3** `[R2]` Independent review
+          **Closed 2026-11-26** (`17d6d66`, `ea2834c`, `05568ce`,
+          `a270c05`, `b2009cc`, `7566d9e`):
+          - Nineteen forms behind `EVAL_OWN_FORMS`, each with its own
+            slots, appended after `Tempo`. Bit 15 is reserved
+            (R5: `ROOK_SEVENTH` is the 64-square rook table's seventh
+            rank), and a mask that sets it fails to compile.
+          - Mask 0: `bench 13` 3,880,333, played hash fa8739a3fc205e63,
+            59/59 CTest, `--verify` exact on 197,277 rows, CI's Python
+            tests green.
+          - Every bit alone (`run_c36_screen.py check`): `--verify`
+            exact; the six added forms serve mask 0's bench and hash at
+            seed 0 and move it at a nonzero value; `test_eval` passes
+            at every mask but the opposite-bishop arm's ruled failure
+            (the classical arm's parity coverage).
+          - The tuner models the piece-count phase and the middlegame
+            tempo; the surface classes slots by mask; `fit.py` gained
+            `--own-forms`, `--no-bake` and `--fix-groups`;
+            `form_screen.py` reproduces the tuner's loss to 2e-10.
+        - [x] **C.3.6.3** `[R2]` Independent review
           A separate session reproduces mask 0, every bit's seed
           identity and `--verify`, and checks each form against the
           packet's §4 and `99e6353`'s code. Its acceptance is recorded
           before the screen runs.
+          **Accepted 2026-11-26** by research in a separate session, at
+          `f011260`. Reproduced from its own clone:
+          - mask 0 at `bench 13` 3,880,333 and played hash
+            fa8739a3fc205e63; every bit's bench, `--verify` on 197,277
+            rows and played hash, equal to the implementer's on all 20
+            masks;
+          - the six added forms identical to mask 0 at seed 0, and live
+            at a nonzero value;
+          - `test_eval` at every mask, with the opposite-bishop arm's
+            single ruled failure;
+          - the release build's served hash equal to the tuner's played
+            hash at every mask;
+          - colour symmetry at nonzero values: 0 of 197,277 rows
+            asymmetric at every mask.
+          Each form was read against `99e6353` and R1 to R5. Rulings:
+          R5 (`ROOK_SEVENTH` withdrawn); the opposite-bishop arm's
+          parity-coverage failure expected; the lazy census's
+          precondition fixed in `b2009cc`; R6 (`PAWN_THREAT` and
+          `TRAPPED_BISHOP` barely active on quiet rows).
         - [ ] **C.3.6.4** `[V]` The screens and the first refit
           Amended 2026-11-26 (the packet's Amendment 1; maintainer):
           C.5.2's first cycle is pulled forward. Corpus C, corpus A's
@@ -3033,8 +3070,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.3.6.2 | READY_FOR_IMPLEMENTATION | I2 | Packet §8 (`analysis/c36_own_forms_2026-11-26.md`) |
-| C.3.6.3 | RESEARCH | R2 | Not started |
 | C.3.6.4 | RESEARCH | V | Registered as BAS-O18, BAS-O19, BAS-O20 |
 | C.3.6.5 | RESEARCH | V | Registered as BAS-E66, BAS-E67 |
 | C.4.2 | RESEARCH | R3 | Not started |
