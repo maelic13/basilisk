@@ -56,9 +56,10 @@ static const int TEST_DEPTH = 6;
 // 181 at depth 6 (bench 3,359,329) where the head before it solved 186, and
 // fewer at depths 7 to 9 too (191/212/217 against 206/216/226), for +85 Elo in
 // games. The floor is that count less 13.
-// The rebuilt evaluation is its own evaluation on the same search: at its seed vector it solved 195 at depth 6 (bench
-// 3,717,775) where the refit before it solved 181, and the floor is that count
-// less 13. The fitted vector (bench 3,880,333) holds it.
+// The rebuilt evaluation is its own evaluation on the same search: at its
+// seed vector it solved 195 at depth 6 (bench 3,717,775) where the refit
+// before it solved 181, and the floor is that count less 13. The fitted
+// vector (bench 3,880,333) holds it.
 static const int FLOOR = 182;
 static const int STALE_HEADROOM = 20;
 
