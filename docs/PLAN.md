@@ -2397,6 +2397,17 @@ has lost games in both engines (BAS-X02).
         non-pawn-keyed tables (`search_kernel_core.cpp:195`, `:508`;
         `search_history_core.cpp:158-174`) whose keys won and drawn
         positions share, so a dead draw can stand at ±X.
+      A Rarog prior, 2026-11-26 (maintainer-supplied, Rarog's RAR-E75;
+      `analysis/rarog_import_2026-11-26.md` §2), an idea researched here
+      and kept or dropped on Basilisk's own read:
+      - Finding 1: on Rarog's corpus `sf_16`'s evaluation is under-scaled
+        in light endings (the slope in pawn endings is 1.75 times the
+        overall slope, with pure opposite bishops 1.68) and over-scaled
+        with heavy material (0.63), mostly one slope by phase. The read is
+        the same ratio per ending class on the accepted head and corpus
+        A's held-out half: minutes, no games. It ranks the classes for
+        C.4.3's candidate A. A phase slope the fit has not absorbed is a
+        fit question before it is a term.
     - [ ] **C.4.3** `[I2]` Generic winnability and scaling
       Narrowed 2026-11-25 (`analysis/c31_rebuild_2026-11-25.md` §6.8 and §13): the
       donor's winnable step and general scale heuristics arrive with
@@ -2434,6 +2445,24 @@ has lost games in both engines (BAS-X02).
         a Syzygy residual on those cohorts first. A.13.2 repairs the
         pawnless classifier's units before this leaf and leaves its
         truth-table test for this leaf to keep.
+      A Rarog prior, 2026-11-26 (`analysis/rarog_import_2026-11-26.md`
+      §3), candidate A, researched here on C.4.2's read and implemented
+      and tested or dropped:
+      - One multiplier on the final score per class, chosen by non-pawn
+        material alone: no pieces; one bishop each on opposite colours
+        and nothing else; rooks only, if the fit still wants it. Applied
+        after the endgame layer and the scale factors, never to mate,
+        tablebase or recognised-draw scores.
+      - Beside a phase slope, `sf_16`'s residuals were ×1.12, ×1.14 and
+        ×0.95 (−0.020% held-out cross-entropy); Basilisk's are read on
+        its own evaluation first.
+      - The opposite-bishop class waits for C.3.6's read of Basilisk's
+        own opposite-bishop scale, which measures the same thing. The
+        inputs that pick the class also key the correction-history
+        tables (C.4.2's E7).
+      - Kill rule: on tablebase positions from Basilisk's own games, the
+        scaled evaluation raises drawn-position overclaims by more than
+        won positions gain. Then gate.
     - [ ] **C.4.4** `[R3]` Won-rook-ending only-move precision (BAS-E53)
       Won-rook-ending only-move precision (archived 6.8.a; BAS-E53): all 68
       one-winning-move nodes studied with a held-out split; search, evaluation
@@ -2482,6 +2511,22 @@ has lost games in both engines (BAS-X02).
         class; narrowing the one number cannot be exact.
       - Acceptance for a floored site is its search-resolved residual or a
         gate, not B.9.3's 0.5% share of positions the scale touches.
+      A Rarog prior, 2026-11-26 (`analysis/rarog_import_2026-11-26.md`
+      §4), candidate B, researched with the promotion races and
+      implemented and tested or dropped there:
+      - A pawn-race term in pawn endings only: the difference, in ranks,
+        between each side's nearest unstoppable passer's plies to queen
+        (a clear path, and the enemy king outside the square counting
+        the move, or its own king guarding the rest of the path), times
+        one weight. Neither donor has it.
+      - On `sf_16`: −0.087% held-out cross-entropy alone, −0.034% beside
+        the pawn-ending scale (about +83 cp a rank), active on 1.1% of
+        rows. Fitted beside C.4.3's A, never before. It reads both kings
+        and the side to move, so it cannot live in the pawn entry as
+        keyed now.
+      - Kill rule: on pawn endings of seven men or fewer from Basilisk's
+        games, its sign does not agree with Syzygy clearly more often
+        than the evaluation without it.
     - [ ] **C.4.6** `[R2]` Lower-yield remainder
       Lower-yield remainder (archived 6.10.a–d): KPs-K and KP-KP first; KQ-KP
       and KQ-KR reconciled across budgets; KR-KN, KNN-KP and KNN-K theory and
@@ -2554,6 +2599,26 @@ has lost games in both engines (BAS-X02).
           consecutive units under +5 at their gates, or a frontier pair
           whose interval includes zero. A unit expected under 5 Elo goes
           to Phase H.
+          Rarog priors, 2026-11-26 (`analysis/rarog_import_2026-11-26.md`
+          §5 to §7), ideas this investigation researches and then opens
+          as clusters, routes or drops:
+          - Candidate D: a bonus to the attacker for each of a side's
+            pieces attacked by a lesser piece beyond the first, since one
+            move saves one piece. Unmeasured; 0.3% of quiet rows cannot
+            judge it. Its read is the search's own leaves: how often two
+            or more occur where the static evaluation decides a node, and
+            that evaluation's error against a deeper search there, with
+            and without the term. Dropped on negligible activation or an
+            error that does not fall.
+          - Candidate C: an endgame-only bonus for a rook on its seventh
+            while an enemy pawn is on that rank or the enemy king on its
+            back rank. On `sf_16` −0.015% held-out cross-entropy, the
+            condition unresolved against a plain rook on the seventh.
+            Small: the note reads it inside a sweep.
+          - Screened without gain on Rarog's instrument, and not
+            re-proposed without a new reason: rook mobility counted
+            through pieces, an offset per uneven piece configuration, a
+            multiplier for each of 52 piece configurations.
     - [ ] **C.5.2** `[V]` Refit cycles
       It was C.8 until 2026-11-18.
       Refit cycles (archived 8.9): regenerate data with the accepted
