@@ -111,9 +111,12 @@
   one revision. BAS-M25 read the same code at its seed values at
   `−4.47% [−4.79%, −4.16%]`; the fit changes only values, which move the
   lazy-exit share (`14.67%` to `14.01%`) and the tree.
-- Pools: `tools/nps_pool.ps1`, four final-PGO PEXT builds each of `99e6353`,
-  `c35-nps-on` (`EVAL_REBUILD=ON`, `bench 13` 3,880,333) and `c35-nps-off`
-  (`=OFF`, 3,359,329).
+- Pools: `tools/nps_pool.ps1`, four final-PGO PEXT builds each:
+  `c35-nps-on`, the shipped evaluation at `ab0c141` after the retired one's
+  removal (`bench 13` 3,880,333), and `c35-nps-off`, the head at `99e6353`,
+  the last commit that compiles it (`EVAL_REBUILD=OFF`, 3,359,329).
+  Amended before any pool was built, when the maintainer moved the removal
+  ahead of the read; the removal is behaviour-neutral (`bench 13` exact).
 - Read: `pwsh -NoProfile -File tools/nps_read.ps1 -Base
   tools/test_engines/c35-nps-off.pool.json -Cand
   tools/test_engines/c35-nps-on.pool.json -Out tools/results/c35-nps
