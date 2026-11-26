@@ -2310,7 +2310,9 @@ has lost games in both engines (BAS-X02).
         `0` faults). C.2.7 endgame bracket veto (`21k/64k/190k` of 480):
         candidate **`441 / 448 / 457`** vs base **`434 / 445 / 458`**
         (`7` discards vs base, `5` vs `c274/head`, 0 rule-50/anomaly/malformed);
-        explicitly overridden by maintainer.
+        the veto binds, and the maintainer ruled on 2026-11-26 to accept
+        the candidate over it, as at BAS-E59; the vetoed endings go to
+        C.4 (BAS-E65).
       - **LTC & frontier (`BAS-M26`, `BAS-M27`):** `10+0.1` (`1,000` games)
         **+95.1 [+82.3, +108.1]** (`425-417-158`, `0` faults); frontier vs
         Stockfish 16 HCE (`3+0.03`, `3,000` games) **−39.8 [−48.0, −31.6]**

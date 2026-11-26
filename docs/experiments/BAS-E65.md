@@ -88,9 +88,37 @@
   `KNN-KP/EG0462`, `KNN-KP/EG0465`, `KNN-KP/EG0466`, `KRP-KB/EG0545`) and
   `count = 5` vs `c274/head` (`KBPP-KB/EG0742`, `KBPP-KB/EG0745`, `KNN-KP/EG0454`,
   `KNN-KP/EG0468`, `KNN-KP/EG0471`).
+- **The veto binds, so acceptance is the maintainer's ruling**, as at
+  BAS-E59 (PLAN C.2.8.4): the SPRT is not weighed against the veto, and
+  the review cannot accept over it.
+  - **Ruling, 2026-11-26 (maintainer):** the candidate is accepted over the
+    veto, and the vetoed positions go to C.4 with the endings already
+    routed there.
+  - The basis on record: the two-of-three rule fires 3 to 6 times between
+    two fits of equal quality (C.2.8.4), so 7 against the base and 5
+    against `c274/head` sit at that floor; conversion of the 480 rose at
+    21,000 and 64,000 nodes (`+7`, `+3`) and fell by one at 190,000; and
+    the vetoes fall in the families C.2.8.4 already found (KBPP-KB, KNN-KP,
+    KRP-K*), five of the seven in KNN-KP.
 - **Outcome:** SPRT H1 prediction (`+85`, `P(H1) = 0.99`) hit almost identically
-  (`+85.3`); zero-tolerance veto discard count (`7` vs `base`, `5` vs
-  `c274/head`) explicitly **overridden by maintainer confirmation (2026-11-26)**
-  alongside overall cohort improvement (`441/448/457` vs `434/445/458`), with
-  those 4–6 men endgames tracked for C.4/C.5. Candidate accepted for C.3.5 flip
-  (`e60aa45`).
+  (`+85.3`, a first-crossing estimate). The veto prediction (passes, `0.40`)
+  missed: it fired. Candidate accepted for C.3.5's flip (`e60aa45`) by the
+  ruling above.
+
+#### NPS read beside the gate — registered 2026-11-26, before the read
+
+- Question (C-99): the shipped evaluation's speed against the head's, at
+  one revision. BAS-M25 read the same code at its seed values at
+  `−4.47% [−4.79%, −4.16%]`; the fit changes only values, which move the
+  lazy-exit share (`14.67%` to `14.01%`) and the tree.
+- Pools: `tools/nps_pool.ps1`, four final-PGO PEXT builds each of `99e6353`,
+  `c35-nps-on` (`EVAL_REBUILD=ON`, `bench 13` 3,880,333) and `c35-nps-off`
+  (`=OFF`, 3,359,329).
+- Read: `pwsh -NoProfile -File tools/nps_read.ps1 -Base
+  tools/test_engines/c35-nps-off.pool.json -Cand
+  tools/test_engines/c35-nps-on.pool.json -Out tools/results/c35-nps
+  -Label "C.3.5 shipped evaluation vs head"`, gain form, step 1 of two
+  cycles, extended only when the tool says EXTEND, decided by
+  `tools/diag/nps_read.py`; idle host.
+- Prediction: `−4.5%`, 80% band `−6.0%` to `−3.0%`. The gate is already
+  decided; this read decides nothing alone and is recorded beside it.
