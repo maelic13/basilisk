@@ -839,8 +839,8 @@ static bool model_row(const Board& b, int served_stm, RowModel& out, std::string
     int served = stm_white;
     bool clamped = false;
     if (!fixed) {
-        served = stm_white + w[static_cast<size_t>(eval_param_offset(EPG_Tempo))]
-                                 * EVAL_REBUILD_CONVERSION_S / 1024;
+        served = stm_white + static_cast<int>(w[static_cast<size_t>(eval_param_offset(EPG_Tempo))]
+                                              * EVAL_REBUILD_CONVERSION_S / 1024);
         if (std::abs(served) >= KNOWN_WIN) {
             served = served > 0 ? KNOWN_WIN - 1 : -(KNOWN_WIN - 1);
             clamped = true;
