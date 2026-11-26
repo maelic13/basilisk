@@ -386,11 +386,9 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             evaluator.pawn_probes, evaluator.pawn_hits,
             d.gives_check_calls, d.see_ge_calls);
         emit(buf);
-#ifdef BASILISK_EVAL_REBUILD
         // The rebuilt evaluation's values clamped inside the known-win band.
         buf = std::format("kv eval_clamps={}", evaluator.rebuild_clamps);
         emit(buf);
-#endif
     }
 #ifdef BASILISK_TUNE
     {
@@ -442,7 +440,6 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
             double(evaluator.lazy_absdelta_sum) / double(evaluator.lazy_fires),
             evaluator.lazy_absdelta_max);
         emit(buf);
-#ifdef BASILISK_EVAL_REBUILD
         // The same audit split by the exit taken.
         for (int exit = 0; exit < 2; exit++) {
             const auto& a = evaluator.lazy_exit_audit[exit];
@@ -451,7 +448,6 @@ void print_search_diag(const DiagCounters& d, const Evaluator& evaluator,
                 a.fires > 0 ? double(a.absdelta_sum) / double(a.fires) : 0.0, a.absdelta_max);
             emit(buf);
         }
-#endif
     }
 }
 

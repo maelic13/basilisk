@@ -4,7 +4,7 @@
 // families read, the mobility area, the king rings, the four piece
 // functions that fill the attack maps while they score, and mobility.
 // Part of the evaluator's single translation unit: included by src/eval.cpp
-// alone when BASILISK_EVAL_REBUILD is defined. Include it nowhere else.
+// alone. Include it nowhere else.
 
 #include "eval_rb_pawns.h"
 

@@ -3,9 +3,8 @@
 // The rebuilt evaluation's registry: every value its score reads, in the
 // classical form's own units (a pawn is 124 in the middlegame and 206 in the
 // endgame), with the reference's constants as the seed vector. Included by
-// eval_params.h alone, in place of the accepted evaluation's registry, when
-// BASILISK_EVAL_REBUILD is defined; the loader, the dumper and the trace read
-// whichever registry the build has through EVAL_PARAM_LIST.
+// eval_params.h alone; the loader, the dumper and the trace read it through
+// EVAL_PARAM_LIST.
 //
 // A slot the score is linear in is a fitted value. A knob enters through
 // arithmetic the reference truncates (the imbalance's sixteenth), so the

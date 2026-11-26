@@ -1,4 +1,4 @@
-// The rebuilt evaluation's suite (EVAL_REBUILD builds): parity with the
+// The evaluation's suite: parity with the
 // classical reference, integer for integer, on every row of
 // tests/fixtures/eval_reference.tsv that the reference's own specialised
 // evaluations did not answer, and colour symmetry on the same rows.

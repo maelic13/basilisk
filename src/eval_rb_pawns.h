@@ -6,7 +6,7 @@
 // the shelter and storm, cached in the same entry by king square and
 // castling rights.
 // Part of the evaluator's single translation unit: included by src/eval.cpp
-// alone when BASILISK_EVAL_REBUILD is defined. Include it nowhere else.
+// alone. Include it nowhere else.
 
 #include "eval_rb_common.h"
 

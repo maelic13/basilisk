@@ -3,7 +3,7 @@
 // The rebuilt evaluation's start: material and the piece-square tables, the
 // material imbalance with its cache, and the game phase.
 // Part of the evaluator's single translation unit: included by src/eval.cpp
-// alone when BASILISK_EVAL_REBUILD is defined. Include it nowhere else.
+// alone. Include it nowhere else.
 
 #include "eval_rb_common.h"
 

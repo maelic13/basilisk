@@ -190,12 +190,6 @@ endif()
 # replays it. Configure a tree of its own with it ON, never a release: OFF
 # leaves no code behind. board_replay always times the untraced board, so a
 # trace tree builds that board a second time for it.
-# The evaluation rebuild's umbrella (PROCESS, Cluster delivery shape): ON
-# compiles the evaluation rebuilt in the classical form (src/eval_rb*.h, its
-# registry src/eval_rb_params.h) in place of the accepted one. OFF is the
-# accepted evaluation, exact. On the rebuilt arm test_eval is the rebuild's
-# own suite, with its parity test against tests/fixtures/eval_reference.tsv.
-option(EVAL_REBUILD "Compile the rebuilt evaluation in place of the accepted one (sets BASILISK_EVAL_REBUILD)" ON)
 option(BASILISK_BOARD_TRACE "Record the search's board operations (a measurement build)" OFF)
 set(_board_replay_board basilisk_board)
 if(BASILISK_BOARD_TRACE)
@@ -347,13 +341,9 @@ target_include_directories(test_fatal_report PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 # ---------------------------------------------------------------------------
 # Evaluator tests
 # ---------------------------------------------------------------------------
-if(EVAL_REBUILD)
-    add_executable(test_eval tests/test_eval_rebuild.cpp src/bench.cpp src/wac.cpp)
-    target_compile_definitions(test_eval PRIVATE
-        BASILISK_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
-else()
-    add_executable(test_eval tests/test_eval.cpp src/bench.cpp src/wac.cpp)
-endif()
+add_executable(test_eval tests/test_eval_rebuild.cpp src/bench.cpp src/wac.cpp)
+target_compile_definitions(test_eval PRIVATE
+    BASILISK_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
 target_link_libraries(test_eval PRIVATE basilisk_engine)
 
 # ---------------------------------------------------------------------------
@@ -601,14 +591,10 @@ if((WIN32 AND NOT SANITIZE) OR APPLE)
 endif()
 # The evaluator's hard verdicts on a seeded sample of each fixture class,
 # compared line for line with their reading at B.9.3; exit status 1 while
-# any site is over the line. A repair updates the golden file. The rebuilt
-# evaluation has its own reading (C.3.2): the same sites, moved by the sign
-# of its layer's score and by its rule at a score of 0.
-if(EVAL_REBUILD)
-    set(_verdicts_golden ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/endgame_verdicts_golden_rebuild.txt)
-else()
-    set(_verdicts_golden ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/endgame_verdicts_golden.txt)
-endif()
+# any site is over the line. A repair updates the golden file. The reading
+# is the rebuilt evaluation's (C.3.2): the same sites, moved by the sign of
+# its layer's score and by its rule at a score of 0.
+set(_verdicts_golden ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/endgame_verdicts_golden_rebuild.txt)
 add_test(NAME endgame_verdicts_fixtures
          COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:endgame_verdicts>"
                  "-DARGS=--tables;fixtures;--threads;1;--random;20000;--golden;KPvK;KQvK;KNNvK;KBNvK;KBvKB;KNvKN;KPPvK;KRvKR;KRvKB"
@@ -735,9 +721,6 @@ if(TEXEL)
     )
     target_link_libraries(basilisk-texel PRIVATE basilisk_board)
     target_compile_definitions(basilisk-texel PRIVATE TEXEL_TRACE BASILISK_TUNE)
-    if(EVAL_REBUILD)
-        target_compile_definitions(basilisk-texel PRIVATE BASILISK_EVAL_REBUILD)
-    endif()
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
         target_compile_options(basilisk-texel PRIVATE
             -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wno-unused-parameter
@@ -759,9 +742,6 @@ if(TEXEL)
     )
     target_link_libraries(eval_hash_trace PRIVATE basilisk_board)
     target_compile_definitions(eval_hash_trace PRIVATE TEXEL_TRACE BASILISK_TUNE)
-    if(EVAL_REBUILD)
-        target_compile_definitions(eval_hash_trace PRIVATE BASILISK_EVAL_REBUILD)
-    endif()
     if(USE_PEXT)
         target_compile_definitions(eval_hash_trace PRIVATE USE_PEXT)
         target_compile_options(eval_hash_trace PRIVATE
@@ -812,13 +792,6 @@ if(DIAGNOSTIC)
         target_compile_definitions(${_tgt} PRIVATE BASILISK_DIAGNOSTIC)
     endforeach()
     message(STATUS "DIAGNOSTIC build: diagnostic UCI options exposed (BASILISK_DIAGNOSTIC defined)")
-endif()
-
-if(EVAL_REBUILD)
-    foreach(_tgt IN LISTS _ALL_TARGETS)
-        target_compile_definitions(${_tgt} PRIVATE BASILISK_EVAL_REBUILD)
-    endforeach()
-    message(STATUS "EVAL_REBUILD build: the rebuilt evaluation (BASILISK_EVAL_REBUILD defined)")
 endif()
 
 if(ABLATION)

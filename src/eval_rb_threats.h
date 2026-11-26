@@ -2,7 +2,7 @@
 
 // The rebuilt evaluation's threats, passed pawns and space.
 // Part of the evaluator's single translation unit: included by src/eval.cpp
-// alone when BASILISK_EVAL_REBUILD is defined. Include it nowhere else.
+// alone. Include it nowhere else.
 
 #include "eval_rb_king.h"
 

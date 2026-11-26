@@ -8,7 +8,6 @@
 #include "constants.h"
 #include "eval_params.h"
 
-#ifdef BASILISK_EVAL_REBUILD
 // The rebuilt evaluation's pawn entry: each side's pawn-structure score and
 // what the later families read from the structure, and each king's pawn
 // shelter, valid while the king square and castling rights stay those stored.
@@ -23,14 +22,6 @@ struct PawnEntry {
     int      castling[NCOLORS];
     int      king_safety[NCOLORS][2];
 };
-#else
-struct PawnEntry {
-    Key      key;
-    int      mg, eg;
-    Bitboard passed[NCOLORS];
-    Bitboard attacks[NCOLORS];
-};
-#endif
 
 static constexpr int PAWN_TABLE_SIZE = 16384;
 
@@ -44,7 +35,6 @@ struct ImbalanceEntry {
 
 static constexpr int IMBALANCE_TABLE_BITS = 10;
 
-#ifdef BASILISK_EVAL_REBUILD
 // The rebuilt evaluation's one conversion from the classical form's units to
 // centipawns, cp = v * S / 1024 truncated: a gauge, fixed once, not fitted.
 // S is the integer whose K, fitted at the seed on corpus A's validation rows,
@@ -69,7 +59,6 @@ struct EvalRebuildRecord {
     // (centipawns, White's view) and whether it set a draw verdict.
     int layer = 0, drove = 0, layer_input = 0, verdict = 0;
 };
-#endif
 
 // The search treats any score at or above MATE_SCORE - MAX_PLY as a mate and
 // ply-adjusts it on its way into the TT, so a STATIC evaluation must stay
@@ -115,11 +104,9 @@ public:
     // it. Evaluates b again; meant for positions whose evaluation is 0.
     bool draw_verdict(const Board& b);
     void clear_pawn_table();
-#ifdef BASILISK_EVAL_REBUILD
     // Evaluates b and fills `out` with the rebuilt evaluation's intermediates;
     // returns the value evaluate_undamped(b) serves.
     int rebuild_record(const Board& b, EvalRebuildRecord& out);
-#endif
 
     // ---- Lazy dual-eval audit (Tune and Diag builds) ------------------------
     // When diag_lazy is set, a lazy-margin skip ALSO runs the full positional
@@ -141,7 +128,6 @@ public:
     // from. Reset per `go` alongside the lazy-audit block.
     int64_t eval_calls = 0;
     int64_t pawn_probes = 0, pawn_hits = 0;
-#ifdef BASILISK_EVAL_REBUILD
     // Values the rebuilt evaluation clamped inside the known-win band.
     // Reset per `go` alongside the counters above.
     int64_t rebuild_clamps = 0;
@@ -154,7 +140,6 @@ public:
         int64_t absdelta_sum = 0, absdelta_max = 0;
     };
     LazyExitAudit lazy_exit_audit[2];
-#endif
 
 #ifdef BASILISK_TUNE
     // Enabled only by the hidden tune-build UCI `Diag` option. Counted at the
@@ -165,7 +150,6 @@ public:
 #endif
 
 private:
-#ifdef BASILISK_EVAL_REBUILD
     // Its entries hold each king's shelter too, so the table is some 1.8 MB:
     // on the heap, allocated once, so that an evaluator still fits on a
     // thread's stack.
@@ -173,9 +157,6 @@ private:
         PawnEntry entries[PAWN_TABLE_SIZE];
     };
     std::unique_ptr<PawnTable> pawn_table_ = std::make_unique<PawnTable>();
-#else
-    PawnEntry pawn_table_[PAWN_TABLE_SIZE];
-#endif
     ImbalanceEntry imbalance_table_[1 << IMBALANCE_TABLE_BITS];
     int imbalance_generation_ = 0;
 

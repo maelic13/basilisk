@@ -6,7 +6,7 @@
 // pawn is 124 in the middlegame, 206 in the endgame) until the value is
 // converted to centipawns once, at the end (eval_rb.h).
 // Part of the evaluator's single translation unit: included by src/eval.cpp
-// alone when BASILISK_EVAL_REBUILD is defined. Include it nowhere else.
+// alone. Include it nowhere else.
 
 #include "eval_common.h"
 

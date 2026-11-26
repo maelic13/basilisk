@@ -4,7 +4,7 @@
 // then Basilisk's endgame layer, the conversion to centipawns, the tempo and
 // the bounds (analysis/c31_rebuild_2026-11-25.md §6 and its Amendment 1).
 // Part of the evaluator's single translation unit: included by src/eval.cpp
-// alone when BASILISK_EVAL_REBUILD is defined. Include it nowhere else.
+// alone. Include it nowhere else.
 
 #include "eval_rb_material.h"
 #include "eval_rb_threats.h"

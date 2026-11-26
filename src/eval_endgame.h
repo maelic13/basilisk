@@ -1,7 +1,7 @@
 #pragma once
 
 // Endgame knowledge: the scale factors and known-endgame overrides that
-// apply_endgame() puts on the tapered score (on the lazy path as well as the
+// endgame_layer() puts on the tapered score (on the lazy path as well as the
 // full one), the KPK bitbase, the bare-king drives, the rook-ending scales,
 // the tune-build endgame census, and the mate drive the full block ends with.
 // Part of the evaluator's single translation unit: included by src/eval.cpp
@@ -330,7 +330,7 @@ bool material_is(const MaterialCounts& actual, const MaterialCounts& pattern) {
         } else if (strong[0] == 0 && material_is(weak, BARE)) {
             // Count actual mating material, not Rarog's coarser test: KBK and
             // KNK are dead draws and must not enter KXK. The bishop pair is
-            // tested by SQUARE COLOUR, exactly as apply_endgame's KXK gate
+            // tested by SQUARE COLOUR, exactly as endgame_layer's KXK gate
             // does, because two same-coloured bishops -- reachable by
             // promotion -- also cannot force mate. Queen and rook stay in the
             // family census even though the engine deliberately does not
@@ -502,7 +502,7 @@ static int top_tier_score(const Board& b, Color strong) {
 // relative_square, so the rules below read as if the strong side were White.
 
 // Passed for `c`, tested against the enemy pawns directly rather than the
-// eval_pawns passed[] bitboard: apply_endgame also runs on the LAZY path,
+// pawn entry's passed[] bitboard: endgame_layer also runs on the LAZY path,
 // where that bitboard has never been computed.
 static bool eg_pawn_passed(Color c, Square sq, Bitboard enemy_pawns) {
     const int f = int(file_of(sq));
@@ -897,12 +897,6 @@ static int endgame_layer(const Board& b, int score, bool& draw_verdict, int& kin
     return score;
 }
 
-// The accepted evaluation's layer, its opposite-bishop step included.
-[[maybe_unused]] static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
-    int kind;
-    return endgame_layer<true>(b, score, draw_verdict, kind);
-}
-
 // The mate drive's endgame addition for a White-view score in centipawns,
 // at the piece-count phase; 0 where its gate is shut.
 static int mate_drive_eg(const Board& b, int score_approx, int phase) {
@@ -918,7 +912,7 @@ static int mate_drive_eg(const Board& b, int score_approx, int phase) {
             // hce_analysis 7). Fire only when the defender has no pawns AND
             // the attacker holds material that can force mate against a lone
             // king (Q, R, bishop pair, or B+N). KBNK/KNNK stay handled by
-            // apply_endgame's overrides, so this gate never touches them.
+            // endgame_layer's overrides, so this gate never touches them.
             const bool losing_pawnless = b.piece_bb(losing, PAWN) == 0;
             const bool win_can_mate =
                    b.piece_bb(winning, QUEEN) != 0
@@ -933,12 +927,9 @@ static int mate_drive_eg(const Board& b, int score_approx, int phase) {
                               + std::max(3 - rank_of(lksq), rank_of(lksq) - 4);
                 int king_dist = KING_DIST[wksq][lksq];
                 eg += sign * (5 * lk_center + (14 - king_dist) * 4);
-#ifndef BASILISK_EVAL_REBUILD  // the rebuilt evaluation records the drive in its own step
-                TR_REST_EG(MATE_DRIVE, sign * (5 * lk_center + (14 - king_dist) * 4));
-#endif
                 // Frozen: not traced; captured in rest by the tuner.
                 // Bare-king positions do not reach this -- they are
-                // overridden by kxk_score in apply_endgame. What is left here
+                // overridden by kxk_score in endgame_layer. What is left here
                 // is the case the gate's comment does not describe: the
                 // defender is PAWNLESS but still has material (KQ-KR and
                 // friends). That is a heuristic, not a forced mate, so a
@@ -949,12 +940,4 @@ static int mate_drive_eg(const Board& b, int score_approx, int phase) {
         }
     }
     return eg;
-}
-
-// The mate drive reads the running sum after every family and before the
-// tempo; what it returns is added to the endgame half.
-[[maybe_unused]] static EvalScore mate_drive(const Board& b, const EvalScore& sum, int phase) {
-    if (phase > 6)
-        return {0, 0};
-    return {0, mate_drive_eg(b, taper(sum, phase), phase)};
 }
