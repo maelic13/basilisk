@@ -195,7 +195,7 @@ endif()
 # registry src/eval_rb_params.h) in place of the accepted one. OFF is the
 # accepted evaluation, exact. On the rebuilt arm test_eval is the rebuild's
 # own suite, with its parity test against tests/fixtures/eval_reference.tsv.
-option(EVAL_REBUILD "Compile the rebuilt evaluation in place of the accepted one (sets BASILISK_EVAL_REBUILD)" OFF)
+option(EVAL_REBUILD "Compile the rebuilt evaluation in place of the accepted one (sets BASILISK_EVAL_REBUILD)" ON)
 option(BASILISK_BOARD_TRACE "Record the search's board operations (a measurement build)" OFF)
 set(_board_replay_board basilisk_board)
 if(BASILISK_BOARD_TRACE)
