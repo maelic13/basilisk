@@ -46,4 +46,21 @@
 - One run per arm, never extended or re-run on the same commit. A knob
   that ends on a bound is widened and that arm re-run, as at BAS-O17.
 
+#### AMENDMENT 1 — 2026-11-26, before any arm
+
+The packet's Amendment 1. On this screen it changes three things only;
+the design on corpus A is otherwise as registered.
+- **Execution:** arms run in parallel, each in its own local clone (or a
+  no-bake mode), one build directory per mask, each with its own
+  `--expect-bench`; one fit's memory is measured before the parallel
+  count is chosen.
+- **Gate 1 fallback:** if |L(N) − L(shipped)| > 1.0e-5, one further null
+  refit N2 from N. If |L(N2) − L(N)| ≤ 1.0e-5, every arm restarts from N.
+  Otherwise the forms line stops and returns to research.
+- **Arm P_A:** the passing bits fitted together, when two or more pass,
+  read by the same Δ. It feeds BAS-E67's candidate rule if corpus A is
+  the base.
+- δ's reason, corrected: it is just above the fit's path noise (1.6e-5
+  between `k-phase` Run 1 and Run 2). It has no Elo anchor.
+
 #### RESULT — append after exposure

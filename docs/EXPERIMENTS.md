@@ -197,6 +197,8 @@ fifty-move, 2 stalemate. **Zero forfeits.** Instrument: branch `hybrid`
 - [BAS-O16](experiments/BAS-O16.md) — C.3.4 oracle check: the donor's evaluation against the rebuilt one at its seed values in `9587eeeb`'s search, 3,000 games. — COMPLETE 2026-11-25: +42.4 [+35.1, +49.7] (989-1386-625), 0 faults; speed-flagged (1.129×); 41 vs 2 clamped draws; below +50 return line
 - [BAS-O17](experiments/BAS-O17.md) — C.3.4 matched static fits of the rebuilt evaluation on corpus A (`one-k` and `k-phase`) — COMPLETE 2026-11-26 (Run 2): both arms converged with zero artificial bound hits (`one-k` −3.58%, `k-phase` −2.03%), exact played-hash identity and `24/24` conversion floors; `one-k` missed its loss and middlegame R and Q bands, `k-phase` landed inside every band; proceeded to BAS-E63 and BAS-E64
 - [BAS-O18](experiments/BAS-O18.md) — C.3.6 own-forms screen: twenty of Basilisk's displaced forms, each fitted on corpus A against a null refit of the shipped evaluation, with two positive controls — registered
+- [BAS-O19](experiments/BAS-O19.md) — C.5.2's first cycle in C.3.6: the shipped evaluation refitted on corpus C, the rebuilt engine's own games — registered
+- [BAS-O20](experiments/BAS-O20.md) — C.3.6 own-forms screen repeated on corpus C from the refit vector — registered
 - [BAS-D22](experiments/BAS-D22.md) — B.11.1 fixed-node meters: depth at 300k nodes, branching, endgame truth cohort. — observation: 3.3-ply gap (was 12.2), 458/480 converted
 
 **Internal consistency.** Measured directly, full Stockfish beat Basilisk 1.9.3
@@ -431,6 +433,8 @@ future work needs to re-open either cluster is now counted rather than guessed.
 - [BAS-E63](experiments/BAS-E63.md) — C.3.4: `one-k` Run 2 fitted rebuilt evaluation against the rebuilt seed, 2,000 paired games at `3+0.03` — COMPLETE 2026-11-26: −25.8 [−35.7, −15.9] (512-828-660), 0 faults; trails BAS-E64 by 16.2 Elo — rejected
 - [BAS-E64](experiments/BAS-E64.md) — C.3.4: `k-phase` Run 2 fitted rebuilt evaluation against the rebuilt seed, 2,000 paired games at `3+0.03` — COMPLETE 2026-11-26: −9.6 [−19.6, +0.4] (564-817-619), 0 faults; clears −10 threshold, baked for C.3.5 — accepted
 - [BAS-E65](experiments/BAS-E65.md) — C.3.5 gate: baked `k-phase` rebuilt evaluation against the head, SPRT `[0,3]` at `3+0.03` and C.2.7 endgame bracket veto — ACCEPTED 2026-11-26 (maintainer override on veto): H1 at 1,034 games (517 pairs, LLR +2.953), +85.3 [+71.9, +99.0] (434-415-185), 0 faults; veto 441/448/457 vs base 434/445/458 (7 discards vs base, 5 vs c274/head); flipped EVAL_REBUILD=ON (`e60aa45`)
+- [BAS-E66](experiments/BAS-E66.md) — C.5.2's first cycle in C.3.6: the refit on corpus C against the shipped evaluation, SPRT `[0,3]`, cap 10,000 pairs — registered
+- [BAS-E67](experiments/BAS-E67.md) — C.3.6: Basilisk's own forms, the screen's candidate against the base, one cluster SPRT `[0,3]`, cap 20,000 pairs — registered
 
 - [BAS-X11](experiments/BAS-X11.md) — current standing, 12,000-game Colosseum round robin — see entry
 

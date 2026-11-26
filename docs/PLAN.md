@@ -2382,14 +2382,20 @@ has lost games in both engines (BAS-X02).
           identity and `--verify`, and checks each form against the
           packet's §4 and `99e6353`'s code. Its acceptance is recorded
           before the screen runs.
-        - [ ] **C.3.6.4** `[V]` The screen
-          BAS-O18, one night, the maintainer's command: the method gates,
-          then the twenty candidates and U, read by the frozen rule.
-        - [ ] **C.3.6.5** `[V]` SPRTs, returns and close
-          The packet's §7: each passing form registered, played and
-          ruled in turn, with the endgame bracket veto; an accepted form
-          baked. Every form ends returned or out with its retry trigger
-          (§9).
+        - [ ] **C.3.6.4** `[V]` The screens and the first refit
+          Amended 2026-11-26 (the packet's Amendment 1; maintainer):
+          C.5.2's first cycle is pulled forward. Corpus C, corpus A's
+          recipe with the shipped engine; BAS-O18 on corpus A; the refit
+          R on corpus C (BAS-O19); BAS-O18's arms again on C from R
+          (BAS-O20). All fits end before any game.
+        - [ ] **C.3.6.5** `[V]` The refit's read, the cluster read and close
+          Amended 2026-11-26 (maintainer: "One cluster SPRT is ok"): the
+          refit's SPRT (BAS-E66, cap 10,000 pairs), then one SPRT for the
+          forms (BAS-E67, cap 20,000 pairs) on the base it fixes: arm P,
+          or the best single form. For this run H1 alone keeps a
+          candidate; the bracket is recorded and its positions go to
+          C.4. Every form ends returned, unresolved or out with its
+          retry trigger.
 - [ ] **C.4** Endgame handling and winnability
   It was C.7 until 2026-11-25.
   The goal is measured conversion and correct draw recognition where games
@@ -2666,6 +2672,10 @@ has lost games in both engines (BAS-X02).
       head, refit the whole surface with a new untouched test split, and
       gate each cycle; repeat while a cycle accepts; stop at the first
       that does not.
+      The first cycle was pulled forward into C.3.6 on 2026-11-26
+      (maintainer): corpus C, BAS-O19 and BAS-E66. This leaf starts
+      from its result: it begins with the second cycle if BAS-E66 kept
+      the refit, and it stops at once if BAS-E66 read H0.
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
       - Refit cycles diminish (+11.0, then +6.7 in Rarog), so size from
@@ -3025,8 +3035,8 @@ leaf's tag. Later phases carry only a class until they open.
 |---|---|---|---|
 | C.3.6.2 | READY_FOR_IMPLEMENTATION | I2 | Packet §8 (`analysis/c36_own_forms_2026-11-26.md`) |
 | C.3.6.3 | RESEARCH | R2 | Not started |
-| C.3.6.4 | RESEARCH | V | Registered as BAS-O18 |
-| C.3.6.5 | RESEARCH | V | Not started |
+| C.3.6.4 | RESEARCH | V | Registered as BAS-O18, BAS-O19, BAS-O20 |
+| C.3.6.5 | RESEARCH | V | Registered as BAS-E66, BAS-E67 |
 | C.4.2 | RESEARCH | R3 | Not started |
 | C.4.3 | RESEARCH | I2 | Not started |
 | C.4.4 | RESEARCH | R3 | Not started |
