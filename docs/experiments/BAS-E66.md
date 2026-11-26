@@ -27,7 +27,10 @@
 
 - Research's prior: +4 Elo, 80% band −4 to +12. Rarog's first cycle read
   +11.0, and BAS-E64 shows that a first fit can lose 10.
-- H1 inside the cap: 0.45. H0: 0.25. The cap is reached unresolved: 0.3.
+- H1 inside the cap: 0.5. H0: 0.15. The cap is reached unresolved: 0.35.
+  (Clerical correction, 2026-11-26, before any game: first written as
+  0.45 / 0.25 / 0.3, which did not follow from the prior above and the
+  drift model at 10,000 pairs; research's arithmetic.)
 - The bracket's two-of-three rule fires against the base: 0.7. A hard
   failure (`new_rule50_failure`, `engine_anomaly`, `malformed_record`):
   0.05.

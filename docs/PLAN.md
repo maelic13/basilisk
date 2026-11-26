@@ -2393,8 +2393,8 @@ has lost games in both engines (BAS-X02).
           refit's SPRT (BAS-E66, cap 10,000 pairs), then one SPRT for the
           forms (BAS-E67, cap 20,000 pairs) on the base it fixes: arm P,
           or the best single form. For this run H1 alone keeps a
-          candidate; the bracket is recorded and its positions go to
-          C.4. Every form ends returned, unresolved or out with its
+          candidate, bar a hard failure in the bracket; the bracket is
+          recorded and its positions go to C.4. Every form ends returned, unresolved or out with its
           retry trigger.
 - [ ] **C.4** Endgame handling and winnability
   It was C.7 until 2026-11-25.
