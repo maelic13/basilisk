@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.3.6** `[R2]` Basilisk's own forms read back in — Claude Opus
+**Next step:** **C.3.6.2** `[I2]` The forms behind one switch, and the screen's tools — Claude Opus
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -90,7 +90,12 @@ the six-stage gating shape), are in
     - [x] **C.3.3** `[R2]` Independent review
     - [x] **C.3.4** `[I2]` Seed-value read and fit
     - [x] **C.3.5** `[V]` Gate, frontier pair and close
-    - [ ] **C.3.6** `[R2]` Basilisk's own forms read back in
+    - [ ] **C.3.6** Basilisk's own forms read back in
+        - [x] **C.3.6.1** `[R2]` Inventory, screen design and registration
+        - [ ] **C.3.6.2** `[I2]` The forms behind one switch, and the screen's tools
+        - [ ] **C.3.6.3** `[R2]` Independent review
+        - [ ] **C.3.6.4** `[V]` The screen
+        - [ ] **C.3.6.5** `[V]` SPRTs, returns and close
 - [ ] **C.4** Endgame handling and winnability
     - [ ] **C.4.2** `[R3]` Occurrence, classification and ranking
     - [ ] **C.4.3** `[I2]` Generic winnability and scaling

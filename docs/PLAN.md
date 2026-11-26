@@ -2340,7 +2340,7 @@ has lost games in both engines (BAS-X02).
         shipped evaluation at `ab0c141` against the head at `99e6353`:
         **−3.88% [−4.65%, −3.10%]**, inside the predicted band (BAS-M25's
         seed read was −4.47%).
-    - [ ] **C.3.6** `[R2]` Basilisk's own forms read back in
+    - [ ] **C.3.6** Basilisk's own forms read back in
       Added 2026-11-25 (maintainer). After the gate, each Basilisk
       form the port displaced is read against the donor's on the
       accepted port, behind its switch: one registered read each,
@@ -2349,6 +2349,47 @@ has lost games in both engines (BAS-X02).
       stays out with a retry trigger. C.3.1's handoff lists the forms.
       The list is the packet's §14. The retired clusters' audit inputs
       (HISTORY) are re-read only for a form that returns.
+      Split 2026-11-26 (maintainer, on C.3.6.1's recommendation): a
+      static screen of every form first, then a `[0,3]` SPRT for each
+      form that passes. The packet is `analysis/c36_own_forms_2026-11-26.md`.
+        - [x] **C.3.6.1** `[R2]` Inventory, screen design and registration
+          **Closed 2026-11-26.** The forms compared at `99e6353`
+          against the shipped evaluation (the packet's §2 and §4):
+          - §14's order came from BAS-O14's meters, which measure what a
+            family is worth to its own evaluation, not what Basilisk's
+            form would add to the donor's. No item has a prior from them.
+          - Mobility has almost nothing left: the same tables, own values
+            since C.3.4, and the same area apart from the pinned set.
+          - Twenty forms are read, one bit each: thirteen replace a donor
+            form, seven are added beside it. The rest are the same form or
+            contained in the donor's, each listed with its reason.
+          - The screen, BAS-O18: each form fitted by C.3.4's method
+            against a null refit of the shipped vector, at C.3.4's frozen
+            K, two positive controls first. A form passes at a validation
+            gain of 2.0e-5 or more with its bootstrap over games above 0.
+          - Passing forms take SPRTs one at a time, largest gain first,
+            each against the evaluation then shipped and re-screened
+            after any acceptance.
+        - [ ] **C.3.6.2** `[I2]` The forms behind one switch, and the screen's tools
+          The packet's §8: `EVAL_OWN_FORMS`, a bit mask in §4's order,
+          default 0. Mask 0 keeps `bench 13` 3,880,333 and the played
+          hash at every commit. Each bit is modelled exactly by the
+          tuner and is colour symmetric, and an added bit at seed 0 is
+          the shipped evaluation. Then the screen tool and the frozen
+          launcher for BAS-O18's 24 arms, in Python, dry-run.
+        - [ ] **C.3.6.3** `[R2]` Independent review
+          A separate session reproduces mask 0, every bit's seed
+          identity and `--verify`, and checks each form against the
+          packet's §4 and `99e6353`'s code. Its acceptance is recorded
+          before the screen runs.
+        - [ ] **C.3.6.4** `[V]` The screen
+          BAS-O18, one night, the maintainer's command: the method gates,
+          then the twenty candidates and U, read by the frozen rule.
+        - [ ] **C.3.6.5** `[V]` SPRTs, returns and close
+          The packet's §7: each passing form registered, played and
+          ruled in turn, with the endgame bracket veto; an accepted form
+          baked. Every form ends returned or out with its retry trigger
+          (§9).
 - [ ] **C.4** Endgame handling and winnability
   It was C.7 until 2026-11-25.
   The goal is measured conversion and correct draw recognition where games
@@ -2982,7 +3023,10 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.3.6 | RESEARCH | R2 | Not started |
+| C.3.6.2 | READY_FOR_IMPLEMENTATION | I2 | Packet §8 (`analysis/c36_own_forms_2026-11-26.md`) |
+| C.3.6.3 | RESEARCH | R2 | Not started |
+| C.3.6.4 | RESEARCH | V | Registered as BAS-O18 |
+| C.3.6.5 | RESEARCH | V | Not started |
 | C.4.2 | RESEARCH | R3 | Not started |
 | C.4.3 | RESEARCH | I2 | Not started |
 | C.4.4 | RESEARCH | R3 | Not started |
