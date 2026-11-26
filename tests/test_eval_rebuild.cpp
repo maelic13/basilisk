@@ -537,7 +537,39 @@ void test_cache_purity() {
 // lazy exit (material, the tables, the imbalance, the pawn structure) and
 // the tempo, which every path serves; 1 between the exits (pieces, mobility,
 // king safety, passers); 2 after the second (threats and space).
+// Basilisk's own forms' slot groups by bit (src/eval.h, OwnForm), with the
+// lazy stage their family sits in: the pawn entry's before the first exit,
+// the pieces' and the passers' between the exits, the threats' and space's
+// after the second; the tempo enters after winnable(), past both. A group
+// whose bit is not compiled in is unread, so the census leaves it out.
+struct OwnGroup { const char* prefix; unsigned bit; int stage; };
+constexpr OwnGroup OWN_GROUPS[] = {
+    {"OwnTempo", OWN_TEMPO, 0},
+    {"OwnSpace", OWN_SPACE, 2},
+    {"OwnMinorKingRing", OWN_KING_ZONE, 1}, {"OwnRookKingRing", OWN_KING_ZONE, 1},
+    {"OwnBadBishop", OWN_BAD_BISHOP, 1},
+    {"OwnKnightOutpost", OWN_OUTPOST, 1}, {"OwnReachableOutpost", OWN_OUTPOST, 1},
+    {"OwnMinorBehindPawn", OWN_MINOR_BEHIND_PAWN, 1},
+    {"OwnRookQueenFile", OWN_ROOK_QUEEN_FILE, 1},
+    {"OwnQueenInfiltration", OWN_QUEEN_INFILTRATION, 1},
+    {"OwnThreat", OWN_PAWN_THREAT, 2},
+    {"OwnDoubled", OWN_PAWN_CLASS, 0}, {"OwnBackward", OWN_PAWN_CLASS, 0},
+    {"OwnPawnMajority", OWN_MAJORITY, 0}, {"OwnPawnIslands", OWN_ISLANDS, 0},
+    {"OwnConnectedRooks", OWN_CONNECTED_ROOKS, 1}, {"OwnRookClosed", OWN_ROOK_CLOSED_FILE, 1},
+    {"OwnTrappedBishop", OWN_TRAPPED_BISHOP, 1},
+    {"OwnRookBehindPasser", OWN_ROOK_BEHIND_PASSER, 1}, {"OwnEnemyRookPasser", OWN_ROOK_BEHIND_PASSER, 1},
+};
+
+const OwnGroup* own_group(const std::string& g) {
+    for (const OwnGroup& o : OWN_GROUPS)
+        if (g.rfind(o.prefix, 0) == 0)
+            return &o;
+    return nullptr;
+}
+
 int stage_of(const std::string& g) {
+    if (const OwnGroup* o = own_group(g))
+        return o->stage;
     static const char* const before_first[] = {
         "MgVal", "EgVal", "PstMgPawn", "PstMgKnight", "PstMgBishop", "PstMgRook", "PstMgQueen",
         "PstMgKing", "PstEgPawn", "PstEgKnight", "PstEgBishop", "PstEgRook", "PstEgQueen", "PstEgKing",
@@ -582,6 +614,10 @@ void test_lazy_exits(const std::vector<Row>& rows) {
 #define X(name, member, len) groups.push_back({#name, eval_param_span(g_eval_params.member, (len))});
     EVAL_PARAM_LIST(X)
 #undef X
+    std::erase_if(groups, [](const Group& g) {
+        const OwnGroup* o = own_group(g.name);
+        return o && !own_form(o->bit);
+    });
 
     std::string leaked, missing;
     int served[3] = {}, moved[3] = {};
