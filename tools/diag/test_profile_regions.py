@@ -97,7 +97,7 @@ class MapTests(unittest.TestCase):
         # family headers; a sample inlined from any of them is evaluation time.
         by_file = profile_regions.load_map()["by_file"]
         names = sorted(p.name for p in (REPO / "src").iterdir() if p.name.startswith("eval"))
-        self.assertIn("eval_king.h", names)
+        self.assertIn("eval_rb_king.h", names)
         self.assertEqual({name: by_file.get(name) for name in names}, {name: "eval" for name in names})
 
     def test_a_file_maps_to_one_region(self):

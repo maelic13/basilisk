@@ -33,12 +33,12 @@ It replaces tools/texel/phase911.ps1. What it guarantees (PLAN C.2.1.4):
   stage's settings are recorded. A stage the tuner calls unconverged (exit 3)
   stops the run.
 * **The result is checked as built.** The final vector is baked into
-  ``src/eval_params.h`` and both binaries rebuilt. The rebuilt tuner must hold
+  ``src/eval_rb_params.h`` and both binaries rebuilt. The rebuilt tuner must hold
   that vector exactly, ``--verify`` must pass, and the new bench, the played
   scores' hash on validation and ``test_eval`` are recorded. A test that
   fails on the new weights is reported, never edited here: its fixture is
   fixed in its own commit.
-* **The tree is left as it was found.** ``src/eval_params.h`` is restored
+* **The tree is left as it was found.** ``src/eval_rb_params.h`` is restored
   byte for byte on success and on failure. The baked header and its diff stay
   in the run directory for review and commit.
 
@@ -67,10 +67,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bake  # noqa: E402
-HEADER = ROOT / "src" / "eval_params.h"
-REBUILD_HEADER = ROOT / "src" / "eval_rb_params.h"
-SURFACE = ROOT / "tools" / "texel" / "surface_v1.tsv"
-REBUILD_SURFACE = ROOT / "tools" / "texel" / "surface_rebuild_v1.tsv"
+HEADER = ROOT / "src" / "eval_rb_params.h"
+SURFACE = ROOT / "tools" / "texel" / "surface_rebuild_v1.tsv"
 SCHEMA = "basilisk-texel-fit-v1"
 ROWS_SCHEMA = "basilisk-texel-rows-v1"
 EXE = ".exe" if os.name == "nt" else ""
@@ -146,11 +144,10 @@ def check_corpus(corpus: Path) -> dict:
     return manifest
 
 
-def configure_and_build(run: Run, build: Path, texel: bool, rebuild: bool = False) -> Path:
+def configure_and_build(run: Run, build: Path, texel: bool) -> Path:
     tree = build / ("texel" if texel else "release")
     command = ["cmake", "--preset", "release", "-B", str(tree), "-DCOMP=clang",
-               f"-DTEXEL={'ON' if texel else 'OFF'}",
-               f"-DEVAL_REBUILD={'ON' if rebuild else 'OFF'}"]
+               f"-DTEXEL={'ON' if texel else 'OFF'}"]
     run.step(f"configure-{tree.name}", command)
     target = "basilisk-texel" if texel else "basilisk"
     extra = [] if texel else ["test_eval"]
@@ -302,7 +299,6 @@ def fit(args, run: Run, header: Path, surface: Path, k_mode: str, relevel: bool)
         raise FitError("the tree has uncommitted changes; a fit runs from a commit")
     rec["source_revision"] = git("rev-parse", "HEAD")
     rec["host"] = {"python": platform.python_version(), "platform": platform.platform()}
-    rec["eval_rebuild"] = args.rebuild
     rec["k_mode"] = k_mode
     rec["relevel_material"] = relevel
     corpus = check_corpus(args.corpus)
@@ -313,8 +309,8 @@ def fit(args, run: Run, header: Path, surface: Path, k_mode: str, relevel: bool)
     rec["header_sha256"] = sha256(header)
     run.save()
 
-    texel_tree = configure_and_build(run, args.build_dir, texel=True, rebuild=args.rebuild)
-    release_tree = configure_and_build(run, args.build_dir, texel=False, rebuild=args.rebuild)
+    texel_tree = configure_and_build(run, args.build_dir, texel=True)
+    release_tree = configure_and_build(run, args.build_dir, texel=False)
     tuner = texel_tree / f"basilisk-texel{EXE}"
     engine = release_tree / f"basilisk{EXE}"
     rec["binaries"] = {"tuner_sha256": sha256(tuner), "engine_sha256": sha256(engine)}
@@ -426,8 +422,8 @@ def fit(args, run: Run, header: Path, surface: Path, k_mode: str, relevel: bool)
     baked = run.out / header.name
     shutil.copyfile(header, baked)
     rec["baked_header_sha256"] = sha256(baked)
-    configure_and_build(run, args.build_dir, texel=True, rebuild=args.rebuild)
-    configure_and_build(run, args.build_dir, texel=False, rebuild=args.rebuild)
+    configure_and_build(run, args.build_dir, texel=True)
+    configure_and_build(run, args.build_dir, texel=False)
     if registry_vector(run, tuner, "baked-vector") != read_vector(bake_source):
         raise FitError("the rebuilt tuner does not hold the fitted vector")
     run.step("verify-baked", [str(tuner), "--verify", str(validation), "--max-positions", "0"])
@@ -449,9 +445,9 @@ def main() -> int:
     parser.add_argument("--surface", type=Path, default=None)
     parser.add_argument("--build-dir", type=Path, default=ROOT / "build" / "fit")
     parser.add_argument("--rebuild", action="store_true",
-                        help="fit the rebuilt evaluation (EVAL_REBUILD=ON, src/eval_rb_params.h)")
-    parser.add_argument("--relevel-material", action=argparse.BooleanOptionalAction, default=None,
-                        help="fold PST live-square means into MgVal/EgVal at bake (default on for --rebuild)")
+                        help="accepted for the C.3.4 launchers; the evaluation has one form since C.3.5")
+    parser.add_argument("--relevel-material", action=argparse.BooleanOptionalAction, default=True,
+                        help="fold PST live-square means into MgVal/EgVal at bake (default on)")
     parser.add_argument("--expect-bench", type=int, default=0,
                         help="the seed's bench 13, checked before anything is fitted")
     parser.add_argument("--stages", default="kingsafety,linear,kingsafety,polish")
@@ -477,8 +473,8 @@ def main() -> int:
     parser.add_argument("--min-support", type=int, default=200)
     args = parser.parse_args()
     args.corpus = args.corpus.resolve()
-    header = REBUILD_HEADER if args.rebuild else HEADER
-    surface = (args.surface if args.surface is not None else (REBUILD_SURFACE if args.rebuild else SURFACE)).resolve()
+    header = HEADER
+    surface = (args.surface if args.surface is not None else SURFACE).resolve()
     args.build_dir = args.build_dir.resolve()
     if args.init:
         args.init = args.init.resolve()
@@ -491,7 +487,7 @@ def main() -> int:
     if args.K_phase and args.k_mode == "single":
         parser.error("--K-phase cannot be combined with --k-mode single")
     k_mode = "phase" if (args.k_mode == "phase" or args.K_phase) else "single"
-    relevel = args.rebuild if args.relevel_material is None else args.relevel_material
+    relevel = args.relevel_material
 
     try:
         run = Run(args.out.resolve())

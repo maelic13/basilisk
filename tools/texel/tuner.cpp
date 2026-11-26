@@ -681,113 +681,6 @@ static std::vector<int> active_indices_for_group(const std::string& group) {
         for (size_t i = 0; i < rows.size(); ++i)
             if (rows[i].stage == "linear")
                 active.push_back(static_cast<int>(i));
-#ifndef BASILISK_EVAL_REBUILD
-    } else if (group == "material") {
-        append_material(active);
-    } else if (group == "scalars") {
-        for (int g = EPG_PassedMg; g <= EPG_Tempo; ++g) {
-            if (g >= EPG_KsUnit && g <= EPG_StormWeightAdj)
-                continue;
-            append_group(active, g);
-        }
-    } else if (group == "pawnstruct" || group == "pawns") {
-        append_groups(active, EPG_DoubledMg, EPG_BackwardEg);
-    } else if (group == "passers") {
-        append_groups(active, EPG_PassedMg, EPG_PassSafeEg);
-        append_group(active, EPG_ProxBase);
-    } else if (group == "rooks") {
-        append_groups(active, EPG_RookOpenMg, EPG_EnemyRookPasserEg);
-    } else if (group == "minors") {
-        append_group(active, EPG_BpMg);
-        append_group(active, EPG_BpEg);
-        append_group(active, EPG_KnightOutpostMg);
-        append_group(active, EPG_KnightOutpostEg);
-        append_group(active, EPG_TrappedMg);
-        append_group(active, EPG_TrappedEg);
-    } else if (group == "mobility") {
-        append_groups(active, EPG_MobNMg, EPG_MobQEg);
-    } else if (group == "imbalance") {
-        // imb_linear[6] + imb_our[21] are all live. imb_their[21] has 6
-        // STRUCTURALLY-DEAD diagonal coeffs: when i==j the feature
-        // their_cnt = ic_W[i]*ic_B[i] - ic_B[i]*ic_W[i] == 0 for every
-        // position (confirmed by Step 4.0 --feature-support). Their flat
-        // sub-indices are t = i*(i+1)/2+i = {0,2,5,9,14,20}. Skip them so the
-        // fit never chases noise into a coefficient that can't ever fire.
-        append_groups(active, EPG_ImbLinear, EPG_ImbOur);
-        static const int dead_their_diag[6] = {0, 2, 5, 9, 14, 20};
-        const int their_base = eval_param_offset(EPG_ImbTheir);
-        const int their_len  = EVAL_PARAM_LENS[EPG_ImbTheir];
-        for (int t = 0; t < their_len; ++t) {
-            bool dead = false;
-            for (int d : dead_their_diag) if (d == t) { dead = true; break; }
-            if (!dead) active.push_back(their_base + t);
-        }
-    } else if (group == "threats") {
-        // Old flat pawn-threats + the threats package (3.1).
-        append_groups(active, EPG_ThreatMinorMg, EPG_ThreatPushEg);
-    } else if (group == "misc") {
-        append_group(active, EPG_ProxBase);
-        append_group(active, EPG_SpaceMg);
-        append_group(active, EPG_SpacePieceMg);
-        append_group(active, EPG_SpaceBlockedMg);
-        append_group(active, EPG_Tempo);
-    } else if (group == "phase45") {
-        // Stage 4.5: the full positional data-fit in one joint group. Covers
-        // pawn refinement (3.4), the seeded-0 small positional terms (3.7), the
-        // HCE survey adds (3.9), minors, rooks and space (3.6).
-        // Deliberately EXCLUDES material/PST (4.7), imbalance (4.6), mobility
-        // (4.4, done), threats (4.2, done) and king safety (4.3, done).
-        // ALWAYS run with --l2 (mobility lesson: sparse/seeded terms over-fit
-        // without a prior anchor; here the L2 also keeps the already-accepted
-        // Phase-2 pawn/passer/rook cores from drifting while the seeded terms
-        // grow). The three ranges below are contiguous in EVAL_PARAM_LIST and
-        // skip exactly Imb* (between BishopPairPawnsEg and MinorBehindPawnMg)
-        // and the Mob*/Threat*/Ks* block (between KnightOutpostEg and
-        // ProxBase). (4.8a pruned the dead survey/space/pawn-lever terms.)
-        append_groups(active, EPG_PassedMg, EPG_BishopPairPawnsEg);
-        append_groups(active, EPG_MinorBehindPawnMg, EPG_KnightOutpostEg);
-        append_groups(active, EPG_ProxBase, EPG_Tempo);
-    } else if (group == "kingsafety" || group == "king") {
-        for (int g = EPG_KsUnit; g <= EPG_StormWeightAdj; ++g)
-            append_group(active, g);
-    } else if (group == "texel") {
-        // Everything a gradient fit should touch, and nothing it should not:
-        // the PSTs and the scalars (the older form; `--tune surface` with the
-        // surface manifest is the contract's).
-        //
-        // Material is deliberately ABSENT. eval.cpp builds
-        // MG_TABLE = mg_val[pt] + pst_mg[pt-1][sq], so material and PST are
-        // exactly collinear: adding a constant across a piece's 64 PST squares
-        // IS a material change. Fitting both is a perfect null direction and
-        // rank-deficient by construction. Pinning material costs ZERO
-        // expressiveness because the PST can already express any material
-        // change; it only removes the degeneracy.
-        //
-        // King safety is absent because it is capped and non-linear -- BAS-X14.
-        // It belongs to --tune-kingsafety. BAS-E21 is the evidence that this
-        // split matters: the king-safety funnel produced +2.64 Elo through the
-        // coordinate-descent fitter after a linear fit had nothing to say about
-        // it.
-        //
-        // Do NOT use "all" for this: it sweeps king safety into the gradient fit.
-        for (int g = EPG_PstMgPawn; g <= EPG_PstEgKing; ++g)
-            append_group(active, g);
-        for (int g = EPG_PassedMg; g <= EPG_Tempo; ++g) {
-            if (g >= EPG_KsUnit && g <= EPG_StormWeightAdj)
-                continue;
-            append_group(active, g);
-        }
-    } else if (group == "pst") {
-        append_material(active);
-        for (int g = EPG_PstMgPawn; g <= EPG_PstEgKing; ++g)
-            append_group(active, g);
-    } else if (group == "all") {
-        append_material(active);
-        for (int g = EPG_PstMgPawn; g <= EPG_PstEgKing; ++g)
-            append_group(active, g);
-        for (int g = EPG_PassedMg; g <= EPG_Tempo; ++g)
-            append_group(active, g);
-#endif
     } else {
         std::cerr << "Unknown tune group '" << group << "'.\n";
         std::exit(1);
@@ -841,11 +734,9 @@ struct RowModel {
     int played_white = 0;          // the score the engine serves, White's view
     double scale = 1.0;            // d played / d tapered sum, at the seed
     const EvalTrace* trace = nullptr;
-#ifdef BASILISK_EVAL_REBUILD
-    // The rebuilt arm's gradient: d played / d (traced middlegame, endgame
+    // The gradient: d played / d (traced middlegame, endgame
     // sum), and d played / d tempo, at the seed.
     double scale_mg = 0.0, scale_eg = 0.0, tempo = 0.0;
-#endif
 };
 
 static const std::vector<long>& seed_weights() {
@@ -869,7 +760,6 @@ static int damp_white(int score, int clock) {
     return clock > 0 ? damp_rule50(score, clock) : score;
 }
 
-#ifdef BASILISK_EVAL_REBUILD
 // The rebuilt evaluation's played function (analysis/c31_rebuild_2026-11-25.md
 // §6), recomputed from its record in the engine's integer arithmetic:
 //   - the sum: the traced terms times the weights, plus the knobs' terms;
@@ -982,67 +872,6 @@ static double row_coeff(const RowModel& model, int idx) {
     return model.trace->mg[idx] * model.scale_mg + model.trace->eg[idx] * model.scale_eg
          + (idx == eval_param_offset(EPG_Tempo) ? model.tempo : 0.0);
 }
-#else
-// The model of the row the evaluator just scored (g_trace and g_rest hold its
-// record). Returns false, with the stage named in *mismatch, when a stage of
-// the model disagrees with the engine.
-static bool model_row(const Board& b, int served_stm, RowModel& out, std::string* mismatch) {
-    const std::vector<long>& w = seed_weights();
-    const int served_white = (b.turn() == WHITE) ? served_stm : -served_stm;
-    const int clock = b.rule50_count();
-    auto fail = [&](const char* stage) {
-        if (mismatch)
-            *mismatch = stage;
-        return false;
-    };
-
-    long mg = 0, eg = 0;
-    for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
-        mg += g_trace.mg[i] * w[static_cast<size_t>(i)];
-        eg += g_trace.eg[i] * w[static_cast<size_t>(i)];
-    }
-    for (int s = 0; s < REST_SOURCE_NB; ++s) {
-        mg += g_rest.mg[s];
-        eg += g_rest.eg[s];
-    }
-    if (mg != g_rest.sum_mg || eg != g_rest.sum_eg)
-        return fail("the running sum");
-    if (taper_int(mg, eg, g_trace.phase) != g_rest.tapered)
-        return fail("the taper");
-    if (g_rest.step.kind != EG_OVERRIDE && apply_step(g_rest.step, g_rest.tapered) != g_rest.endgame)
-        return fail("the endgame step");
-    if (damp_white(g_rest.endgame, clock) != served_white)
-        return fail("the rule-50 damping");
-
-    out = RowModel{};
-    const EvalEndgameStep* step = &g_rest.step;
-    int endgame = g_rest.endgame;
-    out.trace = &g_trace;
-    if (g_rest.lazy) {
-        long lmg = 0, leg = 0;
-        for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
-            lmg += g_lazy_trace.mg[i] * w[static_cast<size_t>(i)];
-            leg += g_lazy_trace.eg[i] * w[static_cast<size_t>(i)];
-        }
-        if (taper_int(lmg, leg, g_lazy_trace.phase) != g_rest.lazy_tapered)
-            return fail("the lazy checkpoint's taper");
-        if (g_rest.lazy_step.kind != EG_OVERRIDE
-            && apply_step(g_rest.lazy_step, g_rest.lazy_tapered) != g_rest.lazy_endgame)
-            return fail("the lazy checkpoint's endgame step");
-        out.lazy = true;
-        step = &g_rest.lazy_step;
-        endgame = g_rest.lazy_endgame;
-        out.trace = &g_lazy_trace;
-    }
-    out.played_white = damp_white(endgame, clock);
-    out.status = step->kind == EG_OVERRIDE ? RowModel::OVERRIDE
-               : step->verdict             ? RowModel::VERDICT
-                                           : RowModel::USED;
-    out.scale = (step->kind == EG_SCALED ? double(step->num) / double(step->den) : 1.0)
-              * (clock > 0 ? double(damp_rule50_scale_num(clock)) / double(DAMP_RULE50_DEN) : 1.0);
-    return true;
-}
-#endif
 
 // Rows by what the model made of them, for the load reports.
 struct ModelCounts {
@@ -1127,8 +956,7 @@ static bool clamp_held(int idx) {
     enforce_chain(w, chain);
 }
 
-#ifdef BASILISK_EVAL_REBUILD
-// The rebuilt arm's bounds are its surface manifest's; only the slots no
+// The knobs' bounds are the surface manifest's; only the slots no
 // position reads are held at 0.
 static void clamp_weights_for_group(const std::string&, double* w) {
     for (int g : {EPG_MgVal, EPG_EgVal}) {
@@ -1136,88 +964,6 @@ static void clamp_weights_for_group(const std::string&, double* w) {
         w[eval_param_offset(g) + KING] = 0.0;
     }
 }
-#else
-static void clamp_weights_for_group(const std::string&, double* w) {
-    int mg = eval_param_offset(EPG_MgVal);
-    int eg = eval_param_offset(EPG_EgVal);
-
-    w[mg + NO_PIECE_TYPE] = 0.0;
-    w[eg + NO_PIECE_TYPE] = 0.0;
-    w[mg + KING] = 0.0;
-    w[eg + KING] = 0.0;
-
-    for (int pt = PAWN; pt <= QUEEN; ++pt) {
-        w[mg + pt] = std::clamp(w[mg + pt], 1.0, 2000.0);
-        w[eg + pt] = std::clamp(w[eg + pt], 1.0, 2000.0);
-    }
-
-    // Sign/shape clamps for scalar subgroups. These are deliberately simple:
-    // they prevent obviously nonsensical candidates while leaving SPRT to
-    // decide whether a plausible fit transfers to strength.
-    clamp_group_range(w, EPG_DoubledMg, -200.0, 0.0);
-    clamp_group_range(w, EPG_DoubledEg, -200.0, 0.0);
-    clamp_group_range(w, EPG_IsolatedMg, -200.0, 0.0);
-    clamp_group_range(w, EPG_IsolatedEg, -200.0, 0.0);
-    clamp_group_range(w, EPG_BackwardMg, -200.0, 0.0);
-    clamp_group_range(w, EPG_BackwardEg, -200.0, 0.0);
-    clamp_group_range(w, EPG_ConnectedMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_ConnectedEg, 0.0, 200.0);
-
-    for (int r = 0; r < 8; ++r) {
-        clamp_range(w, flat_index(EPG_PassedMg, r), r == 0 || r == 7 ? 0.0 : 0.0, r == 0 || r == 7 ? 0.0 : 400.0);
-        clamp_range(w, flat_index(EPG_PassedEg, r), r == 0 || r == 7 ? 0.0 : 0.0, r == 0 || r == 7 ? 0.0 : 400.0);
-    }
-    enforce_non_decreasing(w, EPG_PassedMg, 1, 6);
-    enforce_non_decreasing(w, EPG_PassedEg, 1, 6);
-    clamp_group_range(w, EPG_PassFreeMg, 0.0, 100.0);
-    clamp_group_range(w, EPG_PassFreeEg, 0.0, 100.0);
-    clamp_group_range(w, EPG_PassSafeEg, 0.0, 100.0);
-    clamp_group_range(w, EPG_ProxBase, 0.0, 50.0);
-
-    clamp_group_range(w, EPG_BpMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_BpEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_KnightOutpostMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_KnightOutpostEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_TrappedMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_TrappedEg, 0.0, 200.0);
-
-    clamp_group_range(w, EPG_RookOpenMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_RookOpenEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_RookSemiMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_RookSemiEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_Rook7thMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_Rook7thEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_RookBehindPasserMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_RookBehindPasserEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_EnemyRookPasserMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_EnemyRookPasserEg, 0.0, 200.0);
-
-    // Per-count mobility tables (Step 3.3): bounded; seeded values (queen eg max
-    // 324) sit inside the range so this never perturbs an untuned fit.
-    for (int g = EPG_MobNMg; g <= EPG_MobQEg; ++g)
-        clamp_group_range(w, g, -200.0, 600.0);
-    // Monotone in the mobility-square count (Step 4.6b): more squares is never
-    // worth less. Prevents sparse high-count entries from fitting noise.
-    for (int g = EPG_MobNMg; g <= EPG_MobQEg; ++g)
-        enforce_non_decreasing(w, g, 0, EVAL_PARAM_LENS[g] - 1);
-
-    clamp_group_range(w, EPG_ThreatMinorMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_ThreatMinorEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_ThreatRookMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_ThreatRookEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_ThreatQueenMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_ThreatQueenEg, 0.0, 200.0);
-    // A pawn threat to a queen is worth at least one to a rook, and that at
-    // least one to a minor.
-    enforce_chain(w, {flat_index(EPG_ThreatMinorMg), flat_index(EPG_ThreatRookMg), flat_index(EPG_ThreatQueenMg)});
-    enforce_chain(w, {flat_index(EPG_ThreatMinorEg), flat_index(EPG_ThreatRookEg), flat_index(EPG_ThreatQueenEg)});
-
-    clamp_group_range(w, EPG_SpaceMg, 0.0, 50.0);
-    clamp_group_range(w, EPG_SpacePieceMg, -10.0, 10.0);
-    clamp_group_range(w, EPG_SpaceBlockedMg, -10.0, 10.0);
-    clamp_group_range(w, EPG_Tempo, 0.0, 50.0);
-}
-#endif
 
 // ---------------------------------------------------------------------------
 // Dataset loading
@@ -1315,12 +1061,7 @@ static TuneSet load_tune_dataset(const std::string& path,
         out.base_score.push_back(static_cast<float>(model.played_white));
         out.phase.push_back(static_cast<uint8_t>(g_trace.phase));
         for (size_t j = 0; j < active.size(); ++j)
-#ifdef BASILISK_EVAL_REBUILD
             out.add_coefficient(static_cast<int>(j), static_cast<float>(row_coeff(model, active[j])));
-#else
-            out.add_coefficient(static_cast<int>(j),
-                                static_cast<float>(trace_coeff(*model.trace, active[j]) * model.scale));
-#endif
         out.end_row();
 
         if (max_positions > 0 && static_cast<int>(out.size()) >= max_positions)
@@ -1454,13 +1195,7 @@ static void for_each_coeff_row(const std::string& path, int limit, RowFn&& row_f
         if (!ok || model.status != RowModel::USED)
             continue;
         for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i)
-#ifdef BASILISK_EVAL_REBUILD
             coeff[static_cast<size_t>(i)] = row_coeff(model, i);
-#else
-            coeff[static_cast<size_t>(i)] =
-                (model.trace->mg[i] * model.trace->phase + model.trace->eg[i] * (24 - model.trace->phase))
-                / 24.0 * model.scale;
-#endif
         row_fn(coeff, rows.lineno(), model);
         if (limit > 0 && ++used >= limit)
             break;
@@ -1568,123 +1303,6 @@ static void cmd_played_hash(const std::string& path) {
 // they are reported separately as expected-zero, not flagged. Also closes the
 // Phase-3 trace-regression item (d): every traced term must fire nonzero.
 // ---------------------------------------------------------------------------
-#ifndef BASILISK_EVAL_REBUILD
-static const char* const FS_GROUP_NAMES[EPG_COUNT] = {
-#define X(name, member, len) #name,
-    EVAL_PARAM_LIST(X)
-#undef X
-};
-
-// Index-shaping (finite-difference) or frozen params: zero linear trace is
-// expected, not a defect.
-static bool fs_is_finite_diff_group(int g) {
-    switch (g) {
-        case EPG_KsUnit: case EPG_KsCoordBonus:
-        case EPG_KsSafeCheck: case EPG_KsWeakRing:
-        case EPG_KsKingBlockers: case EPG_KsCentralKing: case EPG_KsShelterStorm:
-        case EPG_KsNoqueenNum: case EPG_KsNoqueenDen:
-            return true;
-        default:
-            return false;
-    }
-}
-
-static void cmd_feature_support(const std::string& path, int max_positions) {
-    RowReader rows(path);
-    std::cout << "Streaming positions from " << path << " for feature-support ...\n";
-
-    // Reverse map: flat index -> (group, sub-index).
-    std::vector<int> group_of(EVAL_PARAM_FLAT_SIZE), sub_of(EVAL_PARAM_FLAT_SIZE);
-    for (int g = 0; g < EPG_COUNT; ++g) {
-        int off = eval_param_offset(g), len = EVAL_PARAM_LENS[g];
-        for (int i = 0; i < len; ++i) {
-            const auto idx = static_cast<std::size_t>(off + i);
-            group_of[idx] = g;
-            sub_of[idx]   = i;
-        }
-    }
-
-    std::vector<long> act(EVAL_PARAM_FLAT_SIZE, 0);
-    std::vector<double> sum_abs(EVAL_PARAM_FLAT_SIZE, 0.0);
-
-    // Stream the dataset: evaluate+trace each position, accumulate, discard.
-    // (Materialising every EvalTrace would be ~4 KB x millions of positions.)
-    auto ev_ptr = std::make_unique<Evaluator>();
-    Evaluator& evaluator = *ev_ptr;
-    Board board;
-    long N = 0;
-    std::string fen, target;
-    while (rows.next(fen, target)) {
-        if (!board.try_set_fen(fen)) { rows.reject("FEN error"); continue; }
-
-        g_trace = {};
-        evaluator.evaluate(board);
-        for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
-            if (g_trace.mg[i] != 0 || g_trace.eg[i] != 0) {
-                const auto ui = static_cast<std::size_t>(i);
-                act[ui]++;
-                sum_abs[ui] += std::fabs(trace_coeff(g_trace, i));
-            }
-        }
-        ++N;
-        if (max_positions > 0 && N >= max_positions) break;
-        if (N % 200000 == 0) std::cerr << "  ... " << N << " positions\r";
-    }
-    if (N == 0) { std::cerr << "No positions loaded.\n"; std::exit(1); }
-    std::cout << "Processed " << N << " positions"
-              << (rows.skipped() ? " (" + std::to_string(rows.skipped()) + " skipped)" : "") << ".\n";
-
-    const long thresh = std::max(200L, static_cast<long>(0.0005 * static_cast<double>(N)));
-    std::cout << "Sparse threshold: < " << thresh << " activations ("
-              << "max(200, 0.05% of N)).\n\n";
-
-    int zero_traced = 0, sparse_traced = 0, fd_zero = 0, fd_total = 0;
-    // ZERO-activation traced params are the actionable signal for item (d): on a
-    // large dataset, a traced term at 0 is either a structurally-impossible index
-    // (fine) or a trace bug. Sparse-but-nonzero params just fire rarely (freeze /
-    // L2 candidates, not bugs), so they are only counted.
-    std::cout << "LINEARLY-TRACED params with ZERO activation (scrutinise):\n";
-    std::cout << "  group[idx]\n";
-    for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
-        const auto ui = static_cast<std::size_t>(i);
-        int g = group_of[ui];
-        if (fs_is_finite_diff_group(g)) {
-            fd_total++;
-            if (act[ui] == 0) fd_zero++;
-            continue;
-        }
-        if (act[ui] == 0) {
-            zero_traced++;
-            std::printf("  %s[%d]\n", FS_GROUP_NAMES[g], sub_of[ui]);
-        } else if (act[ui] < thresh) {
-            sparse_traced++;
-        }
-    }
-    if (zero_traced == 0)
-        std::cout << "  (none — every linearly-traced term fired at least once)\n";
-
-    std::cout << "\nSparse-but-nonzero traced params (< threshold): " << sparse_traced
-              << " (informational — rare terms; freeze / L2-to-prior in fitting,"
-                 " not bugs).\n";
-    std::cout << "Finite-diff / frozen params (zero linear trace EXPECTED): "
-              << fd_zero << " / " << fd_total << " report zero activation.\n";
-
-    std::cout << "\nVERDICT: ";
-    if (zero_traced == 0) {
-        std::cout << "PASS — every linearly-traced term fires; the only zero-"
-                     "activation params are the finite-diff/frozen funnel knobs "
-                     "(expected). Phase-3 trace-regression item (d) closed.\n";
-    } else {
-        std::cout << "CHECK the " << zero_traced << " zero-activation traced "
-                     "param(s) above — they should be ONLY structurally-impossible "
-                     "indices (piece-type none/king slots like ThreatBy*[0]/[6] and "
-                     "pawn PSTs on ranks 1/8). Any other zero is a "
-                     "trace bug. Run on the FULL train set for a clean verdict (a "
-                     "small holdout under-samples rare terms).\n";
-    }
-}
-
-#endif // !BASILISK_EVAL_REBUILD
 
 // ---------------------------------------------------------------------------
 // Sigmoid / loss helpers
@@ -2059,16 +1677,10 @@ static void cmd_tune(const TuneOptions& opts) {
         std::vector<char> on(EVAL_PARAM_FLAT_SIZE, 0);
         for (int idx : active)
             on[static_cast<size_t>(idx)] = 1;
-#ifdef BASILISK_EVAL_REBUILD
-        // The rebuilt arm's tables ordered by one count: mobility and the
+        // The tables ordered by one count: mobility and the
         // passer's rank.
         const int ordered[] = {EPG_MobNMg, EPG_MobNEg, EPG_MobBMg, EPG_MobBEg, EPG_MobRMg, EPG_MobREg,
                                EPG_MobQMg, EPG_MobQEg, EPG_PassedRankMg, EPG_PassedRankEg};
-#else
-        const int ordered[] = {EPG_MobNMg, EPG_MobNEg, EPG_MobBMg, EPG_MobBEg, EPG_MobRMg, EPG_MobREg,
-                               EPG_MobQMg, EPG_MobQEg, EPG_PassedMg, EPG_PassedEg,
-                               EPG_ConnectedRankMg, EPG_ConnectedRankEg};
-#endif
         for (int g : ordered) {
             const int base = eval_param_offset(g);
             for (int i = 1; i + 1 < EVAL_PARAM_LENS[g]; ++i) {
@@ -2381,15 +1993,8 @@ static double ks_mse(const std::vector<KsSnap>& pos, const KSchedule& ks, Board&
         ks_board_from_snap(scratch, s);
         g_rest = {};
         const int sc = ev.evaluate(scratch);
-#ifdef BASILISK_EVAL_REBUILD
-        // The rebuilt arm's traced build serves what a release build serves.
+        // The traced build serves what a release build serves.
         const int white = (s.stm == WHITE) ? sc : -sc;
-#else
-        // The played score: where a release build stops at the lazy
-        // checkpoint, the cheap block's value, which no king-safety knob moves.
-        const int white = g_rest.lazy ? damp_white(g_rest.lazy_endgame, scratch.rule50_count())
-                                      : (s.stm == WHITE) ? sc : -sc;
-#endif
         const double ki = by_phase ? ks.at(s.phase) : ks.k_eg;
         double sig = 1.0 / (1.0 + std::exp(-ki * static_cast<double>(white) / 400.0));
         double d = static_cast<double>(s.result) - sig;
@@ -2419,61 +2024,6 @@ static double ks_fit_K(const std::vector<KsSnap>& pos, Board& scratch, Evaluator
 // registry and reports which instrument reaches it, so that an exclusion has to
 // be a decision someone made rather than an oversight nobody saw.
 // ---------------------------------------------------------------------------
-#ifndef BASILISK_EVAL_REBUILD
-static const char* const EVAL_GROUP_NAMES[] = {
-#define X(name, member, len) #name,
-    EVAL_PARAM_LIST(X)
-#undef X
-};
-
-static void cmd_audit_coverage() {
-    const int total = EVAL_PARAM_FLAT_SIZE;
-    std::vector<std::string> owner(total);
-
-    auto claim = [&](const std::vector<int>& idx, const char* who) {
-        for (int i : idx) {
-            if (i < 0 || i >= total) continue;
-            const size_t slot = static_cast<size_t>(i);
-            if (!owner[slot].empty()) owner[slot] += "+";
-            owner[slot] += who;
-        }
-    };
-
-    claim(active_indices_for_group("texel"),      "texel");
-    claim(active_indices_for_group("kingsafety"), "kingsafety");
-    std::vector<int> mat; append_material(mat);
-    claim(mat, "material");
-
-    std::printf("Registry: %d fittable parameter slots across %d groups\n\n",
-                total, int(EPG_COUNT));
-
-    std::map<std::string, int> tally;
-    int uncovered = 0;
-    for (size_t i = 0; i < owner.size(); ++i) {
-        if (owner[i].empty()) { ++uncovered; tally["** UNCOVERED **"]++; }
-        else tally[owner[i]]++;
-    }
-
-    std::printf("By instrument:\n");
-    for (const auto& [instrument, count] : tally)
-        std::printf("  %-22s %5d\n", instrument.c_str(), count);
-
-    if (uncovered == 0) {
-        std::printf("\nEVERY parameter is claimed by an instrument.\n");
-        return;
-    }
-
-    std::printf("\n%d UNCOVERED slots, by registry group:\n", uncovered);
-    for (int g = 0; g < int(EPG_COUNT); ++g) {
-        const int base = eval_param_offset(g), len = EVAL_PARAM_LENS[g];
-        int n = 0;
-        for (int i = base; i < base + len; ++i)
-            if (owner[static_cast<size_t>(i)].empty()) ++n;
-        if (n) std::printf("  %-28s %4d of %4d\n", EVAL_GROUP_NAMES[g], n, len);
-    }
-}
-
-#endif // !BASILISK_EVAL_REBUILD
 
 static void cmd_tune_kingsafety(int argc, char* argv[]) {
     if (argc < 4) { usage(argv[0]); std::exit(1); }
@@ -2524,26 +2074,11 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     }
 
     EvalParams& P = g_eval_params;
-#ifdef BASILISK_EVAL_REBUILD
     (void)P;
     if (g_surface_path.empty()) {
-        std::cerr << "FATAL: the rebuilt arm's knobs are its surface manifest's; pass --surface.\n";
+        std::cerr << "FATAL: the knobs are the surface manifest's; pass --surface.\n";
         std::exit(2);
     }
-#else
-    // The descent keeps the table non-decreasing by clamping each entry
-    // between its neighbours, which holds only if the table starts that way:
-    // on a table that does not, the bounds cross. A linear stage before this
-    // one can leave it so, since it has no monotone projection.
-    for (int i = 1; i < 25; ++i) {
-        if (P.safety_table[i] < P.safety_table[i - 1]) {
-            std::cerr << "FATAL: safety_table[" << i << "] = " << P.safety_table[i]
-                      << " is below safety_table[" << i - 1 << "] = " << P.safety_table[i - 1]
-                      << "; the king-safety stage needs a non-decreasing table.\n";
-            std::exit(2);
-        }
-    }
-#endif
     struct Knob { int* p; const char* name; int sub; int lo; int hi; int table_idx; int step; };
     std::vector<Knob> knobs;
     auto add = [&](int* p, const char* n, int sub, int lo, int hi, int ti) {
@@ -2559,11 +2094,7 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
         for (size_t i = 0; i < rows.size(); ++i) {
             if (rows[i].stage != "kingsafety")
                 continue;
-#ifdef BASILISK_EVAL_REBUILD
             const bool table = false;
-#else
-            const bool table = std::string(all[i].group) == "SafetyTable";
-#endif
             if (table && all[i].sub == 0) {
                 std::cerr << "FATAL: safety_table[0] is the table's anchor and cannot be a knob.\n";
                 std::exit(2);
@@ -2573,20 +2104,7 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
         }
         std::cout << "Surface: " << knobs.size() << " king-safety knobs.\n";
     } else {
-#ifndef BASILISK_EVAL_REBUILD
-    for (int pt = KNIGHT; pt <= QUEEN; ++pt) add(&P.ks_unit[pt], "ks_unit", pt, 0, 20, -1);
-    add(&P.ks_coord_bonus, "ks_coord_bonus", 0, 0, 20, -1);
-    for (int pt = KNIGHT; pt <= QUEEN; ++pt) add(&P.ks_safe_check[pt], "ks_safe_check", pt, 0, 30, -1);
-    add(&P.ks_weak_ring, "ks_weak_ring", 0, 0, 20, -1);
-    add(&P.ks_king_blockers, "ks_king_blockers", 0, 0, 20, -1);
-    add(&P.ks_central_king, "ks_central_king", 0, 0, 30, -1);
-    add(&P.ks_shelter_storm, "ks_shelter_storm", 0, 0, 20, -1);
-    add(&P.ks_noqueen_num, "ks_noqueen_num", 0, 0, 8, -1);
-    add(&P.ks_noqueen_den, "ks_noqueen_den", 0, 1, 8, -1);
-    for (int i = 2; i < 25; ++i) add(&P.safety_table[i], "safety_table", i, 0, 600, i);
-#else
     (void)add;
-#endif
     }
     for (const Knob& kn : knobs) {
         if (*kn.p < kn.lo || *kn.p > kn.hi) {
@@ -2628,12 +2146,6 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
                 int delta = (dir == 0) ? kstep : -kstep;
                 int old = *kn.p;
                 int lo = kn.lo, hi = kn.hi;
-#ifndef BASILISK_EVAL_REBUILD
-                if (kn.table_idx >= 0) {            // keep safety_table non-decreasing
-                    lo = std::max(kn.lo, P.safety_table[kn.table_idx - 1]);
-                    hi = (kn.table_idx < 24) ? std::min(kn.hi, P.safety_table[kn.table_idx + 1]) : kn.hi;
-                }
-#endif
                 int trial = std::clamp(old + delta, lo, hi);
                 if (trial == old) continue;
                 *kn.p = trial;
@@ -2773,14 +2285,10 @@ int main(int argc, char* argv[]) {
         for (int a = 3; a + 1 < argc; ++a)
             if (std::string(argv[a]) == "--max-positions")
                 maxpos = parse_int_arg(argv[a + 1], "--max-positions");
-#ifdef BASILISK_EVAL_REBUILD
         (void)maxpos;
-        std::cerr << "--feature-support reads the accepted registry; on the rebuilt arm use "
+        std::cerr << "--feature-support was the retired evaluation's; use "
                      "test_eval --coverage.\n";
         return 1;
-#else
-        cmd_feature_support(argv[2], maxpos);
-#endif
     } else if (mode == "--tune") {
         TuneOptions opts = parse_tune_options(argc, argv);
         cmd_tune(opts);
@@ -2788,13 +2296,9 @@ int main(int argc, char* argv[]) {
         if (argc < 3) { usage(argv[0]); std::exit(1); }
         cmd_dump_eval(argv[2], argc > 3 ? std::atoi(argv[3]) : 0);
     } else if (mode == "--audit-coverage") {
-#ifdef BASILISK_EVAL_REBUILD
-        std::cerr << "--audit-coverage reads the accepted registry; on the rebuilt arm the "
+        std::cerr << "--audit-coverage was the retired evaluation's; the "
                      "surface manifest classes every slot.\n";
         return 1;
-#else
-        cmd_audit_coverage();
-#endif
     } else if (mode == "--tune-kingsafety") {
         cmd_tune_kingsafety(argc, argv);
     } else {

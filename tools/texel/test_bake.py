@@ -3,8 +3,7 @@ from pathlib import Path
 
 import bake
 
-HEADER = Path(__file__).resolve().parents[2] / "src" / "eval_params.h"
-REBUILD_HEADER = Path(__file__).resolve().parents[2] / "src" / "eval_rb_params.h"
+HEADER = Path(__file__).resolve().parents[2] / "src" / "eval_rb_params.h"
 
 
 class BakeProvenanceTests(unittest.TestCase):
@@ -25,7 +24,7 @@ class BakeProvenanceTests(unittest.TestCase):
         return bake.check_dump(text, self.params, self.header)
 
     def test_a_whole_vector_from_this_header_passes(self):
-        self.assertEqual(len(self.vector), 1159)
+        self.assertEqual(len(self.vector), 1450)
         self.assertEqual(self.errors(self.dump(self.vector)), [])
 
     def test_a_missing_member_is_refused(self):
@@ -74,7 +73,7 @@ class BakeFormattingTests(unittest.TestCase):
 
 class RebuildAndRelevelTests(unittest.TestCase):
     def setUp(self):
-        self.header = REBUILD_HEADER.read_text(encoding="utf-8")
+        self.header = HEADER.read_text(encoding="utf-8")
         self.params = bake.parse_param_list(self.header)
         self.vector = bake.header_vector(self.header, self.params)
         self.root = bake.vector_hash(self.vector)
