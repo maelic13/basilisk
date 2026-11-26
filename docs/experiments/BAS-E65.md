@@ -67,4 +67,30 @@
   and `BAS-E64` or signals a broken candidate binary (`BAS-E65` triggers
   equal-node companion read by C-95).
 
-#### RESULT — append after exposure
+#### RESULT — recorded 2026-11-26
+
+- **SPRT `[0,3]` (`tools/results/c35-sprt/`):** `status: h1` at **`1,034` games**
+  (`517` official pairs; `18` post-terminal pairs / `36` games kept outside the
+  official sample), **`LLR = +2.953`** (`+2.953367` vs upper bound `+2.944439`).
+  - `W-D-L = 434-415-185`, `Ptnml = [3, 60, 193, 207, 54]`.
+  - **`+85.3 Elo [+71.9, +99.0]`** (95% pentanomial CI), `nElo = +138.9 +/- 21.2`.
+  - Faults: `0` engine faults, `0` time losses, `0` infrastructure faults.
+  - Speed & depth (all moves): `1.93M` vs `1.95M` nps (`137,449` vs `141,062`
+    nodes/move, `71.2` vs `72.2` ms/move, mean non-mate depth `16.75` vs `16.48`,
+    median `15` vs `15`).
+  - PGN SHA-256: `B8A15DE32D46280C0D94C4A9FA1E07CA3353E212CAC997A514C9BD171D589FF7`.
+- **C.2.7 endgame bracket veto (`tools/results/c35/veto/`):** at
+  `21,000 / 64,000 / 190,000` nodes of `480` Cohort positions, candidate converts
+  **`441 / 448 / 457`** vs baseline **`434 / 445 / 458`** (`+7 / +3 / -1`;
+  `tools/results/c274/head`: `443 / 448 / 463`). Zero `new_rule50_failure`,
+  `engine_anomaly`, or `malformed_record`. Two-of-three clean-win discards:
+  `count = 7` vs `base` (`KBP-KB/EG0580`, `KBPP-KB/EG0745`, `KNN-KP/EG0454`,
+  `KNN-KP/EG0462`, `KNN-KP/EG0465`, `KNN-KP/EG0466`, `KRP-KB/EG0545`) and
+  `count = 5` vs `c274/head` (`KBPP-KB/EG0742`, `KBPP-KB/EG0745`, `KNN-KP/EG0454`,
+  `KNN-KP/EG0468`, `KNN-KP/EG0471`).
+- **Outcome:** SPRT H1 prediction (`+85`, `P(H1) = 0.99`) hit almost identically
+  (`+85.3`); zero-tolerance veto discard count (`7` vs `base`, `5` vs
+  `c274/head`) explicitly **overridden by maintainer confirmation (2026-11-26)**
+  alongside overall cohort improvement (`441/448/457` vs `434/445/458`), with
+  those 4–6 men endgames tracked for C.4/C.5. Candidate accepted for C.3.5 flip
+  (`e60aa45`).

@@ -11,7 +11,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Item | Value |
 |---|---|
 | Released baseline | **1.11.0** on `master`, tagged `v1.11.0` (2026-11-18), `bench 13` 4,777,412 |
-| Bench fingerprint | **3,359,329** (`bench 13`, since C.2.8's whole-surface refit `cbc3676`; 4,392,040 after the top-tier repair `cd4e453`; 4,777,412 before it; HISTORY's 1.11.0 record lists the earlier counts) |
+| Bench fingerprint | **3,880,333** (`bench 13`, since C.3.5's flip of `EVAL_REBUILD` to default `ON` (`e60aa45`); `3,359,329` after C.2.8's whole-surface refit `cbc3676`; 4,392,040 after the top-tier repair `cd4e453`; 4,777,412 before it; HISTORY's 1.11.0 record lists the earlier counts) |
 | Active experiment | None |
 | Long job | None |
 | Next release | **1.12.0** after C (C.10), then 1.13.0 after E; **2.0.0** is the first NNUE release |
@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.3.5** `[V]` Gate, frontier pair and close — Claude Sonnet
+**Next step:** **C.3.6** `[R2]` Basilisk's own forms read back in — Claude Opus
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -89,7 +89,7 @@ the six-stage gating shape), are in
     - [x] **C.3.2** `[I2]` The port behind the switch, at parity
     - [x] **C.3.3** `[R2]` Independent review
     - [x] **C.3.4** `[I2]` Seed-value read and fit
-    - [ ] **C.3.5** `[V]` Gate, frontier pair and close
+    - [x] **C.3.5** `[V]` Gate, frontier pair and close
     - [ ] **C.3.6** `[R2]` Basilisk's own forms read back in
 - [ ] **C.4** Endgame handling and winnability
     - [ ] **C.4.2** `[R3]` Occurrence, classification and ranking

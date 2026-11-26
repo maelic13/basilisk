@@ -52,7 +52,8 @@ stages (maintainer decision 2026-09-28: Rarog's targets):
        can.
      - The meter is the gap to it, read head to head and in the field. At
        B.11.1's head that gap is 202, and −193 head to head.
-       After C.2.8's refit it is −120.0 head to head (BAS-M24).
+       After C.2.8's refit it is −120.0 head to head (BAS-M24); after
+       C.3.5's rebuild flip it is −39.8 head to head (BAS-M27).
 2. **NNUE stage.** Train networks on Basilisk's own data only, then reach the
    **CCRL top 100**, and later the top 50.
 
@@ -2289,7 +2290,7 @@ has lost games in both engines (BAS-X02).
         (37,725 fires, 4 sign flips, 764 crossings, margins held); PGO
         gate binaries (`0374cfd`) and `tools/run_c35_gate.py` (`4a9c07d`;
         `BAS-E65`, `BAS-M26`, `BAS-M27`) dry-run cleanly.
-    - [ ] **C.3.5** `[V]` Gate, frontier pair and close
+    - [x] **C.3.5** `[V]` Gate, frontier pair and close
       Stages 6 to 8: the maintainer-run SPRT with its `10+0.1` and NPS
       reads (C-99), an equal-node companion if an equal-time gate fails
       (C-95), then the frontier pair, the flip and the ledger rows. The
@@ -2301,6 +2302,28 @@ has lost games in both engines (BAS-X02).
       structure constants too, which are bare numbers in the source.
       They are taken from a committed inventory that a check holds
       to the source.
+      Done 2026-11-26 (`e60aa45`, `7eb0047`; `analysis/c31_rebuild_2026-11-25.md`):
+      - **Gate (`BAS-E65`, `0374cfd`):** SPRT `[0,3]` (`3+0.03`, seed
+        `350001`) accepted H1 at `1,034` games (`517` pairs; `18`
+        post-terminal pairs kept outside sample), `LLR = +2.953`,
+        **+85.3 [+71.9, +99.0]** (`nElo +138.9 +/- 21.2`, `434-415-185`,
+        `0` faults). C.2.7 endgame bracket veto (`21k/64k/190k` of 480):
+        candidate **`441 / 448 / 457`** vs base **`434 / 445 / 458`**
+        (`7` discards vs base, `5` vs `c274/head`, 0 rule-50/anomaly/malformed);
+        explicitly overridden by maintainer.
+      - **LTC & frontier (`BAS-M26`, `BAS-M27`):** `10+0.1` (`1,000` games)
+        **+95.1 [+82.3, +108.1]** (`425-417-158`, `0` faults); frontier vs
+        Stockfish 16 HCE (`3+0.03`, `3,000` games) **−39.8 [−48.0, −31.6]**
+        (`737-1184-1079`, `44.3%`, `0` faults), closing `80.2 Elo` of
+        BAS-M24's gap.
+      - **Flip, CI & audit:** `EVAL_REBUILD` flipped to default `ON` in
+        `CMakeLists.txt` (`e60aa45`; `59/59` CTest on both `ON` `3,880,333`
+        and `OFF` `3,359,329`). Five CI Python tests updated so all 12 pass
+        on both arms; `tools/diag/rb_structure_constants.tsv` (`44` constants)
+        and `tools/diag/check_rb_constants.py` wired into CI (`7eb0047`);
+        `README.md`, `AGENTS.md`, `GUIDE.md`, `docs/DESIGN.md`, and the
+        complete own-values audit (`156/1,450` equal to seed: `119` fixed,
+        `16` support-frozen, `18` free linear, `3` free knobs) recorded.
     - [ ] **C.3.6** `[R2]` Basilisk's own forms read back in
       Added 2026-11-25 (maintainer). After the gate, each Basilisk
       form the port displaced is read against the donor's on the
@@ -2711,7 +2734,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.3.5 | GAME_GATE | V | Gate binaries built (0374cfd), BAS-E65/M26/M27 registered and dry-run under tools/run_c35_gate.py (4a9c07d); awaiting maintainer gate run |
 | C.3.6 | RESEARCH | R2 | Not started |
 | C.4.2 | RESEARCH | R3 | Not started |
 | C.4.3 | RESEARCH | I2 | Not started |

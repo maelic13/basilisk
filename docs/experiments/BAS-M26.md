@@ -25,4 +25,17 @@
   indicates adverse TC scaling on the `-4.5%` slower rebuilt eval or
   horizon-sensitive endgame distortion.
 
-#### RESULT — append after exposure
+#### RESULT — recorded 2026-11-26
+
+- **Status (`tools/results/c35-ltc/`):** `completed`, **`1,000` games** (`500`
+  pairs), `0` engine faults, `0` time losses, `0` infrastructure faults.
+- **Score:** `W-D-L = 425-417-158`, `Ptnml = [6, 35, 184, 236, 39]`.
+- **Elo:** **`+95.1 Elo [+82.3, +108.1]`** (95% pentanomial CI),
+  `nElo = +167.0 +/- 21.5`.
+- **Speed & depth (all moves):** `1.96M` vs `1.97M` nps (`468,248` vs `478,547`
+  nodes/move, `239.0` vs `242.3` ms/move, mean non-mate depth `20.88` vs `20.33`,
+  median `18` vs `18`; all moves depth `24.21` vs `23.86`).
+- **PGN SHA-256:** `8B575785A0F7C01ABAC9984FD863FDF1C627B7D51A1AA67FFC0F2C990C94CF6F`.
+- **Assessment:** Inside the predicted `+85 [+55, +115]` band and slightly
+  stronger at `10+0.1` (`+95.1`) than at `3+0.03` (`+85.3`); zero adverse TC
+  scaling.

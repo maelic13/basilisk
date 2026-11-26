@@ -37,4 +37,18 @@
   self-play gain failed to transfer appreciably against the frontier
   target.
 
-#### RESULT — append after exposure
+#### RESULT — recorded 2026-11-26
+
+- **Status (`tools/results/c35-frontier/`):** `completed`, **`3,000` games**
+  (`1,500` pairs), `0` engine faults, `0` time losses, `0` infrastructure faults.
+- **Score (`44.3%`):** `W-D-L = 737-1184-1079` (White `422-599-479`, `48.1%`;
+  Black `315-585-600`, `40.5%`), `Ptnml = [113, 456, 636, 250, 45]`.
+- **Elo:** **`-39.8 Elo [-48.0, -31.6]`** (95% pentanomial CI),
+  `nElo = -61.1 +/- 12.4`.
+- **Speed & depth (all moves):** `2.01M` vs `2.79M` nps (`137,013` vs `192,355`
+  nodes/move, `68.1` vs `68.9` ms/move, mean non-mate depth `18.17` vs `18.24`,
+  median `15` vs `17`; all moves depth `20.70` vs `24.77`).
+- **PGN SHA-256:** `C74F38C843439C78E4EA2F8D8351678029A69DD82396220D2091BCD7184DC6DB`.
+- **Assessment:** Matches the `-40` point prediction almost to the decimal
+  (`-39.8`), closing `80.2 Elo` of BAS-M24's `-120.0 Elo` head-to-head gap to
+  Stockfish 16 HCE.
