@@ -16,8 +16,8 @@
 struct EvalParams {
 
     // ---- Material values [PieceType 0..6] -----------------------------------
-    int mg_val[7] = { 0, 130, 851, 923, 1333, 2564, 0 };
-    int eg_val[7] = { 0, 228, 832, 880, 1424, 2692, 0 };
+    int mg_val[7] = { 0, 124, 781, 825, 1276, 2538, 0 };
+    int eg_val[7] = { 0, 206, 854, 915, 1380, 2682, 0 };
 
     // ---- Piece-square tables: [PieceType - 1][square], White's view --------
     // Squares a1 = 0 to h8 = 63; init_eval_tables mirrors them for Black. The
@@ -26,269 +26,320 @@ struct EvalParams {
     int pst_mg[6][64] = {
         // PAWN
         {    0,    0,    0,    0,    0,    0,    0,    0,
-           -27,  -27,  -42,  -38,   -1,  -21,   -5,    0,
-           -62,  -71,  -68,  -74,  -30,  -47,  -56,  -62,
-           -29,  -46,  -42,  -33,  -20,   -7,  -29,  -18,
-            38,    0,   -8,  -15,    0,   34,   13,   70,
-            42,   23,  -14,   28,   45,  -48,   26,   20,
-           113,   65,   65,  100,  225,  -31,   10,   47,
+             3,    3,   10,   19,   16,   19,    7,   -5,
+            -9,  -15,   11,   15,   32,   22,    5,  -22,
+            -4,  -23,    6,   20,   40,   17,    4,   -8,
+            13,    0,  -13,    1,   11,   -2,  -13,    5,
+             5,  -12,   -7,   22,   -8,   -5,  -15,   -8,
+            -7,    7,   -3,  -13,    5,  -16,   10,   -8,
              0,    0,    0,    0,    0,    0,    0,    0 },
         // KNIGHT
-        { -101,  -59,  -95,  -20,  -29,  -41,  -86, -130,
-           -83,  -69,  -45,  -32,  -21,  -31,  -15,  -30,
-           -39,  -16,  -10,  -14,   20,    2,   10,  -42,
-            17,   58,   61,   36,   61,   63,   53,   22,
-            31,   47,   59,  130,   69,  117,   52,   90,
-             1,   -2,  102,   84,  127,  147,   52,   20,
-           -16,   -5,   81,   87,   98,  128,   56,  165,
-          -314, -292,  -14,  -11,  -18,  -88,  -46, -300 },
+        { -175,  -92,  -74,  -73,  -73,  -74,  -92, -175,
+           -77,  -41,  -27,  -15,  -15,  -27,  -41,  -77,
+           -61,  -17,    6,   12,   12,    6,  -17,  -61,
+           -35,    8,   40,   49,   49,   40,    8,  -35,
+           -34,   13,   44,   51,   51,   44,   13,  -34,
+            -9,   22,   58,   53,   53,   58,   22,   -9,
+           -67,  -27,    4,   37,   37,    4,  -27,  -67,
+          -201,  -83,  -56,  -26,  -26,  -56,  -83, -201 },
         // BISHOP
-        {  -13,   66,   -7,  -22,   15,  -10,   25,  -56,
-            76,  -24,   35,  -24,   -3,   24,  -10,  -27,
-            17,   89,  -17,   30,   16,  -25,   38,   10,
-            38,   32,   73,   38,   70,   33,   16,   26,
-             9,   44,   47,   89,   67,   63,   18,  -14,
-            31,   28,  -14,   66,   63,   63,   38,   51,
-           -27,  -47,   45,   36,   -7,   35, -100,  -36,
-           -51,  -12, -141, -211, -109, -235, -131, -164 },
+        {  -53,   -5,   -8,  -23,  -23,   -8,   -5,  -53,
+           -15,    8,   19,    4,    4,   19,    8,  -15,
+            -7,   21,   -5,   17,   17,   -5,   21,   -7,
+            -5,   11,   25,   39,   39,   25,   11,   -5,
+           -12,   29,   22,   31,   31,   22,   29,  -12,
+           -16,    6,    1,   11,   11,    1,    6,  -16,
+           -17,  -14,    5,    0,    0,    5,  -14,  -17,
+           -48,    1,  -14,  -23,  -23,  -14,    1,  -48 },
         // ROOK
-        {  -52,  -42,  -39,  -21,  -10,  -23,    5,  -63,
-           -74,  -53,  -29,  -13,  -17,    2,   30,  -34,
-           -62,  -31,  -47,  -30,  -16,   -6,   26,  -12,
-           -90,  -43,  -41,  -30,  -12,  -20,   49,  -45,
-           -56,   -5,    8,   32,   49,   53,   44,   35,
-           -35,   17,   23,   28,  119,   97,  120,   40,
-           -34,  -34,    5,   48,    1,  103,   60,   41,
-             1,   16,  -12,   16,   12,  -76,   14,  118 },
+        {  -31,  -20,  -14,   -5,   -5,  -14,  -20,  -31,
+           -21,  -13,   -8,    6,    6,   -8,  -13,  -21,
+           -25,  -11,   -1,    3,    3,   -1,  -11,  -25,
+           -13,   -5,   -4,   -6,   -6,   -4,   -5,  -13,
+           -27,  -15,   -4,    3,    3,   -4,  -15,  -27,
+           -22,   -2,    6,   12,   12,    6,   -2,  -22,
+            -2,   12,   16,   18,   18,   16,   12,   -2,
+           -17,  -19,   -1,    9,    9,   -1,  -19,  -17 },
         // QUEEN
-        {    8,  -19,  -17,  -18,   -4,   25,   -1,  -19,
-           -26,  -10,   -9,    5,    9,    7,   38,  -16,
-             3,    4,   10,  -12,  -10,   43,   38,   25,
-            -6,   13,    8,   -4,   14,   14,    7,   -2,
-           -23,   26,   14,    0,   14,    5,  -26,    5,
-            -6,    2,   11,   38,  -68,    4,  -74,    7,
-           -62,  -50,   21,    2,  -43,   -2,   17,   95,
-           -96,   19,   -9,    7, -105,  -15,  131,   82 },
+        {    3,   -5,   -5,    4,    4,   -5,   -5,    3,
+            -3,    5,    8,   12,   12,    8,    5,   -3,
+            -3,    6,   13,    7,    7,   13,    6,   -3,
+             4,    5,    9,    8,    8,    9,    5,    4,
+             0,   14,   12,    5,    5,   12,   14,    0,
+            -4,   10,    6,    8,    8,    6,   10,   -4,
+            -5,    6,   10,    8,    8,   10,    6,   -5,
+            -2,   -2,    1,   -2,   -2,    1,   -2,   -2 },
         // KING
-        {  269,  299,  264,  232,  181,  193,  297,  272,
-           270,  246,  234,  233,  212,  208,  283,  262,
-           270,  304,  303,  237,  205,  185,  236,  207,
-           236,  264,  126,   47,   58,   31,  115,   39,
-           142,  169,   60,   19,   49,   91,   81,   72,
-           150,  208,   58,   -5,   57,   49,   90,  155,
-           160,  129,  111,  112,   33,   72,  132,  108,
-            83,  130,   53,   -9,    4,   27,   91,   57 }
+        {  271,  327,  271,  198,  198,  271,  327,  271,
+           278,  303,  234,  179,  179,  234,  303,  278,
+           195,  258,  169,  120,  120,  169,  258,  195,
+           164,  190,  138,   98,   98,  138,  190,  164,
+           154,  179,  105,   70,   70,  105,  179,  154,
+           123,  145,   81,   31,   31,   81,  145,  123,
+            88,  120,   65,   33,   33,   65,  120,   88,
+            59,   89,   45,   -1,   -1,   45,   89,   59 },
     };
     int pst_eg[6][64] = {
         // PAWN
         {    0,    0,    0,    0,    0,    0,    0,    0,
-           -22,  -24,  -30,  -39,   -2,  -16,  -34,  -51,
-           -22,  -25,  -31,  -30,  -23,  -19,  -34,  -42,
-            -9,  -16,  -34,  -27,  -29,  -25,  -25,  -36,
-            15,   -5,  -25,  -25,  -23,  -22,  -15,  -14,
-            70,   48,   28,   26,   58,   56,   56,   42,
-            28,   40,   56,   64,   77,   56,   39,   15,
+           -10,   -6,   10,    0,   14,    7,   -5,  -19,
+           -10,  -10,  -10,    4,    4,    3,   -6,   -4,
+             6,   -2,   -8,   -4,  -13,  -12,  -10,   -9,
+            10,    5,    4,   -5,   -5,   -5,   14,    9,
+            28,   20,   21,   28,   30,    7,    6,   13,
+             0,  -11,   12,   21,   25,   19,    4,    7,
              0,    0,    0,    0,    0,    0,    0,    0 },
         // KNIGHT
-        {  -33,  -49,  -26,   -3,  -28,  -43,  -52,  -45,
-           -27,   -6,   -9,  -11,  -23,  -23,  -25,  -34,
-             2,    1,   -4,   13,   14,  -12,  -18,  -19,
-            15,    4,   19,   32,   40,   25,   13,    4,
-            24,   16,   23,   49,   36,   31,   23,   -7,
-           -23,   19,   33,   36,   36,   37,   20,    1,
-           -17,    7,   12,   70,   36,    8,    8,  -26,
-           -71,   11,    1,   12,   17,  -21,  -41,  -60 },
+        {  -96,  -65,  -49,  -21,  -21,  -49,  -65,  -96,
+           -67,  -54,  -18,    8,    8,  -18,  -54,  -67,
+           -40,  -27,   -8,   29,   29,   -8,  -27,  -40,
+           -35,   -2,   13,   28,   28,   13,   -2,  -35,
+           -45,  -16,    9,   39,   39,    9,  -16,  -45,
+           -51,  -44,  -16,   17,   17,  -16,  -44,  -51,
+           -69,  -50,  -51,   12,   12,  -51,  -50,  -69,
+          -100,  -88,  -56,  -17,  -17,  -56,  -88, -100 },
         // BISHOP
-        {  -37,  -24,  -15,  -16,   -9,  -13,  -45,  -71,
-             4,  -39,  -12,    1,   -6,   -5,  -57,  -70,
-            -1,   17,  -16,   10,   18,  -26,  -20,  -18,
-            -3,    3,    9,   13,   10,    9,    4,  -25,
-             2,    8,    3,   29,   24,    9,   19,   -4,
-            -1,   19,   -5,   20,   36,   15,   33,    7,
-            21,   -7,    8,   25,   29,   32,   -4,  -34,
-             3,  -13,   33,   32,   20,   21,   34,    5 },
+        {  -57,  -30,  -37,  -12,  -12,  -37,  -30,  -57,
+           -37,  -13,  -17,    1,    1,  -17,  -13,  -37,
+           -16,   -1,   -2,   10,   10,   -2,   -1,  -16,
+           -20,   -6,    0,   17,   17,    0,   -6,  -20,
+           -17,   -1,  -14,   15,   15,  -14,   -1,  -17,
+           -30,    6,    4,    6,    6,    4,    6,  -30,
+           -31,  -20,   -1,    1,    1,   -1,  -20,  -31,
+           -46,  -42,  -37,  -24,  -24,  -37,  -42,  -46 },
         // ROOK
-        {  -21,  -22,  -18,  -27,  -41,  -27,  -49,  -41,
-           -28,  -25,  -18,  -28,  -38,  -35,  -56,  -72,
-           -16,  -12,   -7,  -26,  -31,  -25,  -35,  -53,
-            18,   10,   17,   12,    8,    7,    0,  -23,
-            20,   27,   18,   16,   12,   11,   14,   -3,
-            16,   21,   16,   14,    5,    8,    9,    3,
-            24,   27,   31,   25,   16,   37,   37,   27,
-            19,   30,   47,   41,   37,   55,   37,   34 },
+        {   -9,  -13,  -10,   -9,   -9,  -10,  -13,   -9,
+           -12,   -9,   -1,   -2,   -2,   -1,   -9,  -12,
+             6,   -8,   -2,   -6,   -6,   -2,   -8,    6,
+            -6,    1,   -9,    7,    7,   -9,    1,   -6,
+            -5,    8,    7,   -6,   -6,    7,    8,   -5,
+             6,    1,   -7,   10,   10,   -7,    1,    6,
+             4,    5,   20,   -5,   -5,   20,    5,    4,
+            18,    0,   19,   13,   13,   19,    0,   18 },
         // QUEEN
-        { -123,  -81,  -82,  -46,  -83, -163, -185, -169,
-           -32,  -65,  -17,  -22,  -17,  -53, -111,  -80,
-           -66,  -18,  -12,   28,   32,    0,  -26,  -46,
-            20,    7,   37,   46,   59,   26,   47,   27,
-             0,   25,   15,   66,   65,   57,  117,   46,
-           -37,    1,   36,   25,  104,   64,   85,   -2,
-            -9,  -23,   30,   54,   87,   57,   44,  -14,
-            16,   -9,   42,   37,  109,   66,   16,   -9 },
+        {  -69,  -57,  -47,  -26,  -26,  -47,  -57,  -69,
+           -55,  -31,  -22,   -4,   -4,  -22,  -31,  -55,
+           -39,  -18,   -9,    3,    3,   -9,  -18,  -39,
+           -23,   -3,   13,   24,   24,   13,   -3,  -23,
+           -29,   -6,    9,   21,   21,    9,   -6,  -29,
+           -38,  -18,  -12,    1,    1,  -12,  -18,  -38,
+           -50,  -27,  -24,   -8,   -8,  -24,  -27,  -50,
+           -75,  -52,  -43,  -36,  -36,  -43,  -52,  -75 },
         // KING
-        {   26,   48,   86,   66,   68,   74,   44,   14,
-            81,   98,  105,  108,  111,  101,   91,   73,
-            95,  110,  141,  149,  145,  130,  119,  103,
-           118,  143,  177,  183,  184,  174,  154,  124,
-           129,  170,  209,  211,  221,  208,  188,  138,
-           105,  166,  197,  213,  218,  213,  192,  135,
-           -37,   86,  157,  158,  174,  155,  152,   86,
-          -173,   -5,   17,   51,   95,  124,   96,  -39 }
+        {    1,   45,   85,   76,   76,   85,   45,    1,
+            53,  100,  133,  135,  135,  133,  100,   53,
+            88,  130,  169,  175,  175,  169,  130,   88,
+           103,  156,  172,  172,  172,  172,  156,  103,
+            96,  166,  199,  199,  199,  199,  166,   96,
+            92,  172,  184,  191,  191,  184,  172,   92,
+            47,  121,  116,  131,  131,  116,  121,   47,
+            11,   59,   73,   78,   78,   73,   59,   11 },
     };
     // ---- Material imbalance (knobs) ----------------------------------------
     // Piece index 0 = the bishop pair, then pawn, knight, bishop, rook, queen.
     // imb_ours[i*(i+1)/2 + j], j <= i: our pieces i against our pieces j;
     // imb_theirs[i*(i-1)/2 + j], j < i: our pieces i against theirs j. Each
     // side's polynomial is summed, then (White's - Black's) / 16, truncated.
-    int imb_ours[21] = { 1401, 40, 65, -155, 237, -101, -75, 86, 4, -37, 11, -56, 158, 216, -181, 73, 269, 118, 115, 878, 69 };
-    int imb_theirs[15] = { 36, 27, 59, 171, 56, -15, -366, 66, 90, -15, 247, 154, -6, 128, 99 };
+    int imb_ours[21] = {
+        1438,
+          40,   38,
+          32,  255,  -62,
+           0,  104,    4,    0,
+         -26,   -2,   47,  105, -208,
+        -189,   24,  117,  133, -134,   -6 };
+    int imb_theirs[15] = {
+          36,
+           9,   63,
+          59,   65,   42,
+          46,   39,   24,  -24,
+          97,  100,  -42,  137,  268 };
 
     // ---- Pawn structure (ticket 2) ------------------------------------------
     // Penalties are subtracted where they apply.
-    int doubled_mg = -6;
-    int doubled_eg = 54;
-    int isolated_mg = 8;
+    int doubled_mg = 11;
+    int doubled_eg = 56;
+    int isolated_mg = 5;
     int isolated_eg = 15;
-    int backward_mg = 11;
-    int backward_eg = 16;
-    int weak_lever_mg = -32;
-    int weak_lever_eg = 71;
-    int weak_unopposed_mg = 11;
-    int weak_unopposed_eg = 10;
+    int backward_mg = 9;
+    int backward_eg = 24;
+    int weak_lever_mg = 0;
+    int weak_lever_eg = 56;
+    int weak_unopposed_mg = 13;
+    int weak_unopposed_eg = 27;
     // A blocked pawn on its fifth or sixth rank.
-    int blocked_pawn_mg[2] = { -46, -13 };
-    int blocked_pawn_eg[2] = { -12, -54 };
+    int blocked_pawn_mg[2] = { -11, -3 };
+    int blocked_pawn_eg[2] = { -4, 4 };
     // A connected pawn by rank, phalanx, opposition and supporters
     // (rb::connected_index). Seeded with the reference's products: the
     // middlegame value Connected[r] * (2 + phalanx - opposed) + 21 * support,
     // the endgame value that times (r - 2) / 4, truncated.
-    int connected_mg[72] = { 14, 35, 56, 7, 28, 49, 12, 42, 63, 13, 35, 56, 16, 72, 157, 8, 59, 139, 36, 117, 3, 25, 98, 199, 24, 80, 106, 12, 47, 62, 45, 113, -146, 25, 73, 16, 58, 108, 176, 29, 43, 71, 73, 186, 129, 39, 96, 100, 96, 216, 125, 48, 71, -24, 237, -63, 186, -86, 117, 138, 172, 185, 214, 86, 107, 128, 56, 279, 300, 172, 193, 214 };
-    int connected_eg[72] = { -3, -8, -14, -1, -7, -12, -7, -10, -15, -5, -8, -14, 0, 12, 13, 0, 13, 13, 0, 16, -55, 0, 20, -92, 6, 20, 23, 3, 6, 6, 15, 44, -59, 0, 19, 39, 29, 54, 89, 14, 20, 16, 27, 76, 64, 27, 24, 50, 72, 111, 133, 36, 60, 98, 142, 169, 139, -131, 87, 103, 172, 303, 214, 86, 107, 128, 230, 279, 300, 172, 193, 214 };
+    int connected_mg[72] = {
+          14,   35,   56,    7,   28,   49,   21,   42,   63,   14,   35,   56,
+          16,   37,   58,    8,   29,   50,   24,   45,   66,   16,   37,   58,
+          24,   45,   66,   12,   33,   54,   36,   57,   78,   24,   45,   66,
+          58,   79,  100,   29,   50,   71,   87,  108,  129,   58,   79,  100,
+          96,  117,  138,   48,   69,   90,  144,  165,  186,   96,  117,  138,
+         172,  193,  214,   86,  107,  128,  258,  279,  300,  172,  193,  214 };
+    int connected_eg[72] = {
+          -3,   -8,  -14,   -1,   -7,  -12,   -5,  -10,  -15,   -3,   -8,  -14,
+           0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
+           6,   11,   16,    3,    8,   13,    9,   14,   19,    6,   11,   16,
+          29,   39,   50,   14,   25,   35,   43,   54,   64,   29,   39,   50,
+          72,   87,  103,   36,   51,   67,  108,  123,  139,   72,   87,  103,
+         172,  193,  214,   86,  107,  128,  258,  279,  300,  172,  193,  214 };
 
     // ---- The king's pawn shelter and storm (ticket 2; the king family) ------
     // [distance from the edge * 7 + relative rank]; rank 0 is a file without
     // a pawn, or with it behind the king.
-    int shelter_strength[28] = { -31, -5, 49, 9, -24, 86, 106, -66, 83, 35, -28, -43, 50, 181, -49, 54, -15, -39, -53, 41, 136, -86, -40, -63, -77, -66, -149, -128 };
-    int unblocked_storm[28] = { 116, -187, -57, 60, 75, 72, 59, 70, -210, -6, 23, 11, 8, 13, 17, -76, 133, 3, 1, 6, 21, 9, 49, 103, 49, 19, -11, -9 };
+    int shelter_strength[28] = {
+         -6,  81,  93,  58,  39,  18,   25,
+        -43,  61,  35, -49, -29, -11,  -63,
+        -10,  75,  23,  -2,  32,   3,  -45,
+        -39, -13, -29, -52, -48, -67, -166 };
+    int unblocked_storm[28] = {
+         85, -289, -166, 97, 50,  45,  50,
+         46,  -25,  122, 45, 37, -10,  20,
+         -6,   51,  168, 34, -2, -22, -14,
+        -15,  -11,  101,  4, 11, -15, -29 };
     // A storming pawn blocked by one of ours, by its relative rank.
-    int blocked_storm_mg[7] = { 0, 0, 138, 8, 0, 15, 51 };
-    int blocked_storm_eg[7] = { 0, 0, 61, 34, 26, 18, 13 };
+    int blocked_storm_mg[7] = { 0, 0, 76, -10, -7, -4, -1 };
+    int blocked_storm_eg[7] = { 0, 0, 78, 15, 10, 6, 2 };
     // Per step from the king to its nearest pawn.
-    int king_pawn_distance_eg = 12;
+    int king_pawn_distance_eg = 16;
 
     // ---- Attack maps, pieces and mobility (ticket 3) -------------------------
     // King danger's attacker weights by PieceType (knobs; the king family
     // reads their sum).
-    int king_attack_weight[7] = { 0, 0, 51, 23, 10, 42, 0 };
+    int king_attack_weight[7] = { 0, 0, 81, 52, 44, 10, 0 };
     // Mobility by the count of attacked squares in the mobility area.
-    int mob_n_mg[9] = { -58, -91, -34, -9, 6, 21, 33, 46, 54 };
-    int mob_n_eg[9] = { -53, -66, -33, -13, 2, 16, 15, 21, 6 };
-    int mob_b_mg[14] = { -34, -14, 24, 42, 51, 63, 67, 69, 69, 76, 70, 87, 57, 37 };
-    int mob_b_eg[14] = { -28, -35, 4, 25, 38, 46, 52, 60, 68, 66, 72, 68, 85, 73 };
-    int mob_r_mg[15] = { -54, -61, -1, -1, 4, 13, 20, 29, 40, 45, 44, 50, 60, 67, 83 };
-    int mob_r_eg[15] = { -111, 27, 58, 86, 99, 104, 112, 117, 122, 129, 137, 144, 145, 147, 146 };
-    int mob_q_mg[28] = { 161, 25, -33, -14, 20, 24, 24, 40, 48, 54, 57, 59, 68, 59, 69, 68, 57, 68, 62, 60, 59, 84, 83, 77, 97, 167, 121, 36 };
-    int mob_q_eg[28] = { 146, 121, 99, 6, -67, 42, 73, 67, 86, 106, 115, 118, 125, 141, 129, 137, 155, 146, 159, 162, 167, 153, 146, 155, 139, 92, 88, 42 };
+    int mob_n_mg[9] = { -62, -53, -12, -4, 3, 13, 22, 28, 33 };
+    int mob_n_eg[9] = { -81, -56, -31, -16, 5, 11, 17, 20, 25 };
+    int mob_b_mg[14] = { -48, -20, 16, 26, 38, 51, 55, 63, 63, 68, 81, 81, 91, 98 };
+    int mob_b_eg[14] = { -59, -23, -3, 13, 24, 42, 54, 57, 65, 73, 78, 86, 88, 97 };
+    int mob_r_mg[15] = { -60, -20, 2, 3, 3, 11, 22, 31, 40, 40, 41, 48, 57, 57, 62 };
+    int mob_r_eg[15] = { -78, -17, 23, 39, 70, 99, 103, 121, 134, 139, 158, 164, 168, 169, 172 };
+    int mob_q_mg[28] = { -30, -12, -8, -9, 20, 23, 23, 35, 38, 53, 64, 65, 65, 66, 67, 67, 72, 72, 77, 79, 93, 108, 108, 108, 110, 114, 114, 116 };
+    int mob_q_eg[28] = { -48, -30, -7, 19, 40, 55, 59, 75, 78, 96, 96, 100, 121, 127, 131, 133, 136, 141, 147, 150, 151, 168, 168, 171, 182, 182, 192, 219 };
     // The piece terms; penalties are subtracted where they apply.
-    int rook_on_king_ring_mg = 19;
-    int rook_on_king_ring_eg = -16;
-    int bishop_on_king_ring_mg = 34;
-    int bishop_on_king_ring_eg = 16;
-    int outpost_mg[2] = { 62, 69 };  // knight, bishop
-    int outpost_eg[2] = { 29, 14 };
-    int bad_outpost_mg = -12;
-    int bad_outpost_eg = 15;
-    int reachable_outpost_mg = 58;
-    int reachable_outpost_eg = 15;
-    int minor_behind_pawn_mg = 22;
-    int minor_behind_pawn_eg = 15;
-    int king_protector_mg[2] = { 11, 16 };  // knight, bishop; per step from our king
-    int king_protector_eg[2] = { 7, 5 };
-    int bishop_pawns_mg = 2;
-    int bishop_pawns_eg = 6;
-    int bishop_xray_pawns_mg = 16;
-    int bishop_xray_pawns_eg = 3;
-    int long_diagonal_bishop_mg = 79;
-    int long_diagonal_bishop_eg = 30;
-    int rook_on_queen_file_mg = 17;
-    int rook_on_queen_file_eg = -10;
-    int rook_on_file_mg[2] = { 28, 67 };  // semi-open, open
-    int rook_on_file_eg[2] = { 6, 18 };
-    int trapped_rook_mg = 45;
-    int trapped_rook_eg = 20;
-    int weak_queen_mg = 61;
-    int weak_queen_eg = 13;
-    int queen_infiltration_mg = 9;
-    int queen_infiltration_eg = 23;
+    int rook_on_king_ring_mg = 16;
+    int rook_on_king_ring_eg = 0;
+    int bishop_on_king_ring_mg = 24;
+    int bishop_on_king_ring_eg = 0;
+    int outpost_mg[2] = { 56, 30 };  // knight, bishop
+    int outpost_eg[2] = { 36, 23 };
+    int bad_outpost_mg = -7;
+    int bad_outpost_eg = 36;
+    int reachable_outpost_mg = 31;
+    int reachable_outpost_eg = 22;
+    int minor_behind_pawn_mg = 18;
+    int minor_behind_pawn_eg = 3;
+    int king_protector_mg[2] = { 8, 6 };  // knight, bishop; per step from our king
+    int king_protector_eg[2] = { 9, 9 };
+    int bishop_pawns_mg = 3;
+    int bishop_pawns_eg = 7;
+    int bishop_xray_pawns_mg = 4;
+    int bishop_xray_pawns_eg = 5;
+    int long_diagonal_bishop_mg = 45;
+    int long_diagonal_bishop_eg = 0;
+    int rook_on_queen_file_mg = 6;
+    int rook_on_queen_file_eg = 11;
+    int rook_on_file_mg[2] = { 19, 48 };  // semi-open, open
+    int rook_on_file_eg[2] = { 7, 29 };
+    int trapped_rook_mg = 55;
+    int trapped_rook_eg = 13;
+    int weak_queen_mg = 56;
+    int weak_queen_eg = 15;
+    int queen_infiltration_mg = -2;
+    int queen_infiltration_eg = 14;
 
     // ---- King danger (ticket 4; knobs: the index is squared) ---------------
     // A safe check by PieceType * 2 + whether there are several.
-    int safe_check[14] = { 0, 0, 0, 0, 574, 1027, 669, 436, 733, 948, 541, 856, 0, 0 };
-    int kd_weak_ring = 104;        // per weak square in the king ring
-    int kd_unsafe_checks = 163;    // per square an unsafe check could come from
-    int kd_blockers = 0;          // per piece shielding our king from a slider
-    int kd_king_attacks = 100;      // per attack on a square next to our king
-    int kd_flank_attack = 4;       // times the flank attack's square, over 8
-    int kd_no_queen = 1097;         // subtracted when they have no queen
-    int kd_knight_defender = 225;  // subtracted when our knight defends next to our king
-    int kd_shelter = 11;            // times the shelter's middlegame value, over 8, subtracted
-    int kd_flank_defence = 19;      // per square we defend in our flank, subtracted
-    int kd_offset = 99;
+    int safe_check[14] = { 0, 0, 0, 0, 792, 1283, 645, 967, 1084, 1897, 772, 1119, 0, 0 };
+    int kd_weak_ring = 185;        // per weak square in the king ring
+    int kd_unsafe_checks = 148;    // per square an unsafe check could come from
+    int kd_blockers = 98;          // per piece shielding our king from a slider
+    int kd_king_attacks = 69;      // per attack on a square next to our king
+    int kd_flank_attack = 3;       // times the flank attack's square, over 8
+    int kd_no_queen = 873;         // subtracted when they have no queen
+    int kd_knight_defender = 100;  // subtracted when our knight defends next to our king
+    int kd_shelter = 6;            // times the shelter's middlegame value, over 8, subtracted
+    int kd_flank_defence = 4;      // per square we defend in our flank, subtracted
+    int kd_offset = 37;
     // ---- The king's flank (ticket 4; linear) ----------------------------------
-    int pawnless_flank_mg = -74;
-    int pawnless_flank_eg = 108;
-    int flank_attacks_mg = 6;      // per attack on our flank
-    int flank_attacks_eg = -4;
+    int pawnless_flank_mg = 17;
+    int pawnless_flank_eg = 95;
+    int flank_attacks_mg = 8;      // per attack on our flank
+    int flank_attacks_eg = 0;
 
     // ---- Threats (ticket 5) ---------------------------------------------------
     // By the attacked piece's PieceType: a minor attacking a weak or
     // defended piece, a rook a weak one.
-    int threat_by_minor_mg[7] = { 0, 3, 73, 113, 192, 164, 480 };
-    int threat_by_minor_eg[7] = { 0, 38, 55, 60, 63, 53, 408 };
-    int threat_by_rook_mg[7] = { 0, -1, 72, 81, 15, 81, 481 };
-    int threat_by_rook_eg[7] = { 0, 37, 56, 61, 7, 66, 584 };
-    int threat_by_king_mg = 49;
-    int threat_by_king_eg = 43;
-    int hanging_mg = 18;
-    int hanging_eg = 38;
-    int weak_queen_protection_mg = 19;
-    int weak_queen_protection_eg = 16;
-    int restricted_piece_mg = 12;
-    int restricted_piece_eg = 3;
-    int threat_by_safe_pawn_mg = 190;
-    int threat_by_safe_pawn_eg = 76;
+    int threat_by_minor_mg[7] = { 0, 5, 57, 77, 88, 79, 0 };
+    int threat_by_minor_eg[7] = { 0, 32, 41, 56, 119, 161, 0 };
+    int threat_by_rook_mg[7] = { 0, 3, 37, 42, 0, 58, 0 };
+    int threat_by_rook_eg[7] = { 0, 46, 68, 60, 38, 41, 0 };
+    int threat_by_king_mg = 24;
+    int threat_by_king_eg = 89;
+    int hanging_mg = 69;
+    int hanging_eg = 36;
+    int weak_queen_protection_mg = 14;
+    int weak_queen_protection_eg = 0;
+    int restricted_piece_mg = 7;
+    int restricted_piece_eg = 7;
+    int threat_by_safe_pawn_mg = 173;
+    int threat_by_safe_pawn_eg = 94;
     int threat_by_pawn_push_mg = 48;
-    int threat_by_pawn_push_eg = 31;
-    int knight_on_queen_mg = 26;
-    int knight_on_queen_eg = -7;
-    int slider_on_queen_mg = 41;
-    int slider_on_queen_eg = 6;
+    int threat_by_pawn_push_eg = 39;
+    int knight_on_queen_mg = 16;
+    int knight_on_queen_eg = 11;
+    int slider_on_queen_mg = 60;
+    int slider_on_queen_eg = 18;
 
     // ---- Passed pawns (ticket 5) ----------------------------------------------
-    int passed_rank_mg[8] = { 0, -3, 12, 34, 64, 161, 276, 0 };
-    int passed_rank_eg[8] = { 0, 44, 53, 93, 135, 173, 260, 0 };
-    int passed_file_mg = 8;  // per file from the edge, subtracted
-    int passed_file_eg = 11;
+    int passed_rank_mg[8] = { 0, 10, 17, 15, 62, 168, 276, 0 };
+    int passed_rank_eg[8] = { 0, 28, 33, 41, 72, 177, 260, 0 };
+    int passed_file_mg = 11;  // per file from the edge, subtracted
+    int passed_file_eg = 8;
     // By relative rank 3 to 6 and the king's distance to the block square
     // (or to the square after it), capped at 5 (rb::passer_distance_index).
     // Seeded with the reference's truncated products, the rank weight
     // w = 5r - 13 times (d * 19 / 4), 2d and d.
-    int passed_their_king_eg[24] = { 20, 9, 0, 7, 35, 68, 16, 26, 29, 73, 147, 193, -18, 13, 54, 173, 281, 326, -39, 12, 68, 297, 383, 451 };
-    int passed_our_king_eg[24] = { 21, -5, 0, 11, 18, 14, 28, -7, 2, 32, 64, 93, -13, -44, 24, 84, 142, 166, -257, 34, 48, 201, 235, 249 };
-    int passed_our_king_next_eg[24] = { -32, -42, 3, 19, 27, 54, -38, -83, 26, 67, 66, 65, 91, -90, -4, 68, 65, 50, 0, 17, 34, 51, 68, 85 };
+    int passed_their_king_eg[24] = {
+           0,    8,   18,   28,   38,   46,
+           0,   28,   63,   98,  133,  161,
+           0,   48,  108,  168,  228,  276,
+           0,   68,  153,  238,  323,  391 };
+    int passed_our_king_eg[24] = {
+           0,    4,    8,   12,   16,   20,
+           0,   14,   28,   42,   56,   70,
+           0,   24,   48,   72,   96,  120,
+           0,   34,   68,  102,  136,  170 };
+    int passed_our_king_next_eg[24] = {
+           0,    2,    4,    6,    8,   10,
+           0,    7,   14,   21,   28,   35,
+           0,   12,   24,   36,   48,   60,
+           0,   17,   34,   51,   68,   85 };
     // A passer with a free block square, by relative rank 3 to 6 and the
     // path's case * 2 + whether we hold the block square
     // (rb::passer_path_index). Seeded with k * w, k = 35, 20, 9, 0, plus 5
     // when held.
-    int passed_path_mg[32] = { -218, -171, -215, -136, -19, 12, -25, 9, -253, -185, -79, -34, -32, 46, -24, 36, -71, 85, 244, 338, -2, 185, -5, 57, 370, 532, 334, 528, 153, 238, 211, 172 };
-    int passed_path_eg[32] = { 98, 55, 66, 61, 18, 30, -3, 10, 239, 196, 93, 131, 57, 92, 5, 39, 541, 384, 172, 253, 101, 145, 14, 85, 791, 743, 599, 887, 153, 238, 70, 303 };
+    int passed_path_mg[32] = {
+          70,   80,   40,   50,   18,   28,    0,   10,
+         245,  280,  140,  175,   63,   98,    0,   35,
+         420,  480,  240,  300,  108,  168,    0,   60,
+         595,  680,  340,  425,  153,  238,    0,   85 };
+    int passed_path_eg[32] = {
+          70,   80,   40,   50,   18,   28,    0,   10,
+         245,  280,  140,  175,   63,   98,    0,   35,
+         420,  480,  240,  300,  108,  168,    0,   60,
+         595,  680,  340,  425,  153,  238,    0,   85 };
 
     // ---- Space (ticket 5; a knob) ---------------------------------------------
     // The space count times the weight squared, times this, over 256.
-    int space_weight = 15;
+    int space_weight = 16;
 
     // ---- Tempo, in units; converted with the value --------------------------
-    int tempo = 36;
+    int tempo = 28;
 };
 
 #define EVAL_PARAM_LIST(X)                                          \
