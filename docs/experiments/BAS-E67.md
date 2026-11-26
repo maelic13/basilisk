@@ -40,7 +40,10 @@
 - H1 with no hard failure (`new_rule50_failure`, `engine_anomaly`,
   `malformed_record`): the candidate is kept and baked. A cluster
   returns its members without attribution.
-- H1 with a hard failure: held for the maintainer, not baked.
+- H1 with a hard failure: not baked; it returns to research as an R3
+  return, and the cause decides what is redone, by the packet's
+  Amendment 1 (the maintainer's ruling of 2026-11-26). If research
+  cannot fix it: held for the maintainer.
 - H0: not baked; for a cluster, no member is closed individually.
 - The cap, or a maintainer's stop before a boundary: not baked, recorded
   as unresolved at the games played and routed to Phase H with its

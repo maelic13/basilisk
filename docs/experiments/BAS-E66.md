@@ -44,8 +44,14 @@
   bracket is recorded in full and its vetoed positions go to C.4.
 - H1 with no hard failure: R is kept and baked, and corpus C becomes the
   base.
-- H1 with a hard failure: held for the maintainer, not baked, and the
-  base stays the shipped vector on corpus A.
+- H1 with a hard failure (`new_rule50_failure`, `engine_anomaly`,
+  `malformed_record`): not baked; it returns to research as an R3
+  return, and the cause decides what is redone, by the packet's
+  Amendment 1 (the maintainer's ruling of 2026-11-26: "rather than held
+  for me, passed as R3 to you … If you cannot fix it, then hold for
+  me."). Work that depends on the base waits. If research cannot fix
+  it: held for the maintainer, and the base stays the shipped vector on
+  corpus A.
 - H0: not baked; the cycle stops (C.5.2's rule). The cap: not baked,
   recorded as unresolved, retried in C.5.2.
 - The estimate at a stop is a first-crossing estimate. Never extended or
