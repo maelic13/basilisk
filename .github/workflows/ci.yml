@@ -394,7 +394,9 @@ jobs:
           persist-credentials: false
 
       - name: Roadmap and GUIDE agree
-        run: python3 tools/diag/check_roadmap.py
+        run: |
+          python3 tools/diag/check_roadmap.py --self-test
+          python3 tools/diag/check_roadmap.py
 
       # What every agent tool loads stays under the budget AGENTS.md declares,
       # and the module index agrees with the modules.
