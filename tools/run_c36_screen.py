@@ -140,6 +140,21 @@ def read_vector(path: pathlib.Path) -> list[tuple[str, int, int]]:
 
 # ---- check -------------------------------------------------------------------
 
+# The OCB form's allowed test_eval failure: the classical arm's parity
+# coverage, 90% of the fixture's rows layer-silent, which the form leaves by
+# design (research's ruling in C.3.6.3).
+OCB_EXPECTED = "silent * 10 >= rows.size() * 9"
+
+
+def failed_sections(text: str) -> list[str]:
+    """test_eval's failed expectations, by the expression its FAIL line prints."""
+    out = []
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith("FAIL: "):
+            out.append(line[len("FAIL: "):].rsplit("  (line", 1)[0].strip())
+    return out
+
 def check_one(mask: int, label: str, dry: bool) -> dict:
     out = RESULTS / "c36-check" / label
     log = out / "check.log"
@@ -155,6 +170,7 @@ def check_one(mask: int, label: str, dry: bool) -> dict:
     rec["test_eval_exit"] = te.returncode
     rec["test_eval_last"] = te.stdout.strip().splitlines()[-1] if te.stdout.strip() else ""
     rec["test_eval_asymmetric"] = te.stdout.count("asymmetric") + te.stderr.count("asymmetric")
+    rec["test_eval_failed"] = failed_sections(te.stdout + te.stderr)
     ver = run([str(tuner), "--verify", str(validation), "--max-positions", "0"], log)
     rec["verify"] = "PASS" if ver.returncode == 0 and "PASS" in ver.stdout else "FAIL"
     rec["played_hash"] = played_hash(tuner, validation, log)
@@ -199,6 +215,11 @@ def cmd_check(args) -> int:
             failures.append(f"{r['label']}: tuner reports mask {r['own_forms']}")
         if r["test_eval_asymmetric"]:
             failures.append(f"{r['label']}: colour asymmetry in test_eval")
+        # test_eval must pass at every mask. The one allowed failure is the
+        # OCB form's: the classical arm's parity coverage (90% of the
+        # fixture's rows layer-silent), which that form leaves by design.
+        if r["test_eval_exit"] != 0 and not (r["mask"] == 1 << 2 and r.get("test_eval_failed") == [OCB_EXPECTED]):
+            failures.append(f"{r['label']}: test_eval exit {r['test_eval_exit']}: {r.get('test_eval_failed')}")
         if r["mask"] == 0 and (r["bench"] != MASK0_BENCH or r["played_hash"] != MASK0_PLAYED):
             failures.append(f"{r['label']}: mask 0 moved: bench {r['bench']}, hash {r['played_hash']}")
         if "identity_at_seed" in r and not (r["identity_at_seed"] and r["live"]):

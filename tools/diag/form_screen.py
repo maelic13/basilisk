@@ -31,9 +31,10 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import random
 import sys
 from pathlib import Path
+
+import numpy as np
 
 LOSS_TOLERANCE = 1e-8
 
@@ -113,21 +114,18 @@ def screen(rows: dict, ref: list[tuple[int, int]], arm: list[tuple[int, int]], k
         g = games.setdefault(rows[number][2], [0.0, 0.0])
         g[0] += a - b
         g[1] += 1.0
-    sums = [g[0] for g in games.values()]
-    counts = [g[1] for g in games.values()]
-    rng = random.Random(seed)
+    sums = np.array([g[0] for g in games.values()])
+    counts = np.array([g[1] for g in games.values()])
+    rng = np.random.default_rng(seed)
     m = len(sums)
-    draws = []
-    for _ in range(resamples):
-        s = c = 0.0
-        for _ in range(m):
-            j = rng.randrange(m)
-            s += sums[j]
-            c += counts[j]
-        draws.append(s / c)
+    draws = np.empty(resamples)
+    chunk = 50  # resamples drawn at once, so memory stays near 50 x games
+    for start in range(0, resamples, chunk):
+        idx = rng.integers(0, m, size=(min(chunk, resamples - start), m))
+        draws[start:start + len(idx)] = sums[idx].sum(axis=1) / counts[idx].sum(axis=1)
     draws.sort()
-    lo = draws[int(0.025 * resamples)]
-    hi = draws[min(resamples - 1, int(0.975 * resamples))]
+    lo = float(draws[int(0.025 * resamples)])
+    hi = float(draws[min(resamples - 1, int(0.975 * resamples))])
     return {"rows": n, "games": m, "loss_reference": l_ref, "loss_arm": l_arm,
             "delta": l_ref - l_arm, "ci95": [lo, hi], "resamples": resamples, "seed": seed,
             "k_eg": k_eg, "k_mg": k_mg}
