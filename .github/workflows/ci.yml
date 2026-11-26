@@ -407,6 +407,9 @@ jobs:
       - name: ISA contract tests
         run: python3 tools/diag/test_verify_isa.py
 
+      - name: Structure-constants inventory
+        run: python3 tools/diag/check_rb_constants.py
+
   # ---- Texel toolchain -------------------------------------------------------
   # The fit's tools against the traced tuner they drive:
   #   - the row contract and the test-split claim;

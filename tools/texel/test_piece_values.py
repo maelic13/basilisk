@@ -202,8 +202,11 @@ class WithTheTuner(unittest.TestCase):
         self.assertTrue(queens and min(queens) > 500, report["vectors"]["header"])
 
     def header_vector(self, directory: Path) -> Path:
-        params = bake.parse_param_list(HEADER_TEXT)
-        vector = bake.header_vector(HEADER_TEXT, params)
+        import surface
+        header_name = "eval_rb_params.h" if surface.is_rebuild(surface.registry(Path(TUNER))) else "eval_params.h"
+        header_text = (HERE.parents[1] / "src" / header_name).read_text(encoding="utf-8")
+        params = bake.parse_param_list(header_text)
+        vector = bake.header_vector(header_text, params)
         path = directory / "header.txt"
         path.write_text(f"# {bake.VECTOR_SCHEMA}\n# root {bake.vector_hash(vector)}\n"
                         + "".join(f"{n} {i} {v}\n" for n, i, v in vector), encoding="utf-8")

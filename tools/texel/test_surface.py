@@ -266,7 +266,7 @@ class AgainstTheTuner(unittest.TestCase):
         import tempfile
         tuner = str(Path(os.environ["BASILISK_TEXEL"]).resolve())
         rows = HERE / "test_positions.csv"
-        width = len(surface.read_manifest(surface.DEFAULT_MANIFEST))
+        width = len(surface.read_manifest(surface.manifest_for(surface.registry(Path(tuner)))))
         for limit in ([], ["--max-positions", "4"]):
             with self.subTest(limit=limit), tempfile.TemporaryDirectory() as tmp:
                 dump, counted = Path(tmp) / "c.f64", Path(tmp) / "s.txt"

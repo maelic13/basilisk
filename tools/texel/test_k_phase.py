@@ -22,7 +22,7 @@ sys.path.insert(0, str(HERE))
 import fit  # noqa: E402
 
 TUNER = str(Path(os.environ["BASILISK_TEXEL"]).resolve()) if os.environ.get("BASILISK_TEXEL") else ""
-TARGET = "PawnIslandsMg"
+TARGET_CANDIDATES = ("PawnIslandsMg", "MinorBehindPawnMg")
 SHIFT = 50
 TRUE_K_EG = 3.0
 TRUE_K_MG = 1.0
@@ -121,7 +121,9 @@ class KPhaseTunerTests(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         root = Path(cls.tmp.name)
         registry = surface.registry(Path(TUNER))
-        cls.slot = next(r.index for r in registry if r.group == TARGET)
+        by_group = {r.group: r for r in registry}
+        cls.target_group = next(g for g in TARGET_CANDIDATES if g in by_group)
+        cls.slot = by_group[cls.target_group].index
         cls.seed_value = registry[cls.slot].seed
 
         rows = surface.read_manifest(surface.manifest_for(registry))
@@ -213,7 +215,7 @@ class KPhaseTunerTests(unittest.TestCase):
                      "--lr", "1.0", "--epochs", "600", "--patience", "30", "--max-positions", "0")
         self.assertEqual(done.returncode, 0, done.stdout[-2000:] + done.stderr)
         value = next(int(line.split()[2]) for line in out.read_text().splitlines()
-                     if line.startswith(f"{TARGET} 0 "))
+                     if line.startswith(f"{self.target_group} 0 "))
         self.assertLessEqual(abs(value - (self.seed_value + SHIFT)), 4,
                              f"reached {value}, expected {self.seed_value + SHIFT}")
 

@@ -142,14 +142,15 @@ class Screen(unittest.TestCase):
 @unittest.skipUnless(TUNER, "set BASILISK_TEXEL to a basilisk-texel binary")
 class WithTheTuner(unittest.TestCase):
     def test_row_lines_name_the_coefficient_rows_in_order(self) -> None:
+        sys.path.insert(0, str(HERE.parents[0] / "texel"))
+        import surface
         rows = HERE.parents[0] / "texel" / "test_positions.csv"
         with tempfile.TemporaryDirectory() as tmp:
             dump, lines = Path(tmp) / "c.f64", Path(tmp) / "l.txt"
             for mode, out in (("--dump-coeffs", dump), ("--dump-row-lines", lines)):
                 done = subprocess.run([TUNER, mode, str(rows), str(out)], capture_output=True, text=True)
                 self.assertEqual(done.returncode, 0, done.stdout + done.stderr)
-            width = len([l for l in (HERE.parents[0] / "texel" / "surface_v1.tsv").read_text(
-                encoding="utf-8").splitlines() if l and l[0].isdigit()])
+            width = len(surface.read_manifest(surface.manifest_for(surface.registry(Path(TUNER)))))
             count = np.fromfile(dump, dtype="<f8").size // width
             pairs = [l.split() for l in lines.read_text(encoding="utf-8").splitlines()]
             served = subprocess.run([TUNER, "--dump-eval", str(rows)], capture_output=True, text=True).stdout

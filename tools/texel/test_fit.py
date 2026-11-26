@@ -26,7 +26,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 TUNER = str(Path(os.environ["BASILISK_TEXEL"]).resolve()) if os.environ.get("BASILISK_TEXEL") else ""
-TARGET = "PawnIslandsMg"
+TARGET_CANDIDATES = ("PawnIslandsMg", "MinorBehindPawnMg")
 SHIFT = 60
 K = 1.0
 COPIES = 40
@@ -74,11 +74,13 @@ class Convergence(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         root = Path(cls.tmp.name)
         registry = surface.registry(Path(TUNER))
-        cls.slot = next(r.index for r in registry if r.group == TARGET)
+        by_group = {r.group: r for r in registry}
+        cls.target_group = next(g for g in TARGET_CANDIDATES if g in by_group)
+        cls.slot = by_group[cls.target_group].index
         cls.seed_value = registry[cls.slot].seed
 
         # One free linear slot, every other slot held.
-        rows = surface.read_manifest(surface.DEFAULT_MANIFEST)
+        rows = surface.read_manifest(surface.manifest_for(registry))
         for row in rows:
             if row.stage == "linear" and row.index != cls.slot:
                 row.fixed("held for the convergence test")
@@ -122,13 +124,12 @@ class Convergence(unittest.TestCase):
 
     def target(self, out: Path) -> int:
         return next(int(line.split()[2]) for line in out.read_text().splitlines()
-                    if line.startswith(f"{TARGET} 0 "))
+                    if line.startswith(f"{self.target_group} 0 "))
 
     def test_a_run_with_room_reaches_the_optimum(self):
         done, out = self.fit("1.0", "600", "room")
         self.assertEqual(done.returncode, 0, done.stdout[-2000:] + done.stderr)
-        value = next(int(line.split()[2]) for line in out.read_text().splitlines()
-                     if line.startswith(f"{TARGET} 0 "))
+        value = self.target(out)
         self.assertLessEqual(abs(value - (self.seed_value + SHIFT)), 4,
                              f"reached {value}, the optimum is {self.seed_value + SHIFT}")
 
