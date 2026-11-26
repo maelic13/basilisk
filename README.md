@@ -299,9 +299,12 @@ it come from other people's published work:
   search's histories. Several endgame scaling rules follow classical
   Stockfish's, as does the technique for mating a lone king with a queen or
   a rook, with its tables. A few small utility routines stay close to
-  Stockfish's code. Classical Stockfish's evaluation is the model for
-  Basilisk's evaluation work, and the piece-square tables were fitted
-  starting from classical Stockfish 16's.
+  Stockfish's code. Classical Stockfish (`9587eeeb`) is the form of
+  Basilisk's classical evaluation, with its parameter values refitted on
+  Basilisk's own games (`src/eval_rb_params.h`); the remaining fixed
+  structure constants copied from that form are tracked in
+  [tools/diag/rb_structure_constants.tsv](tools/diag/rb_structure_constants.tsv)
+  until C.6 replaces them.
 - **PeSTO** (Ronald Friederich, published on the Chess Programming Wiki under
   CC BY-SA 3.0). Releases up to 1.11.0 used piece-square tables derived
   from PeSTO's; later versions no longer do.

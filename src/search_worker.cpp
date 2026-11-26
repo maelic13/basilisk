@@ -514,6 +514,9 @@ SearchResult Searcher::search(Board board, SearchConfig config, const PoolResour
     // counters may be stale.
     evaluator_.eval_calls = 0;
     evaluator_.pawn_probes = evaluator_.pawn_hits = 0;
+    evaluator_.rebuild_clamps = 0;
+    for (auto& audit : evaluator_.lazy_exit_audit)
+        audit = Evaluator::LazyExitAudit{};
 #ifdef BASILISK_TUNE
     evaluator_.diag_endgames = config_.limits.diag;
     evaluator_.endgame_occurrence.reset();

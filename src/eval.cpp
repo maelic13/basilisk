@@ -23,13 +23,9 @@
 // its three reads are evaluate_full()'s, at the end of this file.
 #include "eval_common.h"
 #include "eval_endgame.h"
-#include "eval_material.h"
-#include "eval_mobility.h"
-#include "eval_attacks.h"
-#include "eval_pawns.h"
-#include "eval_pieces.h"
-#include "eval_threats.h"
-#include "eval_king.h"
+// The evaluation's families in the classical form, composed with the
+// endgame layer above.
+#include "eval_rb.h"
 
 #ifdef TEXEL_TRACE
 // Reconstruction: linear tapered score from trace counts and weights.
@@ -65,9 +61,6 @@ uint32_t eval_ablation_mask() { return g_eval_ablation_mask; }
 // Lazy-eval margin (Step 3.11): if the cheap (material/PST/imbalance/pawns/minor)
 // tapered score exceeds this, the expensive positional block is skipped. Tuned
 // under a lazy-on-vs-off SPRT; conservative start.
-static constexpr int LAZY_MARGIN  = 700;  // a traced build records where it would fire
-// Lazy-audit "did not fire" marker (any value the eval can't produce).
-[[maybe_unused]] static constexpr int VALUE_NONE_SENTINEL = INT_MIN;
 
 // Counts init_eval_tables() calls: the parameters a cached value was computed on.
 static int g_eval_tables_generation = 0;
@@ -97,7 +90,7 @@ Evaluator::Evaluator() {
 }
 
 void Evaluator::clear_pawn_table() {
-    std::memset(pawn_table_, 0, sizeof(pawn_table_));
+    std::memset(pawn_table_->entries, 0, sizeof(pawn_table_->entries));
     std::memset(imbalance_table_, 0, sizeof(imbalance_table_));
     imbalance_generation_ = g_eval_tables_generation;
 }
@@ -118,7 +111,7 @@ bool Evaluator::draw_verdict(const Board& b) {
 // A verdict query evaluates a node the search has already counted, so it
 // adds nothing to the endgame census or the lazy audit; eval_calls counts it,
 // since it pays for an evaluation.
-int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
+int Evaluator::evaluate_full(const Board& b, bool& verdict, [[maybe_unused]] bool query) {
 #ifdef BASILISK_BOARD_TRACE
     board_trace::EvalScope trace_eval_scope;
 #endif
@@ -127,132 +120,46 @@ int Evaluator::evaluate_full(const Board& b, bool& verdict, bool query) {
     if (diag_endgames && !query)
         record_endgame_occurrence(b, endgame_occurrence);
 #endif
-    const EvalParams& p = g_eval_params;
-    int phase = 0;
-    EvalScore sum;
-
-    // ---- The order of the sum, and its three reads -------------------------
-    // Every family's contribution enters `sum` through one call below. The
-    // running sum is read three times, and each read must see exactly the
-    // terms before it:
-    //   1. the lazy checkpoint reads the cheap block alone (material and
-    //      tables, imbalance, the pawn cache and the cheap passer terms, the
-    //      bishop pair, the rook and knight bonuses);
-    //   2. the mate drive reads every family, without the tempo or itself;
-    //   3. the final taper reads everything.
-    // A term moved across the lazy checkpoint changes every lazy-served score
-    // it touches; test_eval's lazy-checkpoint test fails when one is.
-
-    // ---- The cheap block ----------------------------------------------------
-    sum += material(b, imbalance_table_, imbalance_generation_, g_eval_tables_generation, phase);
-    PawnEntry pawns;
-    pawn_probe(b, pawn_table_, pawn_probes, pawn_hits, pawns);
-    sum += pawns_cheap(b, pawns);
-    sum += pieces_cheap(b);
-
-    // ---- Lazy eval checkpoint: read 1 ----------------------------------------
-    // If the cheap block's tapered score is decisive, skip the attack-map
-    // families (mobility, king safety, threats, the full pawn and piece terms,
-    // space) and finish with endgame scaling -- which still runs, so
-    // KBNK/KPK/draw-scaling survive the skip and the draw verdict is set on
-    // this path too. Disabled under TEXEL_TRACE so the tuner fits the full eval
-    // (--verify exact).
-#ifndef TEXEL_TRACE
-    // Under the lazy audit (Tune and Diag builds) the skip does NOT return —
-    // the full tail runs for measurement and the final return serves the
-    // remembered lazy value, so the audit is behaviour-identical
-    // (bench-identical) when on.
-#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
-    int lazy_served = VALUE_NONE_SENTINEL;
-#endif
-    {
-        int lazy = taper(sum, phase);
-        int lazy_abs = lazy < 0 ? -lazy : lazy;
-        if (lazy_abs > LAZY_MARGIN) {
-            const int score = apply_endgame(b, lazy, verdict);
-            const int served = (b.turn() == WHITE) ? score : -score;
-#if defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC)
-            if (!diag_lazy || query)
-                return served;
-            lazy_served = served;
-#else
-            return served;
-#endif
-        }
-    }
-#else
-    // The traced build evaluates past the checkpoint so that every trace is
-    // whole, and records what a release build would serve here: the tuner fits
-    // the function the engine plays.
-    {
-        const int lazy = taper(sum, phase);
-        g_rest.lazy = (lazy < 0 ? -lazy : lazy) > LAZY_MARGIN;
-        if (g_rest.lazy) {
-            g_lazy_trace = g_trace;
-            g_rest.lazy_tapered = lazy;
-            bool lazy_verdict = false;
-            g_rest.lazy_endgame = apply_endgame(b, lazy, lazy_verdict);
-            g_rest.lazy_step = g_endgame_step;
-            g_rest.lazy_step.verdict = lazy_verdict;
-        }
-    }
-#endif
-
-    // ---- The full block -------------------------------------------------------
-    AttackInfo ai;
-    fill_attack_info(b, pawns, ai);
-    if (!eval_ablated(EVAL_ABLATE_THREATS))
-        sum += threats(b, ai);
-    if (!eval_ablated(EVAL_ABLATE_KING))
-        sum += king(b, ai);
-    if (!eval_ablated(EVAL_ABLATE_PASSERS))
-        sum += pawns_full(b, ai);
-    if (!eval_ablated(EVAL_ABLATE_PIECES))
-        sum += pieces_full(b, ai, phase);
-    sum += mobility_space(b, ai.mobility, ai.pawn_atk);
-
-    // ---- Endgame mate drive: read 2 -------------------------------------------
-    sum += mate_drive(b, sum, phase);
-
-    // ---- Tempo bonus -------------------------------------------------------
-    {
-        int tempo_sign = (b.turn() == WHITE) ? 1 : -1;
-        sum.mg += tempo_sign * p.tempo;
-        TR_MG(Tempo, 0, tempo_sign);
-    }
-
-    // ---- Taper and return: read 3 -------------------------------------------
-    int score = taper(sum, phase);
-#ifdef TEXEL_TRACE
-    g_rest.sum_mg  = sum.mg;
-    g_rest.sum_eg  = sum.eg;
-    g_rest.tapered = score;
-#endif
-
-    // ---- Endgame scaling + knowledge ----------------------------------------
-    score = apply_endgame(b, score, verdict);
-#ifdef TEXEL_TRACE
-    g_rest.endgame = score;
-    g_rest.step = g_endgame_step;
-    g_rest.step.verdict = verdict;
-#endif
-
-    const int full_served = (b.turn() == WHITE) ? score : -score;
+    rb::Evaluation<false> e(b, pawn_table_->entries, imbalance_table_, imbalance_generation_,
+                            g_eval_tables_generation, {rebuild_clamps, pawn_probes, pawn_hits}, nullptr);
+    const int served = e.value(verdict);
 #if !defined(TEXEL_TRACE) && (defined(BASILISK_TUNE) || defined(BASILISK_DIAGNOSTIC))
-    if (lazy_served != VALUE_NONE_SENTINEL) {
-        // Lazy audit bookkeeping — the full tail ran only for measurement.
+    if (diag_lazy && !query && e.exit_taken()) {
+        // The lazy audit: the whole function evaluated on the side, its counters
+        // kept out of the search's, and the exit's value served either way, so
+        // the audit is bench-identical. The caches it reads hold functions of
+        // their keys, so what it stores changes no later value.
+        int64_t clamps = 0, probes = 0, hits = 0;
+        bool full_verdict = false;
+        rb::Evaluation<false, false> full(b, pawn_table_->entries, imbalance_table_, imbalance_generation_,
+                                          g_eval_tables_generation, {clamps, probes, hits}, nullptr);
+        const int full_served = full.value(full_verdict);
+        const int threshold = e.exit_taken() == 1 ? rb::LAZY_THRESHOLD_1 : rb::LAZY_THRESHOLD_2;
+        const int64_t d = std::llabs((long long)full_served - served);
+        const bool flip = (full_served > 0) != (served > 0) && full_served != 0 && served != 0;
+        const bool crossing = !rb::lazy_skip(full.sum(), threshold, full.npm());
+        LazyExitAudit& a = lazy_exit_audit[e.exit_taken() - 1];
+        a.fires++;
+        a.absdelta_sum += d;
+        a.absdelta_max = std::max<int64_t>(a.absdelta_max, d);
+        a.sign_flips += flip;
+        a.crossings += crossing;
         lazy_fires++;
-        const int64_t d = std::llabs((long long)full_served - lazy_served);
         lazy_absdelta_sum += d;
-        lazy_absdelta_max  = std::max<int64_t>(lazy_absdelta_max, d);
-        if ((full_served > 0) != (lazy_served > 0) && full_served != 0 && lazy_served != 0)
-            lazy_sign_flips++;
-        if (std::abs(full_served) <= LAZY_MARGIN)
-            lazy_margin_crossings++;
-        return lazy_served;
+        lazy_absdelta_max = std::max<int64_t>(lazy_absdelta_max, d);
+        lazy_sign_flips += flip;
+        lazy_margin_crossings += crossing;
     }
 #endif
-    return full_served;
+    return served;
+}
+
+int Evaluator::rebuild_record(const Board& b, EvalRebuildRecord& out) {
+    out = EvalRebuildRecord{};
+    bool verdict = false;
+    return rb::Evaluation<true>(b, pawn_table_->entries, imbalance_table_, imbalance_generation_,
+                                g_eval_tables_generation, {rebuild_clamps, pawn_probes, pawn_hits},
+                                &out).value(verdict);
 }
 
 // ---- Tune-only: eval file loader and dumper --------------------------------

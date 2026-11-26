@@ -394,7 +394,9 @@ jobs:
           persist-credentials: false
 
       - name: Roadmap and GUIDE agree
-        run: python3 tools/diag/check_roadmap.py
+        run: |
+          python3 tools/diag/check_roadmap.py --self-test
+          python3 tools/diag/check_roadmap.py
 
       # What every agent tool loads stays under the budget AGENTS.md declares,
       # and the module index agrees with the modules.
@@ -413,6 +415,9 @@ jobs:
 
       - name: ISA contract tests
         run: python3 tools/diag/test_verify_isa.py
+
+      - name: Structure-constants inventory
+        run: python3 tools/diag/check_rb_constants.py
 
   # ---- Texel toolchain -------------------------------------------------------
   # The fit's tools against the traced tuner they drive:
@@ -455,7 +460,7 @@ jobs:
           BASILISK_TEXEL: ${{ github.workspace }}/build/texel/basilisk-texel
         run: |
           python="$RUNNER_TEMP/texel-venv/bin/python"
-          for t in test_extract test_surface test_bake test_sample_fens test_fit test_relabel test_piece_values; do
+          for t in test_extract test_surface test_bake test_sample_fens test_fit test_k_phase test_relabel test_piece_values; do
             echo "== $t"
             "$python" "tools/texel/$t.py" || exit 1
           done

@@ -17,6 +17,7 @@ KNvKN: 20000 quiet positions (random), 0.0 s
 KPPvK: 20000 quiet positions (random), 0.0 s
   estimate (no site)                                20000  wrong          0 (0.0000%)  cursed 0
 KRvKR: 20000 quiet positions (random), 0.0 s
-  pawnless scale 14                                 20000  wrong        350 (1.7500%)  cursed 0  DEFECT
+  pawnless scale 14                                 20000  wrong        297 (1.4850%)  cursed 0  DEFECT
 KRvKB: 20001 quiet positions (random), 0.0 s
-  pawnless scale 4                                  20001  wrong       1225 (6.1247%)  cursed 0  DEFECT
+  pawnless scale 4                                  19997  wrong       1225 (6.1259%)  cursed 0  DEFECT
+  estimate (no site)                                    4  wrong          0 (0.0000%)  cursed 0

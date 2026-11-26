@@ -72,6 +72,18 @@ struct TuneSet {
     void end_row() { offset.push_back(index.size()); }
 };
 
+struct KSchedule {
+    double k_eg = 0.0;
+    double k_mg = 0.0;
+
+    bool active() const { return k_eg > 0.0 && k_mg > 0.0; }
+    bool is_phase() const { return k_eg != k_mg; }
+    double at(int phase) const {
+        return k_eg + (k_mg - k_eg) * (static_cast<double>(phase) / 24.0);
+    }
+    static KSchedule constant(double k) { return {k, k}; }
+};
+
 struct TuneOptions {
     std::string group;
     std::string train_path;
@@ -83,6 +95,7 @@ struct TuneOptions {
     double l2 = 0.0;      // L2-to-prior (toward base/default weights); 0 = off
     double smooth = 0.0;  // second-difference penalty on the ordered tables; 0 = off
     double K = 0.0;       // the frozen K; 0 = fit it on the holdout, as before
+    KSchedule K_phase;    // linear-in-phase K(phase) = K_eg + (K_mg - K_eg) * phase / 24
     int patience = 20;    // stop when the holdout has not improved for this many epochs; 0 = off
     double min_delta = 0.0;  // a gain counts for patience only above this; 0 = any gain
 };
@@ -277,12 +290,28 @@ static double parse_nonneg_double_arg(const char* value, const char* name) {
     return parsed;
 }
 
+static KSchedule parse_k_phase_arg(const char* value, const char* name) {
+    std::string text = value ? value : "";
+    const size_t comma = text.find(',');
+    if (comma == std::string::npos || text.find(',', comma + 1) != std::string::npos) {
+        std::cerr << "Bad value for " << name << ": " << text << " (expected K_eg,K_mg)\n";
+        std::exit(1);
+    }
+    const std::string eg_s = text.substr(0, comma);
+    const std::string mg_s = text.substr(comma + 1);
+    if (eg_s.empty() || mg_s.empty()) {
+        std::cerr << "Bad value for " << name << ": " << text << " (expected K_eg,K_mg)\n";
+        std::exit(1);
+    }
+    return {parse_double_arg(eg_s.c_str(), name), parse_double_arg(mg_s.c_str(), name)};
+}
+
 static void usage(const char* exe) {
     std::cerr
         << "Usage:\n"
         << "  " << exe << " --verify <dataset.csv> [--max-positions N]\n"
         << "  " << exe << " --played-hash <dataset.csv>\n"
-        << "  " << exe << " --loss <dataset.csv> [--K K] [--skip N] [--max-positions N]\n"
+        << "  " << exe << " --loss <dataset.csv> [--K K | --K-phase K_eg,K_mg | --fit-k-phase] [--skip N] [--max-positions N]\n"
         << "  " << exe << " --dump-played <dataset.csv> <out.txt>\n"
         << "  " << exe << " --list-params\n"
         << "  " << exe << " --dump-coeffs <dataset.csv> <out.f64> [--max-positions N]\n"
@@ -294,7 +323,7 @@ static void usage(const char* exe) {
         << "  " << exe << " --feature-support <dataset.csv> [--max-positions N]\n"
         << "  " << exe << " --dump-eval <dataset.csv> [limit]\n"
         << "  " << exe << " --audit-coverage\n"
-        << "  " << exe << " --tune-kingsafety <train.csv> <holdout.csv> [out.txt] [--epochs N] [--max-positions N] [--step S] [--K K]\n"
+        << "  " << exe << " --tune-kingsafety <train.csv> <holdout.csv> [out.txt] [--epochs N] [--max-positions N] [--step S] [--K K | --K-phase K_eg,K_mg]\n"
         << "  " << exe << " --tune <group> <train.csv> <holdout.csv> [out/eval_params.txt] [options]\n"
         << "\n"
         << "Groups:\n"
@@ -314,15 +343,16 @@ static void usage(const char* exe) {
         << "  all         all meaningful eval params\n"
         << "\n"
         << "Options:\n"
-        << "  --epochs N         optimizer epochs (default 200)\n"
-        << "  --lr X             Adam learning rate (default 0.3)\n"
-        << "  --l2 X             L2-to-prior strength (pull toward default weights; default 0 = off)\n"
-        << "  --smooth X         second-difference penalty on the ordered tables (default 0 = off)\n"
-        << "  --K K              the frozen K (also --tune-kingsafety); default: fitted on the holdout\n"
-        << "  --patience N       stop when the holdout has not improved for N epochs (default 20; 0 = off)\n"
-        << "  --min-delta X      count a holdout gain for --patience only when it exceeds X (default 0);\n"
-        << "                     a run stopped by patience has converged, and the best vector is kept\n"
-        << "  --max-positions N  cap positions loaded from each file (default 5000000; 0 = all)\n"
+        << "  --epochs N            optimizer epochs (default 200)\n"
+        << "  --lr X                Adam learning rate (default 0.3)\n"
+        << "  --l2 X                L2-to-prior strength (pull toward default weights; default 0 = off)\n"
+        << "  --smooth X            second-difference penalty on the ordered tables (default 0 = off)\n"
+        << "  --K K                 the frozen K (also --tune-kingsafety); default: fitted on the holdout\n"
+        << "  --K-phase K_eg,K_mg   frozen linear K(phase) = K_eg + (K_mg - K_eg) * phase / 24\n"
+        << "  --patience N          stop when the holdout has not improved for N epochs (default 20; 0 = off)\n"
+        << "  --min-delta X         count a holdout gain for --patience only when it exceeds X (default 0);\n"
+        << "                        a run stopped by patience has converged, and the best vector is kept\n"
+        << "  --max-positions N     cap positions loaded from each file (default 5000000; 0 = all)\n"
         << "  A fit whose holdout still improved at its last epoch, or whose largest move\n"
         << "  reached 0.9 x lr x epochs, exits 3: its schedule, not the data, stopped it.\n";
 }
@@ -357,6 +387,8 @@ static TuneOptions parse_tune_options(int argc, char* argv[]) {
             opts.smooth = parse_nonneg_double_arg(argv[argi++], "--smooth");
         } else if (opt == "--K" && argi < argc) {
             opts.K = parse_double_arg(argv[argi++], "--K");
+        } else if (opt == "--K-phase" && argi < argc) {
+            opts.K_phase = parse_k_phase_arg(argv[argi++], "--K-phase");
         } else if (opt == "--patience" && argi < argc) {
             opts.patience = parse_int_arg(argv[argi++], "--patience");
         } else if (opt == "--min-delta" && argi < argc) {
@@ -368,6 +400,10 @@ static TuneOptions parse_tune_options(int argc, char* argv[]) {
         }
     }
 
+    if (opts.K > 0.0 && opts.K_phase.active()) {
+        std::cerr << "--K and --K-phase cannot both be set.\n";
+        std::exit(1);
+    }
     if (opts.epochs <= 0) {
         std::cerr << "--epochs must be positive.\n";
         std::exit(1);
@@ -612,12 +648,12 @@ static void append_group(std::vector<int>& out, int group) {
         out.push_back(base + i);
 }
 
-static void append_groups(std::vector<int>& out, int first, int last) {
+[[maybe_unused]] static void append_groups(std::vector<int>& out, int first, int last) {
     for (int g = first; g <= last; ++g)
         append_group(out, g);
 }
 
-static void append_material(std::vector<int>& out) {
+[[maybe_unused]] static void append_material(std::vector<int>& out) {
     int mg = eval_param_offset(EPG_MgVal);
     int eg = eval_param_offset(EPG_EgVal);
     for (int pt = PAWN; pt <= QUEEN; ++pt) {
@@ -645,111 +681,6 @@ static std::vector<int> active_indices_for_group(const std::string& group) {
         for (size_t i = 0; i < rows.size(); ++i)
             if (rows[i].stage == "linear")
                 active.push_back(static_cast<int>(i));
-    } else if (group == "material") {
-        append_material(active);
-    } else if (group == "scalars") {
-        for (int g = EPG_PassedMg; g <= EPG_Tempo; ++g) {
-            if (g >= EPG_KsUnit && g <= EPG_StormWeightAdj)
-                continue;
-            append_group(active, g);
-        }
-    } else if (group == "pawnstruct" || group == "pawns") {
-        append_groups(active, EPG_DoubledMg, EPG_BackwardEg);
-    } else if (group == "passers") {
-        append_groups(active, EPG_PassedMg, EPG_PassSafeEg);
-        append_group(active, EPG_ProxBase);
-    } else if (group == "rooks") {
-        append_groups(active, EPG_RookOpenMg, EPG_EnemyRookPasserEg);
-    } else if (group == "minors") {
-        append_group(active, EPG_BpMg);
-        append_group(active, EPG_BpEg);
-        append_group(active, EPG_KnightOutpostMg);
-        append_group(active, EPG_KnightOutpostEg);
-        append_group(active, EPG_TrappedMg);
-        append_group(active, EPG_TrappedEg);
-    } else if (group == "mobility") {
-        append_groups(active, EPG_MobNMg, EPG_MobQEg);
-    } else if (group == "imbalance") {
-        // imb_linear[6] + imb_our[21] are all live. imb_their[21] has 6
-        // STRUCTURALLY-DEAD diagonal coeffs: when i==j the feature
-        // their_cnt = ic_W[i]*ic_B[i] - ic_B[i]*ic_W[i] == 0 for every
-        // position (confirmed by Step 4.0 --feature-support). Their flat
-        // sub-indices are t = i*(i+1)/2+i = {0,2,5,9,14,20}. Skip them so the
-        // fit never chases noise into a coefficient that can't ever fire.
-        append_groups(active, EPG_ImbLinear, EPG_ImbOur);
-        static const int dead_their_diag[6] = {0, 2, 5, 9, 14, 20};
-        const int their_base = eval_param_offset(EPG_ImbTheir);
-        const int their_len  = EVAL_PARAM_LENS[EPG_ImbTheir];
-        for (int t = 0; t < their_len; ++t) {
-            bool dead = false;
-            for (int d : dead_their_diag) if (d == t) { dead = true; break; }
-            if (!dead) active.push_back(their_base + t);
-        }
-    } else if (group == "threats") {
-        // Old flat pawn-threats + the threats package (3.1).
-        append_groups(active, EPG_ThreatMinorMg, EPG_ThreatPushEg);
-    } else if (group == "misc") {
-        append_group(active, EPG_ProxBase);
-        append_group(active, EPG_SpaceMg);
-        append_group(active, EPG_SpacePieceMg);
-        append_group(active, EPG_SpaceBlockedMg);
-        append_group(active, EPG_Tempo);
-    } else if (group == "phase45") {
-        // Stage 4.5: the full positional data-fit in one joint group. Covers
-        // pawn refinement (3.4), the seeded-0 small positional terms (3.7), the
-        // HCE survey adds (3.9), minors, rooks and space (3.6).
-        // Deliberately EXCLUDES material/PST (4.7), imbalance (4.6), mobility
-        // (4.4, done), threats (4.2, done) and king safety (4.3, done).
-        // ALWAYS run with --l2 (mobility lesson: sparse/seeded terms over-fit
-        // without a prior anchor; here the L2 also keeps the already-accepted
-        // Phase-2 pawn/passer/rook cores from drifting while the seeded terms
-        // grow). The three ranges below are contiguous in EVAL_PARAM_LIST and
-        // skip exactly Imb* (between BishopPairPawnsEg and MinorBehindPawnMg)
-        // and the Mob*/Threat*/Ks* block (between KnightOutpostEg and
-        // ProxBase). (4.8a pruned the dead survey/space/pawn-lever terms.)
-        append_groups(active, EPG_PassedMg, EPG_BishopPairPawnsEg);
-        append_groups(active, EPG_MinorBehindPawnMg, EPG_KnightOutpostEg);
-        append_groups(active, EPG_ProxBase, EPG_Tempo);
-    } else if (group == "kingsafety" || group == "king") {
-        for (int g = EPG_KsUnit; g <= EPG_StormWeightAdj; ++g)
-            append_group(active, g);
-    } else if (group == "texel") {
-        // Everything a gradient fit should touch, and nothing it should not:
-        // the PSTs and the scalars (the older form; `--tune surface` with the
-        // surface manifest is the contract's).
-        //
-        // Material is deliberately ABSENT. eval.cpp builds
-        // MG_TABLE = mg_val[pt] + pst_mg[pt-1][sq], so material and PST are
-        // exactly collinear: adding a constant across a piece's 64 PST squares
-        // IS a material change. Fitting both is a perfect null direction and
-        // rank-deficient by construction. Pinning material costs ZERO
-        // expressiveness because the PST can already express any material
-        // change; it only removes the degeneracy.
-        //
-        // King safety is absent because it is capped and non-linear -- BAS-X14.
-        // It belongs to --tune-kingsafety. BAS-E21 is the evidence that this
-        // split matters: the king-safety funnel produced +2.64 Elo through the
-        // coordinate-descent fitter after a linear fit had nothing to say about
-        // it.
-        //
-        // Do NOT use "all" for this: it sweeps king safety into the gradient fit.
-        for (int g = EPG_PstMgPawn; g <= EPG_PstEgKing; ++g)
-            append_group(active, g);
-        for (int g = EPG_PassedMg; g <= EPG_Tempo; ++g) {
-            if (g >= EPG_KsUnit && g <= EPG_StormWeightAdj)
-                continue;
-            append_group(active, g);
-        }
-    } else if (group == "pst") {
-        append_material(active);
-        for (int g = EPG_PstMgPawn; g <= EPG_PstEgKing; ++g)
-            append_group(active, g);
-    } else if (group == "all") {
-        append_material(active);
-        for (int g = EPG_PstMgPawn; g <= EPG_PstEgKing; ++g)
-            append_group(active, g);
-        for (int g = EPG_PassedMg; g <= EPG_Tempo; ++g)
-            append_group(active, g);
     } else {
         std::cerr << "Unknown tune group '" << group << "'.\n";
         std::exit(1);
@@ -763,12 +694,12 @@ static std::vector<int> active_indices_for_group(const std::string& group) {
     return active;
 }
 
-static float trace_coeff(const EvalTrace& tr, int idx) {
+[[maybe_unused]] static float trace_coeff(const EvalTrace& tr, int idx) {
     return static_cast<float>(
         tr.mg[idx] * tr.phase + tr.eg[idx] * (24 - tr.phase)) / 24.0f;
 }
 
-static int flat_index(int group, int idx = 0) {
+[[maybe_unused]] static int flat_index(int group, int idx = 0) {
     return eval_param_offset(group) + idx;
 }
 
@@ -803,6 +734,9 @@ struct RowModel {
     int played_white = 0;          // the score the engine serves, White's view
     double scale = 1.0;            // d played / d tapered sum, at the seed
     const EvalTrace* trace = nullptr;
+    // The gradient: d played / d (traced middlegame, endgame
+    // sum), and d played / d tempo, at the seed.
+    double scale_mg = 0.0, scale_eg = 0.0, tempo = 0.0;
 };
 
 static const std::vector<long>& seed_weights() {
@@ -814,11 +748,11 @@ static const std::vector<long>& seed_weights() {
     return w;
 }
 
-static int taper_int(long mg, long eg, int phase) {
+[[maybe_unused]] static int taper_int(long mg, long eg, int phase) {
     return static_cast<int>((mg * phase + eg * (24 - phase)) / 24);
 }
 
-static int apply_step(const EvalEndgameStep& step, int tapered) {
+[[maybe_unused]] static int apply_step(const EvalEndgameStep& step, int tapered) {
     return step.kind == EG_SCALED ? tapered * step.num / step.den : tapered;
 }
 
@@ -826,9 +760,25 @@ static int damp_white(int score, int clock) {
     return clock > 0 ? damp_rule50(score, clock) : score;
 }
 
-// The model of the row the evaluator just scored (g_trace and g_rest hold its
-// record). Returns false, with the stage named in *mismatch, when a stage of
-// the model disagrees with the engine.
+// The rebuilt evaluation's played function (analysis/c31_rebuild_2026-11-25.md
+// §6), recomputed from its record in the engine's integer arithmetic:
+//   - the sum: the traced terms times the weights, plus the knobs' terms;
+//   - winnable, from the recorded complexity, which no slot moves;
+//   - the taper at a factor of 64, converted: the layer's input with the
+//     recorded mate drive;
+//   - the layer's step: scaled by num / den, or silent, when the taper at
+//     the general factor, converted, plus the drive; an override or a draw
+//     verdict is served as the layer set it;
+//   - the side to move, the tempo, the clamp and the rule-50 damping.
+// Every stage must equal the engine's at the seed. The gradient is
+// linearised there: winnable passes a half or holds it at 0, the taper
+// weighs each half by its phase and factor, then S / 1024, the layer's scale
+// and the damping's slope; a clamped row has none.
+static int rb_taper(long mg, long eg, int ph, int sf) {
+    return static_cast<int>((mg * ph + eg * (128 - ph) * sf / 64) / 128);
+}
+static int rb_cp(long v) { return static_cast<int>(v * EVAL_REBUILD_CONVERSION_S / 1024); }
+
 static bool model_row(const Board& b, int served_stm, RowModel& out, std::string* mismatch) {
     const std::vector<long>& w = seed_weights();
     const int served_white = (b.turn() == WHITE) ? served_stm : -served_stm;
@@ -839,51 +789,88 @@ static bool model_row(const Board& b, int served_stm, RowModel& out, std::string
         return false;
     };
 
+    out = RowModel{};
+    out.lazy = g_rest.lazy != 0;
+    out.trace = out.lazy ? &g_lazy_trace : &g_trace;
+    const int* rest_mg = out.lazy ? g_rest.lazy_mg : g_rest.mg;
+    const int* rest_eg = out.lazy ? g_rest.lazy_eg : g_rest.eg;
     long mg = 0, eg = 0;
     for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
-        mg += g_trace.mg[i] * w[static_cast<size_t>(i)];
-        eg += g_trace.eg[i] * w[static_cast<size_t>(i)];
+        mg += out.trace->mg[i] * w[static_cast<size_t>(i)];
+        eg += out.trace->eg[i] * w[static_cast<size_t>(i)];
     }
     for (int s = 0; s < REST_SOURCE_NB; ++s) {
-        mg += g_rest.mg[s];
-        eg += g_rest.eg[s];
+        mg += rest_mg[s];
+        eg += rest_eg[s];
     }
     if (mg != g_rest.sum_mg || eg != g_rest.sum_eg)
         return fail("the running sum");
-    if (taper_int(mg, eg, g_trace.phase) != g_rest.tapered)
-        return fail("the taper");
-    if (g_rest.step.kind != EG_OVERRIDE && apply_step(g_rest.step, g_rest.tapered) != g_rest.endgame)
-        return fail("the endgame step");
-    if (damp_white(g_rest.endgame, clock) != served_white)
+
+    const long c = g_rest.complexity;
+    auto sign = [](long x) { return (x > 0) - (x < 0); };
+    const long amg = mg + sign(mg) * std::clamp(c + 50, -std::abs(mg), 0L);
+    const long aeg = eg + sign(eg) * std::max(c, -std::abs(eg));
+    // Whether a small change of a half moves it after winnable.
+    const bool pass_mg = c + 50 >= 0 || (mg != 0 && c + 50 >= -std::abs(mg));
+    const bool pass_eg = eg != 0 ? c >= -std::abs(eg) : c >= 0;
+
+    const int ph = g_rest.ph;
+    const int t = rb_cp(rb_taper(amg, aeg, ph, 64));
+    if (t != g_rest.t)
+        return fail("the taper at 64");
+
+    const EvalEndgameStep& step = g_rest.step;
+    const int input = t + g_rest.drive;
+    double layer_scale = 1.0;
+    int sf = 64;
+    int white = g_rest.white;
+    if (step.kind == EG_SCALED) {
+        white = input * step.num / step.den;
+        layer_scale = double(step.num) / double(step.den);
+    } else if (step.kind == EG_UNCHANGED) {
+        sf = g_rest.general_sf;
+        white = rb_cp(rb_taper(amg, aeg, ph, sf)) + g_rest.drive;
+    }
+    if (white != g_rest.white)
+        return fail("the endgame layer");
+
+    const int stm_white = b.turn() == WHITE ? white : -white;
+    const bool fixed = step.kind == EG_OVERRIDE || step.verdict;
+    int served = stm_white;
+    bool clamped = false;
+    if (!fixed) {
+        served = stm_white + static_cast<int>(w[static_cast<size_t>(eval_param_offset(EPG_Tempo))]
+                                              * EVAL_REBUILD_CONVERSION_S / 1024);
+        if (std::abs(served) >= KNOWN_WIN) {
+            served = served > 0 ? KNOWN_WIN - 1 : -(KNOWN_WIN - 1);
+            clamped = true;
+        }
+    }
+    if (served != g_rest.served)
+        return fail("the tempo and the bounds");
+    const int undamped_white = b.turn() == WHITE ? served : -served;
+    if (damp_white(undamped_white, clock) != served_white)
         return fail("the rule-50 damping");
 
-    out = RowModel{};
-    const EvalEndgameStep* step = &g_rest.step;
-    int endgame = g_rest.endgame;
-    out.trace = &g_trace;
-    if (g_rest.lazy) {
-        long lmg = 0, leg = 0;
-        for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
-            lmg += g_lazy_trace.mg[i] * w[static_cast<size_t>(i)];
-            leg += g_lazy_trace.eg[i] * w[static_cast<size_t>(i)];
-        }
-        if (taper_int(lmg, leg, g_lazy_trace.phase) != g_rest.lazy_tapered)
-            return fail("the lazy checkpoint's taper");
-        if (g_rest.lazy_step.kind != EG_OVERRIDE
-            && apply_step(g_rest.lazy_step, g_rest.lazy_tapered) != g_rest.lazy_endgame)
-            return fail("the lazy checkpoint's endgame step");
-        out.lazy = true;
-        step = &g_rest.lazy_step;
-        endgame = g_rest.lazy_endgame;
-        out.trace = &g_lazy_trace;
+    out.played_white = served_white;
+    out.status = step.kind == EG_OVERRIDE ? RowModel::OVERRIDE
+               : step.verdict             ? RowModel::VERDICT
+                                          : RowModel::USED;
+    if (!fixed && !clamped) {
+        const double tail = double(EVAL_REBUILD_CONVERSION_S) / 1024.0 * layer_scale
+                          * (clock > 0 ? double(damp_rule50_scale_num(clock)) / double(DAMP_RULE50_DEN) : 1.0);
+        out.scale_mg = pass_mg ? tail * ph / 128.0 : 0.0;
+        out.scale_eg = pass_eg ? tail * (128 - ph) * sf / (64.0 * 128.0) : 0.0;
+        out.tempo = (b.turn() == WHITE ? 1.0 : -1.0) * double(EVAL_REBUILD_CONVERSION_S) / 1024.0
+                  * (clock > 0 ? double(damp_rule50_scale_num(clock)) / double(DAMP_RULE50_DEN) : 1.0);
     }
-    out.played_white = damp_white(endgame, clock);
-    out.status = step->kind == EG_OVERRIDE ? RowModel::OVERRIDE
-               : step->verdict             ? RowModel::VERDICT
-                                           : RowModel::USED;
-    out.scale = (step->kind == EG_SCALED ? double(step->num) / double(step->den) : 1.0)
-              * (clock > 0 ? double(damp_rule50_scale_num(clock)) / double(DAMP_RULE50_DEN) : 1.0);
     return true;
+}
+
+// A row's coefficient of slot idx: d played / d weight at the seed.
+static double row_coeff(const RowModel& model, int idx) {
+    return model.trace->mg[idx] * model.scale_mg + model.trace->eg[idx] * model.scale_eg
+         + (idx == eval_param_offset(EPG_Tempo) ? model.tempo : 0.0);
 }
 
 // Rows by what the model made of them, for the load reports.
@@ -928,12 +915,12 @@ static bool clamp_held(int idx) {
     return g_clamp_held && (*g_clamp_held)[static_cast<size_t>(idx)];
 }
 
-static void clamp_range(double* w, int idx, double lo, double hi) {
+[[maybe_unused]] static void clamp_range(double* w, int idx, double lo, double hi) {
     if (!clamp_held(idx))
         w[idx] = std::clamp(w[idx], lo, hi);
 }
 
-static void clamp_group_range(double* w, int group, double lo, double hi) {
+[[maybe_unused]] static void clamp_group_range(double* w, int group, double lo, double hi) {
     int base = eval_param_offset(group);
     int len = EVAL_PARAM_LENS[group];
     for (int i = 0; i < len; ++i)
@@ -944,7 +931,7 @@ static void clamp_group_range(double* w, int group, double lo, double hi) {
 // is bounded below by the entry before it and above by the smallest held entry
 // after it: a free entry that the data pushed past a held neighbour stops at
 // it, instead of the held neighbour being moved.
-static void enforce_chain(double* w, const std::vector<int>& chain) {
+[[maybe_unused]] static void enforce_chain(double* w, const std::vector<int>& chain) {
     std::vector<double> upper(chain.size(), std::numeric_limits<double>::infinity());
     double bound = std::numeric_limits<double>::infinity();
     for (size_t k = chain.size(); k-- > 0;) {
@@ -961,7 +948,7 @@ static void enforce_chain(double* w, const std::vector<int>& chain) {
     }
 }
 
-static void enforce_non_decreasing(double* w, int group, int first, int last) {
+[[maybe_unused]] static void enforce_non_decreasing(double* w, int group, int first, int last) {
     const int base = eval_param_offset(group);
     std::vector<int> chain;
     for (int i = first; i <= last; ++i)
@@ -969,85 +956,13 @@ static void enforce_non_decreasing(double* w, int group, int first, int last) {
     enforce_chain(w, chain);
 }
 
+// The knobs' bounds are the surface manifest's; only the slots no
+// position reads are held at 0.
 static void clamp_weights_for_group(const std::string&, double* w) {
-    int mg = eval_param_offset(EPG_MgVal);
-    int eg = eval_param_offset(EPG_EgVal);
-
-    w[mg + NO_PIECE_TYPE] = 0.0;
-    w[eg + NO_PIECE_TYPE] = 0.0;
-    w[mg + KING] = 0.0;
-    w[eg + KING] = 0.0;
-
-    for (int pt = PAWN; pt <= QUEEN; ++pt) {
-        w[mg + pt] = std::clamp(w[mg + pt], 1.0, 2000.0);
-        w[eg + pt] = std::clamp(w[eg + pt], 1.0, 2000.0);
+    for (int g : {EPG_MgVal, EPG_EgVal}) {
+        w[eval_param_offset(g) + NO_PIECE_TYPE] = 0.0;
+        w[eval_param_offset(g) + KING] = 0.0;
     }
-
-    // Sign/shape clamps for scalar subgroups. These are deliberately simple:
-    // they prevent obviously nonsensical candidates while leaving SPRT to
-    // decide whether a plausible fit transfers to strength.
-    clamp_group_range(w, EPG_DoubledMg, -200.0, 0.0);
-    clamp_group_range(w, EPG_DoubledEg, -200.0, 0.0);
-    clamp_group_range(w, EPG_IsolatedMg, -200.0, 0.0);
-    clamp_group_range(w, EPG_IsolatedEg, -200.0, 0.0);
-    clamp_group_range(w, EPG_BackwardMg, -200.0, 0.0);
-    clamp_group_range(w, EPG_BackwardEg, -200.0, 0.0);
-    clamp_group_range(w, EPG_ConnectedMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_ConnectedEg, 0.0, 200.0);
-
-    for (int r = 0; r < 8; ++r) {
-        clamp_range(w, flat_index(EPG_PassedMg, r), r == 0 || r == 7 ? 0.0 : 0.0, r == 0 || r == 7 ? 0.0 : 400.0);
-        clamp_range(w, flat_index(EPG_PassedEg, r), r == 0 || r == 7 ? 0.0 : 0.0, r == 0 || r == 7 ? 0.0 : 400.0);
-    }
-    enforce_non_decreasing(w, EPG_PassedMg, 1, 6);
-    enforce_non_decreasing(w, EPG_PassedEg, 1, 6);
-    clamp_group_range(w, EPG_PassFreeMg, 0.0, 100.0);
-    clamp_group_range(w, EPG_PassFreeEg, 0.0, 100.0);
-    clamp_group_range(w, EPG_PassSafeEg, 0.0, 100.0);
-    clamp_group_range(w, EPG_ProxBase, 0.0, 50.0);
-
-    clamp_group_range(w, EPG_BpMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_BpEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_KnightOutpostMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_KnightOutpostEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_TrappedMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_TrappedEg, 0.0, 200.0);
-
-    clamp_group_range(w, EPG_RookOpenMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_RookOpenEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_RookSemiMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_RookSemiEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_Rook7thMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_Rook7thEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_RookBehindPasserMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_RookBehindPasserEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_EnemyRookPasserMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_EnemyRookPasserEg, 0.0, 200.0);
-
-    // Per-count mobility tables (Step 3.3): bounded; seeded values (queen eg max
-    // 324) sit inside the range so this never perturbs an untuned fit.
-    for (int g = EPG_MobNMg; g <= EPG_MobQEg; ++g)
-        clamp_group_range(w, g, -200.0, 600.0);
-    // Monotone in the mobility-square count (Step 4.6b): more squares is never
-    // worth less. Prevents sparse high-count entries from fitting noise.
-    for (int g = EPG_MobNMg; g <= EPG_MobQEg; ++g)
-        enforce_non_decreasing(w, g, 0, EVAL_PARAM_LENS[g] - 1);
-
-    clamp_group_range(w, EPG_ThreatMinorMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_ThreatMinorEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_ThreatRookMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_ThreatRookEg, 0.0, 200.0);
-    clamp_group_range(w, EPG_ThreatQueenMg, 0.0, 200.0);
-    clamp_group_range(w, EPG_ThreatQueenEg, 0.0, 200.0);
-    // A pawn threat to a queen is worth at least one to a rook, and that at
-    // least one to a minor.
-    enforce_chain(w, {flat_index(EPG_ThreatMinorMg), flat_index(EPG_ThreatRookMg), flat_index(EPG_ThreatQueenMg)});
-    enforce_chain(w, {flat_index(EPG_ThreatMinorEg), flat_index(EPG_ThreatRookEg), flat_index(EPG_ThreatQueenEg)});
-
-    clamp_group_range(w, EPG_SpaceMg, 0.0, 50.0);
-    clamp_group_range(w, EPG_SpacePieceMg, -10.0, 10.0);
-    clamp_group_range(w, EPG_SpaceBlockedMg, -10.0, 10.0);
-    clamp_group_range(w, EPG_Tempo, 0.0, 50.0);
 }
 
 // ---------------------------------------------------------------------------
@@ -1146,8 +1061,7 @@ static TuneSet load_tune_dataset(const std::string& path,
         out.base_score.push_back(static_cast<float>(model.played_white));
         out.phase.push_back(static_cast<uint8_t>(g_trace.phase));
         for (size_t j = 0; j < active.size(); ++j)
-            out.add_coefficient(static_cast<int>(j),
-                                static_cast<float>(trace_coeff(*model.trace, active[j]) * model.scale));
+            out.add_coefficient(static_cast<int>(j), static_cast<float>(row_coeff(model, active[j])));
         out.end_row();
 
         if (max_positions > 0 && static_cast<int>(out.size()) >= max_positions)
@@ -1281,9 +1195,7 @@ static void for_each_coeff_row(const std::string& path, int limit, RowFn&& row_f
         if (!ok || model.status != RowModel::USED)
             continue;
         for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i)
-            coeff[static_cast<size_t>(i)] =
-                (model.trace->mg[i] * model.trace->phase + model.trace->eg[i] * (24 - model.trace->phase))
-                / 24.0 * model.scale;
+            coeff[static_cast<size_t>(i)] = row_coeff(model, i);
         row_fn(coeff, rows.lineno(), model);
         if (limit > 0 && ++used >= limit)
             break;
@@ -1391,120 +1303,6 @@ static void cmd_played_hash(const std::string& path) {
 // they are reported separately as expected-zero, not flagged. Also closes the
 // Phase-3 trace-regression item (d): every traced term must fire nonzero.
 // ---------------------------------------------------------------------------
-static const char* const FS_GROUP_NAMES[EPG_COUNT] = {
-#define X(name, member, len) #name,
-    EVAL_PARAM_LIST(X)
-#undef X
-};
-
-// Index-shaping (finite-difference) or frozen params: zero linear trace is
-// expected, not a defect.
-static bool fs_is_finite_diff_group(int g) {
-    switch (g) {
-        case EPG_KsUnit: case EPG_KsCoordBonus:
-        case EPG_KsSafeCheck: case EPG_KsWeakRing:
-        case EPG_KsKingBlockers: case EPG_KsCentralKing: case EPG_KsShelterStorm:
-        case EPG_KsNoqueenNum: case EPG_KsNoqueenDen:
-            return true;
-        default:
-            return false;
-    }
-}
-
-static void cmd_feature_support(const std::string& path, int max_positions) {
-    RowReader rows(path);
-    std::cout << "Streaming positions from " << path << " for feature-support ...\n";
-
-    // Reverse map: flat index -> (group, sub-index).
-    std::vector<int> group_of(EVAL_PARAM_FLAT_SIZE), sub_of(EVAL_PARAM_FLAT_SIZE);
-    for (int g = 0; g < EPG_COUNT; ++g) {
-        int off = eval_param_offset(g), len = EVAL_PARAM_LENS[g];
-        for (int i = 0; i < len; ++i) {
-            const auto idx = static_cast<std::size_t>(off + i);
-            group_of[idx] = g;
-            sub_of[idx]   = i;
-        }
-    }
-
-    std::vector<long> act(EVAL_PARAM_FLAT_SIZE, 0);
-    std::vector<double> sum_abs(EVAL_PARAM_FLAT_SIZE, 0.0);
-
-    // Stream the dataset: evaluate+trace each position, accumulate, discard.
-    // (Materialising every EvalTrace would be ~4 KB x millions of positions.)
-    auto ev_ptr = std::make_unique<Evaluator>();
-    Evaluator& evaluator = *ev_ptr;
-    Board board;
-    long N = 0;
-    std::string fen, target;
-    while (rows.next(fen, target)) {
-        if (!board.try_set_fen(fen)) { rows.reject("FEN error"); continue; }
-
-        g_trace = {};
-        evaluator.evaluate(board);
-        for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
-            if (g_trace.mg[i] != 0 || g_trace.eg[i] != 0) {
-                const auto ui = static_cast<std::size_t>(i);
-                act[ui]++;
-                sum_abs[ui] += std::fabs(trace_coeff(g_trace, i));
-            }
-        }
-        ++N;
-        if (max_positions > 0 && N >= max_positions) break;
-        if (N % 200000 == 0) std::cerr << "  ... " << N << " positions\r";
-    }
-    if (N == 0) { std::cerr << "No positions loaded.\n"; std::exit(1); }
-    std::cout << "Processed " << N << " positions"
-              << (rows.skipped() ? " (" + std::to_string(rows.skipped()) + " skipped)" : "") << ".\n";
-
-    const long thresh = std::max(200L, static_cast<long>(0.0005 * static_cast<double>(N)));
-    std::cout << "Sparse threshold: < " << thresh << " activations ("
-              << "max(200, 0.05% of N)).\n\n";
-
-    int zero_traced = 0, sparse_traced = 0, fd_zero = 0, fd_total = 0;
-    // ZERO-activation traced params are the actionable signal for item (d): on a
-    // large dataset, a traced term at 0 is either a structurally-impossible index
-    // (fine) or a trace bug. Sparse-but-nonzero params just fire rarely (freeze /
-    // L2 candidates, not bugs), so they are only counted.
-    std::cout << "LINEARLY-TRACED params with ZERO activation (scrutinise):\n";
-    std::cout << "  group[idx]\n";
-    for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
-        const auto ui = static_cast<std::size_t>(i);
-        int g = group_of[ui];
-        if (fs_is_finite_diff_group(g)) {
-            fd_total++;
-            if (act[ui] == 0) fd_zero++;
-            continue;
-        }
-        if (act[ui] == 0) {
-            zero_traced++;
-            std::printf("  %s[%d]\n", FS_GROUP_NAMES[g], sub_of[ui]);
-        } else if (act[ui] < thresh) {
-            sparse_traced++;
-        }
-    }
-    if (zero_traced == 0)
-        std::cout << "  (none — every linearly-traced term fired at least once)\n";
-
-    std::cout << "\nSparse-but-nonzero traced params (< threshold): " << sparse_traced
-              << " (informational — rare terms; freeze / L2-to-prior in fitting,"
-                 " not bugs).\n";
-    std::cout << "Finite-diff / frozen params (zero linear trace EXPECTED): "
-              << fd_zero << " / " << fd_total << " report zero activation.\n";
-
-    std::cout << "\nVERDICT: ";
-    if (zero_traced == 0) {
-        std::cout << "PASS — every linearly-traced term fires; the only zero-"
-                     "activation params are the finite-diff/frozen funnel knobs "
-                     "(expected). Phase-3 trace-regression item (d) closed.\n";
-    } else {
-        std::cout << "CHECK the " << zero_traced << " zero-activation traced "
-                     "param(s) above — they should be ONLY structurally-impossible "
-                     "indices (piece-type none/king slots like ThreatBy*[0]/[6] and "
-                     "pawn PSTs on ranks 1/8). Any other zero is a "
-                     "trace bug. Run on the FULL train set for a clean verdict (a "
-                     "small holdout under-samples rare terms).\n";
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Sigmoid / loss helpers
@@ -1513,14 +1311,20 @@ static double sigmoid(double score, double K) {
     return 1.0 / (1.0 + std::exp(-K * score / 400.0));
 }
 
-static double default_loss(const TuneSet& set, double K) {
+static double default_loss(const TuneSet& set, const KSchedule& ks) {
     double loss = 0.0;
+    const bool by_phase = ks.is_phase() && !set.phase.empty();
     for (size_t i = 0; i < set.size(); ++i) {
-        double sig = sigmoid(static_cast<double>(set.base_score[i]), K);
+        const double k = by_phase ? ks.at(set.phase[i]) : ks.k_eg;
+        double sig = sigmoid(static_cast<double>(set.base_score[i]), k);
         double diff = static_cast<double>(set.result[i]) - sig;
         loss += diff * diff;
     }
     return loss / static_cast<double>(set.size());
+}
+
+static double default_loss(const TuneSet& set, double K) {
+    return default_loss(set, KSchedule::constant(K));
 }
 
 static double score_from_weights(const TuneSet& set,
@@ -1540,10 +1344,12 @@ static double traced_loss(const TuneSet& set,
                           const std::vector<int>& active,
                           const double* base_w,
                           const double* w,
-                          double K) {
+                          const KSchedule& ks) {
     double loss = 0.0;
+    const bool by_phase = ks.is_phase() && !set.phase.empty();
     for (size_t i = 0; i < set.size(); ++i) {
-        double sig = sigmoid(score_from_weights(set, i, active, base_w, w), K);
+        const double k = by_phase ? ks.at(set.phase[i]) : ks.k_eg;
+        double sig = sigmoid(score_from_weights(set, i, active, base_w, w), k);
         double diff = static_cast<double>(set.result[i]) - sig;
         loss += diff * diff;
     }
@@ -1556,7 +1362,7 @@ static void report_phase_buckets(const TuneSet& set,
                                  const std::vector<int>& active,
                                  const double* base_w,
                                  const double* w,
-                                 double K) {
+                                 const KSchedule& ks) {
     double initial_loss[5] = {0, 0, 0, 0, 0};
     double tuned_loss[5] = {0, 0, 0, 0, 0};
     long   cnt[5]  = {0, 0, 0, 0, 0};
@@ -1567,8 +1373,9 @@ static void report_phase_buckets(const TuneSet& set,
               : (ph >= 8)  ? 2
               : (ph >= 3)  ? 3
                            : 4;
-        double initial_sig = sigmoid(score_from_weights(set, i, active, base_w, base_w), K);
-        double tuned_sig = sigmoid(score_from_weights(set, i, active, base_w, w), K);
+        const double ki = ks.at(ph);
+        double initial_sig = sigmoid(score_from_weights(set, i, active, base_w, base_w), ki);
+        double tuned_sig = sigmoid(score_from_weights(set, i, active, base_w, w), ki);
         double initial_diff = static_cast<double>(set.result[i]) - initial_sig;
         double tuned_diff = static_cast<double>(set.result[i]) - tuned_sig;
         initial_loss[b] += initial_diff * initial_diff;
@@ -1590,17 +1397,22 @@ static void report_phase_buckets(const TuneSet& set,
 }
 
 // ---------------------------------------------------------------------------
-// K calibration (golden-section search on validation set)
+// K calibration (golden-section search and phase-linear fit on validation)
 // ---------------------------------------------------------------------------
 // A K at the edge of its search interval is not a fit: the loss kept falling
 // past the bound, so the scores and the labels disagree in scale.
-static constexpr double K_LO = 0.5, K_HI = 2.5;
+static constexpr double K_LO = 0.3, K_HI = 5.0;
 static void check_K_inside_bounds(double K) {
     if (K < K_LO + 1e-4 || K > K_HI - 1e-4) {
         std::cerr << "FATAL: K = " << K << " is at the bound of [" << K_LO << ", " << K_HI
                   << "]; the scores and the labels disagree in scale.\n";
         std::exit(2);
     }
+}
+
+static void check_K_schedule_inside_bounds(const KSchedule& ks) {
+    check_K_inside_bounds(ks.k_eg);
+    check_K_inside_bounds(ks.k_mg);
 }
 
 static double fit_K(const TuneSet& positions) {
@@ -1621,21 +1433,80 @@ static double fit_K(const TuneSet& positions) {
     return K;
 }
 
+static KSchedule fit_K_phase(const TuneSet& positions) {
+    std::cout << "Fitting linear K(phase) on " << positions.size() << " positions... ";
+    double best_loss = std::numeric_limits<double>::infinity();
+    KSchedule best{2.0, 2.0};
+    constexpr int GRID = 25;
+    for (int i = 0; i < GRID; ++i) {
+        const double keg = K_LO + (K_HI - K_LO) * static_cast<double>(i) / static_cast<double>(GRID - 1);
+        for (int j = 0; j < GRID; ++j) {
+            const double kmg = K_LO + (K_HI - K_LO) * static_cast<double>(j) / static_cast<double>(GRID - 1);
+            const KSchedule cand{keg, kmg};
+            const double loss = default_loss(positions, cand);
+            if (loss < best_loss) {
+                best_loss = loss;
+                best = cand;
+            }
+        }
+    }
+    static constexpr double STEPS[] = {0.2, 0.05, 0.01, 0.002, 0.0005, 0.0001, 0.00002, 0.000005};
+    static constexpr int DIRS[8][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, -1}, {1, -1}, {-1, 1}};
+    for (double step : STEPS) {
+        for (;;) {
+            bool improved = false;
+            for (const auto& dir : DIRS) {
+                const KSchedule cand{
+                    std::clamp(best.k_eg + dir[0] * step, K_LO, K_HI),
+                    std::clamp(best.k_mg + dir[1] * step, K_LO, K_HI)
+                };
+                if (cand.k_eg == best.k_eg && cand.k_mg == best.k_mg)
+                    continue;
+                const double loss = default_loss(positions, cand);
+                if (loss < best_loss - 1e-13) {
+                    best_loss = loss;
+                    best = cand;
+                    improved = true;
+                }
+            }
+            if (!improved)
+                break;
+        }
+    }
+    std::cout << "K_eg = " << best.k_eg << ", K_mg = " << best.k_mg << "\n";
+    check_K_schedule_inside_bounds(best);
+    return best;
+}
+
 static int phase_band(int phase) {
     return (phase >= 20) ? 0 : (phase >= 14) ? 1 : (phase >= 8) ? 2 : (phase >= 3) ? 3 : 4;
 }
 
 // The loss of the played score at the current vector (--init), on a file's
-// used rows after its first --skip rows: K fitted on it unless --K freezes it,
-// then K fitted again in each phase band and the loss at the frozen K, by
-// band. The fit driver fits K once with this on validation at the seed, and
-// reads the residuals of the rows a fit did not use the same way.
-static void cmd_loss(const std::string& path, double frozen_K, long skip, int max_positions) {
+// used rows after its first --skip rows: K fitted on it unless --K or
+// --K-phase freezes it (or --fit-k-phase fits K_eg, K_mg), then K fitted again
+// in each phase band and the loss under the schedule, by band.
+static void cmd_loss(const std::string& path, double frozen_K, const KSchedule& frozen_K_phase,
+                     bool fit_phase_k, long skip, int max_positions) {
     TuneSet set = load_tune_dataset(path, {}, max_positions, skip);
-    const double K = frozen_K > 0.0 ? frozen_K : fit_K(set);
-    if (frozen_K > 0.0)
-        check_K_inside_bounds(K);
-    std::printf("rows: %zu\nK: %.6f\nloss: %.8f\n", set.size(), K, default_loss(set, K));
+    KSchedule ks;
+    if (frozen_K_phase.active()) {
+        ks = frozen_K_phase;
+        check_K_schedule_inside_bounds(ks);
+    } else if (fit_phase_k) {
+        ks = fit_K_phase(set);
+    } else if (frozen_K > 0.0) {
+        check_K_inside_bounds(frozen_K);
+        ks = KSchedule::constant(frozen_K);
+    } else {
+        ks = KSchedule::constant(fit_K(set));
+    }
+    if (frozen_K_phase.active() || fit_phase_k)
+        std::printf("rows: %zu\nK_eg: %.6f\nK_mg: %.6f\nloss: %.8f\n",
+                    set.size(), ks.k_eg, ks.k_mg, default_loss(set, ks));
+    else
+        std::printf("rows: %zu\nK: %.6f\nloss: %.8f\n",
+                    set.size(), ks.k_eg, default_loss(set, ks));
     static const char* names[5] = {"opening", "early_mid", "middlegame", "endgame", "deep_endgame"};
     for (int band = 0; band < 5; ++band) {
         TuneSet part;
@@ -1657,7 +1528,7 @@ static void cmd_loss(const std::string& path, double frozen_K, long skip, int ma
             if (default_loss(part, m1) < default_loss(part, m2)) hi = m2; else lo = m1;
         }
         std::printf("band %s: rows %zu  K %.6f  loss at K %.8f  loss at its own K %.8f\n",
-                    names[band], part.size(), (lo + hi) / 2.0, default_loss(part, K),
+                    names[band], part.size(), (lo + hi) / 2.0, default_loss(part, ks),
                     default_loss(part, (lo + hi) / 2.0));
     }
 }
@@ -1776,14 +1647,19 @@ static void cmd_tune(const TuneOptions& opts) {
     std::cout << "Loaded " << holdout.size() << " holdout positions.\n";
 
     // K is fitted once, on validation at the seed, and frozen across every
-    // stage and arm (--K); fitting it again per run moves the target the
-    // stages are compared on.
-    double K = opts.K;
-    if (K > 0.0) {
-        check_K_inside_bounds(K);
-        std::cout << "K frozen at " << K << ".\n";
+    // stage and arm (--K or --K-phase); fitting it again per run moves the
+    // target the stages are compared on.
+    KSchedule ks;
+    if (opts.K_phase.active()) {
+        ks = opts.K_phase;
+        check_K_schedule_inside_bounds(ks);
+        std::cout << "K frozen at K(phase): K_eg=" << ks.k_eg << ", K_mg=" << ks.k_mg << ".\n";
+    } else if (opts.K > 0.0) {
+        check_K_inside_bounds(opts.K);
+        ks = KSchedule::constant(opts.K);
+        std::cout << "K frozen at " << ks.k_eg << ".\n";
     } else {
-        K = fit_K(holdout);
+        ks = KSchedule::constant(fit_K(holdout));
     }
 
     double base_w[EVAL_PARAM_FLAT_SIZE];
@@ -1801,9 +1677,10 @@ static void cmd_tune(const TuneOptions& opts) {
         std::vector<char> on(EVAL_PARAM_FLAT_SIZE, 0);
         for (int idx : active)
             on[static_cast<size_t>(idx)] = 1;
+        // The tables ordered by one count: mobility and the
+        // passer's rank.
         const int ordered[] = {EPG_MobNMg, EPG_MobNEg, EPG_MobBMg, EPG_MobBEg, EPG_MobRMg, EPG_MobREg,
-                               EPG_MobQMg, EPG_MobQEg, EPG_PassedMg, EPG_PassedEg,
-                               EPG_ConnectedRankMg, EPG_ConnectedRankEg};
+                               EPG_MobQMg, EPG_MobQEg, EPG_PassedRankMg, EPG_PassedRankEg};
         for (int g : ordered) {
             const int base = eval_param_offset(g);
             for (int i = 1; i + 1 < EVAL_PARAM_LENS[g]; ++i) {
@@ -1886,8 +1763,8 @@ static void cmd_tune(const TuneOptions& opts) {
         return opts.l2 * sum;
     };
 
-    double initial_train_loss = traced_loss(train, active, base_w, w, K);
-    double initial_holdout_loss = traced_loss(holdout, active, base_w, w, K);
+    double initial_train_loss = traced_loss(train, active, base_w, w, ks);
+    double initial_holdout_loss = traced_loss(holdout, active, base_w, w, ks);
     std::cout << "Initial train loss  = " << initial_train_loss << "\n";
     std::cout << "Initial holdout loss= " << initial_holdout_loss << "\n";
 
@@ -1907,17 +1784,19 @@ static void cmd_tune(const TuneOptions& opts) {
     std::vector<double> v(active.size(), 0.0);
     int t = 0;
     const double n = static_cast<double>(train.size());
+    const bool by_phase = ks.is_phase() && !train.phase.empty();
 
     for (int epoch = 1; epoch <= opts.epochs; epoch++) {
         auto t0 = std::chrono::steady_clock::now();
         std::fill(grad.begin(), grad.end(), 0.0);
 
         for (size_t i = 0; i < train.size(); ++i) {
+            const double ki = by_phase ? ks.at(train.phase[i]) : ks.k_eg;
             double score = score_from_weights(train, i, active, base_w, w);
-            double sig = sigmoid(score, K);
+            double sig = sigmoid(score, ki);
             double err = static_cast<double>(train.result[i]) - sig;
             double dsig = sig * (1.0 - sig);
-            double coeff = -2.0 * err * dsig * (K / 400.0);
+            double coeff = -2.0 * err * dsig * (ki / 400.0);
 
             for (size_t k = train.offset[i]; k < train.offset[i + 1]; ++k)
                 grad[train.index[k]] += coeff * static_cast<double>(train.value[k]);
@@ -1966,7 +1845,7 @@ static void cmd_tune(const TuneOptions& opts) {
 
         auto t1 = std::chrono::steady_clock::now();
         double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        double holdout_loss = traced_loss(holdout, active, base_w, w, K);
+        double holdout_loss = traced_loss(holdout, active, base_w, w, ks);
         if (holdout_loss < best_holdout) {
             best_holdout = holdout_loss;
             best_epoch = epoch;
@@ -1981,7 +1860,7 @@ static void cmd_tune(const TuneOptions& opts) {
         if (epoch == 1 || epoch % 10 == 0 || epoch == opts.epochs) {
             // The data loss, and the objective the optimiser descends: the
             // data loss plus the penalties when they are on.
-            double train_loss = traced_loss(train, active, base_w, w, K);
+            double train_loss = traced_loss(train, active, base_w, w, ks);
             if (opts.l2 > 0.0 || opts.smooth > 0.0)
                 std::printf("Epoch %4d  train=%.8f  objective=%.8f  holdout=%.8f  %.0f ms\n",
                             epoch, train_loss, train_loss + l2_penalty(w) + smooth_penalty(w),
@@ -2033,7 +1912,7 @@ static void cmd_tune(const TuneOptions& opts) {
                   << " (holdout=" << best_holdout << ").\n";
     }
 
-    report_phase_buckets(holdout, active, base_w, w, K);
+    report_phase_buckets(holdout, active, base_w, w, ks);
 
     for (int i = 0; i < EVAL_PARAM_FLAT_SIZE; ++i) {
         if (!is_active[static_cast<size_t>(i)] && w[i] != base_w[i]) {
@@ -2064,6 +1943,7 @@ static void cmd_tune(const TuneOptions& opts) {
 struct KsSnap {
     Board::PositionSnapshot position;
     Color    stm;
+    uint8_t  phase;
     float    result;
 };
 
@@ -2092,7 +1972,7 @@ static std::vector<KsSnap> ks_load(const std::string& path, int max_positions) {
         const bool ok = model_row(tmp, score, model, &stage);
         counts.add(ok, model, stage, tmp);
         if (!ok || model.status != RowModel::USED) continue;
-        KsSnap s{tmp.snapshot_position(), tmp.turn(), result};
+        KsSnap s{tmp.snapshot_position(), tmp.turn(), static_cast<uint8_t>(g_trace.phase), result};
         out.push_back(s);
         if (max_positions > 0 && static_cast<int>(out.size()) >= max_positions) break;
     }
@@ -2106,17 +1986,17 @@ static std::vector<KsSnap> ks_load(const std::string& path, int max_positions) {
     return out;
 }
 
-static double ks_mse(const std::vector<KsSnap>& pos, double K, Board& scratch, Evaluator& ev) {
+static double ks_mse(const std::vector<KsSnap>& pos, const KSchedule& ks, Board& scratch, Evaluator& ev) {
     double loss = 0.0;
+    const bool by_phase = ks.is_phase();
     for (const auto& s : pos) {
         ks_board_from_snap(scratch, s);
         g_rest = {};
         const int sc = ev.evaluate(scratch);
-        // The played score: where a release build stops at the lazy
-        // checkpoint, the cheap block's value, which no king-safety knob moves.
-        const int white = g_rest.lazy ? damp_white(g_rest.lazy_endgame, scratch.rule50_count())
-                                      : (s.stm == WHITE) ? sc : -sc;
-        double sig = 1.0 / (1.0 + std::exp(-K * static_cast<double>(white) / 400.0));
+        // The traced build serves what a release build serves.
+        const int white = (s.stm == WHITE) ? sc : -sc;
+        const double ki = by_phase ? ks.at(s.phase) : ks.k_eg;
+        double sig = 1.0 / (1.0 + std::exp(-ki * static_cast<double>(white) / 400.0));
         double d = static_cast<double>(s.result) - sig;
         loss += d * d;
     }
@@ -2127,7 +2007,8 @@ static double ks_fit_K(const std::vector<KsSnap>& pos, Board& scratch, Evaluator
     double lo = K_LO, hi = K_HI;
     for (int i = 0; i < 40; ++i) {
         double m1 = lo + (hi - lo) / 3.0, m2 = hi - (hi - lo) / 3.0;
-        if (ks_mse(pos, m1, scratch, ev) < ks_mse(pos, m2, scratch, ev)) hi = m2; else lo = m1;
+        if (ks_mse(pos, KSchedule::constant(m1), scratch, ev)
+            < ks_mse(pos, KSchedule::constant(m2), scratch, ev)) hi = m2; else lo = m1;
     }
     const double K = (lo + hi) / 2.0;
     check_K_inside_bounds(K);
@@ -2143,58 +2024,6 @@ static double ks_fit_K(const std::vector<KsSnap>& pos, Board& scratch, Evaluator
 // registry and reports which instrument reaches it, so that an exclusion has to
 // be a decision someone made rather than an oversight nobody saw.
 // ---------------------------------------------------------------------------
-static const char* const EVAL_GROUP_NAMES[] = {
-#define X(name, member, len) #name,
-    EVAL_PARAM_LIST(X)
-#undef X
-};
-
-static void cmd_audit_coverage() {
-    const int total = EVAL_PARAM_FLAT_SIZE;
-    std::vector<std::string> owner(total);
-
-    auto claim = [&](const std::vector<int>& idx, const char* who) {
-        for (int i : idx) {
-            if (i < 0 || i >= total) continue;
-            const size_t slot = static_cast<size_t>(i);
-            if (!owner[slot].empty()) owner[slot] += "+";
-            owner[slot] += who;
-        }
-    };
-
-    claim(active_indices_for_group("texel"),      "texel");
-    claim(active_indices_for_group("kingsafety"), "kingsafety");
-    std::vector<int> mat; append_material(mat);
-    claim(mat, "material");
-
-    std::printf("Registry: %d fittable parameter slots across %d groups\n\n",
-                total, int(EPG_COUNT));
-
-    std::map<std::string, int> tally;
-    int uncovered = 0;
-    for (size_t i = 0; i < owner.size(); ++i) {
-        if (owner[i].empty()) { ++uncovered; tally["** UNCOVERED **"]++; }
-        else tally[owner[i]]++;
-    }
-
-    std::printf("By instrument:\n");
-    for (const auto& [instrument, count] : tally)
-        std::printf("  %-22s %5d\n", instrument.c_str(), count);
-
-    if (uncovered == 0) {
-        std::printf("\nEVERY parameter is claimed by an instrument.\n");
-        return;
-    }
-
-    std::printf("\n%d UNCOVERED slots, by registry group:\n", uncovered);
-    for (int g = 0; g < int(EPG_COUNT); ++g) {
-        const int base = eval_param_offset(g), len = EVAL_PARAM_LENS[g];
-        int n = 0;
-        for (int i = base; i < base + len; ++i)
-            if (owner[static_cast<size_t>(i)].empty()) ++n;
-        if (n) std::printf("  %-28s %4d of %4d\n", EVAL_GROUP_NAMES[g], n, len);
-    }
-}
 
 static void cmd_tune_kingsafety(int argc, char* argv[]) {
     if (argc < 4) { usage(argv[0]); std::exit(1); }
@@ -2202,6 +2031,7 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     std::string out_path = "tools/texel/out/kingsafety.txt";
     int epochs = 0, max_positions = 0, init_step = 8;
     double frozen_K = 0.0;
+    KSchedule frozen_K_phase;
     int argi = 4;
     if (argi < argc && !is_option(argv[argi])) out_path = argv[argi++];
     while (argi < argc) {
@@ -2210,7 +2040,12 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
         else if (o == "--max-positions" && argi < argc) max_positions = parse_int_arg(argv[argi++], "--max-positions");
         else if (o == "--step" && argi < argc) init_step = parse_int_arg(argv[argi++], "--step");
         else if (o == "--K" && argi < argc) frozen_K = parse_double_arg(argv[argi++], "--K");
+        else if (o == "--K-phase" && argi < argc) frozen_K_phase = parse_k_phase_arg(argv[argi++], "--K-phase");
         else { std::cerr << "Unknown option " << o << "\n"; usage(argv[0]); std::exit(1); }
+    }
+    if (frozen_K > 0.0 && frozen_K_phase.active()) {
+        std::cerr << "--K and --K-phase cannot both be set.\n";
+        std::exit(1);
     }
 
     std::cout << "Loading train from " << train_path << " ...\n";
@@ -2224,27 +2059,25 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     Evaluator& ev = *ev_ptr;
     Board scratch;
 
-    double K = frozen_K;
-    if (K > 0.0) {
-        check_K_inside_bounds(K);
-        std::cout << "K frozen at " << K << ".\n";
+    KSchedule ks;
+    if (frozen_K_phase.active()) {
+        ks = frozen_K_phase;
+        check_K_schedule_inside_bounds(ks);
+        std::cout << "K frozen at K(phase): K_eg=" << ks.k_eg << ", K_mg=" << ks.k_mg << ".\n";
+    } else if (frozen_K > 0.0) {
+        check_K_inside_bounds(frozen_K);
+        ks = KSchedule::constant(frozen_K);
+        std::cout << "K frozen at " << ks.k_eg << ".\n";
     } else {
-        K = ks_fit_K(holdout, scratch, ev);
-        std::cout << "K = " << K << "\n";
+        ks = KSchedule::constant(ks_fit_K(holdout, scratch, ev));
+        std::cout << "K = " << ks.k_eg << "\n";
     }
 
     EvalParams& P = g_eval_params;
-    // The descent keeps the table non-decreasing by clamping each entry
-    // between its neighbours, which holds only if the table starts that way:
-    // on a table that does not, the bounds cross. A linear stage before this
-    // one can leave it so, since it has no monotone projection.
-    for (int i = 1; i < 25; ++i) {
-        if (P.safety_table[i] < P.safety_table[i - 1]) {
-            std::cerr << "FATAL: safety_table[" << i << "] = " << P.safety_table[i]
-                      << " is below safety_table[" << i - 1 << "] = " << P.safety_table[i - 1]
-                      << "; the king-safety stage needs a non-decreasing table.\n";
-            std::exit(2);
-        }
+    (void)P;
+    if (g_surface_path.empty()) {
+        std::cerr << "FATAL: the knobs are the surface manifest's; pass --surface.\n";
+        std::exit(2);
     }
     struct Knob { int* p; const char* name; int sub; int lo; int hi; int table_idx; int step; };
     std::vector<Knob> knobs;
@@ -2261,7 +2094,7 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
         for (size_t i = 0; i < rows.size(); ++i) {
             if (rows[i].stage != "kingsafety")
                 continue;
-            const bool table = std::string(all[i].group) == "SafetyTable";
+            const bool table = false;
             if (table && all[i].sub == 0) {
                 std::cerr << "FATAL: safety_table[0] is the table's anchor and cannot be a knob.\n";
                 std::exit(2);
@@ -2271,16 +2104,7 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
         }
         std::cout << "Surface: " << knobs.size() << " king-safety knobs.\n";
     } else {
-    for (int pt = KNIGHT; pt <= QUEEN; ++pt) add(&P.ks_unit[pt], "ks_unit", pt, 0, 20, -1);
-    add(&P.ks_coord_bonus, "ks_coord_bonus", 0, 0, 20, -1);
-    for (int pt = KNIGHT; pt <= QUEEN; ++pt) add(&P.ks_safe_check[pt], "ks_safe_check", pt, 0, 30, -1);
-    add(&P.ks_weak_ring, "ks_weak_ring", 0, 0, 20, -1);
-    add(&P.ks_king_blockers, "ks_king_blockers", 0, 0, 20, -1);
-    add(&P.ks_central_king, "ks_central_king", 0, 0, 30, -1);
-    add(&P.ks_shelter_storm, "ks_shelter_storm", 0, 0, 20, -1);
-    add(&P.ks_noqueen_num, "ks_noqueen_num", 0, 0, 8, -1);
-    add(&P.ks_noqueen_den, "ks_noqueen_den", 0, 1, 8, -1);
-    for (int i = 2; i < 25; ++i) add(&P.safety_table[i], "safety_table", i, 0, 600, i);
+    (void)add;
     }
     for (const Knob& kn : knobs) {
         if (*kn.p < kn.lo || *kn.p > kn.hi) {
@@ -2293,8 +2117,8 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
     std::vector<int> seed;
     for (auto& kn : knobs) seed.push_back(*kn.p);
 
-    double best = ks_mse(train, K, scratch, ev);
-    double init_holdout = ks_mse(holdout, K, scratch, ev);
+    double best = ks_mse(train, ks, scratch, ev);
+    double init_holdout = ks_mse(holdout, ks, scratch, ev);
     double best_holdout = init_holdout;
     int best_holdout_pass = 0;
     std::vector<int> best_holdout_values = seed;
@@ -2322,21 +2146,17 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
                 int delta = (dir == 0) ? kstep : -kstep;
                 int old = *kn.p;
                 int lo = kn.lo, hi = kn.hi;
-                if (kn.table_idx >= 0) {            // keep safety_table non-decreasing
-                    lo = std::max(kn.lo, P.safety_table[kn.table_idx - 1]);
-                    hi = (kn.table_idx < 24) ? std::min(kn.hi, P.safety_table[kn.table_idx + 1]) : kn.hi;
-                }
                 int trial = std::clamp(old + delta, lo, hi);
                 if (trial == old) continue;
                 *kn.p = trial;
-                double m = ks_mse(train, K, scratch, ev);
+                double m = ks_mse(train, ks, scratch, ev);
                 if (m < best - 1e-12) { best = m; improved = true; knob_improved = true; }
                 else *kn.p = old;
             }
             if (per_knob && !knob_improved)
                 kn.step /= 2;
         }
-        double hold = ks_mse(holdout, K, scratch, ev);
+        double hold = ks_mse(holdout, ks, scratch, ev);
         if (per_knob)
             std::printf("pass %2d  train=%.8f  holdout=%.8f\n", pass, best, hold);
         else
@@ -2353,8 +2173,8 @@ static void cmd_tune_kingsafety(int argc, char* argv[]) {
 
     for (size_t i = 0; i < knobs.size(); ++i)
         *knobs[i].p = best_holdout_values[i];
-    double final_train = ks_mse(train, K, scratch, ev);
-    double final_holdout = ks_mse(holdout, K, scratch, ev);
+    double final_train = ks_mse(train, ks, scratch, ev);
+    double final_holdout = ks_mse(holdout, ks, scratch, ev);
     std::cout << "Restored best holdout pass " << best_holdout_pass
               << " (holdout=" << best_holdout << ").\n";
     std::cout << "\nFinal train MSE = " << final_train << ", holdout MSE = " << final_holdout
@@ -2397,17 +2217,28 @@ int main(int argc, char* argv[]) {
             return 1;
         }
         double K = 0.0;
+        KSchedule K_phase;
+        bool fit_phase_k = false;
         long skip = 0;
         int maxpos = 0;
-        for (int a = 3; a < argc; a += 2) {
-            const std::string o = argv[a];
-            if (a + 1 >= argc) { usage(argv[0]); return 1; }
-            if (o == "--K") K = parse_double_arg(argv[a + 1], "--K");
-            else if (o == "--skip") skip = parse_int_arg(argv[a + 1], "--skip");
-            else if (o == "--max-positions") maxpos = parse_int_arg(argv[a + 1], "--max-positions");
+        for (int a = 3; a < argc;) {
+            const std::string o = argv[a++];
+            if (o == "--fit-k-phase") {
+                fit_phase_k = true;
+                continue;
+            }
+            if (a >= argc) { usage(argv[0]); return 1; }
+            if (o == "--K") K = parse_double_arg(argv[a++], "--K");
+            else if (o == "--K-phase") K_phase = parse_k_phase_arg(argv[a++], "--K-phase");
+            else if (o == "--skip") skip = parse_int_arg(argv[a++], "--skip");
+            else if (o == "--max-positions") maxpos = parse_int_arg(argv[a++], "--max-positions");
             else { usage(argv[0]); return 1; }
         }
-        cmd_loss(argv[2], K, skip, maxpos);
+        if ((K > 0.0) + K_phase.active() + fit_phase_k > 1) {
+            std::cerr << "--K, --K-phase and --fit-k-phase are mutually exclusive.\n";
+            return 1;
+        }
+        cmd_loss(argv[2], K, K_phase, fit_phase_k, skip, maxpos);
     } else if (mode == "--dump-played") {
         if (argc != 4) {
             usage(argv[0]);
@@ -2454,7 +2285,10 @@ int main(int argc, char* argv[]) {
         for (int a = 3; a + 1 < argc; ++a)
             if (std::string(argv[a]) == "--max-positions")
                 maxpos = parse_int_arg(argv[a + 1], "--max-positions");
-        cmd_feature_support(argv[2], maxpos);
+        (void)maxpos;
+        std::cerr << "--feature-support was the retired evaluation's; use "
+                     "test_eval --coverage.\n";
+        return 1;
     } else if (mode == "--tune") {
         TuneOptions opts = parse_tune_options(argc, argv);
         cmd_tune(opts);
@@ -2462,7 +2296,9 @@ int main(int argc, char* argv[]) {
         if (argc < 3) { usage(argv[0]); std::exit(1); }
         cmd_dump_eval(argv[2], argc > 3 ? std::atoi(argv[3]) : 0);
     } else if (mode == "--audit-coverage") {
-        cmd_audit_coverage();
+        std::cerr << "--audit-coverage was the retired evaluation's; the "
+                     "surface manifest classes every slot.\n";
+        return 1;
     } else if (mode == "--tune-kingsafety") {
         cmd_tune_kingsafety(argc, argv);
     } else {

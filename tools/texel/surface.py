@@ -2,7 +2,10 @@
 """The fit's surface: every evaluation slot classed free, fixed or excluded.
 
 The manifest (basilisk-texel-surface-v1, ``tools/texel/surface_v1.tsv``) has one
-row per slot of the tuner's registry, in its order. Each row gives:
+row per slot of the tuner's registry, in its order. The rebuilt evaluation's
+registry (EVAL_REBUILD) has its own, ``tools/texel/surface_rebuild_v1.tsv``,
+under its own rules (``classify_rebuild``); a tuner built on either arm picks
+its manifest by default. Each row gives:
 
 * its class: **free** (a stage fits it), **fixed** (held at its value: dead,
   a gauge anchor, or a duplicate of another slot's feature) or **excluded**
@@ -69,6 +72,9 @@ ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = "basilisk-texel-surface-v1"
 HEADER = ("index", "group", "sub", "seed", "class", "stage", "anchor", "lo", "hi", "step", "reason")
 DEFAULT_MANIFEST = ROOT / "tools" / "texel" / "surface_v1.tsv"
+# The rebuilt evaluation's registry (EVAL_REBUILD) has its own manifest and
+# rules, chosen by the registry the tuner lists.
+REBUILD_MANIFEST = ROOT / "tools" / "texel" / "surface_rebuild_v1.tsv"
 
 PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING = 1, 2, 3, 4, 5, 6
 MOBILITY_GROUPS = [f"Mob{piece}{phase}" for piece in "NBRQ" for phase in ("Mg", "Eg")]
@@ -135,8 +141,129 @@ def registry(tuner: Path, init: Path | None = None) -> list[Row]:
     return rows
 
 
+def is_rebuild(rows: list[Row]) -> bool:
+    """Whether the registry is the rebuilt evaluation's."""
+    return any(row.group == "ImbOurs" for row in rows)
+
+
+def manifest_for(rows: list[Row]) -> Path:
+    return REBUILD_MANIFEST if is_rebuild(rows) else DEFAULT_MANIFEST
+
+
+# ---- The rebuilt evaluation's rules (analysis/c31_rebuild_2026-11-25.md §8) ----
+# Its knobs enter through truncating or squaring arithmetic: the imbalance's
+# sixteenth, the king-danger index's square, the space count's square. Bounds
+# are the descent's; each first step is a tenth of the range.
+RB_KING_DANGER_KNOBS = {
+    "KdWeakRing": (0, 400), "KdUnsafeChecks": (0, 300), "KdBlockers": (0, 200),
+    "KdKingAttacks": (0, 150), "KdFlankAttack": (0, 8), "KdNoQueen": (0, 1800),
+    "KdKnightDefender": (0, 500), "KdShelter": (0, 16), "KdFlankDefence": (0, 40),
+    "KdOffset": (-200, 200),
+}
+RB_IMBALANCE_REACH = 1500  # each coefficient moves at most this far from its seed
+
+
+def rb_connected_cell(sub: int) -> tuple[int, int, int, int]:
+    """(relative rank 1-6, phalanx, opposed, supporters) of a connected-table cell."""
+    support, rest = sub % 3, sub // 3
+    return rest // 4 + 1, (rest % 4) // 2, rest % 2, support
+
+
+def classify_rebuild(rows: list[Row]) -> list[Row]:
+    """The rebuilt registry's rules. Free linear unless a rule says otherwise."""
+    for row in rows:
+        g, s = row.group, row.sub
+        row.reason = "a traced linear term"
+        if g in ("MgVal", "EgVal"):
+            if s in (0, KING):
+                row.fixed("structural zero: no piece type, and the king has no material value")
+            else:
+                row.fixed("gauge anchor: a piece's material and the level of its PST are one "
+                          "direction; the PSTs are free, so material is held")
+        elif g in ("PstMgPawn", "PstEgPawn") and (s < 8 or s >= 56):
+            row.fixed("dead: no pawn stands on the first or the eighth rank")
+        elif g in ("PstMgKing", "PstEgKing"):
+            row.anchor = f"mean:{g}"
+            row.reason = ("a traced linear term; each side's king reads the table once with "
+                          "opposite signs, so the table's level is invisible and its mean is held")
+        elif g in MOBILITY_GROUPS:
+            row.anchor = f"mean:{g}"
+            row.reason = ("a traced linear term; every such piece reads exactly one entry, so the "
+                          "table's level is its piece's PST level and its mean is held")
+        elif g in ("ConnectedMg", "ConnectedEg"):
+            r, phalanx, opposed, support = rb_connected_cell(s)
+            if not phalanx and not support:
+                row.fixed("never read: a pawn with neither a phalanx nor a supporter is not connected")
+            elif r == 1 and support:
+                row.fixed("never read: a pawn on its second rank has no supporter behind it")
+            elif r == 6 and opposed:
+                row.fixed("never read: no pawn opposes one on its seventh rank")
+            else:
+                row.anchor = f"mean:{g}"
+                row.reason = ("a traced linear term; its rarest cells have too little support to "
+                              "fit, so the table's mean is held and they cannot strand it "
+                              "(found by `rank` on corpus A)")
+        elif g == "ShelterStrength":
+            # A king reads one entry per file of its three, at edge distances
+            # {0,1,2}, {1,2,3} or {2,3,3}: moving the distance-0, 1 and 3 blocks
+            # together, or the distance-2 block, moves both kings alike.
+            block = "edge-2" if s // 7 == 2 else "edge-013"
+            row.anchor = f"mean:ShelterStrength/{block}"
+            row.reason = ("a traced linear term; a king's three files read the table's distance "
+                          "blocks so that two shifts of them cancel between the kings, and each "
+                          "one's mean is held (found by `rank` on corpus A)")
+        elif g == "UnblockedStorm":
+            row.anchor = "mean:UnblockedStorm"
+            row.reason = ("a traced linear term; every file reads an unblocked or a blocked storm "
+                          "entry, so their common level cancels between the kings, and this "
+                          "table's mean is held (found by `rank` on corpus A)")
+        elif g in ("PassedRankMg", "PassedRankEg") and s in (0, 7):
+            row.fixed("dead: a pawn's relative rank is never 0 or 7")
+        elif g in ("PassedRankMg", "PassedRankEg") and s == 6:
+            row.fixed("collinear: a pawn on its seventh rank is always passed, so this is the "
+                      "pawn PST's seventh-rank squares moved together")
+        elif g in ("PassedTheirKingEg", "PassedOurKingEg", "PassedOurKingNextEg"):
+            rank = s // 6 + 3
+            if g == "PassedOurKingNextEg" and rank == 6:
+                row.fixed("never read: a seventh-rank passer has no second push")
+            else:
+                row.anchor = f"mean:{g}/{rank}"
+                row.reason = ("a traced linear term; every passer on this rank reads exactly one "
+                              "entry, so the block's level is PassedRankEg's and its mean is held")
+        elif g in ("PassedPathMg", "PassedPathEg") and s // 8 == 3 and s % 8 in (4, 5):
+            row.fixed("never read: on the seventh rank the block square is the queening square, "
+                      "so an attacked queening path attacks the block square")
+        elif g in ("ThreatByMinorMg", "ThreatByMinorEg", "ThreatByRookMg", "ThreatByRookEg") and s == 0:
+            row.fixed("dead: indexed by the threatened piece, never none")
+        elif g in ("BlockedStormMg", "BlockedStormEg") and s in (0, 1):
+            row.fixed("dead: a blocked storm needs our shelter pawn on the rank behind it")
+        elif g == "SafeCheck":
+            if KNIGHT * 2 <= s <= QUEEN * 2 + 1:
+                knob(row, 0, max(2 * row.seed, 100), "a king-danger knob: a safe check's weight")
+            else:
+                row.fixed("never read: only a knight, bishop, rook or queen checks")
+        elif g == "KingAttackWeight":
+            if KNIGHT <= s <= QUEEN:
+                knob(row, 0, 200, "a king-danger knob: an attacker's weight")
+            else:
+                row.fixed("never read: only a knight, bishop, rook or queen attacks the king ring")
+        elif g in RB_KING_DANGER_KNOBS:
+            knob(row, *RB_KING_DANGER_KNOBS[g], "a king-danger knob; the index is squared, so no "
+                                                "linear trace reaches it")
+        elif g in ("ImbOurs", "ImbTheirs"):
+            knob(row, row.seed - RB_IMBALANCE_REACH, row.seed + RB_IMBALANCE_REACH,
+                 "an imbalance knob; the polynomial is truncated to a sixteenth, so no linear "
+                 "trace reaches it")
+        elif g == "SpaceWeight":
+            knob(row, 0, 64, "the space knob; the count is squared and truncated, so no linear "
+                             "trace reaches it")
+    return rows
+
+
 def classify(rows: list[Row]) -> list[Row]:
     """The rules. Each slot is free linear unless a rule below says otherwise."""
+    if is_rebuild(rows):
+        return classify_rebuild(rows)
     for row in rows:
         g, s = row.group, row.sub
         row.reason = "a traced linear term"
@@ -280,6 +407,7 @@ def summary(rows: list[Row]) -> str:
 
 def cmd_build(args) -> int:
     rows = classify(registry(args.tuner))
+    args.out = args.out or manifest_for(rows)
     errors = invariants(rows)
     if errors:
         print("\n".join(errors), file=sys.stderr)
@@ -291,6 +419,7 @@ def cmd_build(args) -> int:
 
 def cmd_check(args) -> int:
     expected = classify(registry(args.tuner))
+    args.manifest = args.manifest or manifest_for(expected)
     actual = read_manifest(args.manifest)
     errors = invariants(actual)
     if len(actual) != len(expected):
@@ -442,6 +571,7 @@ def tuner_step(command: list[str]) -> None:
 
 def cmd_rank(args) -> int:
     import numpy as np
+    args.manifest = args.manifest or manifest_for(registry(args.tuner))
     rows = read_manifest(args.manifest)
     with tempfile.TemporaryDirectory() as tmp:
         counted = Path(tmp) / "support.txt"
@@ -492,7 +622,7 @@ def cmd_rank(args) -> int:
         if errors:
             print("\n".join(errors), file=sys.stderr)
             return 1
-        write_manifest(report.derived, args.out, f"derived from {DEFAULT_MANIFEST.name} on "
+        write_manifest(report.derived, args.out, f"derived from {args.manifest.name} on "
                                                  f"{args.corpus.name}, min support {args.min_support} "
                                                  f"on {support_rows} rows")
         print(f"wrote {args.out}: {summary(report.derived)}")
@@ -519,10 +649,12 @@ def main() -> int:
     for name in ("build", "check", "rank", "check-vector"):
         cmd = commands.add_parser(name)
         cmd.add_argument("--tuner", type=Path, required=True, help="the basilisk-texel binary")
+        # The default manifest is the registry's: surface_v1.tsv, or
+        # surface_rebuild_v1.tsv for the rebuilt evaluation's.
         if name == "build":
-            cmd.add_argument("--out", type=Path, default=DEFAULT_MANIFEST)
+            cmd.add_argument("--out", type=Path)
         if name in ("check", "rank"):
-            cmd.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
+            cmd.add_argument("--manifest", type=Path)
         if name == "rank":
             cmd.add_argument("--corpus", type=Path, required=True)
             cmd.add_argument("--support-positions", type=int, default=0,

@@ -1,0 +1,161 @@
+diff --git a/hybrid/stockfish/src/evaluate.cpp b/hybrid/stockfish/src/evaluate.cpp
+index c57fdd9..687bc35 100644
+--- a/hybrid/stockfish/src/evaluate.cpp
++++ b/hybrid/stockfish/src/evaluate.cpp
+@@ -185,6 +185,7 @@ namespace {
+     template<Color Us> Score space() const;
+     Value winnable(Score score) const;
+     int scale_factor(Color strongSide) const;
++    int general_scale_factor(Color strongSide, int sf) const;
+ 
+     const Position& pos;
+     Eval::Families* fam;            // the transplant's record, or null
+@@ -784,6 +785,17 @@ namespace {
+     Color strongSide = eg > VALUE_DRAW ? WHITE : BLACK;
+     int sf = scale_factor(strongSide);
+ 
++    if (fam)
++    {
++        fam->complexity      = make_score(u, v);
++        fam->adjusted        = make_score(mg, eg);
++        fam->strongSide      = int(strongSide);
++        fam->entryFactor     = int(me->scale_factor(pos, strongSide));
++        fam->scalingAnswered =   me->scalingFunction[strongSide]
++                              && (*me->scalingFunction[strongSide])(pos) != SCALE_FACTOR_NONE;
++        fam->generalFactor   = general_scale_factor(strongSide, SCALE_FACTOR_NORMAL);
++    }
++
+     appliedScale = sf;
+     // A zero endgame score names Black as the strong side whichever colour
+     // the position favours, so its factor is not colour symmetric; it scales
+@@ -817,10 +829,19 @@ namespace {
+   template<Tracing T>
+   int Evaluation<T>::scale_factor(Color strongSide) const {
+ 
+-    int sf = me->scale_factor(pos, strongSide);
++    const int sf = me->scale_factor(pos, strongSide);
+ 
+     // If scale factor is not already specific, scale down via general heuristics
+-    if (sf == SCALE_FACTOR_NORMAL)
++    return sf == SCALE_FACTOR_NORMAL ? general_scale_factor(strongSide, sf) : sf;
++  }
++
++
++  // Evaluation::general_scale_factor() is the general heuristics' factor for
++  // a strong side, from a material entry's factor `sf` that is normal.
++
++  template<Tracing T>
++  int Evaluation<T>::general_scale_factor(Color strongSide, int sf) const {
++
+     {
+         if (pos.opposite_bishops())
+         {
+@@ -963,6 +984,9 @@ make_v:
+     {
+         fam->phase = int(me->game_phase());
+         fam->scaleFactor = appliedScale;
++        fam->psq = pos.psq_score();
++        fam->imbalance = me->imbalance();
++        fam->whiteValue = int(v);
+     }
+ 
+     // In case of tracing add all remaining individual evaluation terms
+@@ -1107,6 +1131,48 @@ std::string Eval::transplant_trace(const Position& pos) {
+   return ss.str();
+ }
+ 
++std::string Eval::reference_trace(const Position& pos) {
++
++  if (pos.checkers())
++      return "reference none (in check)";
++  // The record is the donor's whole evaluation; a masked family would leave
++  // its sum and keep its term.
++  if (Eval::ablationMask)
++      return "reference refused: EvalAblationMask is " + std::to_string(Eval::ablationMask);
++
++  const Score contempt = pos.this_thread()->contempt;
++  pos.this_thread()->contempt = SCORE_ZERO;
++  Families fam;
++  const Value final = evaluate_families(pos, fam);
++  pos.this_thread()->contempt = contempt;
++
++  static const char* const Names[7] = {
++      "space", "mobility", "threats", "king", "pawns", "passed", "pieces" };
++  static const char* const PieceNames[4] = { "knights", "bishops", "rooks", "queens" };
++  auto pair = [](std::stringstream& ss, const char* name, Score s) {
++      ss << " " << name << " " << int(mg_value(s)) << " " << int(eg_value(s));
++  };
++
++  std::stringstream ss;
++  ss << "reference specialised " << int(fam.specialised) << " lazy " << fam.lazyExit;
++  pair(ss, "psq", fam.psq);
++  pair(ss, "imbalance", fam.imbalance);
++  for (int bit = 0; bit < 7; ++bit)
++      pair(ss, Names[bit], fam.term[bit]);
++  for (int i = 0; i < 4; ++i)
++      pair(ss, PieceNames[i], fam.pieceType[i]);
++  pair(ss, "complexity", fam.complexity);
++  pair(ss, "adjusted", fam.adjusted);
++  ss << " ph " << fam.phase << " strong " << fam.strongSide
++     << " entrysf " << fam.entryFactor << " scalefn " << int(fam.scalingAnswered)
++     << " generalsf " << fam.generalFactor << " sf " << fam.scaleFactor
++     << " v " << fam.whiteValue << " final " << int(final)
++     // Whether the material key has a registered scaling function, for
++     // either side: the material entry then returns before the imbalance.
++     << " registered " << int(Endgames::probe<ScaleFactor>(pos.material_key()) != nullptr);
++  return ss.str();
++}
++
+ Value Eval::evaluate(const Position& pos) {
+   if (const int mask = HybridEval::transplant_mask())
+       return transplant_value(pos, mask);
+diff --git a/hybrid/stockfish/src/evaluate.h b/hybrid/stockfish/src/evaluate.h
+index 1764f63..9b65a37 100644
+--- a/hybrid/stockfish/src/evaluate.h
++++ b/hybrid/stockfish/src/evaluate.h
+@@ -51,6 +51,21 @@ struct Families {
+   int   scaleFactorWhite = SCALE_FACTOR_NORMAL;
+   int   scaleFactorBlack = SCALE_FACTOR_NORMAL;
+   bool  specialised  = false;
++  // The reference record (the rebuild's parity instrument): the start's two
++  // parts; winnable()'s complexity adjustment of each half and both halves
++  // after it; the strong side it chose; the material entry's factor for that
++  // side and whether a scaling function gave it; the general heuristics'
++  // factor for that side from a normal entry; and the value winnable()
++  // returned, from White's side, before the grain and the tempo.
++  Score psq             = SCORE_ZERO;
++  Score imbalance       = SCORE_ZERO;
++  Score complexity      = SCORE_ZERO;
++  Score adjusted        = SCORE_ZERO;
++  int   strongSide      = 0;
++  int   entryFactor     = SCALE_FACTOR_NORMAL;
++  bool  scalingAnswered = false;
++  int   generalFactor   = SCALE_FACTOR_NORMAL;
++  int   whiteValue      = 0;
+ };
+ 
+ // The donor's evaluation with its families recorded; returns its value.
+@@ -70,6 +85,11 @@ Value transplant_contribution(const Position& pos, const Families& fam,
+ // units, under the configured transplant (the check of the instrument).
+ std::string transplant_trace(const Position& pos);
+ 
++// One line with the donor's own evaluation in exact integers, contempt zero:
++// the start, every family and piece type, winnable()'s adjustment, phase,
++// strong side and factors, the value before the tempo and the final value.
++std::string reference_trace(const Position& pos);
++
+ std::string trace(const Position& pos);
+ 
+ Value evaluate(const Position& pos);
+diff --git a/hybrid/stockfish/src/uci.cpp b/hybrid/stockfish/src/uci.cpp
+index d9260d4..117422d 100644
+--- a/hybrid/stockfish/src/uci.cpp
++++ b/hybrid/stockfish/src/uci.cpp
+@@ -282,6 +282,7 @@ void UCI::loop(int argc, char* argv[]) {
+       else if (token == "d")        sync_cout << pos << sync_endl;
+       else if (token == "eval")     sync_cout << Eval::trace(pos) << sync_endl;
+       else if (token == "transplant") sync_cout << Eval::transplant_trace(pos) << sync_endl;
++      else if (token == "reference")  sync_cout << Eval::reference_trace(pos) << sync_endl;
+       else if (token == "compiler") sync_cout << compiler_info() << sync_endl;
+       else
+           sync_cout << "Unknown command: " << cmd << sync_endl;

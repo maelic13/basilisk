@@ -75,6 +75,13 @@ FINGERPRINT_ANCHORS = (
     ("docs/DESIGN.md", "Bench signature"),
     ("agents/implementation.md", "currently **"),
 )
+# The changelog states a new fingerprint as "the `bench` fingerprint is now
+# **N**", wrapped anywhere. A release section is "## [x.y.z]"; the section
+# being written is "## [Unreleased]".
+CHANGELOG_FINGERPRINT = re.compile(
+    r"`bench`\s+fingerprint\s+is\s+now\s+\*\*(\d{1,3}(?:,\d{3})+)\*\*"
+)
+CHANGELOG_SECTION = re.compile(r"^## \[([^\]]+)\]", re.M)
 # A title is the step's name in GUIDE's overview, not its description.
 TITLE_MAX = 64
 PHASE_HEADING = re.compile(r"^## (Phase [A-Z]\b.*)$")
@@ -500,6 +507,44 @@ def validate_fingerprint(root: Path) -> str:
     return declared
 
 
+def validate_changelog(root: Path, declared: str) -> None:
+    """[Unreleased] states GUIDE's fingerprint whenever it moved since the last release.
+
+    The newest release section that states a fingerprint is the released one.
+    If GUIDE declares another, a user-visible change has not been written up:
+    [Unreleased] must say the fingerprint is now GUIDE's. Every fingerprint
+    [Unreleased] states must be GUIDE's, so a stale entry fails too.
+    """
+    text = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+    sections = list(CHANGELOG_SECTION.finditer(text))
+    unreleased = None
+    released = None
+    for i, match in enumerate(sections):
+        end = sections[i + 1].start() if i + 1 < len(sections) else len(text)
+        body = text[match.end():end]
+        if match.group(1) == "Unreleased":
+            unreleased = body
+        elif released is None:
+            stated = CHANGELOG_FINGERPRINT.findall(body)
+            if stated:
+                released = stated[0]
+    if unreleased is None:
+        raise ValueError("CHANGELOG.md has no [Unreleased] section")
+    stated = CHANGELOG_FINGERPRINT.findall(unreleased)
+    stale = sorted(set(stated) - {declared})
+    if stale:
+        raise ValueError(
+            f"CHANGELOG.md [Unreleased] states the fingerprint {', '.join(stale)}; "
+            f"GUIDE declares {declared}"
+        )
+    if declared != released and declared not in stated:
+        raise ValueError(
+            f"CHANGELOG.md [Unreleased] does not say the `bench` fingerprint is now "
+            f"**{declared}** (the last release states {released or 'none'}): a change "
+            f"that moves the fingerprint is user-visible and needs its entry"
+        )
+
+
 def validate_reference_manifests(root: Path) -> int:
     """Each docs/reference/<name>.sha256 lists exactly the files of <name>/, unchanged."""
     reference = root / "docs" / "reference"
@@ -736,6 +781,27 @@ def self_test() -> None:
         (root / "docs" / "DESIGN.md").write_text("- **Bench signature**: **7,654,321**\n", encoding="utf-8")
         expect_failure("a stale restated fingerprint", lambda: validate_fingerprint(root))
 
+        # The changelog states a moved fingerprint, wrapped or not, and no other.
+        release = "## [1.0.0] - 2026-01-01\n\nThe `bench` fingerprint is now\n**7,654,321**.\n"
+
+        def changelog(unreleased: str) -> None:
+            (root / "CHANGELOG.md").write_text(
+                "# Changelog\n\n## [Unreleased]\n\n" + unreleased + "\n---\n\n" + release,
+                encoding="utf-8")
+
+        changelog("- A change. The `bench`\n  fingerprint is now **1,234,567**.\n")
+        validate_changelog(root, "1,234,567")
+        changelog("- A change that moves nothing.\n")
+        validate_changelog(root, "7,654,321")
+        expect_failure("a moved fingerprint without its entry",
+                       lambda: validate_changelog(root, "1,234,567"))
+        changelog("- A change. The `bench` fingerprint is now **5,555,555**.\n")
+        expect_failure("a stale fingerprint in [Unreleased]",
+                       lambda: validate_changelog(root, "1,234,567"))
+        (root / "CHANGELOG.md").write_text(release, encoding="utf-8")
+        expect_failure("a changelog without [Unreleased]",
+                       lambda: validate_changelog(root, "7,654,321"))
+
         # A reference snapshot verifies against its manifest, and nothing else does.
         snapshot = root / "docs" / "reference" / "donor"
         snapshot.mkdir(parents=True)
@@ -795,6 +861,7 @@ def main() -> int:
         validate_order(plan)
         validate_register(plan, register_rows(docs / "PLAN.md"))
         fingerprint = validate_fingerprint(root)
+        validate_changelog(root, fingerprint)
         reference_files = validate_reference_manifests(root)
     except ValueError as error:
         print(error, file=sys.stderr)

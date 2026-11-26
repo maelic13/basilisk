@@ -1,7 +1,7 @@
 #pragma once
 
 // Endgame knowledge: the scale factors and known-endgame overrides that
-// apply_endgame() puts on the tapered score (on the lazy path as well as the
+// endgame_layer() puts on the tapered score (on the lazy path as well as the
 // full one), the KPK bitbase, the bare-king drives, the rook-ending scales,
 // the tune-build endgame census, and the mate drive the full block ends with.
 // Part of the evaluator's single translation unit: included by src/eval.cpp
@@ -247,7 +247,7 @@ bool material_is(const MaterialCounts& actual, const MaterialCounts& pattern) {
     return true;
 }
 
-void record_endgame_occurrence(const Board& b, EndgameOccurrenceCounters& out) {
+[[maybe_unused]] void record_endgame_occurrence(const Board& b, EndgameOccurrenceCounters& out) {
     // The largest named family has five non-king pieces. Avoid five popcounts
     // per side on every ordinary middlegame evaluation.
     if (popcount(b.all_pieces()) > 7)
@@ -330,7 +330,7 @@ void record_endgame_occurrence(const Board& b, EndgameOccurrenceCounters& out) {
         } else if (strong[0] == 0 && material_is(weak, BARE)) {
             // Count actual mating material, not Rarog's coarser test: KBK and
             // KNK are dead draws and must not enter KXK. The bishop pair is
-            // tested by SQUARE COLOUR, exactly as apply_endgame's KXK gate
+            // tested by SQUARE COLOUR, exactly as endgame_layer's KXK gate
             // does, because two same-coloured bishops -- reachable by
             // promotion -- also cannot force mate. Queen and rook stay in the
             // family census even though the engine deliberately does not
@@ -502,7 +502,7 @@ static int top_tier_score(const Board& b, Color strong) {
 // relative_square, so the rules below read as if the strong side were White.
 
 // Passed for `c`, tested against the enemy pawns directly rather than the
-// eval_pawns passed[] bitboard: apply_endgame also runs on the LAZY path,
+// pawn entry's passed[] bitboard: endgame_layer also runs on the LAZY path,
 // where that bitboard has never been computed.
 static bool eg_pawn_passed(Color c, Square sq, Bitboard enemy_pawns) {
     const int f = int(file_of(sq));
@@ -689,15 +689,27 @@ int krppkrp_scale_unfloored(const Board& b, Color strong) {
 // Definition lives in eval.h so the Texel tuner uses the identical
 // curve; see the shared-predicates block there.
 
+// What the layer did to its score: left it, scaled it, or replaced it.
+enum EndgameLayerKind : int { LAYER_SILENT, LAYER_SCALED, LAYER_OVERRIDE };
+
 // `draw_verdict` is set when the 0 returned is one of the draw verdicts below
 // (KNNK, the drawn KPK, the wrong-corner KBP-K, a pawnless side that cannot
-// mate): a classification, which the search adds no correction to.
-static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
+// mate): a classification, which the search adds no correction to. `kind`
+// says what the layer did. OcbStep runs the opposite-coloured-bishop scale;
+// the rebuilt evaluation leaves it to the classical form's general factors.
+// On a score of exactly 0 the pawnless step names Black as its strong side
+// whatever the colours. The rebuilt evaluation (ScaleZero false) then runs it
+// only where its scale is the same with either colour as the strong side, so
+// a position and its mirror take the same path; the other steps do not read
+// the score's sign.
+template<bool OcbStep, bool ScaleZero = true>
+static int endgame_layer(const Board& b, int score, bool& draw_verdict, int& kind) {
     auto lone_king = [&](Color c) {
         return b.occupancy_bb(c) == sq_bb(b.king_square(c));
     };
     int total_pawns = popcount(b.piece_bb(WHITE, PAWN) | b.piece_bb(BLACK, PAWN));
     bool scaled = false;
+    kind = LAYER_SILENT;
     TR_ENDGAME_STEP(EG_UNCHANGED, 1, 1);
 
     // ---- Step 3.10 guard: the known-endgame rules (KNNK / KPK / KBNK / KBP /
@@ -726,6 +738,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
         if (is_knnk_draw(b)) {
             draw_verdict = true;
             TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
+            kind = LAYER_OVERRIDE;
             return 0;
         }
 
@@ -738,6 +751,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
             Color strong = cnt[WHITE][PAWN] ? WHITE : BLACK;
             if (lone_king(~strong)) {
                 TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
+            kind = LAYER_OVERRIDE;
                 if (!kpk_strong_wins(b, strong)) {
                     draw_verdict = true;
                     return 0; // drawn KPK
@@ -760,6 +774,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
             if (!lone_king(weak) || (!cnt[strong][QUEEN] && !cnt[strong][ROOK]))
                 continue;
             TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
+            kind = LAYER_OVERRIDE;
             const int above = top_tier_score(b, strong);
             const int v = cnt[strong][QUEEN]
                 ? BARE_KING_QUEEN_TIER + std::min(above, BARE_KING_CAP - BARE_KING_QUEEN_TIER)
@@ -771,6 +786,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
         // bonus, and stay under the rook tier.
         auto minor_tier = [&](int drive_score, Color strong) {
             TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
+            kind = LAYER_OVERRIDE;
             const int v = std::min(std::abs(drive_score) + cnt[strong][PAWN] * BARE_KING_PAWN_STEP,
                                    BARE_KING_ROOK_TIER - 1);
             return (strong == WHITE) ? v : -v;
@@ -821,6 +837,7 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
             if (KING_DIST[b.king_square(weak)][promo] <= 1) {
                 draw_verdict = true;
                 TR_ENDGAME_STEP(EG_OVERRIDE, 0, 1);
+            kind = LAYER_OVERRIDE;
                 return 0; // defender holds the wrong-corner draw
             }
         }
@@ -835,13 +852,14 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
         // other often can (its pawn runs): the tables call 2.6% to 7.9% of such
         // positions wins for it, and a verdict would take the search's
         // correction away from them. The score stays 0, an estimate.
-        {
+        if (ScaleZero || score != 0 || pawnless_scale(b, WHITE) == pawnless_scale(b, BLACK)) {
             const Color strong = (score > 0) ? WHITE : BLACK;
             const int scale = pawnless_scale(b, strong);
             if (scale != SCALE_NORMAL) {
                 score = score * scale / SCALE_NORMAL;
                 scaled = true;
                 TR_ENDGAME_STEP(EG_SCALED, scale, SCALE_NORMAL);
+                kind = LAYER_SCALED;
                 draw_verdict = scale == 0 && !b.piece_bb(~strong, PAWN);
             }
         }
@@ -863,27 +881,28 @@ static int apply_endgame(const Board& b, int score, bool& draw_verdict) {
                 score = score * scale / SCALE_NORMAL;
                 scaled = true;
                 TR_ENDGAME_STEP(EG_SCALED, scale, SCALE_NORMAL);
+                kind = LAYER_SCALED;
             }
         }
     }
 
     // Opposite-coloured bishops: draw-scale toward 32/48, relaxed to at most
     // neutral by pawn count (capped -- see ocb_draw_scale in eval.h).
-    if (!scaled && is_opposite_coloured_bishops(b)) {   // predicate shared with the tuner
+    if (OcbStep && !scaled && is_opposite_coloured_bishops(b)) {   // predicate shared with the tuner
         score = score * ocb_draw_scale(total_pawns) / 48;
         TR_ENDGAME_STEP(EG_SCALED, ocb_draw_scale(total_pawns), 48);
+        kind = LAYER_SCALED;
     }
 
     return score;
 }
 
-// The mate drive reads the running sum after every family and before the
-// tempo; what it returns is added to the endgame half.
-static EvalScore mate_drive(const Board& b, const EvalScore& sum, int phase) {
-    int mg = 0, eg = 0;
+// The mate drive's endgame addition for a White-view score in centipawns,
+// at the piece-count phase; 0 where its gate is shut.
+static int mate_drive_eg(const Board& b, int score_approx, int phase) {
+    int eg = 0;
     // ---- Endgame mate-drive (frozen) ---------------------------------------
     if (phase <= 6) {
-        int score_approx = taper(sum, phase);
         if (std::abs(score_approx) > 200) {
             Color winning = (score_approx > 0) ? WHITE : BLACK;
             Color losing  = ~winning;
@@ -893,7 +912,7 @@ static EvalScore mate_drive(const Board& b, const EvalScore& sum, int phase) {
             // hce_analysis 7). Fire only when the defender has no pawns AND
             // the attacker holds material that can force mate against a lone
             // king (Q, R, bishop pair, or B+N). KBNK/KNNK stay handled by
-            // apply_endgame's overrides, so this gate never touches them.
+            // endgame_layer's overrides, so this gate never touches them.
             const bool losing_pawnless = b.piece_bb(losing, PAWN) == 0;
             const bool win_can_mate =
                    b.piece_bb(winning, QUEEN) != 0
@@ -908,10 +927,9 @@ static EvalScore mate_drive(const Board& b, const EvalScore& sum, int phase) {
                               + std::max(3 - rank_of(lksq), rank_of(lksq) - 4);
                 int king_dist = KING_DIST[wksq][lksq];
                 eg += sign * (5 * lk_center + (14 - king_dist) * 4);
-                TR_REST_EG(MATE_DRIVE, sign * (5 * lk_center + (14 - king_dist) * 4));
                 // Frozen: not traced; captured in rest by the tuner.
                 // Bare-king positions do not reach this -- they are
-                // overridden by kxk_score in apply_endgame. What is left here
+                // overridden by kxk_score in endgame_layer. What is left here
                 // is the case the gate's comment does not describe: the
                 // defender is PAWNLESS but still has material (KQ-KR and
                 // friends). That is a heuristic, not a forced mate, so a
@@ -921,5 +939,5 @@ static EvalScore mate_drive(const Board& b, const EvalScore& sum, int phase) {
             }
         }
     }
-    return {mg, eg};
+    return eg;
 }

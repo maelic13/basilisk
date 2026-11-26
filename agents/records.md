@@ -27,7 +27,9 @@ fingerprint, platforms).
   gets its entry in the commit that records it, in plain language with its
   deciding result. User-visible means playing strength, UCI options or
   output, defaults, the bench fingerprint, or supported platforms. Tooling
-  and documentation changes get no entry. A release's section opens with a
+  and documentation changes get no entry. A moved fingerprint is stated as
+  "the `bench` fingerprint is now **N**"; `check_roadmap.py` fails while
+  `[Unreleased]` lacks GUIDE's or states another. A release's section opens with a
   short summary and a `### Highlights` list of the basics, which are all
   the release page shows; the page links the full section.
 - A leaf's first line is its identifier, capability tag and a short title, at

@@ -63,9 +63,9 @@ before registering an experiment or closing a leaf that ran one.
 
 - Donor engines teach mechanisms, contracts, dependencies, failure modes and
   methods. The donors are modern Stockfish (search, TT, histories, time,
-  threads, later NNUE runtime), classical Stockfish (`sf_16`'s evaluation
-  families and seed values, `9587eeeb`'s as the second column and as the
-  oracle) and Triumviratus (measured priors on a
+  threads, later NNUE runtime), classical Stockfish (`9587eeeb`'s evaluation,
+  the reference of the whole rebuild and the oracle; `sf_16`'s as a
+  second column) and Triumviratus (measured priors on a
   Stockfish-19-shaped search, board, time, NNUE and measurement), read only
   at its pinned commits (`docs/reference/README.md`) and mapped to leaves by
   `analysis/triumviratus_review_2026-11-03.md`. Its verdicts are priors. Rarog is a sibling whose *method* this

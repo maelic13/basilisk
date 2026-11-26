@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Bake a Texel tuner weight dump back into src/eval_params.h.
+Bake a Texel tuner weight dump back into src/eval_rb_params.h.
 
 The tuner (`basilisk-texel --tune <group> ... <out.txt>`) writes a full weight
 dump, one line per scalar:
@@ -21,7 +21,7 @@ initializers span many lines and need the dedicated path; for now no Phase-4
 stage before 4.7 touches them.
 
 Usage:
-    python tools/texel/bake.py <dump.txt> [--header src/eval_params.h] [--dry-run]
+    python tools/texel/bake.py <dump.txt> [--header src/eval_rb_params.h] [--dry-run]
 """
 import argparse
 import re
@@ -184,6 +184,47 @@ def vector_hash(vector):
     return f"{h:016x}"
 
 
+def dump_root_and_seed(dump_text):
+    """Extract (# root, # seed) provenance hashes from a vector dump."""
+    root = None
+    seed = None
+    for line in dump_text.splitlines():
+        if line.startswith("# root "):
+            root = line.split()[2]
+        elif line.startswith("# seed "):
+            seed = line.split()[2]
+    return root, seed
+
+
+def format_vector(vector, root, seed=None):
+    """Format a complete basilisk-texel-vector-v1 file."""
+    lines = [f"# {VECTOR_SCHEMA}", f"# root {root}"]
+    if seed:
+        lines.append(f"# seed {seed}")
+    lines += [f"{name} {index} {value}" for name, index, value in vector]
+    return "\n".join(lines) + "\n"
+
+
+def relevel_material(vector):
+    """Fold each piece PST's live-square mean into MgVal/EgVal without changing served eval."""
+    by_name = {}
+    for name, index, value in vector:
+        by_name.setdefault(name, {})[index] = value
+    slots = {name: [d[i] for i in range(len(d))] for name, d in by_name.items()}
+    shifts = {}
+    for phase, pst_prefix in (("Mg", "PstMg"), ("Eg", "PstEg")):
+        mat = slots[f"{phase}Val"]
+        for pt, piece in ((1, "Pawn"), (2, "Knight"), (3, "Bishop"), (4, "Rook"), (5, "Queen")):
+            pst = slots[f"{pst_prefix}{piece}"]
+            live = range(8, 56) if pt == 1 else range(64)
+            shift = round(sum(pst[sq] for sq in live) / len(live))
+            mat[pt] += shift
+            for sq in live:
+                pst[sq] -= shift
+            shifts[f"{phase}{piece}"] = shift
+    return [(name, index, slots[name][index]) for name, index, _ in vector], shifts
+
+
 def check_dump(dump_text, params, header_text):
     """The provenance checks: the dump is a tuner vector, says every slot of
     the header's registry and nothing else, and was fitted from this header
@@ -228,10 +269,14 @@ def check_dump(dump_text, params, header_text):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dump")
-    ap.add_argument("--header", default="src/eval_params.h")
+    ap.add_argument("--header", default="src/eval_rb_params.h")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--allow-pst", action="store_true",
                     help="permit rewriting the 2-D PST initializers (pst_mg/pst_eg)")
+    ap.add_argument("--relevel-material", action="store_true",
+                    help="fold each piece PST's live-square mean into MgVal/EgVal before baking")
+    ap.add_argument("--write-vector",
+                    help="write the vector (after --relevel-material if set) to this file")
     args = ap.parse_args()
 
     header_path = Path(args.header)
@@ -243,6 +288,18 @@ def main():
         print("\n".join(f"  {e}" for e in errors), file=sys.stderr)
         sys.exit(f"Refusing to bake {args.dump}.")
     dump = parse_dump(dump_text)
+    if args.relevel_material:
+        flat = [(name, idx, val) for name, _, length in params for idx, val in enumerate(dump[name])]
+        releveled, shifts = relevel_material(flat)
+        dump = {}
+        for name, idx, val in releveled:
+            dump.setdefault(name, []).append(val)
+        print("Material re-level shifts:", ", ".join(f"{k}={v:+d}" for k, v in shifts.items()))
+    if args.write_vector:
+        root, seed = dump_root_and_seed(dump_text)
+        flat = [(name, idx, val) for name, _, _ in params for idx, val in enumerate(dump[name])]
+        Path(args.write_vector).write_text(format_vector(flat, root, seed), encoding="utf-8", newline="\n")
+        print(f"Wrote vector {args.write_vector}.")
 
     changed = []          # (member, old, new) for scalar/1-D
     skipped_unchanged = 0

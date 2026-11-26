@@ -53,6 +53,8 @@ stages (maintainer decision 2026-09-28: Rarog's targets):
        can.
      - The meter is the gap to it, read head to head and in the field. At
        B.11.1's head that gap is 202, and −193 head to head.
+       After C.2.8's refit it is −120.0 head to head (BAS-M24); after
+       C.3.5's rebuild flip it is −39.8 head to head (BAS-M27).
 2. **NNUE stage.** Train networks on Basilisk's own data only, then reach the
    **CCRL top 100**, and later the top 50.
 
@@ -144,7 +146,7 @@ miss and this table is corrected rather than defended.
   the order is re-decided from games (C.2.10), each donor form is checked
   against a donor fixture, Basilisk's own terms stay where they add
   information, and the residual is investigated before the closing fits
-  (C.8.1).
+  (C.5.1).
 
 ## 2. Operating rules
 
@@ -432,8 +434,8 @@ their leaves or are carried below; B.9.4 read each one before the release.
 
 | Owner | Defects |
 |---|---|
-| C.4, C.5, C.6 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
-| C.7 | B.9.3's V3 KRP-KR's draw rules, V4 the KRPP-KRP table, V6 the pawnless scales 4 and 14 (C.7.5); V5 KBN-K's known win, kept with a retry trigger (C.7.6); decided 2026-11-16, known limitations for 1.11.0 |
+| C.3 | C-10 outpost ranks; C-11 a rear doubled passer scored as a passer; C-12 "opposed" read over the whole file; C-13 own-colour king blockers only |
+| C.4 | B.9.3's V3 KRP-KR's draw rules, V4 the KRPP-KRP table, V6 the pawnless scales 4 and 14 (C.4.5); V5 KBN-K's known win, kept with a retry trigger (C.4.6); decided 2026-11-16, known limitations for 1.11.0 |
 | D.1 | A-47 the fail-high stop's hole: a window that never returns is never checked (`analysis/b5_failhigh_stop_2026-10-25.md` §2.3); A-46 reserve arithmetic; A-45 no sub-second horizon (both kept by B.9.4) |
 | D.3 | A-59 the tablebase root's DTZ ranking; A-57 cold root reads on the clock, a known limitation (both kept by B.9.4) |
 | D.2 | BAS-C05 the TT key and payload published separately; A-46's join before `bestmove` and DRIVER-15, a join behind a table read, a known limitation (kept by B.9.4) |
@@ -564,11 +566,21 @@ search the head's evaluation is 215.7 behind that engine's evaluation
 (BAS-O08, BAS-O09). So the gap to the target is about the size of the
 evaluation deficit, and this phase is where it closes or does not. The
 search stays frozen at the B.11.1 head.
+Since C.2.8's refit the head is 120.0 behind head to head (BAS-M24), and
+its evaluation is 146.2 behind `9587eeeb`'s in one search (BAS-O14).
 
 How the phase is built for it:
+- **Whole, since 2026-11-25** (maintainer, after C.2.10). The evaluation
+  is rebuilt as one unit in the donor's form (C.3). That replaces the
+  family order below, and the union becomes its second step: a Basilisk
+  term returns beside the donor's only on its own read. C.3.1's
+  transplant read first asked whether two families are enough. It
+  could not answer: its control failed (BAS-O15).
 - **By where the deficit is.** Two thirds of it is realised on the full
   board (C.0), so the full-board families go first, and the order is
   decided again from games before the first family opens (C.2.10).
+  The games moved it (2026-11-25): the passers and the king hold the
+  deficit, so pawns and passers go first and mobility and space last.
 - **The union, not a replacement.** A donor form is built where it carries
   information Basilisk's whole score lacks, and a Basilisk term stays
   where it carries information the donor's whole score lacks. Statically
@@ -583,11 +595,12 @@ How the phase is built for it:
   remainder.
 - **The phase ends on its meters, not on its list.** The frontier pair is
   read after every accepted cluster, and the residual is investigated
-  before the closing fits (C.8.1).
+  before the closing fits (C.5.1).
 
 The expectation is lower than the goal and is stated in §1's budget: 80
-to 140 from the listed clusters, against about 195 needed. C.2.10 and the
-first family's gate say early whether the phase is on course.
+to 140 from the listed clusters, against about 195 needed, and about 120
+since C.2.8's refit (BAS-M24). C.2.10 and the first family's gate say
+early whether the phase is on course.
 
 **Why classical Stockfish `9587eeeb`.** It is the last classical Stockfish
 master, the evaluator Basilisk's oracle measured (BAS-O02), and the reference
@@ -624,6 +637,13 @@ host: `sf_16`'s read −3.7 [−10.9, +3.5] in its own search and −1.6
 [−9.4, +6.1] in `9587eeeb`'s, so the comparison does not say otherwise
 (BAS-O09). The oracle's own evaluation, `9587eeeb`'s, stays a valid
 stand-in for the donor's in the meter.
+
+**Reference for the rebuild, 2026-11-25 (maintainer): `9587eeeb`'s
+evaluation.** For a whole port the choice reopened. `sf_16`'s classical
+evaluation reads the search's root score in its lazy cut and has no
+tempo; `9587eeeb`'s is a function of the position and the one the
+meters measured; the two play level (BAS-O09). `sf_16`'s added terms
+are candidates for the residual work (`analysis/c31_rebuild_2026-11-25.md` §4).
 
 **The question C.0 must answer first.** BAS-E07 concluded that the 232.8-Elo
 gap is the *values* of features Basilisk already has, that the six terms it
@@ -730,7 +750,8 @@ has lost games in both engines (BAS-X02).
     grows the tree (C-72); static and game results disagree both ways (C-101);
     the frozen-search prior was refuted (C-100).
   - Priors: material, imbalance and piece rows carried no signal in Rarog, so
-    screen before C.6 builds its list (C-118); space has no owner (C-119);
+    screen before the material cluster builds its list (C-118); space has
+    no owner (C-119);
     zero-weight groups (C-120); transient material in quiet rows (C-77);
     remaining game length (C-78); Rarog's Phase C budget, about +105 from
     units and +42 from speed with the remainder in search-visited positions
@@ -840,7 +861,7 @@ has lost games in both engines (BAS-X02).
   - The later clusters gate against the post-C.1 head, so the cost is paid
     once and hides no later read.
   - C.12 recovers it against the pre-C.1 base.
-- [ ] **C.2** Fit pipeline, corpus, labels and gate instruments
+- [x] **C.2** Fit pipeline, corpus, labels and gate instruments
   Fit pipeline, corpus and label contract (archived 8.1–8.8), and since
   2026-11-11 the endgame instruments (C.2.7, which was C.7.1): PLAN §3
   gives every evaluation gate its endgame truth vetoes, so the
@@ -1759,8 +1780,8 @@ has lost games in both engines (BAS-X02).
               labels' own share was 1.3e-6 of a 2.0e-5 difference.
             - BAS-O13's predictions stand. `bench 13` and the condition
               are restated after run 1.
-            - Findings for C.3 and C.6 are in their entries (the
-              registration's §6.7).
+            - Findings for the mobility cluster and the material
+              cluster are in their entries (the registration's §6.7).
             - Next: the tool change to C.2.8.2's driver (§6.5) with its
               dry run on corpus A, then run 2.
           - **The tool change, 2026-11-23** (`9570c36`; §6.5, tools only,
@@ -1815,10 +1836,12 @@ has lost games in both engines (BAS-X02).
               `test_search` and `--verify`. Bench 3,359,329.
             - The review found the fit sound. Three fitted-constant
               findings go to their owners:
-              - `Trapped*` on its 0 clamp: C.6, C-48;
-              - the three threat terms collapsed to 57: C.3;
-              - `QueenInfiltrationEg` at 186: C.6, and first in line if
-                the refit is retried.
+              - `Trapped*` on its 0 clamp: the material and pieces
+                cluster (C.5 since 2026-11-25), C-48;
+              - the three threat terms collapsed to 57: the mobility
+                and threats cluster (C.6 since 2026-11-25);
+              - `QueenInfiltrationEg` at 186: the material and pieces
+                cluster, and first in line if the refit is retried.
             - Baked as `cbc3676`, then reverted as `7f92ec9` while
               C.2.8.4's veto is ruled on (below), and restored on its
               acceptance (`92a4c1a`).
@@ -1939,7 +1962,7 @@ has lost games in both engines (BAS-X02).
             the arms with that family's bit set on both.
         - Not exercised: `build_test.ps1 -Flavor Ablate`, whose PGO build
           C.2.10 does not need; the meter runs in the oracle.
-    - [ ] **C.2.10** `[R3]` Family order from games and screens
+    - [x] **C.2.10** `[R3]` Family order from games and screens
       Added 2026-11-18 (maintainer, after C.0): the decision point before
       the first family. On the refitted head it registers, prepares and
       reads:
@@ -2012,144 +2035,86 @@ has lost games in both engines (BAS-X02).
       - Amendment 1, before any game: the screen breaks a tie only when
         both samples agree, and C-110's static half needs both. On C.3
         against C.4 they disagree, so a tie in games keeps C.3 first.
-- [ ] **C.3** Mobility, space and threats cluster
-  The first family (maintainer, 2026-11-18, on C.0's evidence; C.2.10
-  confirms the order from games). The donor's space, which Basilisk does
-  not have in any working form; the mobility area with x-rays and the pin
-  line; and of the threat terms (weak enemies, hanging pieces, restricted
-  squares, pawn-push threats, and BAS-E07's absent `KnightOnQueen` and
-  `SliderOnQueen`) those their own screen supports. Shared attack maps
-  from C.1; refit; gate.
-  It was C.4, "Threats and mobility", until 2026-11-18. Space had no owner
-  (C-119); C.0 placed it here.
-  Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
-  are its items):
-  - SliderOnQueen is missing; screen KnightOnQueen before building it (nil in
-    Rarog); ungated forms were worse than none (C-114); mobility priors
-    (C-115); the dead `hang_pen` loop (C-37; A.16 removed it).
-  - Code audit 2026-10-27 (§6.3): the safe-pawn threat is a flat 58/25
-    whatever the target and counts pawns that are themselves unsafe
-    (`eval.cpp:1403-1426`), overlapping hanging, restricted and
-    weak-queen on the same target.
-  C.0 inputs (2026-11-18, its packet §7.2 and §8.2): C.0 places space
-  here (C-119, E8). At phase 18–24, where 68 to 69% of the same-search
-  deficit is realised, the donor's space adds 47.0 and its mobility 29.6
-  to Basilisk's whole score; the threat rows add 4.4 or less, so a
-  threat term is built only if its own screen excludes zero.
-  C.2.8 inputs (2026-11-23, the fit registration's Amendment 1, its §6.2
-  and §6.7):
-  - Queen mobility 1 is what a queen on its home square counts before its
-    own pawns move: the mobility area leaves out the king and the low
-    pawns (`src/eval_attacks.h`). Corpus A starts at book exits, so it
-    holds 10 rows at count 0 and 224 to 278 at count 1, mostly trapped
-    queens.
-  - A free fit puts both entries on the tuner's −200 clamp (BAS-O12,
-    every arm). That is about 230 cp for the first pawn move from the
-    starting position (inference, not measured).
-  - C.2.8's fit holds count 0 at the seed, and the tuner's monotone chain
-    then stops count 1 at it. C.3.1 settles the two entries: a prior, a
-    merged low-count entry, or rows that reach them.
-  C.2.10 inputs (2026-11-24, BAS-E62's control):
-  - On C.0's gate-game rows (UHO, `3+0.03`) the donor's space adds 40.4
-    [32.7, 49.1] to the refitted head's score at phase 18–24, and its
-    mobility 13.4 [9.7, 17.4]. Before the refit they read 50.8 and 29.6.
-  - On corpus A's validation rows the same reads are 3.4 and 2.1, and
-    5.7 and 7.1 on the header before the refit. Corpus A is self-play at
-    8,000 nodes from a phase-balanced start pool.
-  - So a space term fitted on corpus A alone may be fitted to nothing.
-    C.3.1 decides which rows the cluster's refit reads before any value
-    is fitted, and separates the two candidate causes: the starts and
-    the search depth.
-    - [ ] **C.3.1** `[R3]` Cluster research and handoff
-      Stages 1 to 3 of the cluster shape, from C.0's contract (its packet
-      §8.2) and C.2.10's order. It answers C.0's three competing readings
-      first: whether space still reads once the tables are refitted in
-      their right orientation, whether the gain is the unbalanced book's,
-      and whether mobility's gain is the area's values or the x-rays. It
-      ends in a frozen handoff, or a `NO_CHANGE`, for each term.
-    - [ ] **C.3.2** `[I2]` Implementation behind the switch
-      Stage 4: the handoff's terms behind one umbrella switch, the off
-      arm at the accepted fingerprint at every commit, the donor fixture,
-      the trace slots, and the new shared inputs in C.1's producer.
-    - [ ] **C.3.3** `[R2]` Independent review
-      A separate session rebuilds both arms, reproduces the fingerprints
-      and the donor fixture, and checks the code against the handoff
-      clause by clause. Its acceptance is recorded before the refit.
-    - [ ] **C.3.4** `[V]` Whole-surface refit
-      Stage 5: the directional screen, the anchored fit, the
-      fitted-constant analysis, the bake and the PGO builds; the lazy
-      margin block (C-98); the gate prepared and dry-run.
-    - [ ] **C.3.5** `[V]` Gate, frontier pair and close
-      Stages 6 to 8: the maintainer-run SPRT with its `10+0.1` and NPS
-      reads (C-99), an equal-node companion if an equal-time gate fails
-      (C-95), then the frontier pair, the flip and the ledger rows. Under
-      +10 here, the static screen is not a ranking instrument and
-      C.2.10's order is read again (C.0's packet §7.3).
-- [ ] **C.4** `[I2]` King safety, phase and tempo cluster
-  King safety cluster in the donor's shape: attacker units and weights, safe
-  and unsafe checks by piece, weak ring squares, flank attack and defence,
-  shelter and storm with the castling alternative, the queenless reduction and
-  the nonlinear danger map; refit; gate.
-  Opens as sub-steps (research, implementation, review, refit, gate), as
-  C.3 has, when C.3 closes; the same holds for C.5 and C.6.
-  It was C.3 until 2026-11-18, when the mobility and space cluster moved
-  ahead of it.
-  The phase and tempo join it (from C.7, 2026-11-05): E2's phase and E5's
-  tempo change together with E1's eg king danger, never one at a time, and
-  before the other families, so that each later refit reads the final
-  phase. Since 2026-11-18 the mobility and space cluster precedes it:
-  the donor's space is gated by material, not by the phase, and the one
-  refit the phase then costs that cluster is run anyway (C.0's packet
-  §7.3).
-  Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
-  are its items):
-  - Definitions: king blockers of either colour (C-13, `eval.cpp:1278-1280`);
-    the donor's safe and unsafe checks, check presence, the weak ring and the
-    ring and zone shapes (C-14); storm without blocked pawns and the king-file
-    sign (C-15).
-  - Priors: the danger map carries the king residual and shelter and storm
-    about 20%, while flank attack and defence, king-pawn distance and the
-    pawnless flank were nil in Rarog (C-111); Rarog's open E.4: the remaining
-    lead is the index's structure, since refitting its coefficients from donor
-    seeds failed (RAR-E73); zero-fitted inputs are a resolution limit (C-17);
-    the clamp is live (C-113); a donor fixture (C-112).
-  - Guards: shelter in the pawn cache needs the king square and castling in
-    the key (C-43); a won KRP-KR static guard before any endgame danger term
-    (C-44).
-  Code audit inputs (2026-10-27 second pass, §6.3):
-  - E1: king danger is middlegame-only (`eval.cpp:1594`, `mg -=
-    safety_table[units]`; the donor also subtracts `kingDanger/16` from
-    eg) and lacks the donor's inputs: the mobility difference, the
-    knight-defender relief, `kingAttacksCount`, pawns attacking the
-    ring, the shelter coupling and the attacker-count × weight product.
-    Bishop and queen attacker units are fitted 0 (C-111). Double
-    counting: the open-file count enters the danger units
-    (`:1576-1582`) on the files `shelter_missing_*` already penalises
-    (`:1615-1627`), and the king-ring bonuses fire beside the attack
-    units where the donor's `else if` keeps them exclusive. Measure
-    first: the donor-direction residual screen on these inputs by phase
-    and king danger's firing share at phase ≤ 12; the lead is index
-    structure (RAR-E73).
-  - E2's phase: pieces count N = B = 1, R = 2, Q = 4 of 24 against the
-    donor's npm between its endgame and middlegame limits; changed with
-    the eg king danger here, never alone, and with tempo (E5: tempo is
-    mg-only, 22, so it tapers to 0 in pawn endings and is scaled with
-    the score, where the donor adds a constant 28 after scaling; the
-    lazy path omits it, C-6).
-  Rarog sweep input (2026-11-04, `analysis/rarog_sweep_2026-11-04.md`;
-  Rarog E.4's first step, EVAL-3):
-  - In the donor's king-danger inputs bishops see through queens, rooks
-    through queens and own rooks, and a pinned piece's attacks are cut to
-    the king line (`sf9587-ks` `evaluate.cpp`); Basilisk's maps are plain
-    occupancy (`eval.cpp`, `all_pieces()`). C-115's x-ray nil was
-    mobility's alone. Rarog's C.3 fixture came from a donor patched to
-    plain maps, so a donor fixture here is taken from the unpatched donor.
-  C.0 inputs (2026-11-18, its packet §7.2, §7.3 and §8.2): the donor's
-  king row adds 15.2 at phase 10–17 and 11.1 at 18–24; the endgame
-  bands' static gap is not one family's; tempo exists only in
-  `9587eeeb`'s evaluation; Basilisk's rule-50 curve stays. The mobility
-  and space cluster goes ahead of this one (maintainer, 2026-11-18).
-- [ ] **C.5** `[I2]` Pawns and passers cluster
+      **Closed 2026-11-25** (BAS-O14, BAS-M24; the packet's §10 to §12).
+      Twelve reads of 3,000 games, no fault and no time loss.
+      - In one search the donor's evaluation leads Basilisk's by +146.2
+        [+137.5, +155.1]. The head trails Stockfish 16 HCE by 120.0
+        [111.0, 129.2]; 1.11.0 trailed by 193 (BAS-M18).
+      - Cluster meters: pawns and passers +94.9, king +43.1, piece
+        terms −37.7, mobility, space and threats −52.0, each ± 13.
+      - Single meters: passers +125.4, king +43.1, space −2.1, threats
+        −9.9, pawn structure −33.2, piece terms −37.7, mobility −46.0.
+      - All seven together: +162.8 ± 13.9. The unmasked remainder holds
+        no deficit (E(127) −16.6, flagged for speed). The singles sum
+        to +40, so a meter ranks and does not size a port.
+      - The rule, applied: pawns and passers move ahead of king safety
+        by 51.8 ± 14.2 and both ahead of the rest. The piece terms move
+        ahead of mobility, space and threats by 14.2 against an
+        interval of 14.1.
+      - **The order: pawns and passers, king safety, material and
+        pieces, mobility and space.** C.3, C.5 and C.6 are renumbered
+        (HISTORY); C.4 keeps its number.
+      - C-110 closes the donor's queen terms. No whole family meets it.
+      - C.0's prior is refuted: mobility and space are last, and the
+        screen's leading family reads −2.1 ± 12.5 in games.
+      - Scored: 5 of 12 reads inside their 80% bands; all four ranked
+        predictions missed.
+- [ ] **C.3** Evaluation rebuilt whole in the donor's form
+  Decided 2026-11-25 (maintainer, after C.2.10): the evaluation is
+  rebuilt as one unit in classical Stockfish's form, as Phase B rebuilt
+  the search, and not family by family. The king-safety, material and
+  mobility clusters (C.4, C.5 and C.6 until then) are built here as
+  parts of it. They were retired on 2026-11-25; their entries, with
+  their inputs, are in HISTORY (*Retired and renumbered in Phase C*).
+  Amended the same day (maintainer): a transplant read comes first
+  (C.3.1, BAS-O15). If the donor's passers and king safety on
+  Basilisk's own base come within 30 Elo of the donor's whole
+  evaluation, only those two are ported and the other families stay
+  Basilisk's.
+  Read 2026-11-25 (BAS-O15): the instrument's control failed, so the
+  reads show nothing about a two-family port, and the rebuild stays
+  whole.
+  Why:
+  - The donor's lead belongs to the whole. All seven families together
+    explain +162.8, the single meters sum to +39.6, and five of seven
+    read zero or below alone (BAS-O14).
+  - The screen did not rank the families as games did: space led it
+    on gate games and reads −2.1 in play (BAS-E62, BAS-O14).
+    Corrected 2026-11-25: an earlier line here said results cannot
+    see the donor's lead. That holds only with one K over all rows.
+    With K linear in the phase `9587eeeb`'s score predicts better
+    than Basilisk's by 44.3e-4 nats on gate games and 43.7e-4 on
+    corpus A (`analysis/c31_transplant_2026-11-25.md` §10).
+  - The families are coupled through the tables. Basilisk's endgame
+    pawn table pays up to 270 on the seventh rank, so a passer port
+    beside it has its credit split again by the fit.
+  - A whole port has the strongest check there is: its value equal to
+    the reference's on a fixture of game positions, before any value
+    moves.
+  - A prior, from Rarog (its RAR-O13 and its E.4.0 packet, read at
+    `a8c116e` on the maintainer's request): `sf_16`'s evaluation in
+    Rarog's own search read +80.3 ± 10.8 at equal nodes and +68.8 ± 10.4
+    on the clock, `sf_11`'s +74.4 ± 10.6, and Rarog rebuilds whole.
+  Not played: the donor's evaluation in Basilisk's own search. The
+  port's first read, at converted seed values, gives that number
+  (C.3.4), so no separate instrument is built for it.
+  Settled 2026-11-25 (maintainer, on `analysis/c31_rebuild_2026-11-25.md`):
+  - the reference is `9587eeeb`'s evaluation (the phase's preamble);
+  - the fit is static, on Basilisk's own games, in two arms: one K,
+    and K by phase. Each is read against the seed arm (C.3.4);
+  - Basilisk keeps its endgame layer and rule-50 curve from the
+    start;
+  - the README's acknowledgements name the form at the flip, and the
+    constants no static fit prices stay disclosed until the SPSA leaf
+    fits them.
+  The maintainer's directions (2026-11-25):
+  - Ideas and forms may come from the donor. Every value and constant
+    that ships is fitted as Basilisk's own. The donor's values appear
+    only in a diagnostic arm.
+  - Basilisk's own forms return where they give strength, each on its
+    own read (C.3.6). Mobility, pawn structure and the piece terms
+    read above the donor's in BAS-O14.
+  **Pawns and passers, the first family by C.2.10's order:**
   Passer king proximity, blocker ownership, path safety, unstoppable and
   rook-behind conditions; structure conditionality (doubled, isolated,
   backward, connected, levers); refit; gate. The dispositions of the archived
@@ -2176,53 +2141,225 @@ has lost games in both engines (BAS-X02).
     lazy cut, proximity and path after it (C-6).
   - Absent: the donor's weak lever (eg 56) and passed file; a
     lever-based candidate passer (C-117).
-  It was C.6 until 2026-11-05.
-- [ ] **C.6** `[I2]` Material, imbalance and pieces cluster
-  Imbalance in the donor's quadratic form, bishop pair and bishop-pawn
-  colour, outposts (including BAS-E07's absent `BadOutpost`), long diagonal,
-  rook files, trapped rook, queen weakness and king-protector distance;
-  refit; gate.
-  Outposts, `reachable_outpost`, mobility and `queen_infiltration` were
-  fitted around seven rank-mirrored piece-square tables (B.10). Their trace
-  reads them for compensation the flip left behind.
-  Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
-  are its items):
-  - Outposts on ranks 5-8 against the donor's 4-6 (C-10); dead and collinear
-    imbalance slots (C-20); queen infiltration and the trapped bishop (C-48);
-    no trapped rook (C-46); no WeakQueen (C-116); screen first (C-118).
-  Code audit inputs (2026-10-27 second pass, §6.3):
-  - E2's phase and E5's tempo are the king-safety cluster's (C.4; C.3
-    from 2026-11-05 to 2026-11-18), changed with its eg king danger.
-  - Bishop terms: the bishop outpost is absent although comments at
-    `eval.cpp:1783` and `eval_params.h:222` say it exists; bishop x-ray
-    on pawns is absent; bishop pawns is a linear count without the
-    donor's factor for unprotected and blocked central pawns; the minor
-    behind a pawn counts own pawns only. Screen first (C-118).
-  - Doubled penalises every pawn on a file with two or more, supported
-    or not (`:965`; the donor only the rear pawn when unsupported);
-    Basilisk-only terms with no donor prior: pawn majority, pawn
-    islands, closed file, seventh rank, connected rooks, the trapped
-    bishop.
-  C.2.8 inputs (2026-11-23, the fit registration's Amendment 1, its §6.1
-  and §6.7; inference until C.2.8.3's run 2 reads it):
-  - A PST's level against the imbalance's piece-times-pawn products is
-    weakly identified, and the split moves with the fit's surface. With
-    every entry free the eg rook table rose 180 cp (BAS-O12). With 242
-    slots held it rose 52 and the products carried the rest (C.2.8.3's
-    run 1). The endgame piece values stayed within 8% of each other.
-  - So an imbalance term's fitted value is read with the table levels of
-    the same fit, never alone (C-118's screen).
-  It was C.7 until 2026-11-05, when the phase moved to the king-safety
-  cluster (C.3 then, C.4 since 2026-11-18).
-- [ ] **C.7** Endgame handling and winnability
+  It was C.5 until 2026-11-25, and C.6 until 2026-11-05.
+  C.2.10 inputs (2026-11-25, BAS-O14; the packet's §10 to §12):
+  - With the passer terms removed from both evaluations the donor's
+    lead falls from +146.2 to +20.9: a meter of +125.4 ± 12.9. Pawn
+    structure reads −33.2 ± 13.1, and the two together +94.9 ± 13.4.
+  - So the deficit is the passers'. It is not in the structure terms,
+    which are worth more to Basilisk than the donor's are to the donor.
+  - A meter is the difference of what each family is worth to its own
+    evaluation; it does not size a port. Bit 5 leaves the tables in,
+    and Basilisk's endgame pawn table pays 152 to 270 on the seventh
+    rank and 63 to 186 on the sixth (E4 above), so part of its passer
+    value survives the mask.
+  - Static, on corpus A's validation rows, after the fact
+    (`tools/results/c210-close/own_ablation.py`): removing its own
+    passer terms costs the donor 379.9 and Basilisk 103.1 (1e-4 nats),
+    while the donor's term adds 5.4 to Basilisk's whole score, and 14.0
+    at phase 0–9 (BAS-E62).
+  - Three readings stay open: the donor's form is worth more;
+    Basilisk's passer value sits in a table that cannot see a blocker
+    or a king; or Basilisk's own terms cost it in play. The rebuild
+    takes the donor's form and its tables together, so it does not wait
+    on them.
+    - [x] **C.3.1** `[R3]` Rebuild research and handoff
+      It opens with the transplant read (BAS-O15,
+      `analysis/c31_transplant_2026-11-25.md`, registered 2026-11-25):
+      the donor's passers and king safety on Basilisk's own base, in
+      the oracle, against Basilisk's evaluation and against the
+      donor's. The instrument and launcher are implementation's; the
+      three reads are the maintainer's.
+      Then the packet, for the whole rebuild or for the two families:
+      - the reference evaluation and its scope: terms, tables,
+        imbalance, winnable, scale factors, the lazy cut and tempo;
+      - the scale conversion, and the known-win and mate tiers;
+      - the parity fixture;
+      - what Basilisk keeps;
+      - the fit's method and the gate's registration.
+      It proposes the PLAN edits that retire C.4 to C.6 and resize C.7,
+      for the maintainer's sign-off. It ends in a frozen handoff.
+      Handoff frozen 2026-11-25: `analysis/c31_rebuild_2026-11-25.md`.
+      The packet's §13 was signed and applied on 2026-11-25: the
+      reference, the retirements and the renumbering, the endgame
+      scaling leaf and the SPSA leaf's scope.
+      **Closed 2026-11-25** (BAS-O15; the transplant packet's result,
+      the rebuild packet's Amendments 1 and 2).
+      - The transplant, 3,000 games a read, no fault: its gain over
+        Basilisk's evaluation −1.6 [−10.7, +7.5]; the donor's over it
+        +122.1 [+113.1, +131.3]; the donor's over the control, all
+        seven families transplanted, +172.9 [+162.8, +183.4].
+      - The control failed and the instrument's falsifier fired, so
+        the reads show nothing about a two-family port. All three
+        predictions missed.
+      - The rebuild stays whole on the maintainer's decision and
+        BAS-O14. C.3.2's handoff is frozen.
+    - [x] **C.3.2** `[I2]` The port behind the switch, at parity
+      Stage 4: the whole evaluation behind one switch, in Basilisk's own
+      structure, equal to the reference on the fixture before any value
+      changes. The off arm stays at the accepted fingerprint at every
+      commit.
+      Handoff (2026-11-25): `analysis/c31_rebuild_2026-11-25.md` §5
+      to §10. The reference is `9587eeeb`'s evaluation; Basilisk
+      keeps its endgame layer and rule-50 curve; parity is exact
+      integers against a new oracle reference command; the work
+      lands in eight tickets, the tuner's model of the new arm last.
+      **Closed 2026-11-25** (the rebuild packet's *Implementation
+      record*; Amendments 1 and 3 to 6 rule its three returns):
+      - `EVAL_REBUILD` compiles `src/eval_rb*.h`. The off arm stays at
+        `bench 13` = 3,359,329 at every commit; the new arm, at the
+        seed and S = 620, reads 3,717,775. Both arms pass all 59
+        suites, and 58 of 58 under the sanitizers.
+      - At the seed, 35 fields equal the reference on the 13,217-row
+        fixture, wherever they are compared; 91.7% of its rows are
+        layer-silent.
+      - The tuner's model is exact on corpus A's validation rows, and
+        the played hash equals the served hash. S is set by §7: K
+        2.0027 against the accepted 2.0043. The surface has 1,262
+        free linear slots and 59 knobs, and `rank` is full.
+      - An oracle built from the new arm reads its value exactly.
+    - [x] **C.3.3** `[R2]` Independent review
+      A separate session rebuilds both arms, reproduces the fingerprints
+      and the donor fixture, and checks the code against the handoff
+      clause by clause. Its acceptance is recorded before the refit.
+      **Closed 2026-11-25** (the rebuild packet's *Review*): accepted,
+      with named follow-ups. No defect in either arm's engine code.
+      - From a clean clone both arms reproduce: `bench 13` 3,359,329
+        and 3,717,775, 59 of 59 suites each, the fixture's hash from
+        the pinned producer, parity and its failure on one changed
+        seed, `--verify` and the hashes on corpus A's validation
+        rows, and the surface check.
+      - The new arm is the packet's §6 as amended, clause by clause,
+        and its families are the reference's. The off arm's changes
+        are behaviour-neutral.
+      - The record's played hash was the one at S = 628. At S = 620
+        it is e87063a94a5a10bc, equal to the served hash.
+      - Follow-ups, none before the seed read:
+        - the structure constants and S are outside the surface
+          manifest, so C.3.5's audit and C.6 take them from the
+          record;
+        - the fixture reaches the clamp on no row;
+        - the Diag counters of the pawn cache, the lazy exits and the
+          clamp report nothing on the new arm, and the knobs' bounds
+          are implementation's: both are C.3.4's to settle.
+    - [x] **C.3.4** `[I2]` Seed-value read and fit
+      The port at converted seed values against the head, with its speed
+      and tree reads: the donor's evaluation in Basilisk's own search.
+      Then the fit by C.3.1's method, the fitted-constant analysis, the
+      bake and the PGO builds; the lazy margin block (C-98); the gate
+      prepared and dry-run.
+      Registered 2026-11-25 (the packet's §11): the seed read is
+      BAS-M25, +85 predicted, and below +30 the leaf returns to
+      research before any fit. The fit has two arms, one K and K by
+      phase, each read against the seed arm; they are registered
+      here before any fitted game.
+      Added 2026-11-25 (maintainer, after C.3.3's review; the rebuild
+      packet's Amendment 7). The class rose from `V` to `I2`: the
+      leaf now holds an engine ticket and a tuner mode.
+      - Preparation, before any read: the new arm's diagnostics
+        (the pawn cache's counters, the audit of both lazy exits,
+        the endgame census, the board trace's scope, the clamp
+        count printed and reset) and a constructed-position test of
+        the clamp. Behaviour-neutral: both arms' `bench 13` exact.
+      - Beside the seed read, the oracle check (BAS-O16): the
+        donor's evaluation against the rebuilt one in `9587eeeb`'s
+        search, 3,000 games; +15 predicted, and above +50 the port
+        is suspect in play.
+      - The pooled NPS read needs an idle machine: the builds are
+        prepared and the maintainer is asked first.
+      - At the fit's registration research reviews the knobs'
+        bounds. A knob that ends on a bound is widened and the fit
+        repeated.
+      - At the bake each table's mean moves into its material
+        slot. The function does not change, and the material values
+        that ship are the fit's own.
+      Done 2026-11-26 (`5128e6e`, `0374cfd`, `4a9c07d`; `analysis/c31_rebuild_2026-11-25.md`):
+      - **Seed reads:** `BAS-M25` **+99.8 [+91.5, +108.3]** (3,000 games,
+        pooled NPS −4.47%, tree −2.07% nodes, 0 faults); `BAS-O16`
+        +42.4 [+35.1, +49.7] in `9587eeeb`'s search (< +50 return line).
+      - **Static fits (`BAS-O17` Run 2, widened knob bounds):** zero
+        artificial bound hits on both arms (`one-k` −3.58%, `k-phase`
+        −2.03%, `k-phase` lower in every phase band); `24/24`
+        conversion floors on both.
+      - **Paired fit reads (2,000 games, seed `210006`):** `BAS-E63`
+        (`one-k`) **−25.8 [−35.7, −15.9]** rejected; `BAS-E64`
+        (`k-phase`) **−9.6 [−19.6, +0.4]** accepted (clears `>= −10`).
+      - **Bake & verification:** `k-phase` Run 2 baked into
+        `src/eval_rb_params.h` (`5128e6e`; 59/59 CTest on both
+        `EVAL_REBUILD=OFF` `3,359,329` and `ON` `3,880,333`; `24/24`
+        conversion floors); C-98 lazy audit on `validation.csv` exact
+        (37,725 fires, 4 sign flips, 764 crossings, margins held); PGO
+        gate binaries (`0374cfd`) and `tools/run_c35_gate.py` (`4a9c07d`;
+        `BAS-E65`, `BAS-M26`, `BAS-M27`) dry-run cleanly.
+    - [x] **C.3.5** `[V]` Gate, frontier pair and close
+      Stages 6 to 8: the maintainer-run SPRT with its `10+0.1` and NPS
+      reads (C-99), an equal-node companion if an equal-time gate fails
+      (C-95), then the frontier pair, the flip and the ledger rows. The
+      bracket and the falsifier are C.3.1's registration.
+      At the flip the README's acknowledgements name the evaluation's
+      form, and the close lists every slot shipped at its seed value
+      (the packet's §8 and §13).
+      Added 2026-11-25 (after C.3.3's review): that list covers the
+      structure constants too, which are bare numbers in the source.
+      They are taken from a committed inventory that a check holds
+      to the source.
+      Done 2026-11-26 (`e60aa45`, `7eb0047`; `analysis/c31_rebuild_2026-11-25.md`):
+      - **Gate (`BAS-E65`, `0374cfd`):** SPRT `[0,3]` (`3+0.03`, seed
+        `350001`) accepted H1 at `1,034` games (`517` pairs; `18`
+        post-terminal pairs kept outside sample), `LLR = +2.953`,
+        **+85.3 [+71.9, +99.0]** (`nElo +138.9 +/- 21.2`, `434-415-185`,
+        `0` faults). C.2.7 endgame bracket veto (`21k/64k/190k` of 480):
+        candidate **`441 / 448 / 457`** vs base **`434 / 445 / 458`**
+        (`7` discards vs base, `5` vs `c274/head`, 0 rule-50/anomaly/malformed);
+        the veto binds, and the maintainer ruled on 2026-11-26 to accept
+        the candidate over it, as at BAS-E59; the vetoed endings go to
+        C.4 (BAS-E65).
+      - **LTC & frontier (`BAS-M26`, `BAS-M27`):** `10+0.1` (`1,000` games)
+        **+95.1 [+82.3, +108.1]** (`425-417-158`, `0` faults); frontier vs
+        Stockfish 16 HCE (`3+0.03`, `3,000` games) **−39.8 [−48.0, −31.6]**
+        (`737-1184-1079`, `44.3%`, `0` faults), closing `80.2 Elo` of
+        BAS-M24's gap.
+      - **Flip, CI & audit:** `EVAL_REBUILD` flipped to default `ON` in
+        `CMakeLists.txt` (`e60aa45`; `59/59` CTest on both `ON` `3,880,333`
+        and `OFF` `3,359,329`). Five CI Python tests updated so all 12 pass
+        on both arms; `tools/diag/rb_structure_constants.tsv` (`44` constants)
+        and `tools/diag/check_rb_constants.py` wired into CI (`7eb0047`);
+        `README.md`, `AGENTS.md`, `GUIDE.md`, `docs/DESIGN.md`, and the
+        complete own-values audit (`156/1,450` equal to seed: `119` fixed,
+        `16` support-frozen, `18` free linear, `3` free knobs) recorded.
+      - **The retired evaluation removed** (maintainer, 2026-11-26;
+        `e58d51f`, `ab0c141`): the `EVAL_REBUILD` switch, the old
+        evaluation's seven family headers, its suite and its verdict golden
+        file. Behaviour-neutral: `bench 13` 3,880,333 on the release, tune,
+        diagnostic and ablation builds, 59/59 CTest, the played hash
+        fa8739a3fc205e63 and the tuner's `--verify` unchanged. The fit tools
+        now default to `src/eval_rb_params.h` and `surface_rebuild_v1.tsv`.
+        C.3.6 takes the displaced forms from `99e6353`, the last commit that
+        compiles them.
+      - **NPS (BAS-E65, C-99):** pooled, four PGO builds an arm, the
+        shipped evaluation at `ab0c141` against the head at `99e6353`:
+        **−3.88% [−4.65%, −3.10%]**, inside the predicted band (BAS-M25's
+        seed read was −4.47%).
+    - [ ] **C.3.6** `[R2]` Basilisk's own forms read back in
+      Added 2026-11-25 (maintainer). After the gate, each Basilisk
+      form the port displaced is read against the donor's on the
+      accepted port, behind its switch: one registered read each,
+      both arms fitted, since a read on one fit favours the form the
+      fit was made with. A form that gains returns. One that does not
+      stays out with a retry trigger. C.3.1's handoff lists the forms.
+      The list is the packet's §14. The retired clusters' audit inputs
+      (HISTORY) are re-read only for a form that returns.
+- [ ] **C.4** Endgame handling and winnability
+  It was C.7 until 2026-11-25.
   The goal is measured conversion and correct draw recognition where games
   actually go, not coverage of a function list.
   After the families it builds on (C.5 until 2026-11-05): the scalers and
   recognisers act on the pawn and material evaluation, so the endgame
-  cluster follows C.5 and C.6. C.0 orders the clusters by expected value
-  within this constraint, and the order is discussed again when reached.
-  Its instruments leaf, C.7.1, moved to C.2.7 on 2026-11-11, so the
-  cluster starts at C.7.2.
+  cluster follows the rebuild, which builds both (C.3 since
+  2026-11-25). C.0 orders the clusters by expected value within this
+  constraint, and the order is discussed again when reached.
+  Its instruments leaf, C.4.1, moved to C.2.7 on 2026-11-11, so the
+  cluster starts at C.4.2.
   From C.2.8.4 (2026-11-23, the registration's §8):
   - Both whole-surface refits, A2 and B2, convert 2 to 9 fewer of the
     truth cohort's 480 than the head at 21,000 and 64,000 nodes, closing
@@ -2232,12 +2369,12 @@ has lost games in both engines (BAS-X02).
     fits of equal quality, so its floor between different evaluations is
     several positions, not the 0 to 1 two heads give.
   Since 2026-11-18 (maintainer, after C.0): the endings hold 16% of the
-  same-search deficit and the full board 68 to 69%. When C.6 closes, its
+  same-search deficit and the full board 68 to 69%. When C.3 closes, its
   frontier pair and screen are read against that. If the full board still
-  leads the residual, C.8.1's investigation is taken before this cluster,
+  leads the residual, C.5.1's investigation is taken before this cluster,
   on the maintainer's decision. The truth repairs routed here (V3, V4,
   V6) are defects and keep their place in the phase either way.
-    - [ ] **C.7.2** `[R3]` Occurrence, classification and ranking
+    - [ ] **C.4.2** `[R3]` Occurrence, classification and ranking
       Occurrence, classification and ranking (archived 6.7.a–d).
       - Board and tree occurrence with per-root concentration.
       - Each family classified as exact recognizer, scale, move-quality or
@@ -2251,7 +2388,7 @@ has lost games in both engines (BAS-X02).
         recogniser rule and kinds (C-135, C-136, C-127); missing value
         functions (C-132); a material-signature table (C-106); A.11.9's
         boundary research feeds here.
-      - Code audit 2026-10-27 (§6.3 E7), measured and switched in C.10
+      - Code audit 2026-10-27 (§6.3 E7), measured and switched in C.7
         (2026-11-05), where the search surface is refit; B.14 already took
         the draw verdicts' half. The original finding: correction history
         overrides exact recogniser scores — the drawn KPK, KNNK and
@@ -2260,7 +2397,12 @@ has lost games in both engines (BAS-X02).
         non-pawn-keyed tables (`search_kernel_core.cpp:195`, `:508`;
         `search_history_core.cpp:158-174`) whose keys won and drawn
         positions share, so a dead draw can stand at ±X.
-    - [ ] **C.7.3** `[I2]` Generic winnability and scaling
+    - [ ] **C.4.3** `[I2]` Generic winnability and scaling
+      Narrowed 2026-11-25 (`analysis/c31_rebuild_2026-11-25.md` §6.8 and §13): the
+      donor's winnable step and general scale heuristics arrive with
+      the rebuild (C.3). What stays here is the endgame layer's scales
+      against those heuristics, and the donor's scaling functions the
+      rebuild did not port.
       Held-out tooling first (moved from C.2.7, 2026-11-23; audit D24):
       - halves assigned by FEN hash;
       - a write-once registration naming the deciding half and a runner-up;
@@ -2277,7 +2419,7 @@ has lost games in both engines (BAS-X02).
         material (C-4; Rarog's `1 + 2 pawns + 10 passers` read +12.7 nElo);
         OCB below seven men (C-125); every scale floored (C-126); rule-50
         damping against the drive weights (C-128); initiative's unfitted
-        `win_*` weights (C-47; A.16 removed the term and its slots, so C.7.3
+        `win_*` weights (C-47; A.16 removed the term and its slots, so C.4.3
         builds the donor's from nothing). The tuner has no winnable
         instrument, so the complexity term needs one before its first fit.
       - Code audit 2026-10-27 (§6.3 E3): the OCB (`eval.cpp:869`),
@@ -2292,12 +2434,12 @@ has lost games in both engines (BAS-X02).
         a Syzygy residual on those cohorts first. A.13.2 repairs the
         pawnless classifier's units before this leaf and leaves its
         truth-table test for this leaf to keep.
-    - [ ] **C.7.4** `[R3]` Won-rook-ending only-move precision (BAS-E53)
+    - [ ] **C.4.4** `[R3]` Won-rook-ending only-move precision (BAS-E53)
       Won-rook-ending only-move precision (archived 6.8.a; BAS-E53): all 68
       one-winning-move nodes studied with a held-out split; search, evaluation
       and knowledge explanations compared; a mechanism or a justified
       no-change. More depth is already refuted.
-    - [ ] **C.7.5** `[I2]` Group B families by measured kind
+    - [ ] **C.4.5** `[I2]` Group B families by measured kind
       Group B families by measured kind (archived 6.8.b–e).
       The families: KR-KP, KQ-KRP and KR-KB; bishop-pawn fortresses and
       promotion races, with the KBP-K deficit treated as bishop-pawn
@@ -2340,7 +2482,7 @@ has lost games in both engines (BAS-X02).
         class; narrowing the one number cannot be exact.
       - Acceptance for a floored site is its search-resolved residual or a
         gate, not B.9.3's 0.5% share of positions the scale touches.
-    - [ ] **C.7.6** `[R2]` Lower-yield remainder
+    - [ ] **C.4.6** `[R2]` Lower-yield remainder
       Lower-yield remainder (archived 6.10.a–d): KPs-K and KP-KP first; KQ-KP
       and KQ-KR reconciled across budgets; KR-KN, KNN-KP and KNN-K theory and
       rule 50; implement only what has a measured defect, occurrence and a
@@ -2360,7 +2502,7 @@ has lost games in both engines (BAS-X02).
         the queen, most with her king three or four squares from the
         queening square. A rule here discounts, never zeroes, and is read
         by B.9.3's enumeration before it lands.
-    - [ ] **C.7.7** `[V]` Endgame gate and closure
+    - [ ] **C.4.7** `[V]` Endgame gate and closure
       Endgame gate and closure (archived 6.9, 6.10.e, 6.11).
       - Gates are tiered by occurrence: a normal STC gate for common
         families, endgame-start cohorts for medium ones, and truth plus a
@@ -2375,17 +2517,18 @@ has lost games in both engines (BAS-X02).
       - KRPPKRP has truth: the 7-man tables are installed, so this leaf's
         wording is stale (C-24); gates without tablebases expose static
         small-endgame scores (C-147).
-- [ ] **C.8** Residual and refit cycles
+- [ ] **C.5** Residual and refit cycles
+  It was C.8 until 2026-11-25.
   Reworked 2026-11-18 (maintainer, after C.0): the phase ends on its
   meters, so the residual is investigated before the closing fits.
-    - [ ] **C.8.1** `[R3]` Residual investigation
+    - [ ] **C.5.1** `[R3]` Residual investigation
       After the family and endgame clusters. It re-reads the same-search
       meter on a fresh oracle build, the matched ablation by family, the
       family screen both ways and the frontier pair, and reads C.2.2's
       H-distribution result beside them. Its questions:
       - how much of 217.3 is left, and in which family and phase;
-      - whether what is left is evaluation at all: speed (C.12), the
-        search's margins on the new evaluation (C.10), or positions a
+      - whether what is left is evaluation at all: speed (C.9), the
+        search's margins on the new evaluation (C.7), or positions a
         search visits and a game does not (the corpus);
       - which donor forms were screened out and are worth a game-level
         read now, threats first: they have no static case and were never
@@ -2397,7 +2540,7 @@ has lost games in both engines (BAS-X02).
       family work. Stop rule: two consecutive units under +5 at their
       gates, or a frontier pair whose interval includes zero. A unit
       expected under 5 Elo goes to Phase H.
-    - [ ] **C.8.2** `[V]` Refit cycles
+    - [ ] **C.5.2** `[V]` Refit cycles
       It was C.8 until 2026-11-18.
       Refit cycles (archived 8.9): regenerate data with the accepted
       head, refit the whole surface with a new untouched test split, and
@@ -2408,25 +2551,35 @@ has lost games in both engines (BAS-X02).
       - Refit cycles diminish (+11.0, then +6.7 in Rarog), so size from
         earlier cycles' games (C-123); priors (C-68); scores re-dumped
         after each refit (C-69).
-- [ ] **C.9** `[V]` Nonlinear HCE SPSA or a written skip
+- [ ] **C.6** `[V]` Nonlinear HCE SPSA or a written skip
   Nonlinear HCE SPSA (archived 8.10): only live, frequent terms Texel cannot
   price, such as the king-danger map, from a zero-game activation and
   curvature screen; a written skip if the surface is flat.
+  It was C.9 until 2026-11-25.
+  Scope since 2026-11-25 (maintainer; the rebuild packet's §8 and §13):
+  the rebuilt evaluation's structure constants, which no static fit
+  prices: the phase limits, the lazy thresholds, king danger's
+  threshold and divisors, the complexity and scale-factor numbers.
+  They ship at the donor's values until this leaf fits them, so a
+  written skip is not open while one of them is unfitted.
+  C.3.5's inventory of them is this leaf's surface list, and the
+  constants become tune-build options here.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - The nonlinear sweep (C-122); initiative and mop-up are untraced (C-47,
     C-36); the king-danger clamp (C-113).
-- [ ] **C.10** Joint re-fit on the new evaluation
+- [ ] **C.7** Joint re-fit on the new evaluation
+  It was C.10 until 2026-11-25.
   One joint SPSA over the registered cp-valued search coordinates, including
   B.4's value surface if it exists, then PGO and SPRT `[0,3]`.
   Scope (maintainer 2026-11-12): this is the classical stage's big fit,
   properly investigated and as long as it needs: it finds the joint
   optimum of the engine's parameters on the new evaluation and finishes
-  the best HCE engine before C.12's throughput work and C.13's release.
+  the best HCE engine before C.9's throughput work and C.10's release.
   Several nights are acceptable, with large early moves and a slowly
   decaying schedule. Rule 7c's ceiling does not bind it; its own
   registration sets the horizon and the stop.
-    - [ ] **C.10.1** `[R2]` Joint-fit investigation and registration
+    - [ ] **C.7.1** `[R2]` Joint-fit investigation and registration
       Registers the surface, the horizon, the schedule and the stop
       before any game. Decided from this leaf's own analysis, not from
       expectations set earlier (maintainer 2026-11-12). Its questions:
@@ -2444,8 +2597,8 @@ has lost games in both engines (BAS-X02).
         restart as a higher gain by another name, with no unlock (its
         §4 and §7): an input here, not a ruling;
       - the gate's bracket and cap for a fit of this size.
-    - [ ] **C.10.2** `[V]` The joint fit, PGO and gate
-      Runs C.10.1's registration, then the fitted-constant analysis, the
+    - [ ] **C.7.2** `[V]` The joint fit, PGO and gate
+      Runs C.7.1's registration, then the fitted-constant analysis, the
       bake, PGO and the SPRT.
   Cluster 1's margins (RFP, futility, razoring) were fitted on the eval
   before B.10's flip, which moves it by 31.7 cp mean; B.6.7's joint fit
@@ -2463,13 +2616,14 @@ has lost games in both engines (BAS-X02).
     correction when the evaluation came from a recogniser, read with the
     search surface.
   - The lazy-evaluation thresholds, a behaviour-changing question audited
-    beside `LAZY_MARGIN`'s refit, moved here from C.12 (2026-11-05) so that
-    C.11 freezes them: the lazy cut is one stage at 700 on the tapered
+    beside `LAZY_MARGIN`'s refit, moved here from C.9 (2026-11-05) so that
+    C.8 freezes them: the lazy cut is one stage at 700 on the tapered
     cheap score with no npm term, where the donor uses two stages with a
     margin growing by npm/64 (about +260 at full material), and it skips
     king danger, threats, mobility, passer proximity and path, the mop-up
     drive and tempo (code audit §6.3 E8).
-- [ ] **C.11** `[V]` Freeze the classical evaluation
+- [ ] **C.8** `[V]` Freeze the classical evaluation
+  It was C.11 until 2026-11-25.
   Checkpoint and freeze (archived 8.11).
   - Re-measure the same-search deficit against a fresh classical-Stockfish
     hybrid at the C head, plus conversion, the truth cohort, NPS and a 1T
@@ -2478,11 +2632,11 @@ has lost games in both engines (BAS-X02).
   - Re-read the HCE frontier field (BAS-M18) with the C head: the aim's
     meter, in the field and head to head (2026-11-18).
   - Its 1T pool gauntlet, clock- and node-annotated, is D.1's loss-analysis
-    source: C.12 is bit-exact, so those games are the play of D.1's entry
+    source: C.9 is bit-exact, so those games are the play of D.1's entry
     head (2026-11-05).
   - Ablate low-information mechanisms.
   - Freeze the classical evaluation.
-  - Its games are C.13.1's fitting data: the frozen head's own score at
+  - Its games are C.10.1's fitting data: the frozen head's own score at
     each move, the material and the result (2026-11-21).
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
@@ -2496,12 +2650,13 @@ has lost games in both engines (BAS-X02).
     the C.0 head as anchors, by material class. It locates where the
     programme moved the evaluation and accepts nothing. Its prior is
     Rarog's read of the 2026-11-14 head (C.2.10).
-- [ ] **C.12** `[I2]` Evaluation throughput, bit-exact
+- [ ] **C.9** `[I2]` Evaluation throughput, bit-exact
+  It was C.12 until 2026-11-25.
   Evaluation throughput, bit-exact (archived 8.12).
   - Profile terms, phases and cache paths first.
   - Optimize only measured hot paths, with exact bench plus direct
     score-corpus identity.
-  - The lazy-eval thresholds are C.10's, audited before the freeze
+  - The lazy-eval thresholds are C.7's, audited before the freeze
     (2026-11-05); this leaf keeps every score identical.
   - Gate with interleaved pooled NPS and a natural-termination SPRT.
   - C.1's accepted cost is recovered here (2026-11-20). The C.1 restructure
@@ -2518,18 +2673,19 @@ has lost games in both engines (BAS-X02).
   - Code audit 2026-10-27 (§6.3 E9): there is no material or imbalance
     cache, so the twelve-popcount census and the imbalance are rebuilt on
     every call (the pawn cache is pure); a cache that keeps every score
-    identical belongs here. E8's lazy cut is C.10's.
-- [ ] **C.13** Interim release after the evaluation programme
+    identical belongs here. E8's lazy cut is C.7's.
+- [ ] **C.10** Interim release after the evaluation programme
+  It was C.13 until 2026-11-25.
   Maintainer decision 2026-10-24: the evaluation programme's head is released
-  as 1.12.0 once C.12 closes, as Rarog cut 2.6.0 from its C head. Since
+  as 1.12.0 once C.9 closes, as Rarog cut 2.6.0 from its C head. Since
   2026-11-21 (maintainer) the release first prints its score on a fitted
-  scale (C.13.1), so 1.12.0 is the first release whose +1.00 means an even
+  scale (C.10.1), so 1.12.0 is the first release whose +1.00 means an even
   chance.
-    - [ ] **C.13.1** `[I1]` Reported score and WDL in Stockfish's form
+    - [ ] **C.10.1** `[I1]` Reported score and WDL in Stockfish's form
       Added 2026-11-21 (maintainer; `analysis/rarog_import_2026-11-21.md`
       §2.1, after Rarog's D.7.12). Output only: no search or clock
       decision reads the printed score, and `bench 13` is unchanged. Its
-      constants are fitted on the frozen head (C.11), and C.12 is
+      constants are fitted on the frozen head (C.8), and C.9 is
       bit-exact, so they are the release's.
       - **The form is Stockfish's, whole** (`src/uci.cpp`,
         `win_rate_params`, `win_rate_model`, `to_cp` and `wdl` at
@@ -2547,7 +2703,7 @@ has lost games in both engines (BAS-X02).
           (`format_info_line`, `src/search_root.cpp`).
       - **The constants are Basilisk's own,** fitted on its own games as
         Stockfish fits its own on fishtest's games.
-        - The data is the frozen head's games from C.11's reads: its own
+        - The data is the frozen head's games from C.8's reads: its own
           score at each move it searched, the material, and the result
           from its side. The leaf records the games, the control and the
           positions kept.
@@ -2579,7 +2735,7 @@ has lost games in both engines (BAS-X02).
         and that `UCI_ShowWDL` shows the rates.
       - The constants are checked again at E.3, and refitted per network
         at F.6.
-    - [ ] **C.13.2** `[M]` The 1.12.0 cut
+    - [ ] **C.10.2** `[M]` The 1.12.0 cut
       Licensed as B.11.4 is: an accepted SPRT over the 1.11.0 release at
       `3+0.03` 1T, `10+0.1` and 4T direction checks whose 95% intervals
       exclude a loss, the 4T check sibling-free. Cut through A.8.6's
@@ -2594,30 +2750,22 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.2.10 | RESEARCH | R3 | Registered and prepared 2026-11-24; the screen is read and its two samples disagree (Amendment 1); the games are owed |
-| C.3.1 | RESEARCH | R3 | Not started; C.0's contract is its packet §8.2 |
-| C.3.2 | RESEARCH | I2 | Not started |
-| C.3.3 | RESEARCH | R2 | Not started |
-| C.3.4 | RESEARCH | V | Not started |
-| C.3.5 | RESEARCH | V | Not started |
-| C.4 | RESEARCH | I2 | Not started |
-| C.5 | RESEARCH | I2 | Not started |
-| C.6 | RESEARCH | I2 | Not started |
-| C.7.2 | RESEARCH | R3 | Not started |
-| C.7.3 | RESEARCH | I2 | Not started |
-| C.7.4 | RESEARCH | R3 | Not started |
-| C.7.5 | RESEARCH | I2 | Not started |
-| C.7.6 | RESEARCH | R2 | Not started |
-| C.7.7 | RESEARCH | V | Not started |
-| C.8.1 | RESEARCH | R3 | Not started |
-| C.8.2 | RESEARCH | V | Not started |
-| C.9 | RESEARCH | V | Not started |
-| C.10.1 | RESEARCH | R2 | Not started |
-| C.10.2 | RESEARCH | V | Not started |
-| C.11 | RESEARCH | V | Not started |
-| C.12 | RESEARCH | I2 | Not started |
-| C.13.1 | RESEARCH | I1 | Not started |
-| C.13.2 | RESEARCH | M | Not started |
+| C.3.6 | RESEARCH | R2 | Not started |
+| C.4.2 | RESEARCH | R3 | Not started |
+| C.4.3 | RESEARCH | I2 | Not started |
+| C.4.4 | RESEARCH | R3 | Not started |
+| C.4.5 | RESEARCH | I2 | Not started |
+| C.4.6 | RESEARCH | R2 | Not started |
+| C.4.7 | RESEARCH | V | Not started |
+| C.5.1 | RESEARCH | R3 | Not started |
+| C.5.2 | RESEARCH | V | Not started |
+| C.6 | RESEARCH | V | Not started |
+| C.7.1 | RESEARCH | R2 | Not started |
+| C.7.2 | RESEARCH | V | Not started |
+| C.8 | RESEARCH | V | Not started |
+| C.9 | RESEARCH | I2 | Not started |
+| C.10.1 | RESEARCH | I1 | Not started |
+| C.10.2 | RESEARCH | M | Not started |
 
 ## Phase D — Clock, threads, tablebases
 
@@ -2704,8 +2852,8 @@ leaf's tag. Later phases carry only a class until they open.
   - Instruments, built in B.16 and read here first: the loss analysis by
     cell (B.16.3, TT-1; `tools/diag/loss_by_cell.py`, BAS-M14's method)
     says which clock situations lose games. It is run here, first, on the
-    clock- and node-annotated games of C.11's pool gauntlet, the play of
-    this leaf's entry head against stronger engines (C.12 is bit-exact);
+    clock- and node-annotated games of C.8's pool gauntlet, the play of
+    this leaf's entry head against stronger engines (C.9 is bit-exact);
     the wall-clock read (B.16.1, TT-2; `tools/diag/wallclock.py`) is
     re-read on this leaf's head, about seven minutes on an idle host, and
     sizes the overhead the budget must leave, B.16.1's numbers its prior.
@@ -2918,7 +3066,7 @@ leaf's tag. Later phases carry only a class until they open.
     protocol; an n = 6 cross-process time-to-depth read swung 21.6%.
 - [ ] **D.3** `[R2]` Tablebase policy
   It was D.4 until 2026-11-05, when the lifecycle step D.3.2 moved to B.9.
-  Probe depth and limits, WDL and DTZ in conversion, interaction with C.7's
+  Probe depth and limits, WDL and DTZ in conversion, interaction with C.4's
   recognizers; the root and PV lines already follow Stockfish (BAS-C13), and
   in-search probing does from A.8.14.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
@@ -2956,7 +3104,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 - [ ] **E.1** `[V]` Attribution checkpoint
   Attribution checkpoint (archived 9.9): the final head against 1.10.1 and the
-  B.11.1 and C.11 heads at STC, `10+0.1` and 4T; attributed Elo per programme
+  B.11.1 and C.8 heads at STC, `10+0.1` and 4T; attributed Elo per programme
   from the accepted SPRTs; every deficit meter; NPS; the maturity checklist.
   - The architecture counts of the 2026-10-27 audit (§3) are measured
     again on the release head with `tools/diag/source_census.py`
@@ -2996,7 +3144,7 @@ leaf's tag. Later phases carry only a class until they open.
     user-facing text (D-71); E.2's 4T pool read beside the head-to-head
     (D-43).
   The reported score (2026-11-21): `tools/wdl_fit.py`'s check is run on
-  the candidate against C.13.1's constants. Phase D moves neither the
+  the candidate against C.10.1's constants. Phase D moves neither the
   evaluation nor its scale, so a failed check is investigated before any
   refit.
 
@@ -3197,7 +3345,7 @@ speed (F.5, F.6). F.2.1, F.2.2, F.3 and F.4 are retired numbers
   reports once, and each net is judged at `20+0.2` or longer against one
   fixed anchor in a sibling-free slot (TD-12, in F.2.4's list). Then the
   search: score scale, correction, margins, qsearch and SEE thresholds,
-  using C.10's protocol (archived 11.4.a–b); BAS-R02, R03, S08 and S09's retry triggers are
+  using C.7's protocol (archived 11.4.a–b); BAS-R02, R03, S08 and S09's retry triggers are
   reviewed here. The classical evaluator keeps its own overlay of the
   scale-sensitive constants (Phase F rules).
   Triumviratus review inputs (2026-11-03,
@@ -3209,8 +3357,8 @@ speed (F.5, F.6). F.2.1, F.2.2, F.3 and F.4 are retired numbers
   - Network gains shrink at longer controls and hide behind shared cores:
     one net read +0.8 at 75 concurrent games and +23.4 at 38 (TD-7).
   - The printed score's scale is refitted here, per network, with
-    C.13.1's tool and Stockfish's form (G.2's until 2026-11-11; TA-2;
-    Rarog's F.6). Since 2026-11-21 the first fit is C.13.1's, on the
+    C.10.1's tool and Stockfish's form (G.2's until 2026-11-11; TA-2;
+    Rarog's F.6). Since 2026-11-21 the first fit is C.10.1's, on the
     classical head, so 1.12.0 already prints +1.00 as an even chance to
     win; each network gets its own constants.
 - [ ] **F.7** `[R3]` Architecture ladder, one axis at a time
@@ -3319,7 +3467,7 @@ speed (F.5, F.6). F.2.1, F.2.2, F.3 and F.4 are retired numbers
     wins played; the analysis search compiled as a second copy so games pay
     nothing.
   - The printed scale calibrated so +1.00 is a 50% chance to win is
-    C.13.1's since 2026-11-21, refitted per network in F.6; tablebase wins printed as
+    C.10.1's since 2026-11-21, refitted per network in F.6; tablebase wins printed as
     `cp 20000` minus the distance stay here (TA-2). Strength levels by
     search limits and line choice, calibrated in games (TA-3).
 - [ ] **G.3** `[R3]` Frontier
@@ -3429,7 +3577,7 @@ already repairing or a form it must choose anyway, and says so.
       the time there.
     - Cheapest test of the cause, before any game: the same pricing
       split by whether the capturing side's king is under attack.
-    - The figure belongs to this evaluation: re-read after C.4 rebuilds
+    - The figure belongs to this evaluation: re-read after C.3 rebuilds
       king safety, and again on the network.
   B.6.4 inputs (2026-11-12, `analysis/b64_engine_audit_2026-11-12.md`
   §5; each is the donor's behaviour, copied faithfully, with its
@@ -3472,7 +3620,7 @@ already repairing or a form it must choose anyway, and says so.
     share by phase (TT-10).
 - [ ] **H.4** `[R2]` Throughput at an identical tree on the network head
   Added 2026-11-11 (Rarog's H.4; `analysis/rarog_import_2026-11-11.md`).
-  B.8.5 and C.12 profile the classical engine, and F.5 covers the
+  B.8.5 and C.9 profile the classical engine, and F.5 covers the
   network's inference. On the network head's profile, the leads that did
   not pay there, or were never read, are read again where the network
   changed what is hot: the board, SEE, picker, prefetch and layout items
@@ -3577,14 +3725,14 @@ already repairing or a form it must choose anyway, and says so.
 
 | Meter | Protocol | Owner |
 |---|---|---|
-| Pool score | Colosseum, fixed pool with Houdini 3, `3+0.03`, UHO, no adjudication, 400 games per pair, 1T and 4T | A.7, B.11.1, C.11, E.2 |
+| Pool score | Colosseum, fixed pool with Houdini 3, `3+0.03`, UHO, no adjudication, 400 games per pair, 1T and 4T | A.7, B.11.1, C.8, E.2 |
 | Search deficit G(0) | Paired, head against the frozen classical-Stockfish search oracle rebuilt with the head's HCE, 3,000 games, no adjudication; at equal time (BAS-O05) and, from B.11.1, also with the bridge's price returned as time odds (RAR-O08) | A.7.3, B.11.1 |
-| Evaluation deficit | Hybrid at the head against the classical-Stockfish-HCE hybrid, same search | C.11 |
+| Evaluation deficit | Hybrid at the head against the classical-Stockfish-HCE hybrid, same search | C.8 |
 | Cluster acceptance | Registered final-PGO SPRT, bracket per rule 5, `[0,10]` for B.2 | every cluster |
-| Neutral change | Exact fingerprint, release and sanitizer CTest, pooled-PGO NPS | B.1, B.8, C.1, C.12, F.1 |
+| Neutral change | Exact fingerprint, release and sanitizer CTest, pooled-PGO NPS | B.1, B.8, C.1, C.9, F.1 |
 | Conversion | A.5.5's audit on the latest pool tournament | every checkpoint |
 | Fixed-node shape | Oracle differential at stride 1, depth at 300k nodes, branching profile, WAC at fixed nodes, positional screen | B clusters |
-| Endgame layers | Truth cohort, drawn overclaim, conversion at the deployment bracket, floors | C.7 |
+| Endgame layers | Truth cohort, drawn overclaim, conversion at the deployment bracket, floors | C.4 |
 
 Size every SPRT at the expected value before registration. Until Basilisk's
 own gates calibrate a drift model, Rarog's RAR-M10 fit is the prior: drift
@@ -3598,7 +3746,7 @@ adjudication never change after games are seen.
   row and whose deficit meters were recorded at the checkpoint before it.
 - Releases follow each programme (maintainer decision 2026-10-24,
   replacing 2026-09-28's single release at E.3): **1.11.0** after B (B.11.4),
-  **1.12.0** after C (C.13), **1.13.0** after E (E.3), and **2.0.0**, the
+  **1.12.0** after C (C.10), **1.13.0** after E (E.3), and **2.0.0**, the
   first NNUE release (F.9). Between them nothing is released unless a
   correctness repair forces a patch.
 - A classical release requires an accepted SPRT over the previous release at
@@ -3620,7 +3768,7 @@ adjudication never change after games are seen.
 - Every release is preceded by the originality and licence disclosure on
   its own candidate (maintainer decision 2026-10-23 for Rarog, adopted
   here 2026-11-11): B.11.3 builds the scans and writes the first one;
-  C.13, E.3 and F.9 repeat them.
+  C.10, E.3 and F.9 repeat them.
 - Tag, push and publish only on maintainer instruction. A release is a
   `vX.Y.Z` tag on `master`; a patch while `master` holds unreleased work is
   tagged on a branch from the release tag, which the tag keeps. The workflow

@@ -41,7 +41,7 @@ gate, not a failure to deliver. See `agents/research.md`, "Refutation and refusa
 
 - **Hand-crafted.** Frozen at the 1.10.1 evaluation through the search
   programme (Phase B, closed with 1.11.0), unfrozen for structural work and
-  refits in the evaluation programme (Phase C), and frozen again at C.11. NNUE is
+  refits in the evaluation programme (Phase C), and frozen again at C.8. NNUE is
   Phase F and does not license HCE shortcuts now.
 - **Game-result labels only.** No engine-evaluation labels in any corpus.
 - **Categorical knowledge earns its place by measurement, not by taxonomy.**
@@ -51,7 +51,7 @@ gate, not a failure to deliver. See `agents/research.md`, "Refutation and refusa
   an only-move failure class and refuted the blanket claim that an evaluator
   cannot resolve it: Stockfish resolved the paired nodes at the same nominal
   budget. That result does not identify a transferable HCE mechanism or make a
-  recogniser equivalent to a gradient; PLAN C.7.4 owns the question.
+  recogniser equivalent to a gradient; PLAN C.4.4 owns the question.
 - **Draw scaling never asserts a draw it cannot prove.** Heuristic scaling is
   floored (`SCALE_FLOOR`) so a misfire discounts rather than throwing a win.
 
@@ -137,9 +137,10 @@ line names where it lives.
   must record the policy and never mix with natural-termination evidence.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
-- **Bench signature** of the accepted head: `bench 13` = **3,359,329**
-  nodes (since C.2.8's whole-surface refit, `cbc3676`; 4,392,040 after the
-  top-tier repair `cd4e453`, and 4,777,412 from B.9.5's gate to then).
+- **Bench signature** of the accepted head: `bench 13` = **3,880,333**
+  nodes (since C.3.5's flip of `EVAL_REBUILD` to default `ON`, `e60aa45`;
+  3,359,329 after C.2.8's whole-surface refit, `cbc3676`; 4,392,040 after
+  the top-tier repair `cd4e453`, and 4,777,412 from B.9.5's gate to then).
   HISTORY's Phase B record lists every earlier count.
   GUIDE's *Now* table declares it; `check_roadmap.py` holds this
   line to it. Exact bench identity is a provenance fingerprint, **not** proof

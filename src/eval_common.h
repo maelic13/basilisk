@@ -96,7 +96,7 @@ thread_local EvalEndgameStep g_endgame_step{};
 static constexpr int PHASE_W[PIECE_TYPE_NB] = {0, 0, 1, 1, 2, 4, 0};
 static constexpr int TOTAL_PHASE = 24;
 
-static Square forward_square(Color c, Square sq) {
+[[maybe_unused]] static Square forward_square(Color c, Square sq) {
     const int to = int(sq) + (c == WHITE ? 8 : -8);
     return (to >= 0 && to < 64) ? Square(to) : SQ_NONE;
 }

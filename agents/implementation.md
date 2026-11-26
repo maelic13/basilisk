@@ -39,7 +39,7 @@ with its reason.
 
 ## Qualifying a change
 
-- A behavior-neutral engine change reproduces the immediate development fingerprint (currently **3,359,329** at `bench 13`) plus focused tests for behaviour the bench does not reach.
+- A behavior-neutral engine change reproduces the immediate development fingerprint (currently **3,880,333** at `bench 13`) plus focused tests for behaviour the bench does not reach.
   Memory, state or concurrency work also needs the relevant sanitizer/stress
   coverage. The comparison fingerprint is revision-specific: a deliberately
   integrated behaviour change updates the fingerprint record; never preserve

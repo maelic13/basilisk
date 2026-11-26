@@ -30,3 +30,18 @@
   worth nothing against the target.
 
 #### RESULT — append after exposure
+
+- 2026-11-25. 3,000 games, complete; no fault and no time loss on
+  either side. Evidence: `tools/results/c210-frontier/`.
+- **The head minus Stockfish 16 HCE: −120.0 Elo [−129.2, −111.0].**
+  458 wins, 1,087 draws and 1,455 losses; pentanomial [264, 649, 432,
+  130, 25]; score 33.4%.
+- Speed in the match: the head 2.00M nodes a second and 141,688 nodes a
+  move; Stockfish 2.76M and 195,073. Median depth 15 against 17.
+- The falsifier did not fire.
+
+#### PREDICTION CALIBRATION
+
+- Inside the band: −120.0 for −140, −170 to −110.
+- BAS-M18's −193.2 was 600 games in a field on the 1.11.0 head, so the
+  73 between the two is not one measurement of the refit.

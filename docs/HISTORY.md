@@ -316,6 +316,247 @@ New the same day: B.7.5 (search replay and engine screen), B.7.7 (second
 round of board candidates) and B.7.8 (their rebuild). Withdrawn the same
 day: Chess960 (handoff item C7, TB-9, G.2's bullet).
 
+Renumbered in Phase C on 2026-11-25 (C.2.10's order, from games;
+`analysis/c210_family_order_2026-11-24.md` §11): the four family clusters
+run in the order of the Elo each explains. C.3, C.5 and C.6 now name
+different work, and C.4 keeps its number. A reference dated before this,
+C.0's, C.2.8's and C.2.10's records and packets and BAS-E62 included,
+uses the earlier numbering.
+
+| Was | Now | Note |
+|---|---|---|
+| C.5 | C.3 | pawns and passers, first; it opens C.3.1 to C.3.5 |
+| C.6 | C.5 | material, imbalance and pieces |
+| C.3, C.3.1–C.3.5 | C.6 | mobility, space and threats, last; its sub-steps were never started and open again when reached |
+
+Retired and renumbered in Phase C on 2026-11-25 (the rebuild;
+`analysis/c31_rebuild_2026-11-25.md` §13, signed by the maintainer): the
+king-safety, material and mobility clusters are built inside C.3, the
+evaluation rebuilt whole, and the leaves after them move up. C.4 to
+C.10 now name different work. A reference dated before this, the
+rebuild packet and BAS-M25 included, uses the earlier numbering.
+
+| Was | Now | Note |
+|---|---|---|
+| C.4 | none | king safety, phase and tempo: retired, built in C.3 |
+| C.5 | none | material, imbalance and pieces: retired, built in C.3 |
+| C.6 | none | mobility, space and threats: retired, built in C.3 |
+| C.7, C.7.2–C.7.7 | C.4, C.4.2–C.4.7 | endgame handling and winnability |
+| C.8, C.8.1–C.8.2 | C.5, C.5.1–C.5.2 | residual and refit cycles |
+| C.9 | C.6 | nonlinear HCE SPSA; its surface is the rebuild's structure constants |
+| C.10, C.10.1–C.10.2 | C.7, C.7.1–C.7.2 | joint re-fit on the new evaluation |
+| C.11 | C.8 | freeze the classical evaluation |
+| C.12 | C.9 | evaluation throughput, bit-exact |
+| C.13, C.13.1–C.13.2 | C.10, C.10.1–C.10.2 | interim release |
+
+The retired entries as they stood, with their inputs. Each input is a
+defect or a prior of a form the rebuild displaces, and is re-read only
+if C.3.6 returns that form.
+
+- **C.4, retired 2026-11-25** `[I2]` King safety, phase and tempo cluster
+  Folded into C.3 on 2026-11-25 (maintainer): built there as part of the
+  whole rebuild. This entry keeps the family's inputs and is retired at
+  C.3.1's handoff.
+  King safety cluster in the donor's shape: attacker units and weights, safe
+  and unsafe checks by piece, weak ring squares, flank attack and defence,
+  shelter and storm with the castling alternative, the queenless reduction and
+  the nonlinear danger map; refit; gate.
+  Opens as sub-steps (research, implementation, review, refit, gate), as
+  C.3 has, when C.3 closes; the same holds for C.5 and C.6.
+  It was C.3 until 2026-11-18, when the mobility and space cluster moved
+  ahead of it.
+  The phase and tempo join it (from C.7, 2026-11-05): E2's phase and E5's
+  tempo change together with E1's eg king danger, never one at a time, and
+  before the other families, so that each later refit reads the final
+  phase. Since 2026-11-18 the mobility and space cluster precedes it:
+  the donor's space is gated by material, not by the phase, and the one
+  refit the phase then costs that cluster is run anyway (C.0's packet
+  §7.3).
+  Since 2026-11-25 the pawns and passers cluster precedes it instead
+  (C.2.10), at the same cost: its values are refitted with the phase
+  here. The mobility and space cluster is last.
+  Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
+  are its items):
+  - Definitions: king blockers of either colour (C-13, `eval.cpp:1278-1280`);
+    the donor's safe and unsafe checks, check presence, the weak ring and the
+    ring and zone shapes (C-14); storm without blocked pawns and the king-file
+    sign (C-15).
+  - Priors: the danger map carries the king residual and shelter and storm
+    about 20%, while flank attack and defence, king-pawn distance and the
+    pawnless flank were nil in Rarog (C-111); Rarog's open E.4: the remaining
+    lead is the index's structure, since refitting its coefficients from donor
+    seeds failed (RAR-E73); zero-fitted inputs are a resolution limit (C-17);
+    the clamp is live (C-113); a donor fixture (C-112).
+  - Guards: shelter in the pawn cache needs the king square and castling in
+    the key (C-43); a won KRP-KR static guard before any endgame danger term
+    (C-44).
+  Code audit inputs (2026-10-27 second pass, §6.3):
+  - E1: king danger is middlegame-only (`eval.cpp:1594`, `mg -=
+    safety_table[units]`; the donor also subtracts `kingDanger/16` from
+    eg) and lacks the donor's inputs: the mobility difference, the
+    knight-defender relief, `kingAttacksCount`, pawns attacking the
+    ring, the shelter coupling and the attacker-count × weight product.
+    Bishop and queen attacker units are fitted 0 (C-111). Double
+    counting: the open-file count enters the danger units
+    (`:1576-1582`) on the files `shelter_missing_*` already penalises
+    (`:1615-1627`), and the king-ring bonuses fire beside the attack
+    units where the donor's `else if` keeps them exclusive. Measure
+    first: the donor-direction residual screen on these inputs by phase
+    and king danger's firing share at phase ≤ 12; the lead is index
+    structure (RAR-E73).
+  - E2's phase: pieces count N = B = 1, R = 2, Q = 4 of 24 against the
+    donor's npm between its endgame and middlegame limits; changed with
+    the eg king danger here, never alone, and with tempo (E5: tempo is
+    mg-only, 22, so it tapers to 0 in pawn endings and is scaled with
+    the score, where the donor adds a constant 28 after scaling; the
+    lazy path omits it, C-6).
+  Rarog sweep input (2026-11-04, `analysis/rarog_sweep_2026-11-04.md`;
+  Rarog E.4's first step, EVAL-3):
+  - In the donor's king-danger inputs bishops see through queens, rooks
+    through queens and own rooks, and a pinned piece's attacks are cut to
+    the king line (`sf9587-ks` `evaluate.cpp`); Basilisk's maps are plain
+    occupancy (`eval.cpp`, `all_pieces()`). C-115's x-ray nil was
+    mobility's alone. Rarog's C.3 fixture came from a donor patched to
+    plain maps, so a donor fixture here is taken from the unpatched donor.
+  C.0 inputs (2026-11-18, its packet §7.2, §7.3 and §8.2): the donor's
+  king row adds 15.2 at phase 10–17 and 11.1 at 18–24; the endgame
+  bands' static gap is not one family's; tempo exists only in
+  `9587eeeb`'s evaluation; Basilisk's rule-50 curve stays. The mobility
+  and space cluster goes ahead of this one (maintainer, 2026-11-18).
+  C.2.10 inputs (2026-11-25, BAS-O14; the packet's §10 and §11):
+  - The king's meter reads +43.1 ± 13.2. It is a lower bound: the phase
+    and tempo are outside every bit.
+  - It is the second cluster in games, 51.8 ± 14.2 behind pawns and
+    passers and 80.9 ± 13.9 ahead of the piece terms. It is also the
+    largest donor gain in the screen on corpus A (BAS-E62).
+- **C.5, retired 2026-11-25** `[I2]` Material, imbalance and pieces cluster
+  Folded into C.3 on 2026-11-25 (maintainer): built there as part of the
+  whole rebuild. This entry keeps the family's inputs and is retired at
+  C.3.1's handoff.
+  Imbalance in the donor's quadratic form, bishop pair and bishop-pawn
+  colour, outposts (including BAS-E07's absent `BadOutpost`), long diagonal,
+  rook files, trapped rook, queen weakness and king-protector distance;
+  refit; gate.
+  Outposts, `reachable_outpost`, mobility and `queen_infiltration` were
+  fitted around seven rank-mirrored piece-square tables (B.10). Their trace
+  reads them for compensation the flip left behind.
+  Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
+  are its items):
+  - Outposts on ranks 5-8 against the donor's 4-6 (C-10); dead and collinear
+    imbalance slots (C-20); queen infiltration and the trapped bishop (C-48);
+    no trapped rook (C-46); no WeakQueen (C-116); screen first (C-118).
+  Code audit inputs (2026-10-27 second pass, §6.3):
+  - E2's phase and E5's tempo are the king-safety cluster's (C.4; C.3
+    from 2026-11-05 to 2026-11-18), changed with its eg king danger.
+  - Bishop terms: the bishop outpost is absent although comments at
+    `eval.cpp:1783` and `eval_params.h:222` say it exists; bishop x-ray
+    on pawns is absent; bishop pawns is a linear count without the
+    donor's factor for unprotected and blocked central pawns; the minor
+    behind a pawn counts own pawns only. Screen first (C-118).
+  - Doubled penalises every pawn on a file with two or more, supported
+    or not (`:965`; the donor only the rear pawn when unsupported);
+    Basilisk-only terms with no donor prior: pawn majority, pawn
+    islands, closed file, seventh rank, connected rooks, the trapped
+    bishop.
+  C.2.8 inputs (2026-11-23, the fit registration's Amendment 1, its §6.1
+  and §6.7; inference until C.2.8.3's run 2 reads it):
+  - A PST's level against the imbalance's piece-times-pawn products is
+    weakly identified, and the split moves with the fit's surface. With
+    every entry free the eg rook table rose 180 cp (BAS-O12). With 242
+    slots held it rose 52 and the products carried the rest (C.2.8.3's
+    run 1). The endgame piece values stayed within 8% of each other.
+  - So an imbalance term's fitted value is read with the table levels of
+    the same fit, never alone (C-118's screen).
+  It was C.6 until 2026-11-25, and C.7 until 2026-11-05, when the phase
+  moved to the king-safety cluster (C.3 then, C.4 since 2026-11-18).
+  C.2.10 inputs (2026-11-25, BAS-O14; the packet's §10 to §12):
+  - The piece terms' meter reads −37.7 ± 13.1: the deficit is not in
+    them. It is a lower bound for the cluster, since material and the
+    imbalance are outside every bit.
+  - With all seven families removed, Basilisk's remainder (material,
+    tables, imbalance, the bishop pair, tempo and endgame knowledge)
+    leads the donor's by 16.6 [5.8, 27.4]. That read is flagged: its
+    arm ran 17% faster than at mask 0. So the remainder is about level
+    (inference).
+  - C-110 closes the donor's queen terms without a port (WeakQueen,
+    C-116): the pieces' meter lies below zero and their gain includes
+    zero in every band on both samples. The rook terms sit on the edge
+    ([0.0, 2.0] at phase 10–17 on gate games) and stay with C-118's
+    screen.
+  - The imbalance keeps a static case: its donor gain is 4.5 [2.9, 5.8]
+    over all gate-game rows and 9.9 [5.7, 14.2] at phase 10–17
+    (BAS-E62's control).
+- **C.6, retired 2026-11-25** `[I2]` Mobility, space and threats cluster
+  Folded into C.3 on 2026-11-25 (maintainer): built there as part of the
+  whole rebuild. This entry keeps the family's inputs and is retired at
+  C.3.1's handoff.
+  The last family since 2026-11-25: C.2.10's games moved it from first
+  (maintainer, 2026-11-18, on C.0's evidence).
+  The donor's space, which Basilisk does
+  not have in any working form; the mobility area with x-rays and the pin
+  line; and of the threat terms (weak enemies, hanging pieces, restricted
+  squares, pawn-push threats, and BAS-E07's absent `KnightOnQueen` and
+  `SliderOnQueen`) those their own screen supports. Shared attack maps
+  from C.1; refit; gate.
+  It was C.3 from 2026-11-18 to 2026-11-25, with sub-steps C.3.1 to
+  C.3.5 that were never started, and C.4, "Threats and mobility", before
+  that. Space had no owner (C-119); C.0 placed it here. It opens as
+  sub-steps when reached, as C.3 has.
+  Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
+  are its items):
+  - SliderOnQueen is missing; screen KnightOnQueen before building it (nil in
+    Rarog); ungated forms were worse than none (C-114); mobility priors
+    (C-115); the dead `hang_pen` loop (C-37; A.16 removed it).
+  - Code audit 2026-10-27 (§6.3): the safe-pawn threat is a flat 58/25
+    whatever the target and counts pawns that are themselves unsafe
+    (`eval.cpp:1403-1426`), overlapping hanging, restricted and
+    weak-queen on the same target.
+  C.0 inputs (2026-11-18, its packet §7.2 and §8.2): C.0 places space
+  here (C-119, E8). At phase 18–24, where 68 to 69% of the same-search
+  deficit is realised, the donor's space adds 47.0 and its mobility 29.6
+  to Basilisk's whole score; the threat rows add 4.4 or less, so a
+  threat term is built only if its own screen excludes zero.
+  C.2.8 inputs (2026-11-23, the fit registration's Amendment 1, its §6.2
+  and §6.7):
+  - Queen mobility 1 is what a queen on its home square counts before its
+    own pawns move: the mobility area leaves out the king and the low
+    pawns (`src/eval_attacks.h`). Corpus A starts at book exits, so it
+    holds 10 rows at count 0 and 224 to 278 at count 1, mostly trapped
+    queens.
+  - A free fit puts both entries on the tuner's −200 clamp (BAS-O12,
+    every arm). That is about 230 cp for the first pawn move from the
+    starting position (inference, not measured).
+  - C.2.8's fit holds count 0 at the seed, and the tuner's monotone chain
+    then stops count 1 at it. This cluster's research settles the two
+    entries: a prior, a merged low-count entry, or rows that reach them.
+  C.2.10 inputs (2026-11-24, BAS-E62's control):
+  - On C.0's gate-game rows (UHO, `3+0.03`) the donor's space adds 40.4
+    [32.7, 49.1] to the refitted head's score at phase 18–24, and its
+    mobility 13.4 [9.7, 17.4]. Before the refit they read 50.8 and 29.6.
+  - On corpus A's validation rows the same reads are 3.4 and 2.1, and
+    5.7 and 7.1 on the header before the refit. Corpus A is self-play at
+    8,000 nodes from a phase-balanced start pool.
+  - So a space term fitted on corpus A alone may be fitted to nothing.
+    This cluster's research decides which rows its refit reads before
+    any value is fitted, and separates the two candidate causes: the
+    starts and the search depth.
+  C.2.10 inputs (2026-11-25, BAS-O14; the packet's §10 to §12):
+  - The cluster's meter reads −52.0 ± 13.5: mobility alone −46.0 ± 13.3,
+    space −2.1 ± 12.5 and threats −9.9 ± 12.9. The deficit is not here.
+    Basilisk's mobility is worth more to it than the donor's is to the
+    donor, and level does not explain it: both terms carry the same
+    (slope on own material 0.019 and 0.021).
+  - Space leads the static screen on gate games (40.4 at phase 18–24)
+    and is worth the same to both evaluations in games. So the screen's
+    donor gain does not rank what games return, and C.0's prior,
+    mobility and space first, is refuted.
+  - Its research starts from whether anything is ported at all. It
+    answers C.0's three competing readings first (its packet §8.2):
+    whether space still reads once the tables are refitted in their
+    right orientation, whether the gain is the unbalanced book's, and
+    whether mobility's gain is the area's values or the x-rays. It ends
+    in a frozen handoff, or a `NO_CHANGE`, for each term.
+
 ## Completed current-roadmap work (dated records; PLAN owns IDs)
 
 - **2026-09-28 — PLAN A.1 CLOSED: document reset.** The roadmap was rewritten

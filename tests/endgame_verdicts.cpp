@@ -4,11 +4,13 @@
 ///                      [--estimates] [--max-rate R] [--dump FILE] CLASS...
 ///
 /// --dump writes every judged position (site index, FEN, the side to move's
-/// WDL) to FILE, one tab-separated line each.
+/// WDL, the side the claim is read for: w or b) to FILE, one tab-separated
+/// line each. It writes every position, judged or not, with "-" for the WDL and then the endgame layer's step, the
+/// score it read and its verdict.
 ///
 /// --tables fixtures reads the bundled fixtures (CI); --golden leaves out what
 /// varies between runs (times, examples, the search check), so the output
-/// can be compared with tests/data/endgame_verdicts_golden.txt.
+/// can be compared with tests/data/endgame_verdicts_golden_rebuild.txt.
 ///
 /// A hard verdict is a value the evaluator states rather than estimates: a
 /// recognised draw, a known-win floor, a scale at its floor. For each material
@@ -67,6 +69,8 @@ namespace {
 // --dump: every judged position's site, FEN and the side to move's WDL, one
 // line each, for reading a site's errors by its own conditions.
 FILE* g_dump = nullptr;
+using EvalRebuildRecordOrNone = EvalRebuildRecord;
+constexpr bool REBUILT_ARM = true;
 std::mutex g_dump_mutex;
 
 enum Claim { DRAW, WIN, SCALE, ESTIMATE };
@@ -215,14 +219,22 @@ bool lone(const Board& b, Color c) {
 
 // The site that fired, attributed in the order the evaluator decides, and
 // the side whose claim is read: the side a win favours, the side a scale
-// scales down.
-Site classify(Evaluator& ev, const Board& b, int& stm_score, Color& strong) {
+// scales down. The rebuilt evaluation adds its tempo after the endgame layer,
+// so the served score's sign is not the side the layer scaled: on that arm
+// the layer's own step is read from the evaluator's record (`rec`), its
+// verdict, whether it scaled, and the score it read.
+constexpr int REBUILD_LAYER_SCALED = 1;  // EvalRebuildRecord::layer
+Site classify(Evaluator& ev, const Board& b, int& stm_score, Color& strong,
+              [[maybe_unused]] EvalRebuildRecordOrNone& rec) {
     stm_score = ev.evaluate_undamped(b);
     const int white_score = b.turn() == WHITE ? stm_score : -stm_score;
     strong = white_score >= 0 ? WHITE : BLACK;
     if (b.is_insufficient_material())
         return S_DEAD;
-    const bool verdict = stm_score == 0 && ev.draw_verdict(b);
+    ev.rebuild_record(b, rec);
+    const bool verdict = rec.verdict != 0;
+    const bool layer_scaled = rec.layer == REBUILD_LAYER_SCALED;
+    const Color layer_strong = rec.layer_input > 0 ? WHITE : BLACK;
     const int pawns = popcount(b.piece_bb(WHITE, PAWN) | b.piece_bb(BLACK, PAWN));
     auto pieces = [&](Color c) {
         return b.piece_bb(c, KNIGHT) | b.piece_bb(c, BISHOP) | b.piece_bb(c, ROOK) | b.piece_bb(c, QUEEN);
@@ -252,7 +264,8 @@ Site classify(Evaluator& ev, const Board& b, int& stm_score, Color& strong) {
             }
         return S_PAWNLESS_0;
     }
-    if (lone(b, WHITE) || lone(b, BLACK) || !b.piece_bb(WHITE, PAWN) || !b.piece_bb(BLACK, PAWN)) {
+    if (layer_scaled && (lone(b, WHITE) || lone(b, BLACK) || !b.piece_bb(WHITE, PAWN) || !b.piece_bb(BLACK, PAWN))) {
+        strong = layer_strong;
         const int scale = pawnless_scale(b, strong);
         if (scale == 4)
             return S_PAWNLESS_4;
@@ -262,7 +275,7 @@ Site classify(Evaluator& ev, const Board& b, int& stm_score, Color& strong) {
     const Bitboard minors_queens = b.piece_bb(WHITE, KNIGHT) | b.piece_bb(WHITE, BISHOP)
                                  | b.piece_bb(WHITE, QUEEN) | b.piece_bb(BLACK, KNIGHT)
                                  | b.piece_bb(BLACK, BISHOP) | b.piece_bb(BLACK, QUEEN);
-    if (!minors_queens && popcount(b.piece_bb(WHITE, ROOK)) == 1
+    if (layer_scaled && !minors_queens && popcount(b.piece_bb(WHITE, ROOK)) == 1
         && popcount(b.piece_bb(BLACK, ROOK)) == 1) {
         const int wp = popcount(b.piece_bb(WHITE, PAWN)), bp = popcount(b.piece_bb(BLACK, PAWN));
         const Color pawn_side = wp >= bp ? WHITE : BLACK;
@@ -302,9 +315,17 @@ struct Reader {
             ++tally.quiet;
             int score = 0;
             Color strong = WHITE;
-            const auto site = size_t(classify(*ev, b, score, strong));
+            EvalRebuildRecordOrNone rec;
+            const auto site = size_t(classify(*ev, b, score, strong, rec));
             ++tally.positions[site];
             const Claim claim = SITES[site].claim;
+            // The dump holds every position, with the layer's step, so that
+            // a difference between two dumps can be split by its cause.
+            if (g_dump) {
+                std::scoped_lock lock(g_dump_mutex);
+                std::fprintf(g_dump, "%zu\t%s\t-\t%c\t%d\t%d\t%d\n", site, fen.c_str(),
+                             strong == WHITE ? 'w' : 'b', rec.layer, rec.layer_input, rec.verdict);
+            }
             if (claim == ESTIMATE && (!estimates || std::abs(score) < 300))
                 continue;
             const auto wdl = Syzygy::probe_wdl(b, 7, true);
@@ -323,9 +344,10 @@ struct Reader {
             }
             if (std::abs(stm_wdl) == 1)
                 ++tally.cursed[site];
-            if (g_dump && claim != ESTIMATE) {
+            if (g_dump && claim != ESTIMATE && !REBUILT_ARM) {
                 std::scoped_lock lock(g_dump_mutex);
-                std::fprintf(g_dump, "%zu\t%s\t%d\n", site, fen.c_str(), stm_wdl);
+                std::fprintf(g_dump, "%zu\t%s\t%d\t%c\n", site, fen.c_str(), stm_wdl,
+                             strong == WHITE ? 'w' : 'b');
             }
             if (wrong) {
                 ++tally.wrong[site];

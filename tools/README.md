@@ -82,7 +82,7 @@ kept so the run can be reproduced from its ledger entry.
 | `nps_read.ps1` | The pooled NPS read: two or more pools and named contrasts between them, interleaved cycles of a pinned `bench 13 3`, every run archived, step 1 and `-Extend` | PROCESS *Build, bench and NPS*; BAS-P18, BAS-P19, BAS-P21 |
 | `diag/nps_read.py` | The read's decision from its archive: per-build medians, a Welch t-interval per contrast, the two steps and the disturbance rule | `nps_read.ps1` |
 | `nps_ab.ps1` | The earlier bootstrap NPS A/B, kept only to compare with rows before A.9.4 | BAS-P12 to BAS-P17 |
-| `profile.ps1` | A user-mode sampling profile of a Profile-flavor engine over `bench 13` or an EPD cohort | PROCESS *Build, bench and NPS*; B.8.5, C.12 |
+| `profile.ps1` | A user-mode sampling profile of a Profile-flavor engine over `bench 13` or an EPD cohort | PROCESS *Build, bench and NPS*; B.8.5, C.9 |
 | `diag/profile_regions.py`, `.json` | The profile's samples charged by inline chain to the innermost engine file's region, and refused when that attribution cannot be trusted | `profile.ps1` |
 | `diag/verify_isa.py` | Each asset's CPU-tier contract from its disassembly: portable, AVX2, PEXT, and ARM64 with its required `prfm` | CI, Release |
 | `diag/release_check.py` | The release checks: version sources, CHANGELOG section, GUIDE's released row and fingerprint, the release line | PROCESS *Release*; `release.yml` |
@@ -114,7 +114,7 @@ kept so the run can be reproduced from its ledger entry.
 | `diag/scale_ratio.py` | The evaluation scale ratios and the search-minus-static residual | B.0; BAS-C14 |
 | `diag/winrate_fit.py` | Stockfish's win-rate model fitted to Basilisk's own games | BAS-C14 |
 | `diag/source_census.py` | A mechanical census of the engine source for an architecture review | B.2.0 |
-| `diag/originality_scan.py` | Shared numeric runs, scaled tables and token runs between the engine's source and a donor's (ported from Rarog) | B.11.3; C.13, E.3, F.9 |
+| `diag/originality_scan.py` | Shared numeric runs, scaled tables and token runs between the engine's source and a donor's (ported from Rarog) | B.11.3; C.10, E.3, F.9 |
 | `diag/uci_probe.py` | Black-box UCI probes for protocol and clock defects | A.8 |
 | `oracle/build_oracle.ps1`, `oracle/bridge-board-access.patch` | The classical-Stockfish search oracle rebuilt around a Basilisk revision's evaluation | BAS-O05, BAS-S18 |
 | `oracle/oracle-eval-ablate.patch` | `-ExtraPatch` for the oracle: `EvalAblationMask`, one bit per evaluation family in both of its evaluations, Basilisk's compiled as its Ablate flavour; 0 is stock | C.2.9, C.2.10 |
@@ -124,37 +124,37 @@ kept so the run can be reproduced from its ledger entry.
 ## Endgames
 
 The endgame instruments and frozen cohorts. Most were built in the retired
-endgame phase, which HISTORY's *Number map* continues as C.7; the two label
+endgame phase, which HISTORY's *Number map* continues as C.4; the two label
 tools serve C.2's corpus work.
 
 | Tool | Purpose | Used by |
 |---|---|---|
-| `diag/endgame_truth.py` | The Syzygy-truth endgame corpus and conversion baseline; writes `basilisk-endgame-truth-v2` | C.7; BAS-E47; C.2.7.2 |
+| `diag/endgame_truth.py` | The Syzygy-truth endgame corpus and conversion baseline; writes `basilisk-endgame-truth-v2` | C.4; BAS-E47; C.2.7.2 |
 | `diag/endgame_contract.py` | The truth report's contract: schema, layers, per-family cohort digests, the post-fix v1 adapter, and `identical` for two runs record by record | C.2.7.2 |
 | `diag/test_endgame_contract.py` | Known-bad tests for the contract and its consumers, including a sharded run against a fake engine that keeps state | C.2.7.2 |
-| `diag/endgame_cohort.py`, `diag/endgame_cohort_v1.epd`, `.manifest.json` | The frozen Syzygy endgame cohort, generated and verified | C.7; A.8.13 |
-| `diag/endgame_compare.py` | Position-paired confidence analysis of two truth reports: McNemar for conversion, INDETERMINATE under 6 discordant positions, a subset of families comparable by digest | C.7; C.2.7.2 |
-| `diag/endgame_ceilings.py`, `diag/endgame_ceilings_v1.json`, `_v2.json` | Finite-node family ceilings derived from paired truth reports | C.7; BAS-E08, BAS-E50 |
+| `diag/endgame_cohort.py`, `diag/endgame_cohort_v1.epd`, `.manifest.json` | The frozen Syzygy endgame cohort, generated and verified | C.4; A.8.13 |
+| `diag/endgame_compare.py` | Position-paired confidence analysis of two truth reports: McNemar for conversion, INDETERMINATE under 6 discordant positions, a subset of families comparable by digest | C.4; C.2.7.2 |
+| `diag/endgame_ceilings.py`, `diag/endgame_ceilings_v1.json`, `_v2.json` | Finite-node family ceilings derived from paired truth reports | C.4; BAS-E08, BAS-E50 |
 | `diag/family_screen.py` | The evaluation family screen both ways: each donor family (`sf9587`, `sf16` classical) added to Basilisk's served score, and each Basilisk family (traced tuner terms by slot group) added to the donor's, by phase band, with game-bootstrap intervals; override and specialised rows apart. Refuses a misaligned join or a donor table that does not sum | C.2.9 |
 | `diag/test_family_screen.py` | Known-bad tests for the screen's joins and parse, a planted family found both ways, and with `BASILISK_TEXEL` the tuner's `--dump-row-lines` against `--dump-coeffs` | C.2.9 |
-| `diag/endgame_vetoes.py` | Absolute theory and engine-anomaly vetoes for truth candidates; the baseline is always named | C.7; C.2.7.2 |
+| `diag/endgame_vetoes.py` | Absolute theory and engine-anomaly vetoes for truth candidates; the baseline is always named | C.4; C.2.7.2 |
 | `diag/endgame_label_census.py`, `diag/endgame_label_census_v1.json` | Self-play labels checked against Syzygy on every corpus row of six men or fewer | C.2 |
 | `diag/datagen_label_audit.py` | How often datagen's WDL labels contradict tablebase truth | C.2 |
-| `diag/endgame_search_occurrence.py` | How often reference endgame families occur inside search trees | C.7 |
+| `diag/endgame_search_occurrence.py` | How often reference endgame families occur inside search trees | C.4 |
 | `diag/endgame_drawn_bias.py` | Per-class evaluation bias on the drawn subset | BAS-E54 |
-| `diag/kbnk_cohort.py`, `diag/kbnk_cohort_v1.epd`, `.manifest.json` | The 198 Syzygy KBN-K wins of BAS-E35's census, frozen and verified | C.7; BAS-E35 |
+| `diag/kbnk_cohort.py`, `diag/kbnk_cohort_v1.epd`, `.manifest.json` | The 198 Syzygy KBN-K wins of BAS-E35's census, frozen and verified | C.4; BAS-E35 |
 | `diag/kbnk_outcomes.py` | A KBN-K outcome census, classified and Syzygy-validated | BAS-E35, BAS-E36 |
-| `diag/krppkrp_cohort_v1`, `.manifest.json` | The frozen KRPP-KRP cohort | C.7 |
+| `diag/krppkrp_cohort_v1`, `.manifest.json` | The frozen KRPP-KRP cohort | C.4 |
 | `diag/narrow_node_probe.py` | Whether the narrow-window rook failure is resolvable at all | BAS-E53 |
-| `diag/rook_ending_failure_profile.py` | Why won rook endings are thrown, against a control | C.7 |
-| `diag/passer_king_geometry.py` | Whether king-to-passer distance explains the pawn-family losses | C.7 |
+| `diag/rook_ending_failure_profile.py` | Why won rook endings are thrown, against a control | C.4 |
+| `diag/passer_king_geometry.py` | Whether king-to-passer distance explains the pawn-family losses | C.4 |
 
 ## Evaluation data and fitting
 
 | Tool | Purpose | Used by |
 |---|---|---|
 | `datagen.ps1` | A self-play PGN dataset for Texel fitting | PROCESS *Adjudication*; C.2 |
-| `texel/` | The Texel pipeline: `extract.py` and `extract_parallel.py` (PGN to labelled FENs), `audit_starts.py`, `sample_fens.py`, `tuner.cpp`, `bake.py` (weights back into `src/eval_params.h`), `surface.py` (the fit's surface manifest), `fit.py` (the fit driver; `phase911.ps1` retired 2026-11-22), `claim_test.py`, and their tests. The obsolete `import_beast.py` was removed on 2026-11-22 (last at `23f5557`) | PROCESS *Texel procedure*; `texel/README.md` |
+| `texel/` | The Texel pipeline: `extract.py` and `extract_parallel.py` (PGN to labelled FENs), `audit_starts.py`, `sample_fens.py`, `tuner.cpp`, `bake.py` (weights back into `src/eval_rb_params.h`), `surface.py` (the fit's surface manifest), `fit.py` (the fit driver; `phase911.ps1` retired 2026-11-22), `claim_test.py`, and their tests. The obsolete `import_beast.py` was removed on 2026-11-22 (last at `23f5557`) | PROCESS *Texel procedure*; `texel/README.md` |
 
 ## Tests of the tools
 

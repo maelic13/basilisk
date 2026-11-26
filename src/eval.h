@@ -1,17 +1,26 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <string>
 
 #include "board.h"
 #include "constants.h"
 #include "eval_params.h"
 
+// The rebuilt evaluation's pawn entry: each side's pawn-structure score and
+// what the later families read from the structure, and each king's pawn
+// shelter, valid while the king square and castling rights stay those stored.
 struct PawnEntry {
     Key      key;
-    int      mg, eg;
+    int      score[NCOLORS][2];
     Bitboard passed[NCOLORS];
     Bitboard attacks[NCOLORS];
+    Bitboard attacks_span[NCOLORS];   // every square our pawns may still attack
+    int      blocked_count;
+    Square   king_square[NCOLORS];
+    int      castling[NCOLORS];
+    int      king_safety[NCOLORS][2];
 };
 
 static constexpr int PAWN_TABLE_SIZE = 16384;
@@ -25,6 +34,31 @@ struct ImbalanceEntry {
 };
 
 static constexpr int IMBALANCE_TABLE_BITS = 10;
+
+// The rebuilt evaluation's one conversion from the classical form's units to
+// centipawns, cp = v * S / 1024 truncated: a gauge, fixed once, not fitted.
+// S is the integer whose K, fitted at the seed on corpus A's validation rows,
+// is nearest the accepted evaluation's there: 2.0027 at 620 (2.0060 at 619)
+// against 2.0043.
+inline constexpr int EVAL_REBUILD_CONVERSION_S = 620;
+
+// The rebuilt evaluation's intermediates for one position, in the classical
+// form's units and White's view, as the reference producer prints them
+// (tests/fixtures/eval_reference.tsv): what the parity test compares. Pairs
+// are {middlegame, endgame}; families in the ablation mask's bit order; piece
+// types knights, bishops, rooks, queens.
+struct EvalRebuildRecord {
+    int lazy = 0;
+    int psq[2] = {}, imbalance[2] = {};
+    int family[7][2] = {};
+    int piece_type[4][2] = {};
+    int complexity[2] = {}, adjusted[2] = {};
+    int ph = 0, strong = 0, general_sf = 64, sf = 64, v = 0;
+    // What the endgame layer did (0 silent, 1 scaled, 2 overridden; sf is -1
+    // where it acted), whether the mate drive fired, the score the layer read
+    // (centipawns, White's view) and whether it set a draw verdict.
+    int layer = 0, drove = 0, layer_input = 0, verdict = 0;
+};
 
 // The search treats any score at or above MATE_SCORE - MAX_PLY as a mate and
 // ply-adjusts it on its way into the TT, so a STATIC evaluation must stay
@@ -70,6 +104,9 @@ public:
     // it. Evaluates b again; meant for positions whose evaluation is 0.
     bool draw_verdict(const Board& b);
     void clear_pawn_table();
+    // Evaluates b and fills `out` with the rebuilt evaluation's intermediates;
+    // returns the value evaluate_undamped(b) serves.
+    int rebuild_record(const Board& b, EvalRebuildRecord& out);
 
     // ---- Lazy dual-eval audit (Tune and Diag builds) ------------------------
     // When diag_lazy is set, a lazy-margin skip ALSO runs the full positional
@@ -91,6 +128,18 @@ public:
     // from. Reset per `go` alongside the lazy-audit block.
     int64_t eval_calls = 0;
     int64_t pawn_probes = 0, pawn_hits = 0;
+    // Values the rebuilt evaluation clamped inside the known-win band.
+    // Reset per `go` alongside the counters above.
+    int64_t rebuild_clamps = 0;
+    // The rebuilt evaluation has two lazy exits; the audit above sums them,
+    // and this splits it by the exit taken ([0] the first, [1] the second).
+    // A crossing here is a full sum whose halves would not pass that exit's
+    // own test: the exit called decided what the whole function did not.
+    struct LazyExitAudit {
+        int64_t fires = 0, sign_flips = 0, crossings = 0;
+        int64_t absdelta_sum = 0, absdelta_max = 0;
+    };
+    LazyExitAudit lazy_exit_audit[2];
 
 #ifdef BASILISK_TUNE
     // Enabled only by the hidden tune-build UCI `Diag` option. Counted at the
@@ -101,7 +150,13 @@ public:
 #endif
 
 private:
-    PawnEntry pawn_table_[PAWN_TABLE_SIZE];
+    // Its entries hold each king's shelter too, so the table is some 1.8 MB:
+    // on the heap, allocated once, so that an evaluator still fits on a
+    // thread's stack.
+    struct PawnTable {
+        PawnEntry entries[PAWN_TABLE_SIZE];
+    };
+    std::unique_ptr<PawnTable> pawn_table_ = std::make_unique<PawnTable>();
     ImbalanceEntry imbalance_table_[1 << IMBALANCE_TABLE_BITS];
     int imbalance_generation_ = 0;
 

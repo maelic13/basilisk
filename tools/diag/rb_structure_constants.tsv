@@ -1,0 +1,47 @@
+# basilisk-rb-structure-constants-v1
+# Tracked inventory of fixed bare structure constants in the rebuilt evaluation (PLAN C.3.5 / C.6).
+name	category	file	anchor	value	description
+EVAL_REBUILD_CONVERSION_S	gauge	src/eval.h	inline constexpr int EVAL_REBUILD_CONVERSION_S = 620;	620	Unit-to-centipawn conversion numerator (v * S / 1024)
+PAWNLESS_SCALE_THRESHOLD_DIFF	scale	src/eval.h	if (ours - theirs > 825)	825	Pawnless scaler minor-ahead NPM limit (bishop weight)
+PAWNLESS_SCALE_ROOK_FLOOR	scale	src/eval.h	return ours < 1276 ? 0 : theirs <= 825 ? 4 : 14;	1276,0,825,4,14	Pawnless scaler rook NPM floor and scale steps (0, 4, 14 of 64)
+NPM_KNIGHT	npm	src/eval_rb_common.h	inline constexpr int NPM_KNIGHT = 781;	781	Fixed middlegame knight weight for NPM/phase/space/scale
+NPM_BISHOP	npm	src/eval_rb_common.h	inline constexpr int NPM_BISHOP = 825;	825	Fixed middlegame bishop weight for NPM/phase/space/scale
+NPM_ROOK	npm	src/eval_rb_common.h	inline constexpr int NPM_ROOK   = 1276;	1276	Fixed middlegame rook weight for NPM/phase/space/scale
+NPM_QUEEN	npm	src/eval_rb_common.h	inline constexpr int NPM_QUEEN  = 2538;	2538	Fixed middlegame queen weight for NPM/phase/space/scale
+MIDGAME_LIMIT	phase	src/eval_rb_common.h	inline constexpr int MIDGAME_LIMIT = 15258;	15258	Phase upper non-pawn material clamp
+ENDGAME_LIMIT	phase	src/eval_rb_common.h	inline constexpr int ENDGAME_LIMIT = 3915;	3915	Phase lower non-pawn material clamp
+PHASE_MIDGAME	phase	src/eval_rb_common.h	inline constexpr int PHASE_MIDGAME = 128;	128	Tapered phase full-midgame denominator
+IMBALANCE_DIVISOR	imbalance	src/eval_rb_material.h	- imbalance_polynomial(counts[BLACK], counts[WHITE], p)) / 16;	16	Second-degree imbalance polynomial divisor
+SHELTER_BASE	shelter	src/eval_rb_pawns.h	Score bonus{5, 5};	5	Base shelter bonus per candidate king square (mg and eg)
+KING_PAWN_DISTANCE_CAP	shelter	src/eval_rb_pawns.h	int min_distance = 6;	6	Maximum king-to-own-pawn distance penalty multiplier
+MOBILITY_AREA_LOW_RANKS	mobility	src/eval_rb_pieces.h	constexpr Bitboard LOW_RANKS = Us == WHITE ? rank_bb(1) | rank_bb(2) : rank_bb(6) | rank_bb(5);	1,2,6,5	Own-pawn ranks excluded from mobility area (relative ranks 2-3)
+OUTPOST_RANKS	outpost	src/eval_rb_pieces.h	constexpr Bitboard OUTPOST_RANKS = Us == WHITE ? rank_bb(3) | rank_bb(4) | rank_bb(5)	3,4,5	White outpost rank mask (relative ranks 4-6)
+OUTPOST_RANKS_BLACK	outpost	src/eval_rb_pieces.h	: rank_bb(4) | rank_bb(3) | rank_bb(2);	4,3,2	Black outpost rank mask (relative ranks 4-6)
+TRAPPED_ROOK_MOB_MAX	pieces	src/eval_rb_pieces.h	} else if (mob <= 3) {	3	Maximum mobility threshold for trapped-rook test
+KING_DANGER_THRESHOLD	king	src/eval_rb_king.h	inline constexpr int KING_DANGER_THRESHOLD = 100;	100	King danger activation threshold
+KD_FLANK_ATTACK_DIV	king	src/eval_rb_king.h	+ p.kd_flank_attack * flank_attack * flank_attack / 8	8	King danger flank-attack quadratic divisor
+KD_SHELTER_DIV	king	src/eval_rb_king.h	- p.kd_shelter * score.mg / 8	8	King danger shelter divisor
+KING_DANGER_DIVISORS	king	src/eval_rb_king.h	score -= Score{danger * danger / 4096, danger / 16};	4096,16	King danger quadratic mg divisor (4096) and linear eg divisor (16)
+SPACE_THRESHOLD	space	src/eval_rb_threats.h	inline constexpr int SPACE_THRESHOLD = 12222;	12222	Minimum non-pawn material required for space term
+PASSER_KING_PROXIMITY_CAP	passed	src/eval_rb_threats.h	auto king_proximity = [&](Color c, Square s) { return std::min(distance(b.king_square(c), s), 5); };	5	Passed-pawn king proximity distance clamp
+SPACE_WEIGHT_BASE_CAP	space	src/eval_rb_threats.h	const int weight = popcount(b.occupancy_bb(Us)) - 3 + std::min(e.blocked_count, 9);	3,9	Space weight piece offset (3) and blocked-pawn cap (9)
+SPACE_WEIGHT_DIV	space	src/eval_rb_threats.h	return Score{p.space_weight * bonus * weight * weight / 256, 0};	256	Space weight quadratic divisor (16 * 16)
+CONVERSION_DEN	gauge	src/eval_rb.h	inline int to_centipawns(int v) { return v * CONVERSION_S / 1024; }	1024	Fixed unit denominator in cp = v * S / 1024
+LAZY_THRESHOLD_1	lazy	src/eval_rb.h	inline constexpr int LAZY_THRESHOLD_1 = 1400;	1400	First lazy-eval base threshold (L1)
+LAZY_THRESHOLD_2	lazy	src/eval_rb.h	inline constexpr int LAZY_THRESHOLD_2 = 1300;	1300	Second lazy-eval base threshold (L2)
+LAZY_NPM_DIV	lazy	src/eval_rb.h	return std::abs(s.mg + s.eg) / 2 > threshold + npm / 64;	2,64	Lazy checkpoint half-sum divisor (2) and NPM margin divisor (64)
+WINNABLE_PASSED_W	complexity	src/eval_rb.h	const int complexity = 9 * popcount(e.passed[WHITE] | e.passed[BLACK])	9	Complexity passed-pawn count weight
+WINNABLE_PAWNS_W	complexity	src/eval_rb.h	+ 12 * popcount(pawns)	12	Complexity total-pawn count weight
+WINNABLE_OUTFLANKING_W	complexity	src/eval_rb.h	+ 9 * outflanking	9	Complexity king-outflanking weight
+WINNABLE_BOTH_FLANKS_W	complexity	src/eval_rb.h	+ 21 * both_flanks	21	Complexity pawns-on-both-flanks weight
+WINNABLE_INFILTRATION_W	complexity	src/eval_rb.h	+ 24 * infiltration	24	Complexity king-infiltration weight
+WINNABLE_PAWNLESS_W	complexity	src/eval_rb.h	+ 51 * !non_pawn_material(b)	51	Complexity pawnless-endgame bonus
+WINNABLE_ALMOST_UNWINNABLE_W	complexity	src/eval_rb.h	- 43 * almost_unwinnable	43	Complexity almost-unwinnable penalty magnitude
+WINNABLE_OFFSET	complexity	src/eval_rb.h	- 110;	110	Complexity base offset magnitude (-110)
+WINNABLE_MG_OFFSET	complexity	src/eval_rb.h	const int u = sign(score.mg) * std::clamp(complexity + 50, -std::abs(score.mg), 0);	50	Middlegame complexity adjustment offset
+GENERAL_SF_OCB_BISHOPS	scale	src/eval_rb.h	return 18 + 4 * popcount(e.passed[strong]);	18,4	OCB-only scale base (18) and strong-passer weight (4) of 64
+GENERAL_SF_OCB_OTHER	scale	src/eval_rb.h	return 22 + 3 * popcount(b.occupancy_bb(strong));	22,3	OCB+pieces scale base (22) and strong-piece weight (3) of 64
+GENERAL_SF_ROOKS_SINGULAR	scale	src/eval_rb.h	return 36;	36	Rooks-only same-flank pawn-protected scale of 64
+GENERAL_SF_ONE_QUEEN	scale	src/eval_rb.h	return 37 + 3 * (count(b, minors, BISHOP) + count(b, minors, KNIGHT));	37,3	Single-queen scale base (37) and minor-count weight (3) of 64
+GENERAL_SF_DEFAULT	scale	src/eval_rb.h	return std::min(64, 36 + 7 * count(b, strong, PAWN));	64,36,7	Normal max scale (64), base (36), and strong-pawn weight (7)
+TAPER_SF_DEN	scale	src/eval_rb.h	return (s.mg * ph + s.eg * (PHASE_MIDGAME - ph) * sf / 64) / PHASE_MIDGAME;	64	Endgame scale-factor denominator in taper

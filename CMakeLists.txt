@@ -341,7 +341,9 @@ target_include_directories(test_fatal_report PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 # ---------------------------------------------------------------------------
 # Evaluator tests
 # ---------------------------------------------------------------------------
-add_executable(test_eval tests/test_eval.cpp src/bench.cpp src/wac.cpp)
+add_executable(test_eval tests/test_eval_rebuild.cpp src/bench.cpp src/wac.cpp)
+target_compile_definitions(test_eval PRIVATE
+    BASILISK_TEST_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures")
 target_link_libraries(test_eval PRIVATE basilisk_engine)
 
 # ---------------------------------------------------------------------------
@@ -589,11 +591,14 @@ if((WIN32 AND NOT SANITIZE) OR APPLE)
 endif()
 # The evaluator's hard verdicts on a seeded sample of each fixture class,
 # compared line for line with their reading at B.9.3; exit status 1 while
-# any site is over the line. A repair updates the golden file.
+# any site is over the line. A repair updates the golden file. The reading
+# is the rebuilt evaluation's (C.3.2): the same sites, moved by the sign of
+# its layer's score and by its rule at a score of 0.
+set(_verdicts_golden ${CMAKE_CURRENT_SOURCE_DIR}/tests/data/endgame_verdicts_golden_rebuild.txt)
 add_test(NAME endgame_verdicts_fixtures
          COMMAND ${CMAKE_COMMAND} "-DEXE=$<TARGET_FILE:endgame_verdicts>"
                  "-DARGS=--tables;fixtures;--threads;1;--random;20000;--golden;KPvK;KQvK;KNNvK;KBNvK;KBvKB;KNvKN;KPPvK;KRvKR;KRvKB"
-                 "-DEXPECT_CODE=1" "-DGOLDEN=${CMAKE_CURRENT_SOURCE_DIR}/tests/data/endgame_verdicts_golden.txt"
+                 "-DEXPECT_CODE=1" "-DGOLDEN=${_verdicts_golden}"
                  -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/output_check.cmake)
 set_tests_properties(endgame_verdicts_fixtures PROPERTIES TIMEOUT 600)
 add_test(NAME test_same_colour_bishops COMMAND test_same_colour_bishops)

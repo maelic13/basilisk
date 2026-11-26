@@ -24,7 +24,7 @@ import fit  # noqa: E402
 import piece_values as pv  # noqa: E402
 
 TUNER = str(Path(os.environ["BASILISK_TEXEL"]).resolve()) if os.environ.get("BASILISK_TEXEL") else ""
-HEADER_TEXT = (HERE.parents[1] / "src" / "eval_params.h").read_text(encoding="utf-8")
+HEADER_TEXT = (HERE.parents[1] / "src" / "eval_rb_params.h").read_text(encoding="utf-8")
 
 ROWS = [
     "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3",
@@ -202,8 +202,9 @@ class WithTheTuner(unittest.TestCase):
         self.assertTrue(queens and min(queens) > 500, report["vectors"]["header"])
 
     def header_vector(self, directory: Path) -> Path:
-        params = bake.parse_param_list(HEADER_TEXT)
-        vector = bake.header_vector(HEADER_TEXT, params)
+        header_text = (HERE.parents[1] / "src" / "eval_rb_params.h").read_text(encoding="utf-8")
+        params = bake.parse_param_list(header_text)
+        vector = bake.header_vector(header_text, params)
         path = directory / "header.txt"
         path.write_text(f"# {bake.VECTOR_SCHEMA}\n# root {bake.vector_hash(vector)}\n"
                         + "".join(f"{n} {i} {v}\n" for n, i, v in vector), encoding="utf-8")
