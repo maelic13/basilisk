@@ -67,6 +67,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bake  # noqa: E402
+import surface as surface_rules  # noqa: E402
 HEADER = ROOT / "src" / "eval_rb_params.h"
 SURFACE = ROOT / "tools" / "texel" / "surface_rebuild_v1.tsv"
 SCHEMA = "basilisk-texel-fit-v1"
@@ -144,10 +145,10 @@ def check_corpus(corpus: Path) -> dict:
     return manifest
 
 
-def configure_and_build(run: Run, build: Path, texel: bool) -> Path:
+def configure_and_build(run: Run, build: Path, texel: bool, own_forms: int = 0) -> Path:
     tree = build / ("texel" if texel else "release")
     command = ["cmake", "--preset", "release", "-B", str(tree), "-DCOMP=clang",
-               f"-DTEXEL={'ON' if texel else 'OFF'}"]
+               f"-DTEXEL={'ON' if texel else 'OFF'}", f"-DEVAL_OWN_FORMS={own_forms}"]
     run.step(f"configure-{tree.name}", command)
     target = "basilisk-texel" if texel else "basilisk"
     extra = [] if texel else ["test_eval"]
@@ -300,6 +301,7 @@ def fit(args, run: Run, header: Path, surface: Path, k_mode: str, relevel: bool)
     rec["source_revision"] = git("rev-parse", "HEAD")
     rec["host"] = {"python": platform.python_version(), "platform": platform.platform()}
     rec["k_mode"] = k_mode
+    rec["own_forms"] = args.own_forms
     rec["relevel_material"] = relevel
     corpus = check_corpus(args.corpus)
     rec["corpus"] = {"dir": str(args.corpus), "manifest_sha256": sha256(args.corpus / "manifest.json"),
@@ -309,8 +311,8 @@ def fit(args, run: Run, header: Path, surface: Path, k_mode: str, relevel: bool)
     rec["header_sha256"] = sha256(header)
     run.save()
 
-    texel_tree = configure_and_build(run, args.build_dir, texel=True)
-    release_tree = configure_and_build(run, args.build_dir, texel=False)
+    texel_tree = configure_and_build(run, args.build_dir, texel=True, own_forms=args.own_forms)
+    release_tree = configure_and_build(run, args.build_dir, texel=False, own_forms=args.own_forms)
     tuner = texel_tree / f"basilisk-texel{EXE}"
     engine = release_tree / f"basilisk{EXE}"
     rec["binaries"] = {"tuner_sha256": sha256(tuner), "engine_sha256": sha256(engine)}
@@ -325,6 +327,20 @@ def fit(args, run: Run, header: Path, surface: Path, k_mode: str, relevel: bool)
     derived = run.out / "surface.tsv"
     run.step("surface-rank", rank_command(surface_tool, tuner, surface, args.corpus / "train.csv",
                                           derived, args))
+    if args.fix_groups:
+        # A control arm: these groups held at their --init values, so a term
+        # the fit would otherwise use is removed from both the fit and the read.
+        groups = set(args.fix_groups.split(","))
+        rows = surface_rules.read_manifest(derived)
+        found = {row.group for row in rows if row.group in groups}
+        if found != groups:
+            raise FitError(f"--fix-groups names groups not in the registry: {sorted(groups - found)}")
+        for row in rows:
+            if row.group in groups:
+                row.lo = row.hi = row.step = ""
+                row.fixed("held at its --init value by --fix-groups (a control arm)")
+        surface_rules.write_manifest(rows, derived, "fix-groups " + ",".join(sorted(groups)))
+        rec["fix_groups"] = sorted(groups)
     rec["surface"]["derived"] = {"file": derived.name, "sha256": sha256(derived)}
     rec["surface"]["support"] = support_record(derived)
     train = args.corpus / corpus["output"]["train"]["file"]
@@ -399,6 +415,13 @@ def fit(args, run: Run, header: Path, surface: Path, k_mode: str, relevel: bool)
     played_final = run.step("played-final", [str(tuner), "--init", str(final), "--played-hash",
                                              str(validation)]).split()[-1]
     rec["played_hash_final"] = played_final
+    if args.no_bake:
+        # A screen arm: the fitted vector and its held-out read are the
+        # result, so the header is never touched and arms with their own
+        # build directories can share one checkout.
+        rec["baked"] = False
+        run.save()
+        return
     bake_source = final
     if relevel:
         root_hash, seed_hash = bake.dump_root_and_seed(final.read_text(encoding="utf-8"))
@@ -422,8 +445,8 @@ def fit(args, run: Run, header: Path, surface: Path, k_mode: str, relevel: bool)
     baked = run.out / header.name
     shutil.copyfile(header, baked)
     rec["baked_header_sha256"] = sha256(baked)
-    configure_and_build(run, args.build_dir, texel=True)
-    configure_and_build(run, args.build_dir, texel=False)
+    configure_and_build(run, args.build_dir, texel=True, own_forms=args.own_forms)
+    configure_and_build(run, args.build_dir, texel=False, own_forms=args.own_forms)
     if registry_vector(run, tuner, "baked-vector") != read_vector(bake_source):
         raise FitError("the rebuilt tuner does not hold the fitted vector")
     run.step("verify-baked", [str(tuner), "--verify", str(validation), "--max-positions", "0"])
@@ -471,6 +494,12 @@ def main() -> int:
     parser.add_argument("--rank-positions", type=int, default=300_000,
                         help="the rank sample; support is counted on the linear stages' rows")
     parser.add_argument("--min-support", type=int, default=200)
+    parser.add_argument("--fix-groups", default="",
+                        help="comma-separated registry groups held fixed at their --init values")
+    parser.add_argument("--no-bake", action="store_true",
+                        help="stop after the final vector's held-out read and played hash: no bake")
+    parser.add_argument("--own-forms", type=int, default=0,
+                        help="the EVAL_OWN_FORMS bit mask both builds compile (src/eval.h, OwnForm)")
     args = parser.parse_args()
     args.corpus = args.corpus.resolve()
     header = HEADER
