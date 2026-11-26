@@ -99,7 +99,8 @@ the six-stage gating shape), are in
     - [ ] **C.4.6** `[R2]` Lower-yield remainder
     - [ ] **C.4.7** `[V]` Endgame gate and closure
 - [ ] **C.5** Residual, refit cycles and the speed pass
-    - [ ] **C.5.1** `[R3]` Residual investigation
+    - [ ] **C.5.1** Residual investigation and its clusters
+        - [ ] **C.5.1.1** `[R3]` Residual investigation
     - [ ] **C.5.2** `[V]` Refit cycles
     - [ ] **C.5.3** `[R3]` Speed research: the gap to the donors, split
     - [ ] **C.5.4** `[I2]` Speed pass: the implementation

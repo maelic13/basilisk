@@ -2524,25 +2524,36 @@ has lost games in both engines (BAS-X02).
   the evaluation's cost.
   Reworked 2026-11-18 (maintainer, after C.0): the phase ends on its
   meters, so the residual is investigated before the closing fits.
-    - [ ] **C.5.1** `[R3]` Residual investigation
-      After the family and endgame clusters. It re-reads the same-search
-      meter on a fresh oracle build, the matched ablation by family, the
-      family screen both ways and the frontier pair, and reads C.2.2's
-      H-distribution result beside them. Its questions:
-      - how much of 217.3 is left, and in which family and phase;
-      - whether what is left is evaluation at all: speed (C.5.3), the
-        search's margins on the new evaluation (C.7), or positions a
-        search visits and a game does not (the corpus);
-      - which donor forms were screened out and are worth a game-level
-        read now, threats first: they have no static case and were never
-        measured in play;
-      - what information of Basilisk's own a concept residual screen
-        (TE-1) can still name.
-      It ends by opening further clusters as leaves of this step, ahead
-      of the refit cycles, each with its handoff, or by closing the
-      family work. Stop rule: two consecutive units under +5 at their
-      gates, or a frontier pair whose interval includes zero. A unit
-      expected under 5 Elo goes to Phase H.
+    - [ ] **C.5.1** Residual investigation and its clusters
+      Opened 2026-11-26 (maintainer) so that the clusters the
+      investigation opens have numbers that run before the refit
+      cycles (C.5.2). The investigation is C.5.1.1. Each cluster it
+      opens takes the next numbers from C.5.1.2 on, one leaf for each
+      stage of the cluster shape that is its own leaf (research,
+      implementation, review, fit, gate), as C.3 did. Opening them is
+      a plan change, signed by the maintainer with the handoff. Nothing
+      after C.5.1 is renumbered.
+        - [ ] **C.5.1.1** `[R3]` Residual investigation
+          After the family and endgame clusters. It was C.5.1 until
+          2026-11-26. It re-reads the same-search meter on a fresh oracle
+          build, the matched ablation by family, the family screen both
+          ways and the frontier pair, and reads C.2.2's H-distribution
+          result beside them. Its questions:
+          - how much of 217.3 is left, and in which family and phase;
+          - whether what is left is evaluation at all: speed (C.5.3),
+            the search's margins on the new evaluation (C.7), or
+            positions a search visits and a game does not (the corpus);
+          - which donor forms were screened out and are worth a
+            game-level read now, threats first: they have no static case
+            and were never measured in play;
+          - what information of Basilisk's own a concept residual screen
+            (TE-1) can still name.
+          It ends by opening further clusters as leaves of C.5.1, from
+          C.5.1.2 on and ahead of the refit cycles, each with its
+          handoff, or by closing the family work. Stop rule: two
+          consecutive units under +5 at their gates, or a frontier pair
+          whose interval includes zero. A unit expected under 5 Elo goes
+          to Phase H.
     - [ ] **C.5.2** `[V]` Refit cycles
       It was C.8 until 2026-11-18.
       Refit cycles (archived 8.9): regenerate data with the accepted
@@ -2618,12 +2629,23 @@ has lost games in both engines (BAS-X02).
       - Played and full scores dumped (C-89); cache purity (C-105); a
         runtime lazy margin clears the caches (C-42); the profile comes
         from A.9.5.
-      - Code audit 2026-10-27 (§6.3 E9), read on the retired
-        evaluation: no material or imbalance cache, so the
-        twelve-popcount census and the imbalance were rebuilt on every
-        call (the pawn cache is pure). The rebuilt evaluation has an
-        imbalance table (`src/eval.h`), so the item is read again on
-        it before it is ranked. E8's lazy cut is C.6's and C.7's.
+      - Code audit 2026-10-27 (§6.3 E9) found no material or imbalance
+        cache in the retired evaluation. Corrected 2026-11-26 for the
+        rebuilt one (C.3):
+        - The imbalance is cached. `imbalance()`
+          (`src/eval_rb_material.h`) keys a 1,024-entry table
+          (`IMBALANCE_TABLE_BITS`, `src/eval.h`) on the ten piece
+          counts. It still counts them on every call to form the key.
+        - Material and the piece-square tables are summed over every
+          piece on every call (`material()`, same file), and the phase
+          and the non-pawn material count the pieces again. The board
+          keeps none of them incrementally; the donor keeps material and
+          the tables in its position.
+        - The pawn cache is pure.
+        So the open item is an incremental material, table and count
+        state, kept by make and unmake. It is behaviour-neutral when
+        every score stays identical. The audit's E8, the lazy cut, is
+        C.6's (C.7's note).
       It ends with a ranked list. Each item carries its mechanism, its
       share of the profile, its predicted gain, its proof of identity
       and the read that keeps or reverts it. An item under 0.5% of
@@ -2665,6 +2687,10 @@ has lost games in both engines (BAS-X02).
   are its items):
   - The nonlinear sweep (C-122); initiative and mop-up are untraced (C-47,
     C-36); the king-danger clamp (C-113).
+  - The lazy thresholds' refit (C-98, moved from C.7 on 2026-11-26): the
+    two exits' thresholds and their npm divisor are on this surface. A
+    runtime threshold clears the caches (C-42) once they are tune-build
+    options.
 - [ ] **C.7** Joint re-fit on the new evaluation
   It was C.10 until 2026-11-25.
   One joint SPSA over the registered cp-valued search coordinates, including
@@ -2703,22 +2729,36 @@ has lost games in both engines (BAS-X02).
   evaluation.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
-  - `LAZY_MARGIN` refit (C-98); correction-magnitude terms on the surface
-    (B-69); search and evaluation never share a tune (B-107); `scale_ratio.py`
-    after B.10 and C (B-108); the qsearch margins as coordinates (B-25); a
-    runtime lazy margin clears the caches (C-42).
+  - Correction-magnitude terms on the surface (B-69); search and
+    evaluation never share a tune (B-107); `scale_ratio.py` after B.10 and
+    C (B-108); the qsearch margins as coordinates (B-25).
+  - The lazy items (C-98, C-42) were written for the retired evaluation's
+    `LAZY_MARGIN`, which no longer exists. On the rebuilt evaluation they
+    are C.6's (corrected 2026-11-26), and below. C-42 applies here only if
+    C.7.1 puts the thresholds on the joint surface: a runtime threshold
+    clears the caches.
   - Code audit 2026-10-27 (§6.3 E7; C.5.2's until 2026-11-05): first the
     correction's size at the scaled endings' recogniser returns (B.14
     already took the four draw verdicts), then the switch, skip the
     correction when the evaluation came from a recogniser, read with the
     search surface.
-  - The lazy-evaluation thresholds, a behaviour-changing question audited
-    beside `LAZY_MARGIN`'s refit, moved here from C.9 (2026-11-05) so that
-    C.8 freezes them: the lazy cut is one stage at 700 on the tapered
-    cheap score with no npm term, where the donor uses two stages with a
-    margin growing by npm/64 (about +260 at full material), and it skips
-    king danger, threats, mobility, passer proximity and path, the mop-up
-    drive and tempo (code audit §6.3 E8).
+  - The lazy-evaluation thresholds, a behaviour-changing question, moved
+    here from the throughput leaf on 2026-11-05 so that C.8 freezes them.
+    Corrected 2026-11-26: the code audit's E8 (§6.3) described the
+    retired evaluation, a single cut at 700 with no npm term. The
+    rebuilt evaluation (C.3) has the donor's form:
+    - two exits (`lazy_skip`, `src/eval_rb.h`): the first after
+      material, imbalance and pawns at `LAZY_THRESHOLD_1` = 1400, the
+      second after pieces, mobility, king safety and passers at
+      `LAZY_THRESHOLD_2` = 1300;
+    - each compares half the sum of the two halves with its threshold
+      plus a 64th of the non-pawn material;
+    - an exit skips the families after it. Winnable, the scale factors,
+      the endgame layer and the mate drive still run.
+    They ship at the donor's values and are on C.6's surface (C.3.5's
+    inventory, `tools/diag/rb_structure_constants.tsv`), so C.6 fits
+    them and C.8 freezes them. This leaf reads them again only if
+    C.7.1 puts evaluation coordinates on the joint surface.
 - [ ] **C.8** `[V]` Freeze the classical evaluation
   It was C.11 until 2026-11-25.
   Checkpoint and freeze (archived 8.11).
@@ -2884,7 +2924,7 @@ leaf's tag. Later phases carry only a class until they open.
 | C.4.5 | RESEARCH | I2 | Not started |
 | C.4.6 | RESEARCH | R2 | Not started |
 | C.4.7 | RESEARCH | V | Not started |
-| C.5.1 | RESEARCH | R3 | Not started |
+| C.5.1.1 | RESEARCH | R3 | Not started |
 | C.5.2 | RESEARCH | V | Not started |
 | C.5.3 | RESEARCH | R3 | Not started |
 | C.5.4 | RESEARCH | I2 | Not started |
