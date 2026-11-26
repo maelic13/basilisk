@@ -2650,15 +2650,77 @@ has lost games in both engines (BAS-X02).
     the C.0 head as anchors, by material class. It locates where the
     programme moved the evaluation and accepts nothing. Its prior is
     Rarog's read of the 2026-11-14 head (C.2.10).
-- [ ] **C.9** `[I2]` Evaluation throughput, bit-exact
+- [ ] **C.9** Throughput against the donors, bit-exact
   It was C.12 until 2026-11-25.
   Evaluation throughput, bit-exact (archived 8.12).
-  - Profile terms, phases and cache paths first.
-  - Optimize only measured hot paths, with exact bench plus direct
-    score-corpus identity.
-  - The lazy-eval thresholds are C.7's, audited before the freeze
-    (2026-11-05); this leaf keeps every score identical.
-  - Gate with interleaved pooled NPS and a natural-termination SPRT.
+  Widened 2026-11-26 (maintainer): a speed pass over the whole engine,
+  not the evaluation's hot paths alone, because Basilisk is much slower
+  than its donors. It opens as research, implementation and a gate, as
+  B.8's pass did (B.8.8, B.8.9).
+  - The measured gap. In the frontier pair Stockfish 16 HCE searches
+    2.79M nodes a second and 192,355 nodes a move against the head's
+    2.01M and 137,013 (BAS-M27): 39% more. Before the rebuild it was
+    2.76M against 2.00M (BAS-M24), so the gap is older than the donor's
+    forms and is not theirs alone. The rebuild cost −3.88%
+    [−4.65%, −3.10%] pooled on `bench 13` (BAS-E65), beside C.1's
+    −0.71%.
+  - Every change here keeps every score and the `bench 13` fingerprint.
+    C.8's games are D.1's entry play and C.10.1's fitting data, so the
+    frozen head's moves stay the release's.
+  - A lever that changes a score is not built here. The lazy-eval
+    thresholds are C.7's, audited before the freeze (2026-11-05). Any
+    other such lever C.9.1 finds is reported and goes to H.1's triage.
+    - [ ] **C.9.1** `[R3]` Speed research: the gap to the donors, split
+      Added 2026-11-26 (maintainer). A packet in `analysis/` and a
+      ranked handoff; no engine change. Its questions:
+      - whether the two node counts are the same count (B.8.7 counts as
+        modern Stockfish does; `sf_16` is read for its own), and the
+        gap in time per node if they are not;
+      - how the gap splits: the evaluation's cost per call on one
+        fixture of game positions, Basilisk's against the reference's
+        (`9587eeeb`) built with the same compiler, flags and PGO; and
+        the rest of a node (make, generation, picker, table, search
+        bookkeeping) from profiles of both engines on one workload,
+        with the oracle's hybrids where they separate the two;
+      - what the donors do that Basilisk does not, read in the local
+        latest Stockfish first and in the reference for the classical
+        evaluation: tables and caches (pawn, material and imbalance),
+        what is kept incrementally, attack maps built once, data layout,
+        build flags;
+      - duplicate calculations across a seam: search and evaluator,
+        picker and search, make and search;
+      - ideas no donor uses, where the profile supports them.
+      Inputs carried from the earlier leaf and from B.8:
+      - Profile terms, phases and cache paths first.
+      - B.8.8's packet (`analysis/b88_speed_packet_2026-11-15.md`): its
+        negatives (TB-16) are not re-read without a new reason, and its
+        Return 1 stands: a memory item is judged on the game cohort
+        (`tools/cohort_read.py`, BAS-P37), not on `bench` alone.
+      - The audit items and C.1's cost, listed under this step below.
+      It ends with a ranked list. Each item carries its mechanism, its
+      share of the profile, its predicted gain, its proof of identity
+      and the read that keeps or reverts it. An item under 0.5% of
+      samples is not built (H.4's rule). The guard for each kind of
+      item is registered here, before C.9.2 builds one.
+    - [ ] **C.9.2** `[I2]` Speed pass: the implementation
+      Added 2026-11-26 (maintainer). C.9.1's items in its order, one
+      commit each.
+      - Optimize only measured hot paths, with exact bench plus direct
+        score-corpus identity: the played and the full scores dumped
+        and compared (C-89).
+      - Each item is kept or reverted on C.9.1's registered read, and a
+        reverted item is recorded with its figure.
+      - A false premise returns the leaf to C.9.1's packet.
+    - [ ] **C.9.3** `[V]` Speed pass: pooled read, gate and close
+      Added 2026-11-26 (maintainer).
+      - Gate with interleaved pooled NPS and a natural-termination SPRT,
+        the pass against the frozen head.
+      - The game-cohort read beside it, loaded and at one engine.
+      - Then the frontier pair, as after every accepted gate (the
+        cluster shape's stage 7): its speed and depth figures are read
+        against BAS-M27's.
+      - The close states what share of the gap of C.9.1 is recovered
+        and what is left, with its owner (H.4 on the network head).
   - C.1's accepted cost is recovered here (2026-11-20). The C.1 restructure
     read −0.71% [−0.94%, −0.48%] against the pre-C.1 base `496248d`, so
     the pools `tools/test_engines/c1-base.pool.json` and `c1-head` stay as
@@ -2680,7 +2742,8 @@ has lost games in both engines (BAS-X02).
   as 1.12.0 once C.9 closes, as Rarog cut 2.6.0 from its C head. Since
   2026-11-21 (maintainer) the release first prints its score on a fitted
   scale (C.10.1), so 1.12.0 is the first release whose +1.00 means an even
-  chance.
+  chance. Since 2026-11-26 (maintainer) the remote is cleaned before the
+  cut (C.10.3, C.10.4).
     - [ ] **C.10.1** `[I1]` Reported score and WDL in Stockfish's form
       Added 2026-11-21 (maintainer; `analysis/rarog_import_2026-11-21.md`
       §2.1, after Rarog's D.7.12). Output only: no search or clock
@@ -2735,7 +2798,59 @@ has lost games in both engines (BAS-X02).
         and that `UCI_ShowWDL` shows the rates.
       - The constants are checked again at E.3, and refitted per network
         at F.6.
-    - [ ] **C.10.2** `[M]` The 1.12.0 cut
+    - [ ] **C.10.3** `[R2]` Remote inventory and the ruling
+      Added 2026-11-26 (maintainer): too much is pushed to the remote,
+      some of it things that do not belong there at all, and it leaves
+      before the next release. The rule is the maintainer's of
+      2026-11-25: the remote holds the project and its source, as lean
+      as possible. This leaf removes nothing. It ends in a list the
+      maintainer signs, class by class.
+      - **The tree.** Every tracked path is classified: the engine and
+        what builds, tests and releases it; what the working method
+        needs (the rules, the roadmap, the ledger, the procedures); and
+        what is neither. Measured 2026-11-26, the tree with BAS-M28
+        noted: 940 files, 21.2 MiB. By size: `logo/` 8 files and
+        7.8 MiB, six of them images of 0.9 to 2.0 MiB and three of
+        those alternatives; `analysis/` 89 files and
+        2.6 MiB; `tests/fixtures/` 2.5 MiB, of which
+        `eval_reference.tsv` is 2.3 MiB; `tools/diag/` 140 files and
+        2.4 MiB; `docs/experiments/` 327 files and 1.2 MiB;
+        `docs/archive/` 0.7 MiB; `src/` 87 files and 0.9 MiB.
+      - **Not ruled on at 2026-11-25:** `external/fathom/` (compiled
+        into the engine), `tools/oracle/*.patch` and
+        `tools/weather-factory-overlay/`.
+      - **Off the tree.** Branches (2), tags (31), releases (29) and
+        their assets, pull-request refs (35), and the Actions artifacts
+        and caches. Each is kept with its reason or listed to go.
+      - **For each class that goes:** what reads it (a check, a test,
+        CI, a citation, a procedure), where it lives afterwards
+        (ignored local storage with a manifest, or nowhere), and what
+        changes so that nothing breaks.
+      - **The history question, with its price.** Removing a file from
+        the tip leaves it in every clone's history. Removing it from
+        history rewrites every commit of `master`: the documents'
+        commit citations break (762 at this date), the release tags
+        move, and GitHub keeps the old commits under its pull-request
+        refs, which a push cannot rewrite. The packet prices both and
+        the maintainer rules: the tip only, or the history too.
+      - It reads `READY_FOR_IMPLEMENTATION` when the list is signed.
+        If the ruling includes the history, C.10.4's class is raised
+        here.
+    - [ ] **C.10.4** `[M]` The remote clean-up
+      Added 2026-11-26 (maintainer). C.10.3's signed list, and nothing
+      beside it.
+      - A file kept locally is verified against its manifest before it
+        is untracked.
+      - The checks, the tests and CI are changed in the same commit as
+        the removal they follow.
+      - Done when a fresh clone builds, passes CTest and CI, and the
+        roadmap, citation and rules checks pass on it.
+      - Deleting a tag, a release or a remote branch, and any forced
+        push, are the maintainer's commands: prepared, handed over one
+        at a time and verified after.
+      - C.10.5's scans then run on the lean tree.
+    - [ ] **C.10.5** `[M]` The 1.12.0 cut
+      It was C.10.2 until 2026-11-26.
       Licensed as B.11.4 is: an accepted SPRT over the 1.11.0 release at
       `3+0.03` 1T, `10+0.1` and 4T direction checks whose 95% intervals
       exclude a loss, the 4T check sibling-free. Cut through A.8.6's
@@ -2763,9 +2878,13 @@ leaf's tag. Later phases carry only a class until they open.
 | C.7.1 | RESEARCH | R2 | Not started |
 | C.7.2 | RESEARCH | V | Not started |
 | C.8 | RESEARCH | V | Not started |
-| C.9 | RESEARCH | I2 | Not started |
+| C.9.1 | RESEARCH | R3 | Not started |
+| C.9.2 | RESEARCH | I2 | Not started |
+| C.9.3 | RESEARCH | V | Not started |
 | C.10.1 | RESEARCH | I1 | Not started |
-| C.10.2 | RESEARCH | M | Not started |
+| C.10.3 | RESEARCH | R2 | Not started |
+| C.10.4 | RESEARCH | M | Not started |
+| C.10.5 | RESEARCH | M | Not started |
 
 ## Phase D — Clock, threads, tablebases
 

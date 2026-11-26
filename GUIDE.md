@@ -106,10 +106,15 @@ the six-stage gating shape), are in
     - [ ] **C.7.1** `[R2]` Joint-fit investigation and registration
     - [ ] **C.7.2** `[V]` The joint fit, PGO and gate
 - [ ] **C.8** `[V]` Freeze the classical evaluation
-- [ ] **C.9** `[I2]` Evaluation throughput, bit-exact
+- [ ] **C.9** Throughput against the donors, bit-exact
+    - [ ] **C.9.1** `[R3]` Speed research: the gap to the donors, split
+    - [ ] **C.9.2** `[I2]` Speed pass: the implementation
+    - [ ] **C.9.3** `[V]` Speed pass: pooled read, gate and close
 - [ ] **C.10** Interim release after the evaluation programme
     - [ ] **C.10.1** `[I1]` Reported score and WDL in Stockfish's form
-    - [ ] **C.10.2** `[M]` The 1.12.0 cut
+    - [ ] **C.10.3** `[R2]` Remote inventory and the ruling
+    - [ ] **C.10.4** `[M]` The remote clean-up
+    - [ ] **C.10.5** `[M]` The 1.12.0 cut
 
 ### Phase D — Clock, threads, tablebases
 
