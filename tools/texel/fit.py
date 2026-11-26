@@ -445,7 +445,7 @@ def main() -> int:
     parser.add_argument("--surface", type=Path, default=None)
     parser.add_argument("--build-dir", type=Path, default=ROOT / "build" / "fit")
     parser.add_argument("--rebuild", action="store_true",
-                        help="accepted for the C.3.4 launchers; the evaluation has one form since C.3.5")
+                        help="accepted from older launchers; there is one evaluation to fit")
     parser.add_argument("--relevel-material", action=argparse.BooleanOptionalAction, default=True,
                         help="fold PST live-square means into MgVal/EgVal at bake (default on)")
     parser.add_argument("--expect-bench", type=int, default=0,
