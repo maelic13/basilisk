@@ -92,8 +92,8 @@
 
 - Inside the 80% band: +99.8 for +85 (+40 to +130).
 - In `9587eeeb`'s search the rebuild closed 103.8 Elo of BAS-O14's
-  +146.2 gap (BAS-O16), matching the +99.8 gained in Basilisk's search
-  and covering most of the −120.0 frontier gap to Stockfish 16 HCE
-  (BAS-M24).
+  +146.2 gap (BAS-O16), matching the +99.8 gained in Basilisk's search.
+  A gain against the head is not a read of the gap to Stockfish 16 HCE
+  (BAS-M24, −120.0); the frontier pair in C.3.5 measures that.
 
 
