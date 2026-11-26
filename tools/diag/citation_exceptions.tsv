@@ -23,7 +23,7 @@ dd0e676007f2e53e1bc59054b24b6ca9003d9ca2	external	Reckless: source of record in 
 d9d8b26337bc46e0782243cb13dd6781b873c4f1	external	Rarog: engine-choice audit
 59d190e22162c53efe630938d1609c5baa57d18d	external	net_trainer: engine-choice audit
 cebc78a093d92cbc87e56cfef049184c225270b0	external	Bullet, pinned by net_trainer: engine-choice audit
-015bccae	external	Rarog: the commit snapshotted in docs/reference/rarog/
+015bccae	external	Rarog: the first import's commit, under Rarog's pull requests (docs/reference/README.md)
 08c3a23	external	Rarog dev at the 2026-09-28 import
 1647dd28	external	Rarog dev in the 2026-10-07 all-refs bundle
 881c821	external	Rarog dev audited on 2026-09-07
@@ -33,8 +33,8 @@ ca03a46	external	Rarog: benchmarked in RAR-M20 (BAS-X16)
 9a7b663	external	Rarog: setup work moved off the clock (BAS-C11)
 19a02f44	external	Rarog: the tablebase PV extension's last change (BAS-C13)
 4a738d2	external	Rarog: the merge base of the 2.4.0 to 2.5.0 import
-dcf15c51	external	Rarog dev after 2.5.0, snapshotted in docs/reference/rarog-2026-10-06/
-dcf15c512f7c871bb11faaa70ccbb479953ddea9	external	Rarog dev after 2.5.0, snapshotted in docs/reference/rarog-2026-10-06/
+dcf15c51	external	Rarog dev after 2.5.0, the final import's commit, under Rarog's pull requests (docs/reference/README.md)
+dcf15c512f7c871bb11faaa70ccbb479953ddea9	external	Rarog dev after 2.5.0, the final import's commit, under Rarog's pull requests (docs/reference/README.md)
 da6d8f9	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
 97ea52d	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)
 b2c98c8	external	Rarog: a 2.4.0 to 2.5.0 commit (BAS-X35)

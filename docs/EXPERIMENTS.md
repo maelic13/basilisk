@@ -16,15 +16,18 @@ roadmap uses lettered phases (`A.2.1`, `B.3`); [`HISTORY.md`](HISTORY.md)
 resolves every retired number to its archived roadmap and maps retired open
 leaves to their current identifiers. Rows from BAS-X30 on cite the lettered
 roadmap. Rarog identifiers (`RAR-*`) and Rarog paths cited anywhere in this
-ledger resolve in the pinned snapshot `docs/reference/rarog/` (Rarog
-`015bccae`), or for BAS-X35 in `docs/reference/rarog-2026-10-06/`, or for
+ledger resolve in Rarog's repository at `015bccae`, or for BAS-X35 at
+`dcf15c51` (a path an entry gives under `docs/reference/rarog/` or
+`docs/reference/rarog-2026-10-06/` is the same path at that commit), or for
 BAS-X36 in Rarog's live repository at `ec6f5b5`, or for BAS-X41 at `019646a`
 (with the run artifacts copied to `tools/results/imported-rarog-2026-11-04/`),
 read under A.12's exception;
 `docs/reference/README.md` says how. Triumviratus items (`TS-1`, `TB-1`
 and the like) and paths cited by BAS-X37–X40 resolve in
-`analysis/triumviratus_review_2026-11-03.md` and the snapshots
-`docs/reference/triumviratus/` and `docs/reference/triumviratus-networks/`. Do not rewrite measured records merely because the roadmap was
+`analysis/triumviratus_review_2026-11-03.md` and the local copies of
+Triumviratus at its pinned commits (`docs/reference/README.md`; a path given
+under `docs/reference/triumviratus/` or `docs/reference/triumviratus-networks/`
+is the same path there). Do not rewrite measured records merely because the roadmap was
 reordered; the retry map in section 9 is live routing and carries current
 destinations.
 

@@ -32,7 +32,9 @@ def write_tree(root, engine='"1.10.2"', cmake="1.10.2", guide=GUIDE, changelog=C
     (root / "GUIDE.md").write_text(guide, encoding="utf-8")
     (root / "CHANGELOG.md").write_text(changelog, encoding="utf-8")
     (root / "docs" / "DESIGN.md").write_text("- **Bench signature**: **14,978,465**\n", encoding="utf-8")
-    (root / "AGENTS.md").write_text("(currently **14,978,465** at `bench 13`)\n", encoding="utf-8")
+    (root / "agents").mkdir(exist_ok=True)
+    (root / "agents" / "implementation.md").write_text(
+        "(currently **14,978,465** at `bench 13`)\n", encoding="utf-8")
     for command in (["git", "init", "-q"], ["git", "add", "-A"],
                     ["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "x"]):
         subprocess.run(command, cwd=root, check=True)

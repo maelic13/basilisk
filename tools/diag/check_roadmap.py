@@ -71,7 +71,10 @@ FINGERPRINT = re.compile(r"\*\*(\d{1,3}(?:,\d{3})+)\*\*")
 GUIDE_FINGERPRINT_ROW = "| Bench fingerprint |"
 # Each document that restates the current fingerprint does it on one line
 # containing this anchor, so a stale copy cannot hide behind a line wrap.
-FINGERPRINT_ANCHORS = (("docs/DESIGN.md", "Bench signature"), ("AGENTS.md", "currently **"))
+FINGERPRINT_ANCHORS = (
+    ("docs/DESIGN.md", "Bench signature"),
+    ("agents/implementation.md", "currently **"),
+)
 # A title is the step's name in GUIDE's overview, not its description.
 TITLE_MAX = 64
 PHASE_HEADING = re.compile(r"^## (Phase [A-Z]\b.*)$")
@@ -726,7 +729,9 @@ def self_test() -> None:
         (root / "GUIDE.md").write_text("| Bench fingerprint | **1,234,567** |\n", encoding="utf-8")
         (root / "docs").mkdir(exist_ok=True)
         (root / "docs" / "DESIGN.md").write_text("- **Bench signature**: **1,234,567**\n", encoding="utf-8")
-        (root / "AGENTS.md").write_text("(currently **1,234,567**)\n", encoding="utf-8")
+        (root / "agents").mkdir(exist_ok=True)
+        (root / "agents" / "implementation.md").write_text(
+            "(currently **1,234,567**)\n", encoding="utf-8")
         validate_fingerprint(root)
         (root / "docs" / "DESIGN.md").write_text("- **Bench signature**: **7,654,321**\n", encoding="utf-8")
         expect_failure("a stale restated fingerprint", lambda: validate_fingerprint(root))

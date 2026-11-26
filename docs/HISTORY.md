@@ -595,6 +595,19 @@ if C.3.6 returns that form.
   4,777,412 since B.9.5. Older still: 12,709,666 before 6.5.a, and
   12,568,898 before the 15.0.a SEE repair. The legacy kernel, deleted at
   B.8.1, read 23,696,970 at A.11.9.
+- **2026-11-25 — No other project's file is tracked.** At the maintainer's
+  request the remote holds Basilisk and nothing else. The 54 Triumviratus
+  documents under `docs/reference/` moved to the ignored local store beside
+  that engine's source (`tools/results/reference/`, verified by the
+  `.local-sha256` manifests), and the copy of the UCI specification left the
+  root. Rarog is pinned by commit:
+  `docs/reference/rarog/` (273 files, Rarog `015bccae`) and
+  `docs/reference/rarog-2026-10-06/` (19 files, `dcf15c51`) left the tree
+  after every file was compared with Rarog's blob at its commit and found
+  identical. `docs/reference/README.md` says where the two commits are and
+  how an older reference resolves. The plan's protection against Rarog's
+  deletion, the reason for the copy on 2026-09-28, is now the three bundles
+  in ignored storage.
 
 ## Release record — 1.11.0
 
