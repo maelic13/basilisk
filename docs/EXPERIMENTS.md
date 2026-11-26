@@ -187,7 +187,7 @@ fifty-move, 2 stalemate. **Zero forfeits.** Instrument: branch `hybrid`
 - [BAS-O14](experiments/BAS-O14.md) — C.2.10 matched evaluation ablation by family and cluster on the refitted head, eleven reads of 3,000 games. — COMPLETE 2026-11-25: the donor's evaluation leads by +146.2; the passers explain +125.4 and the king +43.1, while mobility (−46.0), the piece terms (−37.7) and pawn structure (−33.2) read below zero; all seven together +162.8; the order becomes pawns and passers, king safety, material and pieces, mobility and space; 4 of 11 predictions inside their bands
 - [BAS-O15](experiments/BAS-O15.md) — C.3.1 transplant read: the donor's passers and king safety on Basilisk's evaluation in the oracle, three reads of 3,000 games at matched cost. — COMPLETE 2026-11-25: gain −1.6, the donor over it +122.1, the donor over the control +172.9; the control failed and the falsifier fired, so the reads show nothing about a two-family port; 0 of 3 predictions inside their bands
 - [BAS-O16](experiments/BAS-O16.md) — C.3.4 oracle check: the donor's evaluation against the rebuilt one at its seed values in `9587eeeb`'s search, 3,000 games. — COMPLETE 2026-11-25: +42.4 [+35.1, +49.7] (989-1386-625), 0 faults; speed-flagged (1.129×); 41 vs 2 clamped draws; below +50 return line
-- [BAS-O17](experiments/BAS-O17.md) — C.3.4 matched static fits of the rebuilt evaluation on corpus A (`one-k` and `k-phase`) — Run 1 converged (`one-k` −3.53%, `k-phase` −2.01%) with 4 bound hits per arm; Run 2 prepared with widened bounds — registered
+- [BAS-O17](experiments/BAS-O17.md) — C.3.4 matched static fits of the rebuilt evaluation on corpus A (`one-k` and `k-phase`) — COMPLETE 2026-11-26 (Run 2): both arms converged with zero artificial bound hits (`one-k` −3.58%, `k-phase` −2.03%), exact played-hash identity and `24/24` conversion floors; proceeded to BAS-E63 and BAS-E64 — observation
 - [BAS-D22](experiments/BAS-D22.md) — B.11.1 fixed-node meters: depth at 300k nodes, branching, endgame truth cohort. — observation: 3.3-ply gap (was 12.2), 458/480 converted
 
 **Internal consistency.** Measured directly, full Stockfish beat Basilisk 1.9.3
@@ -419,6 +419,8 @@ future work needs to re-open either cluster is now counted rather than guessed.
 - [BAS-E60](experiments/BAS-E60.md) — C.2.8.4: the Syzygy label contract, B's fit against A's, a conditional SPRT `[0,3]`. — CLOSED, CONDITION FAILED on run 2 (label-specific advantage +1.7e-6 against 2e-5); no games
 - [BAS-E61](experiments/BAS-E61.md) — C.2.8.4 companion: the refit against the head before the top-tier repair, SPRT `[0,3]`. — COMPLETE: H1 at 1,164 games, +74.6 ± 13.3 Elo against the old head (BAS-E59 read +85.2 against the repaired one)
 - [BAS-E62](experiments/BAS-E62.md) — C.2.10 family screen both ways on the refitted head, both donors. — COMPLETE: on corpus A king safety leads (16.2 at phase 18–24) and space reads 3.4; the control shows that is the sample, not the refit: on C.0's gate games space still adds 40.4 with the head (50.8 before); three of four predictions missed
+- [BAS-E63](experiments/BAS-E63.md) — C.3.4: `one-k` Run 2 fitted rebuilt evaluation against the rebuilt seed, 2,000 paired games at `3+0.03` — registered
+- [BAS-E64](experiments/BAS-E64.md) — C.3.4: `k-phase` Run 2 fitted rebuilt evaluation against the rebuilt seed, 2,000 paired games at `3+0.03` — registered
 
 - [BAS-X11](experiments/BAS-X11.md) — current standing, 12,000-game Colosseum round robin — see entry
 
