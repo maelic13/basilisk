@@ -62,5 +62,11 @@ the design on corpus A is otherwise as registered.
   the base.
 - δ's reason, corrected: it is just above the fit's path noise (1.6e-5
   between `k-phase` Run 1 and Run 2). It has no Elo anchor.
+- **Arms, after R5** (the packet's Amendment 1): `ROOK_SEVENTH` is
+  withdrawn, so nineteen candidate arms, and U is the nineteen: 23 arms
+  before P_A.
+- **Launcher:** `python tools/run_c36_screen.py screen --label A --corpus
+  tools/texel/data/corpusA/rows --k-phase 3.026687,0.970080`, then
+  `report` with the same arguments.
 
 #### RESULT — append after exposure

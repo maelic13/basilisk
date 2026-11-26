@@ -9,9 +9,10 @@
 - Research question: BAS-O18's question on the rebuilt engine's own
   games, which are the fair population for its forms (the packet's §9
   and §13). It also replicates BAS-O18 on a second corpus.
-- Arms: BAS-O18's (N, C1, C2, the twenty bits alone, U), then P_C, the
-  passing bits fitted together, when two or more pass. The execution is
-  BAS-O18's Amendment 1.
+- Arms: BAS-O18's (N, C1, C2, the bits alone, U), then P_C, the passing
+  bits fitted together, when two or more pass. The execution is BAS-O18's
+  Amendment 1. After R5 (2026-11-26, before any arm) the bits are
+  nineteen and U is the nineteen: 23 arms before P_C.
 - Measure: BAS-O18's, on C's validation rows, at C's frozen K.
 
 #### PRE-REGISTERED PREDICTION — frozen 2026-11-26
