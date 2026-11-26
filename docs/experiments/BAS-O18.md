@@ -65,6 +65,14 @@ the design on corpus A is otherwise as registered.
 - **Arms, after R5** (the packet's Amendment 1): `ROOK_SEVENTH` is
   withdrawn, so nineteen candidate arms, and U is the nineteen: 23 arms
   before P_A.
+- **The bootstrap** draws with numpy (`np.random.default_rng(360001)`),
+  in chunks of 50 resamples. That changes which resamples a given seed
+  draws, which is acceptable only because no arm had been read. Every arm
+  draws the same games against N, so the comparison stays paired.
+- **Gate 1 fallback, the command:** `python tools/run_c36_screen.py screen
+  --label A2 --corpus tools/texel/data/corpusA/rows --k-phase
+  3.026687,0.970080 --init tools/results/c36-screen-A/N/fit/04-polish.txt
+  --arms N`; then |L(N2) − L(N)| is read from the two arms' `arm.json`.
 - **Launcher:** `python tools/run_c36_screen.py screen --label A --corpus
   tools/texel/data/corpusA/rows --k-phase 3.026687,0.970080`, then
   `report` with the same arguments.
