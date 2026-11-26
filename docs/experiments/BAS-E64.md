@@ -66,3 +66,31 @@
   to stronger play in Basilisk's search.
 
 #### RESULT — append after exposure
+
+- 2026-11-26. Complete: 2,000 games (`tools/results/c34-e64/`, PGN
+  SHA-256 `ED1965A9…992CEBC9`), zero engine faults, zero time losses,
+  recount agrees.
+- **Basilisk `k-phase` fit minus Basilisk rebuilt seed: −9.6 Elo [−19.6, +0.4]**
+  (95% pentanomial CI; trinomial `[−21.3, +2.1]`), score 48.6%
+  (972.5 / 2,000), 564 wins, 817 draws, 619 losses, pentanomial
+  [57, 250, 422, 233, 38].
+- Speed and depth: `k-phase` 1.97M nodes/s (139,627 nodes/move, 70.7
+  ms/move, mean non-mate depth 16.42, median 15) against rebuilt seed
+  1.96M nodes/s (138,563 nodes/move, 70.7 ms/move, mean non-mate depth
+  16.30, median 15), speed ratio 1.005 (unflagged). Terminations: 1,183
+  checkmate, 686 threefold, 120 insufficient material, 7 fifty-move, 4
+  stalemate.
+- **Disposition:** `accepted` as C.3.4's fitted arm (`−9.6` clears §11's
+  `>= −10` Elo return threshold and beats [BAS-E63](BAS-E63.md) by `+16.2`
+  Elo on the same 1,000 UHO openings; baked into `src/eval_rb_params.h`
+  at `5128e6e` and advanced to C.3.5).
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- Observed `−9.6 [−19.6, +0.4]` against predicted `+0` (80% band `−15` to
+  `+15`, `P(>= −10) = 0.80`, `P(> BAS-E63) = 0.70`): inside the 80%
+  interval, `k-phase > one-k` confirmed (`+16.2`), and consistent with `H2`
+  (single static regression on Corpus A sits ~10 Elo behind years of
+  Stockfish game SPSA on sharp tactical weights).
+- Objective follow-up: C.6 SPSA and refitting on rebuilt-engine games after
+  C.3.5 ships.

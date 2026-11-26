@@ -2240,7 +2240,7 @@ has lost games in both engines (BAS-X02).
         - the Diag counters of the pawn cache, the lazy exits and the
           clamp report nothing on the new arm, and the knobs' bounds
           are implementation's: both are C.3.4's to settle.
-    - [ ] **C.3.4** `[I2]` Seed-value read and fit
+    - [x] **C.3.4** `[I2]` Seed-value read and fit
       The port at converted seed values against the head, with its speed
       and tree reads: the donor's evaluation in Basilisk's own search.
       Then the fit by C.3.1's method, the fitted-constant analysis, the
@@ -2271,6 +2271,24 @@ has lost games in both engines (BAS-X02).
       - At the bake each table's mean moves into its material
         slot. The function does not change, and the material values
         that ship are the fit's own.
+      Done 2026-11-26 (`5128e6e`, `0374cfd`, `4a9c07d`; `analysis/c31_rebuild_2026-11-25.md`):
+      - **Seed reads:** `BAS-M25` **+99.8 [+91.5, +108.3]** (3,000 games,
+        pooled NPS −4.47%, tree −2.07% nodes, 0 faults); `BAS-O16`
+        +42.4 [+35.1, +49.7] in `9587eeeb`'s search (< +50 return line).
+      - **Static fits (`BAS-O17` Run 2, widened knob bounds):** zero
+        artificial bound hits on both arms (`one-k` −3.58%, `k-phase`
+        −2.03%, `k-phase` lower in every phase band); `24/24`
+        conversion floors on both.
+      - **Paired fit reads (2,000 games, seed `210006`):** `BAS-E63`
+        (`one-k`) **−25.8 [−35.7, −15.9]** rejected; `BAS-E64`
+        (`k-phase`) **−9.6 [−19.6, +0.4]** accepted (clears `>= −10`).
+      - **Bake & verification:** `k-phase` Run 2 baked into
+        `src/eval_rb_params.h` (`5128e6e`; 59/59 CTest on both
+        `EVAL_REBUILD=OFF` `3,359,329` and `ON` `3,880,333`; `24/24`
+        conversion floors); C-98 lazy audit on `validation.csv` exact
+        (37,725 fires, 4 sign flips, 764 crossings, margins held); PGO
+        gate binaries (`0374cfd`) and `tools/run_c35_gate.py` (`4a9c07d`;
+        `BAS-E65`, `BAS-M26`, `BAS-M27`) dry-run cleanly.
     - [ ] **C.3.5** `[V]` Gate, frontier pair and close
       Stages 6 to 8: the maintainer-run SPRT with its `10+0.1` and NPS
       reads (C-99), an equal-node companion if an equal-time gate fails
@@ -2693,8 +2711,7 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.3.4 | READY_FOR_IMPLEMENTATION | I2 | Preparation first: the new arm's diagnostics, the builds and the launcher for BAS-M25 and BAS-O16 (the rebuild packet's Amendment 7); then the maintainer's reads, then the fit's registration |
-| C.3.5 | RESEARCH | V | Not started |
+| C.3.5 | GAME_GATE | V | Gate binaries built (0374cfd), BAS-E65/M26/M27 registered and dry-run under tools/run_c35_gate.py (4a9c07d); awaiting maintainer gate run |
 | C.3.6 | RESEARCH | R2 | Not started |
 | C.4.2 | RESEARCH | R3 | Not started |
 | C.4.3 | RESEARCH | I2 | Not started |

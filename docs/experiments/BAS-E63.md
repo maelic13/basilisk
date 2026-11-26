@@ -66,3 +66,28 @@
   falsifies the concern that static corpus fits lose donor game-tuned synergy.
 
 #### RESULT — append after exposure
+
+- 2026-11-26. Complete: 2,000 games (`tools/results/c34-e63/`, PGN
+  SHA-256 `BDE51A55…75C517AF`), zero engine faults, zero time losses,
+  recount agrees.
+- **Basilisk `one-k` fit minus Basilisk rebuilt seed: −25.8 Elo [−35.7, −15.9]**
+  (95% pentanomial CI; trinomial `[−37.5, −14.1]`), score 46.3%
+  (926 / 2,000), 512 wins, 828 draws, 660 losses, pentanomial
+  [62, 287, 420, 199, 32].
+- Speed and depth: `one-k` 1.97M nodes/s (139,455 nodes/move, 70.9
+  ms/move, mean non-mate depth 16.50, median 15) against rebuilt seed
+  1.95M nodes/s (138,099 nodes/move, 70.6 ms/move, mean non-mate depth
+  16.33, median 15), speed ratio 1.010 (unflagged). Terminations: 1,172
+  checkmate, 689 threefold, 119 insufficient material, 17 fifty-move, 3
+  stalemate.
+- **Disposition:** `rejected` (misses the `>= −10` threshold and trails
+  [BAS-E64](BAS-E64.md) by 16.2 Elo on the same 1,000 UHO openings).
+
+#### PREDICTION CALIBRATION — preserve the original prediction above
+
+- Observed `−25.8 [−35.7, −15.9]` against predicted `−8` (80% band `−25`
+  to `+10`, falsifier below `−25`): direction correct, magnitude slightly
+  worse than the 80% lower bound, confirming that compressing the 3.1×
+  phase slope of `K(phase)` under a single `K` harms play across frozen
+  search margins.
+- Closed for C.3.4; no retry needed once `k-phase` is selected.
