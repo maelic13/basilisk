@@ -77,4 +77,22 @@ the design on corpus A is otherwise as registered.
   tools/texel/data/corpusA/rows --k-phase 3.026687,0.970080`, then
   `report` with the same arguments.
 
+#### RUN NOTE — 2026-11-27, before any arm is read
+
+- **The rank step stalled.** numpy's OpenBLAS (24 threads a process) spun
+  against corpus C's datagen: N's `surface.py rank` took 22:38 to 02:36 UTC
+  where an idle machine takes about a minute. C1 and C2 were stopped in that
+  same step at 02:50 UTC, before any fit stage or loss existed. Their
+  directories are kept at `tools/results/c36/aborted/A-C{1,2}-blas24/`.
+  Their relaunch is therefore not a second run of a read arm.
+- **Every other arm, here and on BAS-O20, runs with
+  `OPENBLAS_NUM_THREADS=2`.** That is the environment only, with no code
+  change, and Fable agreed to it before any arm used it. N's rank, rerun at
+  two threads, wrote a byte-identical `surface.tsv` (SHA-256 `85521c25…dbe44f`
+  both ways; rank 1220 of 1220, smallest relative singular value 0.00392).
+  The rank step feeds the fit only through that derived surface. N stands as
+  run.
+- Each arm's own rank line is still read: an arm short of its free slots, or
+  one that needs a slot fixed, goes to Fable before it is fitted.
+
 #### RESULT — append after exposure
