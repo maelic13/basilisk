@@ -118,3 +118,59 @@ the design on corpus A is otherwise as registered.
   - N (`A`) and N2 (`A2`) are method observations, not arms.
 
 #### RESULT — append after exposure
+
+Read 2026-11-27 on label `A3` (R8: `--stages linear,polish` from the
+shipped vector, HEAD `879863a`, `OPENBLAS_NUM_THREADS=2`). Every arm's
+`run.json` carries `879863a`, ran `linear,polish` and moved no
+kingsafety-class slot, and every arm's rank was full. Report:
+`tools/results/c36-screen-A3/report.json` (log
+`tools/results/c36/reportA3.log`), bootstrap seed 360001, 2,000
+resamples.
+
+- **Gate 1 passes:** L(shipped) 0.09274536, L(N) 0.09274177, difference
+  3.59e-6 against 1.0e-5.
+- **Gate 2 passes:** C1 (`Hanging` at 0) costs 4.46e-5 (CI 1.62e-5 to
+  7.23e-5), and C2 (`RookOnFile` at 0) costs 1.14e-4 (CI 7.27e-5 to
+  1.56e-4).
+- **One candidate passes: b00 `OWN_PHASE`**, Δ +5.78e-5, CI [+1.4e-7,
+  +1.19e-4]. Its lower bound is only just above 0. With one passer there
+  is no P_A.
+
+| arm | form | Δ | 95% CI |
+|---|---|---|---|
+| b00 | OWN_PHASE | +5.78e-5 | [+1.4e-7, +1.19e-4] PASS |
+| b19 | ROOK_BEHIND_PASSER | +1.90e-5 | [−1.4e-7, +3.72e-5] |
+| b17 | ROOK_CLOSED_FILE | +1.68e-5 | [−3.7e-6, +3.89e-5] |
+| b14 | ISLANDS | +1.55e-5 | [−3.9e-6, +3.39e-5] |
+| b03 | SPACE | +8.3e-6 | [−1.75e-5, +3.46e-5] |
+| b13 | MAJORITY | +1.4e-6 | [−1.16e-5, +1.51e-5] |
+| b18 | TRAPPED_BISHOP | −1.1e-7 | [−2.6e-7, +3.6e-8] (R6: not readable by this screen, 0.06% active) |
+| b11 | PAWN_THREAT | −1.1e-6 | [−9.3e-6, +6.8e-6] (R6: not readable by this screen, 3.6% active) |
+| b10 | QUEEN_INFILTRATION | −4.9e-6 | [−2.47e-5, +1.46e-5] |
+| b16 | CONNECTED_ROOKS | −5.2e-6 | [−9.9e-6, −7.8e-7] |
+| b05 | KING_ZONE | −1.04e-5 | [−3.45e-5, +1.37e-5] (king-safety knobs frozen, R8) |
+| b09 | ROOK_QUEEN_FILE | −1.10e-5 | [−2.13e-5, −1.2e-6] |
+| b08 | MINOR_BEHIND_PAWN | −2.05e-5 | [−3.96e-5, +1.7e-7] |
+| b04 | MOBILITY | −2.62e-5 | [−7.12e-5, +2.11e-5] |
+| b12 | PAWN_CLASS | −3.07e-5 | [−6.61e-5, +3.8e-6] |
+| b06 | BAD_BISHOP | −3.51e-5 | [−6.26e-5, −7.8e-6] |
+| b07 | OUTPOST | −3.65e-5 | [−7.17e-5, −7.7e-7] |
+| b01 | TEMPO | −8.65e-5 | [−1.23e-4, −5.03e-5] |
+| b02 | OCB | −3.26e-4 | [−3.84e-4, −2.68e-4] |
+| U | all nineteen | −4.45e-4 | [−5.58e-4, −3.30e-4] (diagnostic) |
+
+- **Calibration against §11.**
+  - Gate 1 at the shipped vector, as first registered (four stages),
+    missed its 0.9. It passed on A3 only after R8.
+  - Both controls held (0.85 and 0.6).
+  - Passing forms: 1 against 3 of nineteen, inside the 80% band of 0 to
+    7.
+  - The largest Δ came from a replacing form, not an added one: a miss
+    of the 0.6.
+  - "U's Δ below the sum of the passing bits' Δ" (0.7) held:
+    −4.45e-4 < +5.78e-5.
+  - The registered most-likely failure mode is close to what happened:
+    one form passes, and only just.
+- **Next:** b00 is corpus A's forms candidate, and goes to BAS-E67 if
+  corpus A stays the base (BAS-E66 not kept). Otherwise BAS-O20 on corpus
+  C chooses.
