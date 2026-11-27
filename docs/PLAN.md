@@ -2419,7 +2419,7 @@ has lost games in both engines (BAS-X02).
           parity-coverage failure expected; the lazy census's
           precondition fixed in `b2009cc`; R6 (`PAWN_THREAT` and
           `TRAPPED_BISHOP` barely active on quiet rows).
-        - [ ] **C.3.6.4** `[V]` The screens and the first refit
+        - [x] **C.3.6.4** `[V]` The screens and the first refit
           Amended 2026-11-26 (the packet's Amendment 1; maintainer):
           C.5.2's first cycle is pulled forward. Corpus C, corpus A's
           recipe with the shipped engine; BAS-O18 on corpus A; the refit
@@ -2431,6 +2431,32 @@ has lost games in both engines (BAS-X02).
           - the null N2 passed the registered fallback at 9.68e-6;
           - the index lines of BAS-O18, BAS-O19 and BAS-O20 still read
             "registered".
+          **Closed 2026-11-27** (`704b957`, `879863a`, `1f07c8e`; BAS-O18,
+          BAS-O19, BAS-O20):
+          - **Corpus C** (BAS-O19): corpus A's recipe with the shipped
+            PGO PEXT build, ten slices of 100,000 games, 0 faults. Its
+            audit has A's kind, its validation starts equal A's, and
+            `--verify` is exact on all 197,304 validation rows.
+          - **The screen on A** (BAS-O18, label `A3`: R8's
+            `linear,polish` from the shipped vector). Gate 1 3.59e-6
+            against 1.0e-5; both controls above δ. One marginal pass,
+            b00 `OWN_PHASE` +5.78e-5 [+1.4e-7, +1.19e-4]. Before R8 the
+            null N2 had passed the registered fallback at 9.68e-6.
+          - **The refit R** (BAS-O19): 1,176 linear slots and the nine
+            material values moved; loss on C's validation −1.19e-4
+            (−0.134%); piece values within ±3% in every band; no fitted
+            knob on a bound; played hash fb1ed67763bb0dac through the
+            bake; `bench 13` 3,525,148 (`1f07c8e`). R8 froze 59 knobs:
+            22 of king danger, 36 of the material imbalance and
+            `SpaceWeight`.
+          - **The screen on C** (BAS-O20, from R). Gate 1 0; both
+            controls above δ_C 1.915e-5. One marginal pass, b12
+            `PAWN_CLASS` +4.10e-5 [+3.4e-6, +8.1e-5], which reads
+            −3.07e-5 on A. Neither pass repeats on the other corpus
+            (pooled z 0.1 for b12, 1.1 for b00).
+          - **Calibration:** one pass on each corpus against three of
+            nineteen predicted, inside the 80% band; the largest Δ came
+            from a replacing form, a miss of the 0.6.
         - [ ] **C.3.6.5** `[V]` The refit's read, the cluster read and close
           Amended 2026-11-26 (maintainer: "One cluster SPRT is ok"): the
           refit's SPRT (BAS-E66, cap 10,000 pairs), then one SPRT for the
@@ -3152,7 +3178,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.3.6.4 | RESEARCH | V | Registered as BAS-O18, BAS-O19, BAS-O20 |
 | C.3.6.5 | RESEARCH | V | Registered as BAS-E66, BAS-E67 |
 | C.4.2 | RESEARCH | R3 | Not started |
 | C.4.3 | RESEARCH | I2 | Not started |
