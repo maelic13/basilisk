@@ -2531,6 +2531,22 @@ has lost games in both engines (BAS-X02).
               form is C.5.1.1's Candidate C.
             - Every form that waits goes to Phase H, whose triage reads
               against the network head, so in practice this closes them.
+          - **The switch removed** (`8ee292d` engine, `bf7b636` tools;
+            the maintainer's rule of 2026-11-26). `EVAL_OWN_FORMS`, the 19
+            forms and their 44 slots are gone, and the registry is 1,450
+            slots again; `run_c36_screen.py` went with them, and
+            `form_screen.py`, `--no-bake` and `--fix-groups` stay.
+            Behaviour-neutral: `bench 13` 3,525,148 on the release, tune,
+            diagnostic and ablation builds; 59/59 CTest; `--verify` exact
+            and the played hash fb1ed67763bb0dac on corpus C's
+            validation, as at the head before; CI's Python tests,
+            `check_rb_constants.py` and the roadmap, citation and rules
+            checks pass. No NPS read was taken. **`1bb866f` is the last
+            commit that compiles the forms**; a later read takes a form
+            from it.
+          - The tracked surface manifest's seeds were still C.3.4's after
+            R's bake, which failed `test_surface`; `f0ccd19` rebuilt them
+            (the seed column alone, 1,185 slots).
 - [ ] **C.4** Endgame handling and winnability
   It was C.7 until 2026-11-25.
   The goal is measured conversion and correct draw recognition where games
