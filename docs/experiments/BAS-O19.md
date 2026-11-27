@@ -103,7 +103,7 @@ on C's validation.
 | marginal piece values, every cell (`piece_values.py`, base against R) | within ±3% | within ±15%, 0.85: met |
 
 - **The bake.**
-  - Played hash `fb1ed67763bb0dac` is identical at the final, the
+  - Played hash fb1ed67763bb0dac is identical at the final, the
     re-levelled and the baked vector.
   - The re-levelling shifts are MgPawn +9, EgPawn +6, and every other
     shift within ±5.
@@ -113,3 +113,20 @@ on C's validation.
 
 The registered rule is met: no piece value is outside the band, and no
 fitted knob is on a bound. R goes to BAS-E66's pre-game checks.
+
+#### REVIEW NOTE — 2026-11-27 (research; the packet's Amendment 2)
+
+The result stands. Two additions:
+
+- **What R did not fit.** The amendment's stage holds 59 knobs: 22 of
+  king danger, 36 of the material imbalance and `SpaceWeight`. R is a
+  refit of the 1,244 free linear slots, and those 59 keep C.3.4's
+  values.
+- **R by phase.** Paired against the shipped vector on C's validation,
+  with a bootstrap over games, R is better in every phase group from 2
+  to 24 and worse at phases 0 and 1: −2.60e-4, interval [−4.13e-4,
+  −1.08e-4], on 17,473 rows. It is worse there at its own best K too.
+  By class, it lost in pawns-only endings, one-minor endings and the
+  uneven phase-2 class, and gained in rook against rook and opposite
+  bishops. The packet's Amendment 2 has both tables; the recipe and the
+  outputs are in `tools/results/c36/review/`.

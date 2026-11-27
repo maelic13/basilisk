@@ -170,7 +170,8 @@ resamples.
   final epoch (C1, C2, U, b00 to b05, b08, b10, b14, b17, b19). Min-delta
   1e-6 over 50 epochs stopped them while they were still descending at
   about 2e-8 an epoch. The rule is the same for every arm and understates
-  a candidate's Δ, so it cannot create a pass. At that rate no failing
+  a candidate's Δ, so it cannot create a pass (corrected 2026-11-27 in
+  the review note below: it can favour an arm). At that rate no failing
   replacing form could close its gap in under 1,000 epochs (b10 1,250;
   b08 2,000; b04 2,300; b01 5,300).
 - **The near misses.** b19, b17 and b14 are within the fit's path noise
@@ -194,3 +195,25 @@ resamples.
 - **Next:** b00 is corpus A's forms candidate, and goes to BAS-E67 if
   corpus A stays the base (BAS-E66 not kept). Otherwise BAS-O20 on corpus
   C chooses.
+
+#### REVIEW NOTE — 2026-11-27 (research; the packet's Amendment 2)
+
+The verdicts above stand. Three corrections to the record:
+
+- **N2's number.** The fallback null (`tools/results/c36-screen-A2/N`)
+  moved 0.09272609 → 0.09271641, 9.68e-6, inside the 1.0e-5 limit: the
+  registered fallback passed. All of it came from its first knob stage
+  (`ImbOurs[20]`, `SafeCheck[7]`, `KdFlankAttack`). Its linear and polish
+  stages restored epoch 0, and its second knob stage changed nothing. R8
+  replaced the restart from N all the same, for the knob on its cap and
+  for the path noise.
+- **R8's scope.** The stage it removes holds 59 knobs: 22 of king
+  danger, 36 of the material imbalance and `SpaceWeight`. The run note
+  names king safety only.
+- **The stop rule can favour an arm.** It stopped the null at epoch 58
+  and kept epoch 9, while 14 arms ran on to their final epoch. With
+  b19's own slots set to 0 and its other slots kept, the loss is
+  0.09273215: 9.6e-6 better than N, half of b19's Δ. For b14 and b17 the
+  same reading is worse than N (0.09278501, 0.09278202), so their gain
+  is the form's. No pass or failure turns on it. b00's lower bound of
+  +1.4e-7 is smaller than this effect, and b00 failed on corpus C.

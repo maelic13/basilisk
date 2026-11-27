@@ -2425,6 +2425,12 @@ has lost games in both engines (BAS-X02).
           recipe with the shipped engine; BAS-O18 on corpus A; the refit
           R on corpus C (BAS-O19); BAS-O18's arms again on C from R
           (BAS-O20). All fits end before any game.
+          Reviewed 2026-11-27 (research; the packet's Amendment 2): the
+          three readings stand. For the close:
+          - R8 froze 59 knobs, 36 of them the material imbalance;
+          - the null N2 passed the registered fallback at 9.68e-6;
+          - the index lines of BAS-O18, BAS-O19 and BAS-O20 still read
+            "registered".
         - [ ] **C.3.6.5** `[V]` The refit's read, the cluster read and close
           Amended 2026-11-26 (maintainer: "One cluster SPRT is ok"): the
           refit's SPRT (BAS-E66, cap 10,000 pairs), then one SPRT for the
@@ -2433,6 +2439,20 @@ has lost games in both engines (BAS-X02).
           candidate, bar a hard failure, which returns to research; the bracket is
           recorded and its positions go to C.4. Every form ends returned, unresolved or out with its
           retry trigger.
+          Reviewed 2026-11-27 (research; the packet's Amendment 2):
+          - BAS-E66 was killed from outside at 2,772 games and resumed
+            from its checkpoint. Its entry's run note explains the one
+            `EngineCrash` record.
+          - The branch head carries R's values (`bench 13` 3,525,148)
+            while GUIDE declares 3,880,333. H1 moves the declaration;
+            anything else reverts `1f07c8e`.
+          - R loses at phases 0 and 1 and gains everywhere else, so
+            the bracket is expected to fire.
+          - BAS-E67: research's position is to withdraw it before its
+            first game. The maintainer rules.
+          - Two added forms repeat on both corpora below δ,
+            `ROOK_CLOSED_FILE` and `ISLANDS`. The close records them
+            with the forms' routing.
 - [ ] **C.4** Endgame handling and winnability
   It was C.7 until 2026-11-25.
   The goal is measured conversion and correct draw recognition where games
@@ -2492,6 +2512,23 @@ has lost games in both engines (BAS-X02).
         A's held-out half: minutes, no games. It ranks the classes for
         C.4.3's candidate A. A phase slope the fit has not absorbed is a
         fit question before it is a term.
+      An early read on corpus C, 2026-11-27 (research's review of C.3.6;
+      `analysis/c36_own_forms_2026-11-26.md`, Amendment 2). It is an
+      input, not this leaf's read:
+      - The scale left after K by phase differs by ending class at the
+        same phase. As the ratio of a class's own K to the fit's:
+        pawns only 1.10, one minor 0.95, opposite bishops 0.88, other
+        minor against minor 0.82, a rook or two minors against pawns
+        0.72, rook against rook 0.93. Finding 1's pawn endings agree in
+        sign, and its opposite bishops do not.
+      - The refit R gained in the drawish classes and lost in the
+        decisive ones (pawns only, one minor, the uneven phase-2
+        class), which share the endgame values. BAS-E66's bracket is
+        read against that.
+      - The scale-factor and complexity numbers are still the donor's
+        (`GENERAL_SF_*`, `WINNABLE_*`). This leaf decides whether C.4.3
+        fits them by class on quiet rows, where a class's own K is a
+        direct statistic, or leaves them to C.6's games.
     - [ ] **C.4.3** `[I2]` Generic winnability and scaling
       Narrowed 2026-11-25 (`analysis/c31_rebuild_2026-11-25.md` §6.8 and §13): the
       donor's winnable step and general scale heuristics arrive with
@@ -2718,6 +2755,32 @@ has lost games in both engines (BAS-X02).
       - Refit cycles diminish (+11.0, then +6.7 in Rarog), so size from
         earlier cycles' games (C-123); priors (C-68); scores re-dumped
         after each refit (C-69).
+      From the first cycle, 2026-11-27 (research's review;
+      `analysis/c36_own_forms_2026-11-26.md`, Amendment 2):
+      - **What is left for a plain cycle.** A second pass on corpus C
+        from R moved 0 of 1,244 slots (BAS-O20's null). Corpus A to C
+        was a change of evaluation form, and K moved +5% and +15%; the
+        next corpus differs by a few units a slot. So the second cycle
+        follows C.4 and C.5.1's form changes, as this order already
+        has it, and is not run on unchanged forms.
+      - **The knob stage, before the second cycle's method is
+        registered.** The first cycle froze its 59 knobs (the packet's
+        R8).
+        - The 22 king-danger knobs and `SpaceWeight` are C.6's.
+        - The 36 imbalance knobs are pinned at C.3.4's values. Their
+          retry trigger is the stage on the whole training set
+          (`--ks-positions 0`), from small first steps, with a bootstrap
+          interval on its validation gain and a null pass that does not
+          move. The maintainer rules on the pin here.
+      - **A pre-game check.** The refit's loss against the base by
+        phase and by ending class, paired, with a bootstrap over games,
+        before any game. R read −2.60e-4 [−4.13e-4, −1.08e-4] at phases
+        0 and 1. A class that loses with its interval below 0 is
+        reported to research before the SPRT. The review's scripts
+        (`tools/results/c36/review/`) are the recipe; this leaf makes
+        them a tool.
+      - A loss delta does not size a cycle's Elo: R moved the loss by
+        0.13% and `bench 13` by 9%.
     - [ ] **C.5.3** `[R3]` Speed research: the gap to the donors, split
       It was C.9 until 2026-11-26 and C.12 until 2026-11-25 (evaluation
       throughput, bit-exact; archived 8.12).
@@ -2836,6 +2899,17 @@ has lost games in both engines (BAS-X02).
   written skip is not open while one of them is unfitted.
   C.3.5's inventory of them is this leaf's surface list, and the
   constants become tune-build options here.
+  From C.3.6, 2026-11-27 (the packet's R8 and Amendment 2):
+  - The first refit cycle froze the 22 king-danger knobs
+    (`KingAttackWeight`, `SafeCheck`, `Kd*`) and `SpaceWeight`, and
+    routed them here. They join this leaf's candidate surface, read by
+    its activation and curvature screen like any other coordinate.
+  - The null refits' stage vectors (`tools/results/c36-screen-A/N/fit`,
+    `c36-screen-A2/N/fit`) show how far a static stage walks them.
+  - The 36 imbalance knobs are not on this surface: games cannot price
+    them, and C.5.2 holds their pin.
+  - If C.4.2 sends the scale-factor numbers to a static fit in C.4.3,
+    they leave this surface.
   Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`; IDs
   are its items):
   - The nonlinear sweep (C-122); initiative and mop-up are untraced (C-47,

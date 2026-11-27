@@ -73,7 +73,7 @@
 - **Pre-game checks**, all passed:
   - No fitted knob on a bound. No king-safety slot was fitted (R8), and
     KdBlockers is at 0, its shipped value.
-  - The played hash `fb1ed67763bb0dac` is identical through the
+  - The played hash fb1ed67763bb0dac is identical through the
     re-level and the bake, and `--verify` is exact at the bake.
   - CTest is 59/59. The one value-bound file,
     `tests/data/endgame_verdicts_golden_rebuild.txt`, was regenerated:
@@ -92,5 +92,39 @@
     at 2.03%.
   - Marginal piece values are within ±3% of the base in every phase
     band (BAS-O19).
+
+#### RUN NOTE — 2026-11-27, before the result
+
+Written by research's review (the packet's Amendment 2), from the run
+directory `tools/results/c36-e66-sprt` and its three wrapper manifests.
+
+- **Two interruptions, one sequential test.**
+  - The run started at 07:48:36 UTC from the agent session.
+  - At 08:16:30 UTC it was killed from outside, with 2,772 games
+    committed.
+  - It resumed from its checkpoint at 08:17:12 UTC (`run.log`'s
+    `resumed` event). The games in flight were dropped and played again
+    from the same seed.
+  - The maintainer paused it at about 08:22 UTC for the review, at 1,649
+    pairs with 0 faults.
+  The committed sample, the seed, the bounds and the cap are unchanged,
+  so a resume from the checkpoint continues the registered test. It is
+  not an extension or a restart.
+- **The `EngineCrash` record is the kill, not an engine fault.**
+  `failed-games/` holds one record: the candidate, round 2789, "engine
+  terminated unexpectedly (exit code: 1)", mid-search.
+  - Exit code 1 in a search is an outside termination. Basilisk exits 1
+    only at start-up or through `main`'s catch, which prints
+    `info string FATAL` first, and the record's transcript has no such
+    line. An abort or an access violation exits otherwise.
+  - The record is stamped 3 seconds after the segment's last progress
+    line, and the segment wrote nothing more. Its wrapper manifest has
+    no closing line, which a soft stop writes.
+  - The fault counters read 0-0 before and after.
+  - The record's position, replayed on the candidate binary at depth 20
+    three times, ends normally each time.
+  That the stop was the launching session being ended is an inference:
+  its last activity is 26 seconds after the kill. The maintainer has not
+  yet confirmed it.
 
 #### RESULT — append after exposure

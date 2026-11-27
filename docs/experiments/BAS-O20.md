@@ -89,7 +89,7 @@ threads. Report: `tools/results/c36-screen-C/report.json`, log
 
 - **b13 `MAJORITY` and b16 `CONNECTED_ROOKS` fail plainly:** no gain
   above the stop rule from R (Δ 0). Each restored epoch 0 in both stages,
-  so its rows score exactly as R's (played hash `fb1ed67763bb0dac`).
+  so its rows score exactly as R's (played hash fb1ed67763bb0dac).
   These forms occur often, and they read nothing on A either (+1.4e-6 and
   −5.2e-6), so they are not R6's class. Their only retry is §9's.
 - **b18 `TRAPPED_BISHOP`** stays under R6, as on A: it almost never
@@ -129,3 +129,17 @@ nothing.
 and this screen chooses BAS-E67's candidate: b12 alone. Otherwise BAS-O18
 chooses (b00 alone, on the shipped base), and this screen is an
 observation.
+
+#### REVIEW NOTE — 2026-11-27 (research; the packet's Amendment 2)
+
+The readings stand.
+
+- **b14 and b17 are the forms' own gain.** With the form's slots set to
+  0 and the arm's other slots kept, the loss is worse than R's
+  (0.08881850 and 0.08885202 against 0.08880492). The fitted values
+  repeat corpus A's: `ROOK_CLOSED_FILE` −29/−8 here and −30/−3 there,
+  `ISLANDS` −3/+19 and +2/+21 (mg/eg, units).
+- **b12.** Its two readings differ by 7.2e-5 (z 2.7), which 19 forms
+  give about one time in eight.
+- **BAS-E67.** Research's position is to withdraw it before its first
+  game and record b12 as unresolved; the maintainer rules.
