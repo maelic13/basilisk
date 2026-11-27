@@ -159,6 +159,26 @@ resamples.
 | b02 | OCB | −3.26e-4 | [−3.84e-4, −2.68e-4] |
 | U | all nineteen | −4.45e-4 | [−5.58e-4, −3.30e-4] (diagnostic) |
 
+- **OWN_PHASE's lower bound.** The bound's own Monte Carlo error is about
+  2e-6 (2,000 resamples, bootstrap sd about 3.0e-5), so +1.4e-7 is a pass
+  inside that error. It is recorded as a marginal pass. It is not a K
+  artefact: both arms get the same K on every row, since the phase comes
+  from the rows file, and K was fitted at the shipped vector, which if
+  anything favours the null. Its Δ is a lower estimate: its linear stage
+  stopped at its final epoch (974), still descending.
+- **The stop rule.** In 14 of the 23 arms the linear stage ended at its
+  final epoch (C1, C2, U, b00 to b05, b08, b10, b14, b17, b19). Min-delta
+  1e-6 over 50 epochs stopped them while they were still descending at
+  about 2e-8 an epoch. The rule is the same for every arm and understates
+  a candidate's Δ, so it cannot create a pass. At that rate no failing
+  replacing form could close its gap in under 1,000 epochs (b10 1,250;
+  b08 2,000; b04 2,300; b01 5,300).
+- **The near misses.** b19, b17 and b14 are within the fit's path noise
+  of δ: rounding at the polish stage moved arms by up to 1.3e-5 either
+  way. They fail as registered, and §9's retry for them is BAS-O20.
+- **The singles roughly add up.** They sum to about −4.75e-4, against U's
+  −4.45e-4.
+
 - **Calibration against §11.**
   - Gate 1 at the shipped vector, as first registered (four stages),
     missed its 0.9. It passed on A3 only after R8.
