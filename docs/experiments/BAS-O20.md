@@ -34,4 +34,15 @@
   BAS-E67's candidate. Otherwise BAS-O18 does, and this screen is an
   observation.
 
+#### AMENDMENT 1 — 2026-11-27, before corpus C exists
+
+- The packet's R7, after BAS-O18's gate 1 failed at the shipped vector:
+  the null arm runs alone first (label `C`, from R) and gate 1 is read
+  before any other arm is launched. If it passes, the arms run under `C`
+  from R. If it fails, the fallback's null N2 (from N's final vector) is
+  label `C2`. If N2 passes, every other arm runs under `C2` from N's
+  vector and is read against N2. If N2 fails, the forms line on corpus C
+  stops.
+- `OPENBLAS_NUM_THREADS=2` for every arm, as in BAS-O18's run note.
+
 #### RESULT — append after exposure

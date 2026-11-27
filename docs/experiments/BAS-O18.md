@@ -94,5 +94,18 @@ the design on corpus A is otherwise as registered.
   run.
 - Each arm's own rank line is still read: an arm short of its free slots, or
   one that needs a slot fixed, goes to Fable before it is fitted.
+- **Gate 1 at the shipped vector failed.** N went from 0.09274536 to
+  0.09272609, a difference of 1.927e-5 against the 1.0e-5 limit. 22 arms
+  had been launched from the shipped vector. C1, C2, b00 and b01 were
+  stopped in their check or rank steps, before any fit stage, and are kept
+  as `tools/results/c36/aborted/A-*-shippedinit/`. The other 18 never
+  started. The fallback N2 runs as registered. The frozen prediction gave
+  gate 1 a 0.9 chance: this miss is noted for calibration, and the
+  prediction is not rewritten.
+- **R7** (the packet's Amendment 1): if N2 passes, the restarted screen is
+  label `A2` as a whole. Its null arm is N2 (init N's polish vector).
+  C1, C2, the 19 bits, U and P_A run under `A2` from that same init, and
+  `report --label A2` reads gate 1 as |L(N) − L(N2)| and Δ against N2.
+  Label `A` keeps N alone.
 
 #### RESULT — append after exposure
