@@ -145,10 +145,10 @@ def check_corpus(corpus: Path) -> dict:
     return manifest
 
 
-def configure_and_build(run: Run, build: Path, texel: bool, own_forms: int = 0) -> Path:
+def configure_and_build(run: Run, build: Path, texel: bool) -> Path:
     tree = build / ("texel" if texel else "release")
     command = ["cmake", "--preset", "release", "-B", str(tree), "-DCOMP=clang",
-               f"-DTEXEL={'ON' if texel else 'OFF'}", f"-DEVAL_OWN_FORMS={own_forms}"]
+               f"-DTEXEL={'ON' if texel else 'OFF'}"]
     run.step(f"configure-{tree.name}", command)
     target = "basilisk-texel" if texel else "basilisk"
     extra = [] if texel else ["test_eval"]
@@ -301,7 +301,6 @@ def fit(args, run: Run, header: Path, surface: Path, k_mode: str, relevel: bool)
     rec["source_revision"] = git("rev-parse", "HEAD")
     rec["host"] = {"python": platform.python_version(), "platform": platform.platform()}
     rec["k_mode"] = k_mode
-    rec["own_forms"] = args.own_forms
     rec["relevel_material"] = relevel
     corpus = check_corpus(args.corpus)
     rec["corpus"] = {"dir": str(args.corpus), "manifest_sha256": sha256(args.corpus / "manifest.json"),
@@ -311,8 +310,8 @@ def fit(args, run: Run, header: Path, surface: Path, k_mode: str, relevel: bool)
     rec["header_sha256"] = sha256(header)
     run.save()
 
-    texel_tree = configure_and_build(run, args.build_dir, texel=True, own_forms=args.own_forms)
-    release_tree = configure_and_build(run, args.build_dir, texel=False, own_forms=args.own_forms)
+    texel_tree = configure_and_build(run, args.build_dir, texel=True)
+    release_tree = configure_and_build(run, args.build_dir, texel=False)
     tuner = texel_tree / f"basilisk-texel{EXE}"
     engine = release_tree / f"basilisk{EXE}"
     rec["binaries"] = {"tuner_sha256": sha256(tuner), "engine_sha256": sha256(engine)}
@@ -445,8 +444,8 @@ def fit(args, run: Run, header: Path, surface: Path, k_mode: str, relevel: bool)
     baked = run.out / header.name
     shutil.copyfile(header, baked)
     rec["baked_header_sha256"] = sha256(baked)
-    configure_and_build(run, args.build_dir, texel=True, own_forms=args.own_forms)
-    configure_and_build(run, args.build_dir, texel=False, own_forms=args.own_forms)
+    configure_and_build(run, args.build_dir, texel=True)
+    configure_and_build(run, args.build_dir, texel=False)
     if registry_vector(run, tuner, "baked-vector") != read_vector(bake_source):
         raise FitError("the rebuilt tuner does not hold the fitted vector")
     run.step("verify-baked", [str(tuner), "--verify", str(validation), "--max-positions", "0"])
@@ -498,8 +497,6 @@ def main() -> int:
                         help="comma-separated registry groups held fixed at their --init values")
     parser.add_argument("--no-bake", action="store_true",
                         help="stop after the final vector's held-out read and played hash: no bake")
-    parser.add_argument("--own-forms", type=int, default=0,
-                        help="the EVAL_OWN_FORMS bit mask both builds compile (src/eval.h, OwnForm)")
     args = parser.parse_args()
     args.corpus = args.corpus.resolve()
     header = HEADER

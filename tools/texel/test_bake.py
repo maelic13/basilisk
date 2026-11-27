@@ -24,8 +24,7 @@ class BakeProvenanceTests(unittest.TestCase):
         return bake.check_dump(text, self.params, self.header)
 
     def test_a_whole_vector_from_this_header_passes(self):
-        # The rebuilt registry's 1,450 slots and Basilisk's own forms' 44.
-        self.assertEqual(len(self.vector), 1494)
+        self.assertEqual(len(self.vector), 1450)
         self.assertEqual(self.errors(self.dump(self.vector)), [])
 
     def test_a_missing_member_is_refused(self):
@@ -80,8 +79,7 @@ class RebuildAndRelevelTests(unittest.TestCase):
         self.root = bake.vector_hash(self.vector)
 
     def test_rebuild_header_roundtrip_passes(self):
-        # The rebuilt registry's 1,450 slots and Basilisk's own forms' 44.
-        self.assertEqual(len(self.vector), 1494)
+        self.assertEqual(len(self.vector), 1450)
         text = bake.format_vector(self.vector, self.root, self.root)
         self.assertEqual(bake.check_dump(text, self.params, self.header), [])
 

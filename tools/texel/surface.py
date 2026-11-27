@@ -260,84 +260,10 @@ def classify_rebuild(rows: list[Row]) -> list[Row]:
     return rows
 
 
-# Basilisk's own forms (src/eval.h, OwnForm; analysis/c36_own_forms_2026-11-26.md
-# §4): by bit, the form's name, its own slot groups, and the classical slots it
-# replaces as (group, subs or None for all). Bit 15 is reserved.
-OWN_FORMS = {
-    0: ("PHASE", [], []),
-    1: ("TEMPO", ["OwnTempoMg"], [("Tempo", None)]),
-    2: ("OCB", [], []),
-    3: ("SPACE", ["OwnSpaceMg", "OwnSpacePieceMg", "OwnSpaceBlockedMg"], [("SpaceWeight", None)]),
-    4: ("MOBILITY", [], []),
-    5: ("KING_ZONE", ["OwnMinorKingRingMg", "OwnMinorKingRingEg", "OwnRookKingRingMg", "OwnRookKingRingEg"],
-        [("RookOnKingRingMg", None), ("RookOnKingRingEg", None),
-         ("BishopOnKingRingMg", None), ("BishopOnKingRingEg", None)]),
-    6: ("BAD_BISHOP", ["OwnBadBishopMg", "OwnBadBishopEg"], [("BishopPawnsMg", None), ("BishopPawnsEg", None)]),
-    7: ("OUTPOST", ["OwnKnightOutpostMg", "OwnKnightOutpostEg", "OwnReachableOutpostMg", "OwnReachableOutpostEg"],
-        [("OutpostMg", {0}), ("OutpostEg", {0}), ("BadOutpostMg", None), ("BadOutpostEg", None),
-         ("ReachableOutpostMg", None), ("ReachableOutpostEg", None)]),
-    8: ("MINOR_BEHIND_PAWN", ["OwnMinorBehindPawnMg", "OwnMinorBehindPawnEg"],
-        [("MinorBehindPawnMg", None), ("MinorBehindPawnEg", None)]),
-    9: ("ROOK_QUEEN_FILE", ["OwnRookQueenFileMg", "OwnRookQueenFileEg"],
-        [("RookOnQueenFileMg", None), ("RookOnQueenFileEg", None)]),
-    10: ("QUEEN_INFILTRATION", ["OwnQueenInfiltrationMg", "OwnQueenInfiltrationEg"],
-         [("QueenInfiltrationMg", None), ("QueenInfiltrationEg", None)]),
-    11: ("PAWN_THREAT", ["OwnThreatMinorMg", "OwnThreatMinorEg", "OwnThreatRookMg", "OwnThreatRookEg",
-                         "OwnThreatQueenMg", "OwnThreatQueenEg"],
-         [("ThreatBySafePawnMg", None), ("ThreatBySafePawnEg", None)]),
-    12: ("PAWN_CLASS", ["OwnDoubledMg", "OwnDoubledEg", "OwnBackwardMg", "OwnBackwardEg"],
-         [("DoubledMg", None), ("DoubledEg", None), ("BackwardMg", None), ("BackwardEg", None)]),
-    13: ("MAJORITY", ["OwnPawnMajorityMg", "OwnPawnMajorityEg"], []),
-    14: ("ISLANDS", ["OwnPawnIslandsMg", "OwnPawnIslandsEg"], []),
-    16: ("CONNECTED_ROOKS", ["OwnConnectedRooksMg", "OwnConnectedRooksEg"], []),
-    17: ("ROOK_CLOSED_FILE", ["OwnRookClosedMg", "OwnRookClosedEg"], []),
-    18: ("TRAPPED_BISHOP", ["OwnTrappedBishopMg", "OwnTrappedBishopEg"], []),
-    19: ("ROOK_BEHIND_PASSER", ["OwnRookBehindPasserMg", "OwnRookBehindPasserEg",
-                                "OwnEnemyRookPasserMg", "OwnEnemyRookPasserEg"], []),
-}
-
-
-def own_forms(tuner: Path) -> int:
-    """The EVAL_OWN_FORMS mask the tuner was compiled with."""
-    done = subprocess.run([str(tuner), "--own-forms"], capture_output=True, text=True, check=False)
-    if done.returncode != 0:
-        raise SystemExit(f"error: {tuner} --own-forms failed:\n{done.stderr}")
-    return int(done.stdout.strip())
-
-
-def classify_own_forms(rows: list[Row], mask: int) -> None:
-    """Every own-form slot free linear where its bit is compiled in and fixed
-    otherwise; every classical slot a compiled-in form replaces, fixed."""
-    owner = {g: (bit, name) for bit, (name, groups, _) in OWN_FORMS.items() for g in groups}
-    replaced = {}
-    for bit, (name, _, slots) in OWN_FORMS.items():
-        if mask & (1 << bit):
-            for group, subs in slots:
-                replaced[group] = (subs, name)
-    for row in rows:
-        if row.group in owner:
-            bit, name = owner[row.group]
-            if mask & (1 << bit):
-                row.klass, row.stage, row.anchor = "free", "linear", ""
-                row.lo = row.hi = row.step = ""
-                row.reason = f"a traced linear term of Basilisk's own form {name} (bit {bit})"
-            else:
-                row.fixed(f"unread: Basilisk's own form {name} (bit {bit}) is not compiled in")
-        elif row.group in replaced:
-            subs, name = replaced[row.group]
-            if subs is None or row.sub in subs:
-                row.lo = row.hi = row.step = ""
-                row.fixed(f"unread: replaced by Basilisk's own form {name}")
-        elif row.group.startswith("Own"):
-            raise SystemExit(f"error: own-form slot {row.group} has no bit in OWN_FORMS")
-
-
-def classify(rows: list[Row], mask: int = 0) -> list[Row]:
+def classify(rows: list[Row]) -> list[Row]:
     """The rules. Each slot is free linear unless a rule below says otherwise."""
     if is_rebuild(rows):
-        rows = classify_rebuild(rows)
-        classify_own_forms(rows, mask)
-        return rows
+        return classify_rebuild(rows)
     for row in rows:
         g, s = row.group, row.sub
         row.reason = "a traced linear term"
@@ -480,7 +406,7 @@ def summary(rows: list[Row]) -> str:
 
 
 def cmd_build(args) -> int:
-    rows = classify(registry(args.tuner), own_forms(args.tuner))
+    rows = classify(registry(args.tuner))
     args.out = args.out or manifest_for(rows)
     errors = invariants(rows)
     if errors:
@@ -492,7 +418,7 @@ def cmd_build(args) -> int:
 
 
 def cmd_check(args) -> int:
-    expected = classify(registry(args.tuner), own_forms(args.tuner))
+    expected = classify(registry(args.tuner))
     args.manifest = args.manifest or manifest_for(expected)
     actual = read_manifest(args.manifest)
     errors = invariants(actual)
@@ -704,7 +630,7 @@ def cmd_rank(args) -> int:
 
 
 def cmd_check_vector(args) -> int:
-    rows = classify(registry(args.tuner, args.vector), own_forms(args.tuner))  # the tuner refuses a partial vector
+    rows = classify(registry(args.tuner, args.vector))  # the tuner refuses a partial vector
     errors = [f"{row.group}[{row.sub}] = {row.seed}, a dead slot"
               for row in rows if row.klass == "fixed"
               and row.reason.startswith(("dead", "structural zero")) and row.seed != 0]

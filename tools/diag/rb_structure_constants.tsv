@@ -17,7 +17,7 @@ KING_PAWN_DISTANCE_CAP	shelter	src/eval_rb_pawns.h	int min_distance = 6;	6	Maxim
 MOBILITY_AREA_LOW_RANKS	mobility	src/eval_rb_pieces.h	constexpr Bitboard LOW_RANKS = Us == WHITE ? rank_bb(1) | rank_bb(2) : rank_bb(6) | rank_bb(5);	1,2,6,5	Own-pawn ranks excluded from mobility area (relative ranks 2-3)
 OUTPOST_RANKS	outpost	src/eval_rb_pieces.h	constexpr Bitboard OUTPOST_RANKS = Us == WHITE ? rank_bb(3) | rank_bb(4) | rank_bb(5)	3,4,5	White outpost rank mask (relative ranks 4-6)
 OUTPOST_RANKS_BLACK	outpost	src/eval_rb_pieces.h	: rank_bb(4) | rank_bb(3) | rank_bb(2);	4,3,2	Black outpost rank mask (relative ranks 4-6)
-TRAPPED_ROOK_MOB_MAX	pieces	src/eval_rb_pieces.h	} else if (mob_classical <= 3) {	3	Maximum mobility threshold for trapped-rook test
+TRAPPED_ROOK_MOB_MAX	pieces	src/eval_rb_pieces.h	} else if (mob <= 3) {	3	Maximum mobility threshold for trapped-rook test
 KING_DANGER_THRESHOLD	king	src/eval_rb_king.h	inline constexpr int KING_DANGER_THRESHOLD = 100;	100	King danger activation threshold
 KD_FLANK_ATTACK_DIV	king	src/eval_rb_king.h	+ p.kd_flank_attack * flank_attack * flank_attack / 8	8	King danger flank-attack quadratic divisor
 KD_SHELTER_DIV	king	src/eval_rb_king.h	- p.kd_shelter * score.mg / 8	8	King danger shelter divisor
@@ -44,4 +44,4 @@ GENERAL_SF_OCB_OTHER	scale	src/eval_rb.h	return 22 + 3 * popcount(b.occupancy_bb
 GENERAL_SF_ROOKS_SINGULAR	scale	src/eval_rb.h	return 36;	36	Rooks-only same-flank pawn-protected scale of 64
 GENERAL_SF_ONE_QUEEN	scale	src/eval_rb.h	return 37 + 3 * (count(b, minors, BISHOP) + count(b, minors, KNIGHT));	37,3	Single-queen scale base (37) and minor-count weight (3) of 64
 GENERAL_SF_DEFAULT	scale	src/eval_rb.h	return std::min(64, 36 + 7 * count(b, strong, PAWN));	64,36,7	Normal max scale (64), base (36), and strong-pawn weight (7)
-TAPER_SF_DEN	scale	src/eval_rb.h	return (s.mg * ph + s.eg * (OWN_PHASE_DEN - ph) * sf / 64) / OWN_PHASE_DEN;	64	Endgame scale-factor denominator in taper
+TAPER_SF_DEN	scale	src/eval_rb.h	return (s.mg * ph + s.eg * (PHASE_MIDGAME - ph) * sf / 64) / PHASE_MIDGAME;	64	Endgame scale-factor denominator in taper

@@ -314,7 +314,6 @@ static void usage(const char* exe) {
         << "  " << exe << " --loss <dataset.csv> [--K K | --K-phase K_eg,K_mg | --fit-k-phase] [--skip N] [--max-positions N]\n"
         << "  " << exe << " --dump-played <dataset.csv> <out.txt>\n"
         << "  " << exe << " --list-params\n"
-        << "  " << exe << " --own-forms\n"
         << "  " << exe << " --dump-coeffs <dataset.csv> <out.f64> [--max-positions N]\n"
         << "  " << exe << " --count-support <dataset.csv> <out.txt> [--max-positions N]\n"
         << "  " << exe << " --dump-row-lines <dataset.csv> <out.txt> [--max-positions N]\n"
@@ -738,8 +737,6 @@ struct RowModel {
     // The gradient: d played / d (traced middlegame, endgame
     // sum), and d played / d tempo, at the seed.
     double scale_mg = 0.0, scale_eg = 0.0, tempo = 0.0;
-    // d played / d Basilisk's own middlegame tempo, where that form is in.
-    double own_tempo = 0.0;
 };
 
 static const std::vector<long>& seed_weights() {
@@ -778,7 +775,7 @@ static int damp_white(int score, int clock) {
 // weighs each half by its phase and factor, then S / 1024, the layer's scale
 // and the damping's slope; a clamped row has none.
 static int rb_taper(long mg, long eg, int ph, int sf) {
-    return static_cast<int>((mg * ph + eg * (OWN_PHASE_DEN - ph) * sf / 64) / OWN_PHASE_DEN);
+    return static_cast<int>((mg * ph + eg * (128 - ph) * sf / 64) / 128);
 }
 static int rb_cp(long v) { return static_cast<int>(v * EVAL_REBUILD_CONVERSION_S / 1024); }
 
@@ -818,11 +815,7 @@ static bool model_row(const Board& b, int served_stm, RowModel& out, std::string
     const bool pass_eg = eg != 0 ? c >= -std::abs(eg) : c >= 0;
 
     const int ph = g_rest.ph;
-    // Basilisk's own tempo enters the middlegame half after winnable.
-    const long stm_sign = b.turn() == WHITE ? 1 : -1;
-    const long tmg = own_form(OWN_TEMPO)
-        ? amg + stm_sign * w[static_cast<size_t>(eval_param_offset(EPG_OwnTempoMg))] : amg;
-    const int t = rb_cp(rb_taper(tmg, aeg, ph, 64));
+    const int t = rb_cp(rb_taper(amg, aeg, ph, 64));
     if (t != g_rest.t)
         return fail("the taper at 64");
 
@@ -836,7 +829,7 @@ static bool model_row(const Board& b, int served_stm, RowModel& out, std::string
         layer_scale = double(step.num) / double(step.den);
     } else if (step.kind == EG_UNCHANGED) {
         sf = g_rest.general_sf;
-        white = rb_cp(rb_taper(tmg, aeg, ph, sf)) + g_rest.drive;
+        white = rb_cp(rb_taper(amg, aeg, ph, sf)) + g_rest.drive;
     }
     if (white != g_rest.white)
         return fail("the endgame layer");
@@ -846,10 +839,8 @@ static bool model_row(const Board& b, int served_stm, RowModel& out, std::string
     int served = stm_white;
     bool clamped = false;
     if (!fixed) {
-        served = own_form(OWN_TEMPO)
-            ? stm_white
-            : stm_white + static_cast<int>(w[static_cast<size_t>(eval_param_offset(EPG_Tempo))]
-                                           * EVAL_REBUILD_CONVERSION_S / 1024);
+        served = stm_white + static_cast<int>(w[static_cast<size_t>(eval_param_offset(EPG_Tempo))]
+                                              * EVAL_REBUILD_CONVERSION_S / 1024);
         if (std::abs(served) >= KNOWN_WIN) {
             served = served > 0 ? KNOWN_WIN - 1 : -(KNOWN_WIN - 1);
             clamped = true;
@@ -868,14 +859,10 @@ static bool model_row(const Board& b, int served_stm, RowModel& out, std::string
     if (!fixed && !clamped) {
         const double tail = double(EVAL_REBUILD_CONVERSION_S) / 1024.0 * layer_scale
                           * (clock > 0 ? double(damp_rule50_scale_num(clock)) / double(DAMP_RULE50_DEN) : 1.0);
-        const double den = double(OWN_PHASE_DEN);
-        out.scale_mg = pass_mg ? tail * ph / den : 0.0;
-        out.scale_eg = pass_eg ? tail * (den - ph) * sf / (64.0 * den) : 0.0;
-        if (own_form(OWN_TEMPO))
-            out.own_tempo = double(stm_sign) * tail * ph / den;
-        else
-            out.tempo = (b.turn() == WHITE ? 1.0 : -1.0) * double(EVAL_REBUILD_CONVERSION_S) / 1024.0
-                      * (clock > 0 ? double(damp_rule50_scale_num(clock)) / double(DAMP_RULE50_DEN) : 1.0);
+        out.scale_mg = pass_mg ? tail * ph / 128.0 : 0.0;
+        out.scale_eg = pass_eg ? tail * (128 - ph) * sf / (64.0 * 128.0) : 0.0;
+        out.tempo = (b.turn() == WHITE ? 1.0 : -1.0) * double(EVAL_REBUILD_CONVERSION_S) / 1024.0
+                  * (clock > 0 ? double(damp_rule50_scale_num(clock)) / double(DAMP_RULE50_DEN) : 1.0);
     }
     return true;
 }
@@ -883,8 +870,7 @@ static bool model_row(const Board& b, int served_stm, RowModel& out, std::string
 // A row's coefficient of slot idx: d played / d weight at the seed.
 static double row_coeff(const RowModel& model, int idx) {
     return model.trace->mg[idx] * model.scale_mg + model.trace->eg[idx] * model.scale_eg
-         + (idx == eval_param_offset(EPG_Tempo) ? model.tempo : 0.0)
-         + (idx == eval_param_offset(EPG_OwnTempoMg) ? model.own_tempo : 0.0);
+         + (idx == eval_param_offset(EPG_Tempo) ? model.tempo : 0.0);
 }
 
 // Rows by what the model made of them, for the load reports.
@@ -2225,10 +2211,6 @@ int main(int argc, char* argv[]) {
 
     if (mode == "--list-params") {
         cmd_list_params();
-    } else if (mode == "--own-forms") {
-        // The EVAL_OWN_FORMS mask this tuner was compiled with, which the
-        // surface's rules read.
-        std::cout << OWN_FORMS << "\n";
     } else if (mode == "--loss") {
         if (argc < 3) {
             usage(argv[0]);
