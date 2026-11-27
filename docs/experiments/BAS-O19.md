@@ -49,4 +49,16 @@
 - Otherwise R goes to BAS-E66's pre-game checks. One run, never
   extended or re-run on the same corpus and commit.
 
+#### AMENDMENT 1 — 2026-11-27, before corpus C exists
+
+- The packet's R8. BAS-O18's null refit on corpus A walked the
+  king-safety knobs (KdOffset 99 to its cap of 200) for almost no loss, a
+  walk that would happen on either corpus. So R is fitted `--stages
+  linear,polish` from the shipped vector, every king-safety knob stays at
+  its shipped value, and every other setting is as registered. BAS-E66
+  plays that R.
+- Clerical: "no knob ends on a bound", in the rule and in the prediction,
+  no longer applies, since no knob is fitted. The prediction is not
+  rewritten.
+
 #### RESULT — append after exposure

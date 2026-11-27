@@ -44,5 +44,8 @@
   vector and is read against N2. If N2 fails, the forms line on corpus C
   stops.
 - `OPENBLAS_NUM_THREADS=2` for every arm, as in BAS-O18's run note.
+- R8: every arm, the null and the controls included, is fitted `--stages
+  linear,polish`, so no king-safety knob moves from R's value, which is
+  the shipped value.
 
 #### RESULT — append after exposure

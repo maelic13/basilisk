@@ -107,5 +107,14 @@ the design on corpus A is otherwise as registered.
   C1, C2, the 19 bits, U and P_A run under `A2` from that same init, and
   `report --label A2` reads gate 1 as |L(N) − L(N2)| and Δ against N2.
   Label `A` keeps N alone.
+- **R8** (the packet's Amendment 1), which supersedes the restart from N:
+  - N ended with KdOffset on its cap (200; the seed was 99), after a
+    king-safety walk the quiet rows do not identify.
+  - The fit becomes `--stages linear,polish`, every other setting as
+    registered (`51745f6`), so every kingsafety-class slot keeps its init
+    value.
+  - The screen restarts from the shipped vector as label `A3`, its null
+    arm alone first, with gate 1 as registered and R7's fallback.
+  - N (`A`) and N2 (`A2`) are method observations, not arms.
 
 #### RESULT — append after exposure
