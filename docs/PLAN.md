@@ -2448,8 +2448,16 @@ has lost games in both engines (BAS-X02).
             anything else reverts `1f07c8e`.
           - R loses at phases 0 and 1 and gains everywhere else, so
             the bracket is expected to fire.
-          - BAS-E67: research's position is to withdraw it before its
-            first game. The maintainer rules.
+          - BAS-E67 was withdrawn by the maintainer on 2026-11-27, before
+            any game (its entry). No form returns.
+          - BAS-E66 read H1 at 2,581 pairs. Its bracket, its record and
+            the declaration of the fingerprint are what this leaf still
+            owes.
+          - With every form out, the `EVAL_OWN_FORMS` switch, its forms
+            and their 44 slots leave at the close, behaviour-neutral
+            (the maintainer's rule of 2026-11-26 for an arm no step
+            removes). A later read takes a form from the last commit
+            that compiles it, named in the close.
           - Two added forms repeat on both corpora below δ,
             `ROOK_CLOSED_FILE` and `ISLANDS`. The close records them
             with the forms' routing.

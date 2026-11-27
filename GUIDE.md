@@ -12,7 +12,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 |---|---|
 | Released baseline | **1.11.0** on `master`, tagged `v1.11.0` (2026-11-18), `bench 13` 4,777,412 |
 | Bench fingerprint | **3,880,333** (`bench 13`, since C.3.5's flip of `EVAL_REBUILD` to default `ON` (`e60aa45`); `3,359,329` after C.2.8's whole-surface refit `cbc3676`; 4,392,040 after the top-tier repair `cd4e453`; 4,777,412 before it; HISTORY's 1.11.0 record lists the earlier counts) |
-| Active experiment | **BAS-E66**: the refit R against the shipped evaluation, SPRT `[0,3]`, cap 10,000 pairs; paused at 1,649 pairs on 2026-11-27 and resumed on the maintainer's command |
+| Active experiment | **BAS-E66**: the refit R against the shipped evaluation read H1 at 2,581 pairs on 2026-11-27; its endgame bracket and record are pending (C.3.6.5) |
 | Long job | None |
 | Next release | **1.12.0** after C (C.10), then 1.13.0 after E; **2.0.0** is the first NNUE release |
 

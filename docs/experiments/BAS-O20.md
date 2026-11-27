@@ -141,5 +141,5 @@ The readings stand.
   `ISLANDS` −3/+19 and +2/+21 (mg/eg, units).
 - **b12.** Its two readings differ by 7.2e-5 (z 2.7), which 19 forms
   give about one time in eight.
-- **BAS-E67.** Research's position is to withdraw it before its first
-  game and record b12 as unresolved; the maintainer rules.
+- **BAS-E67.** Withdrawn by the maintainer on 2026-11-27, before any
+  game, on research's recommendation. b12 was not read in games.

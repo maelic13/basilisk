@@ -51,3 +51,19 @@
 - The estimate at a stop is a first-crossing estimate.
 
 #### RESULT — append after exposure
+
+Withdrawn 2026-11-27, before any build or game, by the maintainer on
+research's recommendation ("If yes, withdraw the SPRT for forms"; the
+packet's Amendment 2).
+
+- BAS-E66 read H1, so the candidate by this entry's rule would have been
+  b12 `PAWN_CLASS` alone, from BAS-O20.
+- **Why.**
+  - Its pass does not repeat on corpus A: −3.07e-5 there against
+    +4.10e-5 on C, pooled z 0.1.
+  - Two marginal passes in 38 reads come by chance about one time in
+    four.
+  - The cap has 0.36 power at +2 Elo, for up to 40,000 games.
+- No game was played, so there is no estimate and this is not an
+  unresolved stop. b12 was not read in games.
+- No form returns. C.3.6.5's close records each form's routing.

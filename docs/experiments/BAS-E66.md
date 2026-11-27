@@ -106,10 +106,20 @@ directory `tools/results/c36-e66-sprt` and its three wrapper manifests.
     `resumed` event). The games in flight were dropped and played again
     from the same seed.
   - The maintainer paused it at about 08:22 UTC for the review, at 1,649
-    pairs with 0 faults.
+    pairs with 0 faults, and resumed it at 08:43:58 UTC from the
+    checkpoint at 3,306 games. It ran to its verdict at 09:02 UTC.
   The committed sample, the seed, the bounds and the cap are unchanged,
   so a resume from the checkpoint continues the registered test. It is
   not an extension or a restart.
+- **The host was not empty for all of the last segment.** The
+  registration says nothing else runs while games play. The review did
+  not know the run had been resumed. Between about 08:53 and 09:00 UTC
+  it ran about a minute of single-threaded Python (its phase and class
+  tables, the document checks) and a few git commands.
+  - Both engines of a game share one core pair, so a disturbance falls
+    on either arm alike.
+  - The run ended with no time loss and no fault. The arms read 1.95M
+    and 1.96M nodes a second, at 69.7 ms a move each.
 - **The `EngineCrash` record is the kill, not an engine fault.**
   `failed-games/` holds one record: the candidate, round 2789, "engine
   terminated unexpectedly (exit code: 1)", mid-search.
@@ -123,8 +133,7 @@ directory `tools/results/c36-e66-sprt` and its three wrapper manifests.
   - The fault counters read 0-0 before and after.
   - The record's position, replayed on the candidate binary at depth 20
     three times, ends normally each time.
-  That the stop was the launching session being ended is an inference:
-  its last activity is 26 seconds after the kill. The maintainer has not
-  yet confirmed it.
+  The maintainer confirmed it on 2026-11-27: the launching session was
+  asked to stop the run and did, and the maintainer then resumed it.
 
 #### RESULT — append after exposure

@@ -434,7 +434,7 @@ future work needs to re-open either cluster is now counted rather than guessed.
 - [BAS-E64](experiments/BAS-E64.md) — C.3.4: `k-phase` Run 2 fitted rebuilt evaluation against the rebuilt seed, 2,000 paired games at `3+0.03` — COMPLETE 2026-11-26: −9.6 [−19.6, +0.4] (564-817-619), 0 faults; clears −10 threshold, baked for C.3.5 — accepted
 - [BAS-E65](experiments/BAS-E65.md) — C.3.5 gate: baked `k-phase` rebuilt evaluation against the head, SPRT `[0,3]` at `3+0.03` and C.2.7 endgame bracket veto — ACCEPTED 2026-11-26 (maintainer override on veto): H1 at 1,034 games (517 pairs, LLR +2.953), +85.3 [+71.9, +99.0] (434-415-185), 0 faults; veto 441/448/457 vs base 434/445/458 (7 discards vs base, 5 vs c274/head); flipped EVAL_REBUILD=ON (`e60aa45`)
 - [BAS-E66](experiments/BAS-E66.md) — C.5.2's first cycle in C.3.6: the refit on corpus C against the shipped evaluation, SPRT `[0,3]`, cap 10,000 pairs — registered
-- [BAS-E67](experiments/BAS-E67.md) — C.3.6: Basilisk's own forms, the screen's candidate against the base, one cluster SPRT `[0,3]`, cap 20,000 pairs — registered
+- [BAS-E67](experiments/BAS-E67.md) — C.3.6: Basilisk's own forms, the screen's candidate against the base, one cluster SPRT `[0,3]`, cap 20,000 pairs — withdrawn before any game (maintainer, 2026-11-27)
 
 - [BAS-X11](experiments/BAS-X11.md) — current standing, 12,000-game Colosseum round robin — see entry
 
