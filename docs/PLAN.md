@@ -2572,6 +2572,16 @@ has lost games in both engines (BAS-X02).
   leads the residual, C.5.1's investigation is taken before this cluster,
   on the maintainer's decision. The truth repairs routed here (V3, V4,
   V6) are defects and keep their place in the phase either way.
+  Read 2026-11-27 (`analysis/c511_residual_2026-11-27.md` §2.1; C.0's
+  phase read repeated on C.3's games, exploratory):
+  - **The full board still leads.** In one search (BAS-O16) phase 18–24
+    holds 66% of the excess score, 74% with the oracle's drawn bare-king
+    wins rescored, and the endings 31% and 22%. In the frontier pair
+    (BAS-M27) the whole deficit is realised at phase 18–24, and the
+    endings give up 0.000 [−0.006, 0.006] of a point a game.
+  - **Maintainer, 2026-11-27: C.5.1.1 is taken first.** C.4.2 waits for
+    its close. Whether the clusters it opens also run before C.4, and
+    how the steps are then numbered, is decided at that close.
     - [ ] **C.4.2** `[R3]` Occurrence, classification and ranking
       Occurrence, classification and ranking (archived 6.7.a–d).
       - Board and tree occurrence with per-root concentration.
@@ -2794,9 +2804,10 @@ has lost games in both engines (BAS-X02).
       a plan change, signed by the maintainer with the handoff. Nothing
       after C.5.1 is renumbered.
         - [ ] **C.5.1.1** `[R3]` Residual investigation
-          After the family and endgame clusters. It was C.5.1 until
-          2026-11-26. It re-reads the same-search meter on a fresh oracle
-          build, the matched ablation by family, the family screen both
+          After the family clusters, and since 2026-11-27 (maintainer,
+          on C.4's lead text) before the endgame cluster. It was C.5.1
+          until 2026-11-26. It re-reads the same-search meter on a fresh
+          oracle build, the matched ablation by family, the family screen both
           ways and the frontier pair, and reads C.2.2's H-distribution
           result beside them. Its questions:
           - how much of 217.3 is left, and in which family and phase;
@@ -2834,6 +2845,27 @@ has lost games in both engines (BAS-X02).
             re-proposed without a new reason: rook mobility counted
             through pieces, an offset per uneven piece configuration, a
             multiplier for each of 52 piece configurations.
+          **First stage prepared 2026-11-27**
+          (`analysis/c511_residual_2026-11-27.md`; BAS-O21, BAS-M31;
+          `tools/run_c511_reads.py`). The leaf stays open for the
+          maintainer's runs.
+          - The second question is read first, because it prices the
+            others. By PROCESS's conversion the frontier pair's 1.388
+            times the nodes a second is 28 to 69 Elo of a 39.8 deficit,
+            and the oracle's 1.129 is 10 to 25 of BAS-O16's +42.4. A
+            reason to measure, not a result.
+          - Four reads of 3,000 games on a fresh oracle and head build of
+            `b5b8817`: the same-search meter at equal time and on a node
+            clock (`nodestime`), and the frontier pair at equal time and
+            with Stockfish's clock divided by 1.388.
+          - Frozen rules: speed leads when the odds recover two thirds of
+            the frontier deficit, and the recommendation is then C.5.3
+            ahead of any new evaluation cluster. A matched ablation by
+            cluster, on the node clock, is registered only if the
+            equal-node meter's lower bound clears +10.
+          - Owed beside the games' return, without games: the phase read
+            on the new runs, depth and nodes by phase, the family screen
+            both ways on the head, and BAS-O10 restated.
     - [ ] **C.5.2** `[V]` Refit cycles
       It was C.8 until 2026-11-18.
       Refit cycles (archived 8.9): regenerate data with the accepted
@@ -3241,13 +3273,13 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.4.2 | RESEARCH | R3 | Not started |
+| C.4.2 | RESEARCH | R3 | Not started; waits for C.5.1.1's close (maintainer, 2026-11-27) |
 | C.4.3 | RESEARCH | I2 | Not started |
 | C.4.4 | RESEARCH | R3 | Not started |
 | C.4.5 | RESEARCH | I2 | Not started |
 | C.4.6 | RESEARCH | R2 | Not started |
 | C.4.7 | RESEARCH | V | Not started |
-| C.5.1.1 | RESEARCH | R3 | Not started |
+| C.5.1.1 | RESEARCH | R3 | First stage registered and dry-run (BAS-O21, BAS-M31); the four reads are the maintainer's to play |
 | C.5.2 | RESEARCH | V | Not started |
 | C.5.3 | RESEARCH | R3 | Not started |
 | C.5.4 | RESEARCH | I2 | Not started |

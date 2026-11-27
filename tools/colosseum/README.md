@@ -28,6 +28,7 @@ from `maelic13/colosseum` on 2026-11-14 with its history: `v0.5.0` is the old
 | `calibrate-null.toml` | Triggered null pair |
 | `gauntlet.toml` | Rating gauntlet |
 | `gauntlet-ltc.toml` | Rating gauntlet at `10+0.1` |
+| `gauntlet-node-clock.toml` | Rating gauntlet at `8+0.08` for engines on a node clock (`nodestime`) |
 | `spsa-tune.toml` | SPSA block policy: 15 slots × 30 games/iteration |
 
 Example:

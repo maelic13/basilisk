@@ -1,0 +1,8 @@
+# Rating gauntlet at 8+0.08 for engines that play on a node clock
+# (Stockfish's `nodestime`): the clock only sets the node budget, and the
+# games take about as long as at 3+0.03. Otherwise the gauntlet policy.
+extend = "gauntlet.toml"
+
+[options]
+base-ms = 8000
+increment-ms = 80
