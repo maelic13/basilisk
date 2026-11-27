@@ -137,3 +137,62 @@ directory `tools/results/c36-e66-sprt` and its three wrapper manifests.
   asked to stop the run and did, and the maintainer then resumed it.
 
 #### RESULT — append after exposure
+
+Recorded 2026-11-27. Run directory `tools/results/c36-e66-sprt`, last
+wrapper manifest
+`tools/results/colosseum_sprt_c36-e66-sprt_20261127_094357.manifest.txt`
+(exit 0, H1 accepted; PGN SHA-256
+`C91AF237DFC45224B769F3202232AEB3AF4C150CB0DB375F039890A3EEF01783`).
+
+- **SPRT `[0,3]`: H1 at 5,162 games (2,581 pairs), LLR +2.97** against
+  the bound +2.944, inside the cap of 10,000 pairs.
+  - W-D-L 1,500-2,374-1,288; pentanomial [44, 556, 1198, 710, 73]; the
+    wrapper's independent PGN recount agrees.
+  - **+14.3 Elo [+8.8, +19.8]** (95%, pentanomial), nElo +24.7 ± 9.5.
+    This is a **first-crossing estimate**: it was read at the boundary,
+    so it is not the effect size.
+  - 0 engine faults, 0 time losses. Terminations: 2,788 mates, 1,935
+    threefold, 374 insufficient material, 53 fifty-move, 12 stalemate.
+  - Both arms 69.7 ms a move; 1.96M against 1.95M nodes a second; mean
+    non-mate depth 16.57 against 16.56.
+- **The C.2.7 endgame bracket** (`tools/results/c36-e66-veto/`, both
+  arms' `bracket.json` and `veto.json`; run 2026-11-27 on an idle host
+  by `tools/run_c36_reads.py --leg veto`). Converted of 480 won Cohort
+  positions at 21,000 / 64,000 / 190,000 nodes:
+  - candidate **443 / 448 / 457**, base **441 / 448 / 457**;
+  - by family where the arms differ (base → candidate, the three
+    budgets): KR-KP 23/24/24 → 24/24/24; KQ-KR 22/23/24 → 24/23/24;
+    KNN-KP 4/5/7 → 4/4/7; KRP-KR 22/22/23 → 20/23/24; KRP-KB 23/24/23 →
+    23/23/24; KBP-KB 22/23/23 → 23/23/24; KBP-KN 22/22/24 → 23/22/23;
+    KP-KP 22/23/24 → 23/23/23; KQ-KRP 23/23/24 → 22/23/23; KBPP-KB
+    22/21/22 → 21/22/22. Every other family is equal.
+  - **No hard failure:** `new_rule50_failure`, `engine_anomaly` and
+    `malformed_record` are empty, and no rule-50 failure is provisional.
+  - **The two-of-three rule fires once** (the tool's verdict BLOCK, exit
+    2): a new clean-win discard at KR-KN/EG0350, at 21,000 and 64,000.
+  - Fifteen discards at one budget only (provisional): KBP-KN/EG0613
+    (190k), KBP-KN/EG0623 (64k), KBPP-KB/EG0753 (21k), KNN-KP/EG0452
+    (21k), KNN-KP/EG0457 (190k), KNN-KP/EG0469 (190k), KP-KP/EG0663
+    (190k), KQ-KR/EG0417 (64k), KQ-KRP/EG0705 (190k), KR-KN/EG0336
+    (21k), KR-KN/EG0347 (64k), KR-KN/EG0349 (190k), KRP-KR/EG0493 (21k),
+    KRP-KR/EG0496 (21k), KRP-KR/EG0505 (21k).
+- **Decision, by the registered rule:** H1 with no hard failure, so R
+  is kept, and corpus C becomes the base. The veto does not hold it (the
+  maintainer's ruling for this run). KR-KN/EG0350 goes to C.4 as a vetoed
+  position, and the fifteen single-budget discards go with it as
+  observations. R stays baked as `1f07c8e` baked it: `bench 13`
+  3,525,148.
+
+**Calibration against the frozen prediction.**
+- The prior, +4 Elo with an 80% band of −4 to +12: the estimate,
+  +14.3, lies above the band. It is a first-crossing estimate, and an
+  early stop selects a large one, so this is weak evidence that the
+  prior was low; it was not tested. The static read did not foresee
+  it either: R moved the validation loss by 0.13%.
+- H1 inside the cap, 0.5: happened, at 26% of the cap.
+- The bracket's two-of-three rule fires against the base, 0.7: it fired,
+  once. Research's review expected it to fire on the pawn-only and
+  one-minor classes, where R's loss is worse. The pawn-only family
+  converted as often (KP-KP 69 → 69, summed over the three budgets),
+  and the one veto is in KR-KN.
+- A hard failure, 0.05: none.

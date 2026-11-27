@@ -28,8 +28,15 @@ and next step).
   each). The new evaluation searches about 4% fewer positions per second,
   which the results above already include. A few won endgames, two
   knights against a pawn and some with bishops and pawns, are converted
-  slightly less often; later endgame work addresses them. The `bench`
-  fingerprint is now **3,880,333**.
+  slightly less often; later endgame work addresses them.
+- The evaluation's weights were fitted a second time, on positions from
+  games the new evaluation played against itself. Against the first fit
+  this measured **+14.3 Elo** at `3+0.03` (5,162 games, a sequential test
+  stopped when it was sure, so the figure is the estimate at the stop
+  rather than a precise size). On a fixed set of 480 won endgames it
+  converts as many as before or more (443, 448 and 457 at three search
+  sizes, against 441, 448 and 457). The `bench` fingerprint is now
+  **3,525,148**.
 - Mating a lone king with a queen or a rook now follows a fixed technique:
   drive the defending king to the edge and bring the attacking king closer.
   Before, the score in these endings came from the general evaluation, so

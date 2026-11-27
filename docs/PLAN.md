@@ -2059,7 +2059,7 @@ has lost games in both engines (BAS-X02).
         screen's leading family reads −2.1 ± 12.5 in games.
       - Scored: 5 of 12 reads inside their 80% bands; all four ranked
         predictions missed.
-- [ ] **C.3** Evaluation rebuilt whole in the donor's form
+- [x] **C.3** Evaluation rebuilt whole in the donor's form
   Decided 2026-11-25 (maintainer, after C.2.10): the evaluation is
   rebuilt as one unit in classical Stockfish's form, as Phase B rebuilt
   the search, and not family by family. The king-safety, material and
@@ -2340,7 +2340,7 @@ has lost games in both engines (BAS-X02).
         shipped evaluation at `ab0c141` against the head at `99e6353`:
         **−3.88% [−4.65%, −3.10%]**, inside the predicted band (BAS-M25's
         seed read was −4.47%).
-    - [ ] **C.3.6** Basilisk's own forms read back in
+    - [x] **C.3.6** Basilisk's own forms read back in
       Added 2026-11-25 (maintainer). After the gate, each Basilisk
       form the port displaced is read against the donor's on the
       accepted port, behind its switch: one registered read each,
@@ -2457,7 +2457,7 @@ has lost games in both engines (BAS-X02).
           - **Calibration:** one pass on each corpus against three of
             nineteen predicted, inside the 80% band; the largest Δ came
             from a replacing form, a miss of the 0.6.
-        - [ ] **C.3.6.5** `[V]` The refit's read, the cluster read and close
+        - [x] **C.3.6.5** `[V]` The refit's read, the cluster read and close
           Amended 2026-11-26 (maintainer: "One cluster SPRT is ok"): the
           refit's SPRT (BAS-E66, cap 10,000 pairs), then one SPRT for the
           forms (BAS-E67, cap 20,000 pairs) on the base it fixes: arm P,
@@ -2487,6 +2487,50 @@ has lost games in both engines (BAS-X02).
           - Two added forms repeat on both corpora below δ,
             `ROOK_CLOSED_FILE` and `ISLANDS`. The close records them
             with the forms' routing.
+          **Closed 2026-11-27** (BAS-E66, BAS-E67; the packet's
+          Amendments 1 and 2):
+          - **The refit is kept.** BAS-E66: H1 at 5,162 games (2,581
+            pairs), LLR +2.97, **+14.3 Elo [+8.8, +19.8]**, a
+            first-crossing estimate, 0 faults. The bracket at 21k, 64k
+            and 190k nodes: candidate 443 / 448 / 457 of 480, base
+            441 / 448 / 457. No hard failure. The two-of-three rule fires
+            once, a clean-win discard at KR-KN/EG0350, which goes to C.4
+            with the fifteen single-budget discards the entry lists.
+            Under the run's ruling the veto does not hold R. The bench
+            fingerprint is now 3,525,148 (`1f07c8e`), and corpus C is the
+            base.
+          - **No form returns.** BAS-E67 was withdrawn before any game,
+            so no form was read in games. Every form is out:
+            - *Worse than the shipped form on both corpora:* `OCB`,
+              `TEMPO`, `OUTPOST`, `BAD_BISHOP` and `MINOR_BEHIND_PAWN`.
+              The donor's form carries more.
+            - *Failed both screens without a clear sign:* `SPACE`,
+              `MOBILITY`, `KING_ZONE` (with the king-safety knobs frozen
+              by R8, the form it touches most), `ROOK_QUEEN_FILE`,
+              `QUEEN_INFILTRATION`, `MAJORITY`, `CONNECTED_ROOKS` and
+              `ROOK_BEHIND_PASSER` (+1.90e-5 on A, partly the stop rule's
+              doing, and +2.05e-6 on C). Retry: a fit by games (C.6) that
+              takes in the slot, the packet's §9.
+            - *A marginal pass that did not repeat:* `PHASE` passed on A
+              and read −1.03e-5 on C, the base's screen; `PAWN_CLASS`
+              passed on C and read −3.07e-5 on A (pooled z 0.1), and its
+              SPRT was withdrawn, so it was not read in games. Two such
+              passes in 38 reads come by chance about one time in four.
+            - *Small and positive on both corpora, below δ each time:*
+              `ROOK_CLOSED_FILE` (−30/−3 on A, −29/−8 on C, mg/eg units)
+              and `ISLANDS` (+2/+21 and −3/+19); their gain is the
+              form's own, not the stop rule's. If a forms read is wanted
+              later, these two together are the better-supported
+              candidate, under their own registration.
+            - *Not readable by this screen* (R6): `PAWN_THREAT` (active
+              on 3.6% of rows) and `TRAPPED_BISHOP` (0.06%). Their
+              retry is a read at the search's leaves, which C.5.1.1
+              plans for threats.
+            - `ROOK_SEVENTH` was withdrawn before any read (R5): it is
+              contained in the 64-square rook table. Its conditioned
+              form is C.5.1.1's Candidate C.
+            - Every form that waits goes to Phase H, whose triage reads
+              against the network head, so in practice this closes them.
 - [ ] **C.4** Endgame handling and winnability
   It was C.7 until 2026-11-25.
   The goal is measured conversion and correct draw recognition where games
@@ -2784,6 +2828,9 @@ has lost games in both engines (BAS-X02).
       (maintainer): corpus C, BAS-O19 and BAS-E66. This leaf starts
       from its result: it begins with the second cycle if BAS-E66 kept
       the refit, and it stops at once if BAS-E66 read H0.
+      BAS-E66 kept the refit on 2026-11-27: H1, +14.3 Elo [+8.8, +19.8]
+      (a first-crossing estimate). So this leaf begins with the second
+      cycle, from R (`bench 13` 3,525,148) on corpus C.
       Rarog audit inputs (2026-10-24, `analysis/rarog_audit_2026-10-24.md`;
       IDs are its items):
       - Refit cycles diminish (+11.0, then +6.7 in Rarog), so size from
@@ -3178,7 +3225,6 @@ leaf's tag. Later phases carry only a class until they open.
 
 | Leaf | Workflow state | Class | Current decision |
 |---|---|---|---|
-| C.3.6.5 | RESEARCH | V | Registered as BAS-E66, BAS-E67 |
 | C.4.2 | RESEARCH | R3 | Not started |
 | C.4.3 | RESEARCH | I2 | Not started |
 | C.4.4 | RESEARCH | R3 | Not started |
