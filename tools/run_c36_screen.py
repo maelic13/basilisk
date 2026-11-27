@@ -60,7 +60,8 @@ BITS = [b for b in range(20) if b != 15]
 ADDED = {13, 14, 16, 17, 18, 19}
 CONTROLS = {"C1": ["HangingMg", "HangingEg"], "C2": ["RookOnFileMg", "RookOnFileEg"]}
 # C.3.4's fit, as tools/run_c34_fits.py ran it, less the bake.
-FIT_ARGS = ["--stages", "kingsafety,linear,kingsafety,polish", "--lr", "0.5", "--epochs", "20000",
+# R8: no king-safety stage; every kingsafety-class slot keeps its --init value.
+FIT_ARGS = ["--stages", "linear,polish", "--lr", "0.5", "--epochs", "20000",
             "--patience", "50", "--min-delta", "1e-6", "--l2", "0", "--smooth", "0",
             "--max-positions", "0", "--ks-positions", "100000", "--rank-positions", "300000",
             "--min-support", "200", "--k-mode", "phase", "--no-bake", "--no-relevel-material"]
