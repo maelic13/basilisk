@@ -537,57 +537,7 @@ void test_cache_purity() {
 // lazy exit (material, the tables, the imbalance, the pawn structure) and
 // the tempo, which every path serves; 1 between the exits (pieces, mobility,
 // king safety, passers); 2 after the second (threats and space).
-// Basilisk's own forms' slot groups by bit (src/eval.h, OwnForm), with the
-// lazy stage their family sits in: the pawn entry's before the first exit,
-// the pieces' and the passers' between the exits, the threats' and space's
-// after the second; the tempo enters after winnable(), past both. A group
-// whose bit is not compiled in is unread, so the census leaves it out.
-// The classical groups a bit replaces are listed with it (replaced = true):
-// with the bit compiled in they are unread, which the census checks rather
-// than assumes. The Outpost group is not among them: its bishop entry is
-// still read under OUTPOST.
-struct OwnGroup { const char* prefix; unsigned bit; int stage; bool replaced = false; };
-constexpr OwnGroup OWN_GROUPS[] = {
-    {"Tempo", OWN_TEMPO, 0, true},
-    {"SpaceWeight", OWN_SPACE, 2, true},
-    {"RookOnKingRing", OWN_KING_ZONE, 1, true}, {"BishopOnKingRing", OWN_KING_ZONE, 1, true},
-    {"BishopPawns", OWN_BAD_BISHOP, 1, true},
-    {"BadOutpost", OWN_OUTPOST, 1, true}, {"ReachableOutpost", OWN_OUTPOST, 1, true},
-    {"MinorBehindPawn", OWN_MINOR_BEHIND_PAWN, 1, true},
-    {"RookOnQueenFile", OWN_ROOK_QUEEN_FILE, 1, true},
-    {"QueenInfiltration", OWN_QUEEN_INFILTRATION, 1, true},
-    {"ThreatBySafePawn", OWN_PAWN_THREAT, 2, true},
-    {"Doubled", OWN_PAWN_CLASS, 0, true}, {"Backward", OWN_PAWN_CLASS, 0, true},
-    {"OwnTempo", OWN_TEMPO, 0},
-    {"OwnSpace", OWN_SPACE, 2},
-    {"OwnMinorKingRing", OWN_KING_ZONE, 1}, {"OwnRookKingRing", OWN_KING_ZONE, 1},
-    {"OwnBadBishop", OWN_BAD_BISHOP, 1},
-    {"OwnKnightOutpost", OWN_OUTPOST, 1}, {"OwnReachableOutpost", OWN_OUTPOST, 1},
-    {"OwnMinorBehindPawn", OWN_MINOR_BEHIND_PAWN, 1},
-    {"OwnRookQueenFile", OWN_ROOK_QUEEN_FILE, 1},
-    {"OwnQueenInfiltration", OWN_QUEEN_INFILTRATION, 1},
-    {"OwnThreat", OWN_PAWN_THREAT, 2},
-    {"OwnDoubled", OWN_PAWN_CLASS, 0}, {"OwnBackward", OWN_PAWN_CLASS, 0},
-    {"OwnPawnMajority", OWN_MAJORITY, 0}, {"OwnPawnIslands", OWN_ISLANDS, 0},
-    {"OwnConnectedRooks", OWN_CONNECTED_ROOKS, 1}, {"OwnRookClosed", OWN_ROOK_CLOSED_FILE, 1},
-    {"OwnTrappedBishop", OWN_TRAPPED_BISHOP, 1},
-    {"OwnRookBehindPasser", OWN_ROOK_BEHIND_PASSER, 1}, {"OwnEnemyRookPasser", OWN_ROOK_BEHIND_PASSER, 1},
-};
-
-// The entry naming group g: an own form's group, or a classical group a bit
-// replaces (matched as "<prefix>", "<prefix>Mg" or "<prefix>Eg").
-const OwnGroup* own_group(const std::string& g) {
-    for (const OwnGroup& o : OWN_GROUPS) {
-        const std::string p = o.prefix;
-        if (o.replaced ? (g == p || g == p + "Mg" || g == p + "Eg") : g.rfind(p, 0) == 0)
-            return &o;
-    }
-    return nullptr;
-}
-
 int stage_of(const std::string& g) {
-    if (const OwnGroup* o = own_group(g); o && !o->replaced)
-        return o->stage;
     static const char* const before_first[] = {
         "MgVal", "EgVal", "PstMgPawn", "PstMgKnight", "PstMgBishop", "PstMgRook", "PstMgQueen",
         "PstMgKing", "PstEgPawn", "PstEgKnight", "PstEgBishop", "PstEgRook", "PstEgQueen", "PstEgKing",
@@ -632,53 +582,22 @@ void test_lazy_exits(const std::vector<Row>& rows) {
 #define X(name, member, len) groups.push_back({#name, eval_param_span(g_eval_params.member, (len))});
     EVAL_PARAM_LIST(X)
 #undef X
-    // An own form's group whose bit is not compiled in is unread and left
-    // out. A classical group a compiled-in bit replaces is unread too: it is
-    // left out of the census, and perturbing it must move no score.
-    std::vector<Group> replaced;
-    std::erase_if(groups, [&](const Group& g) {
-        const OwnGroup* o = own_group(g.name);
-        if (o && o->replaced && own_form(o->bit))
-            replaced.push_back(g);
-        return o && (o->replaced ? own_form(o->bit) : !own_form(o->bit));
-    });
 
-    // How many scores served at each exit move when every value of g moves.
-    auto perturb = [&](const Group& g, int (&changed)[3]) {
+    std::string leaked, missing;
+    int served[3] = {}, moved[3] = {};
+    for (const Group& g : groups) {
         const std::vector<int> saved(g.values.begin(), g.values.end());
         for (size_t i = 0; i < g.values.size(); ++i)
             g.values[i] += 40 + 3 * static_cast<int>(i);
         init_eval_tables();
         ev->clear_pawn_table();
-        changed[0] = changed[1] = changed[2] = 0;
+        int changed[3] = {};
         for (int e = 1; e <= 2; ++e)
             for (size_t i = 0; i < at_exit[e].size(); ++i)
                 changed[e] += ev->evaluate_undamped(at_exit[e][i]) != base[e][i];
         std::copy(saved.begin(), saved.end(), g.values.begin());
         init_eval_tables();
         ev->clear_pawn_table();
-    };
-
-    if (!replaced.empty()) {
-        begin_section("lazy exits: a group an own form replaces moves no score");
-        std::string read;
-        for (const Group& g : replaced) {
-            int changed[3];
-            perturb(g, changed);
-            if (changed[1] || changed[2])
-                read += " " + g.name + "(" + std::to_string(changed[1]) + "," + std::to_string(changed[2]) + ")";
-        }
-        if (!read.empty())
-            std::printf("    replaced groups that moved a score:%s\n", read.c_str());
-        EXPECT(read.empty());
-        end_section();
-    }
-
-    std::string leaked, missing;
-    int served[3] = {}, moved[3] = {};
-    for (const Group& g : groups) {
-        int changed[3];
-        perturb(g, changed);
 
         const int stage = stage_of(g.name);
         for (int e = 1; e <= 2; ++e) {

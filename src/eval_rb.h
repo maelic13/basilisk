@@ -81,16 +81,23 @@ inline int general_scale_factor(const Board& b, const PawnEntry& e, Color strong
     return std::min(64, 36 + 7 * count(b, strong, PAWN));
 }
 
+// Basilisk's own phase by piece count, 0 to 24, which the mate drive reads.
+inline int piece_count_phase(const Board& b) {
+    int phase = 0;
+    for (int pt = PAWN; pt <= KING; pt++)
+        phase += popcount(pieces(b, PieceType(pt))) * PHASE_W[pt];
+    return std::min(phase, TOTAL_PHASE);
+}
+
 inline void record_pair(int (&out)[2], Score s) {
     out[0] = s.mg;
     out[1] = s.eg;
 }
 
 // The taper with an endgame scale factor of 64ths, in the reference's
-// integer arithmetic. The phase runs to OWN_PHASE_DEN: 128 for the
-// non-pawn-material phase, 24 for Basilisk's piece-count phase.
+// integer arithmetic.
 inline int taper(Score s, int ph, int sf) {
-    return (s.mg * ph + s.eg * (OWN_PHASE_DEN - ph) * sf / 64) / OWN_PHASE_DEN;
+    return (s.mg * ph + s.eg * (PHASE_MIDGAME - ph) * sf / 64) / PHASE_MIDGAME;
 }
 
 // The evaluator's counters an evaluation adds to; counted in the Tune and
@@ -148,7 +155,7 @@ int Evaluation<Rec, Exits>::value(bool& verdict) {
     const Score psq = material(b);
     const int imb = imbalance(b, imbalance_table_, imbalance_generation_, tables_generation_);
     Score score = psq + Score{imb, imb};
-    const int ph = own_form(OWN_PHASE) ? piece_count_phase(b) : game_phase(b);
+    const int ph = game_phase(b);
 
     // ---- Pawns -----------------------------------------------------------------
     PawnEntry& pe = pawn_probe(b, pawn_table_, counters_.pawn_probes, counters_.pawn_hits);
@@ -262,20 +269,12 @@ int Evaluation<Rec, Exits>::value(bool& verdict) {
     // drive's addition, tapered by the piece-count phase. Where it overrides
     // or scales, its result stands; where it is silent, the general factor
     // scales the endgame half.
-    // Basilisk's own tempo enters the middlegame half here, after winnable(),
-    // so it fades with the phase and the layer sees it; the mate drive reads
-    // the taper without it.
-    Score adjusted = w.adjusted;
-    const int t_drive = to_centipawns(taper(adjusted, ph, 64));
-    if constexpr (own_form(OWN_TEMPO)) {
-        adjusted.mg += (b.turn() == WHITE ? 1 : -1) * p.own_tempo_mg;
-    }
-    const int t = own_form(OWN_TEMPO) ? to_centipawns(taper(adjusted, ph, 64)) : t_drive;
+    const int t = to_centipawns(taper(w.adjusted, ph, 64));
     const int phase24 = piece_count_phase(b);
-    const int drive = mate_drive_eg(b, t_drive, phase24) * (TOTAL_PHASE - phase24) / TOTAL_PHASE;
+    const int drive = mate_drive_eg(b, t, phase24) * (TOTAL_PHASE - phase24) / TOTAL_PHASE;
     int kind;
-    const int layered = endgame_layer<own_form(OWN_OCB), false>(b, t + drive, verdict, kind);
-    const int v = taper(adjusted, ph, general_sf);
+    const int layered = endgame_layer<false, false>(b, t + drive, verdict, kind);
+    const int v = taper(w.adjusted, ph, general_sf);
     const int white = kind != LAYER_SILENT ? layered : to_centipawns(v) + drive;
 
     if constexpr (Rec) {
@@ -298,7 +297,7 @@ int Evaluation<Rec, Exits>::value(bool& verdict) {
     const int stm = b.turn() == WHITE ? white : -white;
     int served = stm;
     if (kind != LAYER_OVERRIDE && !verdict) {
-        served = own_form(OWN_TEMPO) ? stm : stm + p.tempo * CONVERSION_S / 1024;
+        served = stm + p.tempo * CONVERSION_S / 1024;
         if (std::abs(served) >= KNOWN_WIN) {
             DIAG_COUNT(++counters_.clamps);
             served = served > 0 ? KNOWN_WIN - 1 : -(KNOWN_WIN - 1);

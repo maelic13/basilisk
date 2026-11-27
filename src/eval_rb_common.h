@@ -132,12 +132,4 @@ inline int non_pawn_material(const Board& b) {
     return non_pawn_material(b, WHITE) + non_pawn_material(b, BLACK);
 }
 
-// Basilisk's own phase by piece count, 0 to 24, which the mate drive reads.
-inline int piece_count_phase(const Board& b) {
-    int phase = 0;
-    for (int pt = PAWN; pt <= KING; pt++)
-        phase += popcount(pieces(b, PieceType(pt))) * PHASE_W[pt];
-    return std::min(phase, TOTAL_PHASE);
-}
-
 } // namespace rb
