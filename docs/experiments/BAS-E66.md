@@ -57,4 +57,40 @@
 - The estimate at a stop is a first-crossing estimate. Never extended or
   re-run on the same pair.
 
+#### PRE-GAME RECORD — 2026-11-27, before the first game
+
+- **Candidate** `Basilisk refit C`: `tools/test_engines/basilisk-c36-e66-cand-pext-pgo.exe`.
+  - Built at `1f07c8e`, with R baked and re-levelled.
+  - SHA-256 `F7953286EB4C12A2029FD81BB939087626035995FDC039439BAACD2F9E493F28`.
+  - **`bench 13` = 3,525,148.**
+- **Base** `Basilisk shipped`: `tools/test_engines/basilisk-c36-e66-base-pext-pgo.exe`.
+  - Built at `22ec9c5`, with the shipped vector.
+  - SHA-256 `3017C49A44B5CB7722387187422069BBD76BCDACCD5029A3E60B076C6C63C05B`.
+  - `bench 13` = 3,880,333.
+- Both arms are clean final-PGO PEXT builds, with Clang 23.1.5 for both.
+  The two commits differ only in `src/eval_rb_params.h` and the fixture
+  golden file.
+- **Pre-game checks**, all passed:
+  - No fitted knob on a bound. No king-safety slot was fitted (R8), and
+    KdBlockers is at 0, its shipped value.
+  - The played hash `fb1ed67763bb0dac` is identical through the
+    re-level and the bake, and `--verify` is exact at the bake.
+  - CTest is 59/59. The one value-bound file,
+    `tests/data/endgame_verdicts_golden_rebuild.txt`, was regenerated:
+    KRvKR wrong went from 297 to 294, and one KRvKB position moved from
+    the scale-4 site to the estimate.
+  - `test_endgames --conversion` is 24/24 in all four families.
+  - The C-98 lazy audit (`eval_hash --lazy-audit`, a Diag build) leaves
+    every served score unchanged:
+
+    | | fires | sign flips | margin crossings | max \|Δ\| |
+    |---|---|---|---|---|
+    | C's validation | 36,257 | 3 | 702 (1.94%) | 1,889 |
+    | A's validation | 37,853 | 4 | 800 (2.11%) | 2,332 |
+
+    At C.3.4, the shipped vector on A's validation crossed the margin
+    at 2.03%.
+  - Marginal piece values are within ±3% of the base in every phase
+    band (BAS-O19).
+
 #### RESULT — append after exposure
