@@ -87,12 +87,13 @@ threads. Report: `tools/results/c36-screen-C/report.json`, log
 | b19 | +2.05e-6 | [−1.62e-5, +2.10e-5] | +1.90e-5 |
 | U | −5.83e-4 | [−7.02e-4, −4.53e-4] | −4.45e-4 |
 
-- **Not readable from R:** b13, b16 and b18. Each restored epoch 0 in
-  both stages, so its rows score exactly as R's do (played hash
-  `fb1ed67763bb0dac`, Δ 0). From R's optimum no epoch improved the holdout
-  by min-delta within patience. On A3, from the shipped vector, all
-  three moved. They join R6's two as not readable by this screen. None
-  passes.
+- **b13 `MAJORITY` and b16 `CONNECTED_ROOKS` fail plainly:** no gain
+  above the stop rule from R (Δ 0). Each restored epoch 0 in both stages,
+  so its rows score exactly as R's (played hash `fb1ed67763bb0dac`).
+  These forms occur often, and they read nothing on A either (+1.4e-6 and
+  −5.2e-6), so they are not R6's class. Their only retry is §9's.
+- **b18 `TRAPPED_BISHOP`** stays under R6, as on A: it almost never
+  occurs on quiet rows. It also restored epoch 0, and does not pass.
 - **Every arm** carries HEAD `704b957`, and every one finished. No
   arm's surface moved a king-safety slot.
 
@@ -104,10 +105,25 @@ threads. Report: `tools/results/c36-screen-C/report.json`, log
 - Δ on C is smaller than on A for the replacing forms on average, 0.6:
   yes, a mean of −5.05e-5 against −4.02e-5 over bits 0 to 12.
 
-The two screens agree on the clear losers (OCB, TEMPO, OUTPOST, U) but
-not on their single passes. b00 and b12 each pass on one corpus and not
-on the other, and b12 sits well below zero on A. Each pass clears δ
-by a small margin.
+Research's reading (2026-11-27): "The two passes are not distinguishable
+from chance. Thirty-eight form reads at a one-sided 2.5% tail give up to
+about one false pass by chance alone; the screens returned two, each
+marginal, and neither replicates: pooled over both corpora b12 reads
++1.6e-6 (z 0.1) and b00 +2.3e-5 (z 1.1). The expectation for BAS-E67 is H0
+or the cap. It is read because the rule registers it and because the
+screen is a weak predictor of games (BAS-O14), not because the static
+evidence supports the form."
+
+The pooled figures are inverse-variance means of the two screens' Δ, each
+sd taken as its interval's width over 3.92. They describe; they decide
+nothing.
+
+- On both corpora, five replacing forms are worse than the shipped forms:
+  OCB (pooled z −17.9), TEMPO (−5.9), OUTPOST (−3.6), BAD_BISHOP (−3.0) and
+  MINOR_BEHIND_PAWN (−2.9).
+- Two added forms read small and positive on both corpora, below δ each
+  time: b17 ROOK_CLOSED_FILE (pooled z 2.1) and b14 ISLANDS (pooled z 2.1).
+  Neither passes as registered.
 
 **What this screen decides.** If BAS-E66 keeps R, corpus C is the base
 and this screen chooses BAS-E67's candidate: b12 alone. Otherwise BAS-O18
