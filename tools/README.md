@@ -82,7 +82,7 @@ kept so the run can be reproduced from its ledger entry.
 | `nps_read.ps1` | The pooled NPS read: two or more pools and named contrasts between them, interleaved cycles of a pinned `bench 13 3`, every run archived, step 1 and `-Extend` | PROCESS *Build, bench and NPS*; BAS-P18, BAS-P19, BAS-P21 |
 | `diag/nps_read.py` | The read's decision from its archive: per-build medians, a Welch t-interval per contrast, the two steps and the disturbance rule | `nps_read.ps1` |
 | `nps_ab.ps1` | The earlier bootstrap NPS A/B, kept only to compare with rows before A.9.4 | BAS-P12 to BAS-P17 |
-| `profile.ps1` | A user-mode sampling profile of a Profile-flavor engine over `bench 13` or an EPD cohort | PROCESS *Build, bench and NPS*; B.8.5, C.9 |
+| `profile.ps1` | A user-mode sampling profile of a Profile-flavor engine over `bench 13` or an EPD cohort | PROCESS *Build, bench and NPS*; B.8.5, C.5.3 |
 | `diag/profile_regions.py`, `.json` | The profile's samples charged by inline chain to the innermost engine file's region, and refused when that attribution cannot be trusted | `profile.ps1` |
 | `diag/verify_isa.py` | Each asset's CPU-tier contract from its disassembly: portable, AVX2, PEXT, and ARM64 with its required `prfm` | CI, Release |
 | `diag/release_check.py` | The release checks: version sources, CHANGELOG section, GUIDE's released row and fingerprint, the release line | PROCESS *Release*; `release.yml` |
@@ -136,6 +136,7 @@ tools serve C.2's corpus work.
 | `diag/endgame_compare.py` | Position-paired confidence analysis of two truth reports: McNemar for conversion, INDETERMINATE under 6 discordant positions, a subset of families comparable by digest | C.4; C.2.7.2 |
 | `diag/endgame_ceilings.py`, `diag/endgame_ceilings_v1.json`, `_v2.json` | Finite-node family ceilings derived from paired truth reports | C.4; BAS-E08, BAS-E50 |
 | `diag/family_screen.py` | The evaluation family screen both ways: each donor family (`sf9587`, `sf16` classical) added to Basilisk's served score, and each Basilisk family (traced tuner terms by slot group) added to the donor's, by phase band, with game-bootstrap intervals; override and specialised rows apart. Refuses a misaligned join or a donor table that does not sum | C.2.9 |
+| `diag/form_screen.py` | The own-forms screen's measure: two fitted arms' per-row squared error at one frozen K(phase), paired, with a bootstrap over games; refuses arms that use different rows or a loss that differs from the tuner's; `selftest` | C.3.6 |
 | `diag/test_family_screen.py` | Known-bad tests for the screen's joins and parse, a planted family found both ways, and with `BASILISK_TEXEL` the tuner's `--dump-row-lines` against `--dump-coeffs` | C.2.9 |
 | `diag/endgame_vetoes.py` | Absolute theory and engine-anomaly vetoes for truth candidates; the baseline is always named | C.4; C.2.7.2 |
 | `diag/endgame_label_census.py`, `diag/endgame_label_census_v1.json` | Self-play labels checked against Syzygy on every corpus row of six men or fewer | C.2 |

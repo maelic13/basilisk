@@ -137,9 +137,10 @@ line names where it lives.
   must record the policy and never mix with natural-termination evidence.
 - Strength is measured at **3+0.03**, paired UHO openings, normalized Elo,
   **tablebases off** — the harness and the games are blind the same way.
-- **Bench signature** of the accepted head: `bench 13` = **3,880,333**
-  nodes (since C.3.5's flip of `EVAL_REBUILD` to default `ON`, `e60aa45`;
-  3,359,329 after C.2.8's whole-surface refit, `cbc3676`; 4,392,040 after
+- **Bench signature** of the accepted head: `bench 13` = **3,525,148**
+  nodes (since C.3.6's refit on corpus C, `1f07c8e`, kept by BAS-E66;
+  3,880,333 after C.3.5's flip of `EVAL_REBUILD` to default `ON`,
+  `e60aa45`; 3,359,329 after C.2.8's whole-surface refit, `cbc3676`; 4,392,040 after
   the top-tier repair `cd4e453`, and 4,777,412 from B.9.5's gate to then).
   HISTORY's Phase B record lists every earlier count.
   GUIDE's *Now* table declares it; `check_roadmap.py` holds this

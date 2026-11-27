@@ -11,7 +11,7 @@ in `docs/PROCESS.md`; where the engine stands is PLAN §1.
 | Item | Value |
 |---|---|
 | Released baseline | **1.11.0** on `master`, tagged `v1.11.0` (2026-11-18), `bench 13` 4,777,412 |
-| Bench fingerprint | **3,880,333** (`bench 13`, since C.3.5's flip of `EVAL_REBUILD` to default `ON` (`e60aa45`); `3,359,329` after C.2.8's whole-surface refit `cbc3676`; 4,392,040 after the top-tier repair `cd4e453`; 4,777,412 before it; HISTORY's 1.11.0 record lists the earlier counts) |
+| Bench fingerprint | **3,525,148** (`bench 13`, since C.3.6's refit R on corpus C, baked in `1f07c8e` and kept by BAS-E66; 3,880,333 after C.3.5's flip of `EVAL_REBUILD` to default `ON` (`e60aa45`); `3,359,329` after C.2.8's whole-surface refit `cbc3676`; 4,392,040 after the top-tier repair `cd4e453`; 4,777,412 before it; HISTORY's 1.11.0 record lists the earlier counts) |
 | Active experiment | None |
 | Long job | None |
 | Next release | **1.12.0** after C (C.10), then 1.13.0 after E; **2.0.0** is the first NNUE release |
@@ -36,7 +36,7 @@ not measured rankings.
 
 <!-- BEGIN GENERATED FROM docs/PLAN.md by `python tools/diag/check_roadmap.py --write-guide`; edit PLAN, not this block -->
 
-**Next step:** **C.3.6** `[R2]` Basilisk's own forms read back in — Claude Opus
+**Next step:** **C.4.2** `[R3]` Occurrence, classification and ranking — Claude Fable
 
 ### Phase A — Reset: documents, harness, instruments, baselines (EXTENDED)
 
@@ -84,13 +84,18 @@ the six-stage gating shape), are in
         - [x] **C.2.8.4** `[V]` The registered gates
     - [x] **C.2.9** `[I1]` Family screen and matched-ablation tools
     - [x] **C.2.10** `[R3]` Family order from games and screens
-- [ ] **C.3** Evaluation rebuilt whole in the donor's form
+- [x] **C.3** Evaluation rebuilt whole in the donor's form
     - [x] **C.3.1** `[R3]` Rebuild research and handoff
     - [x] **C.3.2** `[I2]` The port behind the switch, at parity
     - [x] **C.3.3** `[R2]` Independent review
     - [x] **C.3.4** `[I2]` Seed-value read and fit
     - [x] **C.3.5** `[V]` Gate, frontier pair and close
-    - [ ] **C.3.6** `[R2]` Basilisk's own forms read back in
+    - [x] **C.3.6** Basilisk's own forms read back in
+        - [x] **C.3.6.1** `[R2]` Inventory, screen design and registration
+        - [x] **C.3.6.2** `[I2]` The forms behind one switch, and the screen's tools
+        - [x] **C.3.6.3** `[R2]` Independent review
+        - [x] **C.3.6.4** `[V]` The screens and the first refit
+        - [x] **C.3.6.5** `[V]` The refit's read, the cluster read and close
 - [ ] **C.4** Endgame handling and winnability
     - [ ] **C.4.2** `[R3]` Occurrence, classification and ranking
     - [ ] **C.4.3** `[I2]` Generic winnability and scaling
@@ -98,18 +103,23 @@ the six-stage gating shape), are in
     - [ ] **C.4.5** `[I2]` Group B families by measured kind
     - [ ] **C.4.6** `[R2]` Lower-yield remainder
     - [ ] **C.4.7** `[V]` Endgame gate and closure
-- [ ] **C.5** Residual and refit cycles
-    - [ ] **C.5.1** `[R3]` Residual investigation
+- [ ] **C.5** Residual, refit cycles and the speed pass
+    - [ ] **C.5.1** Residual investigation and its clusters
+        - [ ] **C.5.1.1** `[R3]` Residual investigation
     - [ ] **C.5.2** `[V]` Refit cycles
+    - [ ] **C.5.3** `[R3]` Speed research: the gap to the donors, split
+    - [ ] **C.5.4** `[I2]` Speed pass: the implementation
+    - [ ] **C.5.5** `[V]` Speed pass: pooled read, gate and close
 - [ ] **C.6** `[V]` Nonlinear HCE SPSA or a written skip
 - [ ] **C.7** Joint re-fit on the new evaluation
     - [ ] **C.7.1** `[R2]` Joint-fit investigation and registration
     - [ ] **C.7.2** `[V]` The joint fit, PGO and gate
 - [ ] **C.8** `[V]` Freeze the classical evaluation
-- [ ] **C.9** `[I2]` Evaluation throughput, bit-exact
 - [ ] **C.10** Interim release after the evaluation programme
     - [ ] **C.10.1** `[I1]` Reported score and WDL in Stockfish's form
-    - [ ] **C.10.2** `[M]` The 1.12.0 cut
+    - [ ] **C.10.3** `[R2]` Remote inventory and the ruling
+    - [ ] **C.10.4** `[M]` The remote clean-up
+    - [ ] **C.10.5** `[M]` The 1.12.0 cut
 
 ### Phase D — Clock, threads, tablebases
 
