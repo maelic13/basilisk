@@ -62,3 +62,54 @@
   rewritten.
 
 #### RESULT — append after exposure
+
+2026-11-27. Corpus C, then R, at HEAD `704b957`.
+
+**Corpus C.** Ten slices of 100,000 games, every one ending by the rules
+with 0 faults. The engine is the shipped PGO PEXT build (`B8D7A8EE…`),
+and each slice's book is byte-identical to corpus A's, at A's seed. The
+extractor is unchanged since `2193afb`, and its audit has A's kind:
+
+| | A | C |
+|---|---|---|
+| rejected games | 0 | 0 |
+| no candidate position | 4,023 | 3,608 |
+| candidates | 6,016,141 | 6,078,148 |
+| quiet rejected | 1,673,189 | 1,714,661 |
+| duplicates | 20,976 | 20,988 |
+| validation games with rows, W / D / L | 18,676 / 15,220 / 15,108 | 18,735 / 15,837 / 14,488 |
+| tablebase mislabel rate, slice 00, 20,000 games | 2.54% | 1.96% |
+
+- **The splits.** The split is a function of the start position alone,
+  and the books are identical. No start lies in different splits of the
+  two corpora: the overlap is 0 for all six cross-split pairs. So C's
+  validation start assignment equals A's.
+  - The row-level start sets differ only by sampling: 49,004 in A,
+    49,060 in C, 48,299 in both
+    (`tools/results/c36/corpusC_startsets.json`).
+- **`--verify`** is exact on all 197,304 rows of C's validation, at the
+  seed and at the bake.
+
+**R** (`tools/results/c36-refit-R/run.json`). Stages `linear,polish` (the
+amendment), OPENBLAS 2 threads, in 3.5 minutes. The table's losses are
+on C's validation.
+
+| | value | prediction |
+|---|---|---|
+| C's K pair at the shipped vector | K_eg 3.188600, K_mg 1.115073 | within 10% of C.3.4's pair (3.026687, 0.970080) in both halves, 0.7: missed in mg (+5.3%, +14.9%) |
+| loss at C's K, shipped / R | 0.08892371 / 0.08880492 | |
+| R's change | −1.19e-4, −0.134% | −0.5%, 80% band −0.1% to −1.5%: inside, near its small end |
+| loss at C.3.4's K, shipped / R | 0.08902715 / 0.08888252 | |
+| marginal piece values, every cell (`piece_values.py`, base against R) | within ±3% | within ±15%, 0.85: met |
+
+- **The bake.**
+  - Played hash `fb1ed67763bb0dac` is identical at the final, the
+    re-levelled and the baked vector.
+  - The re-levelling shifts are MgPawn +9, EgPawn +6, and every other
+    shift within ±5.
+  - `bench 13` 3,525,148 (from 3,880,333); `test_eval` 47/47.
+- **The king-safety knobs.** None moved. KdBlockers sits on its lower
+  bound at 0, its shipped value.
+
+The registered rule is met: no piece value is outside the band, and no
+fitted knob is on a bound. R goes to BAS-E66's pre-game checks.

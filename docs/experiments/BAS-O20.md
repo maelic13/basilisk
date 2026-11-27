@@ -49,3 +49,67 @@
   the shipped value.
 
 #### RESULT — append after exposure
+
+2026-11-27, HEAD `704b957`, from R (`tools/results/c36-refit-R/05-releveled.txt`)
+at C's frozen K (3.188600, 1.115073), stages `linear,polish`, OPENBLAS 2
+threads. Report: `tools/results/c36-screen-C/report.json`, log
+`tools/results/c36/reportC.log`. The loss scale is L_C(R)/0.09274536 =
+0.08880492/0.09274536 = 0.957513, so δ_C = 1.915e-5.
+
+- **Gate 1** (the null alone, first): N from R changes 0 of 1,244 active
+  slots, so |L(N) − L(R)| = 0, within the limit of 9.58e-6. The arms ran
+  under `C` from R.
+- **Gate 2:** C1 costs 7.01e-5 and C2 costs 8.70e-5, both above δ_C.
+  Pass.
+- **Candidates:** one passes, **b12 `PAWN_CLASS`**, with Δ +4.10e-5 and
+  interval [+3.37e-6, +8.05e-5]. One pass, so no P_C.
+
+| arm | Δ on C | interval | Δ on A3 |
+|---|---|---|---|
+| b00 PHASE | −1.03e-5 | [−6.77e-5, +4.82e-5] | +5.78e-5 PASS |
+| b01 TEMPO | −7.01e-5 | [−1.06e-4, −3.21e-5] | −8.65e-5 |
+| b02 OCB | −4.20e-4 | [−4.77e-4, −3.62e-4] | −3.26e-4 |
+| b03 SPACE | −1.43e-5 | [−3.61e-5, +9.13e-6] | +8.28e-6 |
+| b04 MOBILITY | −3.26e-5 | [−8.59e-5, +1.95e-5] | −2.62e-5 |
+| b05 KING_ZONE | −2.18e-5 | [−4.92e-5, +5.12e-6] | −1.04e-5 |
+| b06 BAD_BISHOP | −2.91e-5 | [−6.38e-5, +6.09e-6] | −3.51e-5 |
+| b07 OUTPOST | −6.55e-5 | [−1.06e-4, −2.55e-5] | −3.65e-5 |
+| b08 MINOR_BEHIND_PAWN | −2.62e-5 | [−4.95e-5, −1.44e-6] | −2.05e-5 |
+| b09 ROOK_QUEEN_FILE | +6.89e-6 | [−3.95e-6, +1.80e-5] | −1.10e-5 |
+| b10 QUEEN_INFILTRATION | −1.27e-5 | [−2.97e-5, +5.08e-6] | −4.85e-6 |
+| b11 PAWN_THREAT | −1.47e-6 | [−1.19e-5, +8.66e-6] | −1.09e-6 |
+| b12 PAWN_CLASS | +4.10e-5 | [+3.37e-6, +8.05e-5] PASS | −3.07e-5 |
+| b13 | 0 | — | +1.36e-6 |
+| b14 | +1.27e-5 | [−6.12e-6, +3.14e-5] | +1.55e-5 |
+| b16 | 0 | — | −5.22e-6 |
+| b17 | +1.79e-5 | [−7.10e-6, +4.30e-5] | +1.68e-5 |
+| b18 | 0 | — | −1.06e-7 |
+| b19 | +2.05e-6 | [−1.62e-5, +2.10e-5] | +1.90e-5 |
+| U | −5.83e-4 | [−7.02e-4, −4.53e-4] | −4.45e-4 |
+
+- **Not readable from R:** b13, b16 and b18. Each restored epoch 0 in
+  both stages, so its rows score exactly as R's do (played hash
+  `fb1ed67763bb0dac`, Δ 0). From R's optimum no epoch improved the holdout
+  by min-delta within patience. On A3, from the shipped vector, all
+  three moved. They join R6's two as not readable by this screen. None
+  passes.
+- **Every arm** carries HEAD `704b957`, and every one finished. No
+  arm's surface moved a king-safety slot.
+
+**Calibration.**
+- Method gates pass, 0.85: yes.
+- Candidates passing, 3 (80% band 0 to 7): 1, inside the band.
+- At least half of the forms that pass on A also pass on C, 0.5: no.
+  b00 passes on A and reads −1.03e-5 here.
+- Δ on C is smaller than on A for the replacing forms on average, 0.6:
+  yes, a mean of −5.05e-5 against −4.02e-5 over bits 0 to 12.
+
+The two screens agree on the clear losers (OCB, TEMPO, OUTPOST, U) but
+not on their single passes. b00 and b12 each pass on one corpus and not
+on the other, and b12 sits well below zero on A. Each pass clears δ
+by a small margin.
+
+**What this screen decides.** If BAS-E66 keeps R, corpus C is the base
+and this screen chooses BAS-E67's candidate: b12 alone. Otherwise BAS-O18
+chooses (b00 alone, on the shipped base), and this screen is an
+observation.
